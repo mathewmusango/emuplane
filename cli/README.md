@@ -7,8 +7,8 @@ checking a change without a browser.
 ```sh
 cd cli
 cargo build --release
-export MINISTACK_CONSOLE=https://ministack.mus.com
-export MINISTACK_ADMIN_TOKEN=…        # or --token-file
+export MC_CONSOLE=https://ministack.mus.com
+export MC_ADMIN_TOKEN=…        # or --token-file
 
 ./target/release/ministackctl whoami
 ./target/release/ministackctl accounts
@@ -21,7 +21,7 @@ export MINISTACK_ADMIN_TOKEN=…        # or --token-file
 The lab CA is not in the public root store, so point at it once:
 
 ```sh
-export MINISTACK_CA_FILE=/srv/myinfra/containers/step-ca/root_ca.crt
+export MC_CA_FILE=/srv/myinfra/containers/step-ca/root_ca.crt
 ```
 
 ## Security notes

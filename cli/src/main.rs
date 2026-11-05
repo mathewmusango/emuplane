@@ -22,15 +22,11 @@ use serde_json::{json, Value};
 )]
 struct Cli {
     /// Console base URL.
-    #[arg(
-        long,
-        env = "MINISTACK_CONSOLE",
-        default_value = "https://ministack.mus.com"
-    )]
+    #[arg(long, env = "MC_CONSOLE", default_value = "https://ministack.mus.com")]
     console: String,
 
     /// Admin bearer token. Prefer --token-file or the environment.
-    #[arg(long, env = "MINISTACK_ADMIN_TOKEN", hide_env_values = true)]
+    #[arg(long, env = "MC_ADMIN_TOKEN", hide_env_values = true)]
     token: Option<String>,
 
     /// File holding the admin bearer token (mode 0600 expected).
@@ -38,7 +34,7 @@ struct Cli {
     token_file: Option<PathBuf>,
 
     /// Extra PEM root certificate (the lab CA), on top of the system store.
-    #[arg(long, env = "MINISTACK_CA_FILE")]
+    #[arg(long, env = "MC_CA_FILE")]
     ca_file: Option<PathBuf>,
 
     /// Print raw JSON instead of a table.
@@ -174,7 +170,7 @@ fn resolve_token(cli: &Cli) -> Result<String> {
         }
         return Ok(token);
     }
-    bail!("no admin token: set MINISTACK_ADMIN_TOKEN or pass --token-file")
+    bail!("no admin token: set MC_ADMIN_TOKEN or pass --token-file")
 }
 
 fn s(value: &Value, key: &str) -> String {

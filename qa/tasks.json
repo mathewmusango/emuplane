@@ -234,6 +234,55 @@
       ]
     },
     {
+      "id": "region-scoped-resources",
+      "title": "Resources carry their region and owner, with an all-regions view",
+      "status": "done",
+      "reopened": false,
+      "evidence": [
+        {
+          "file": "control/app.py",
+          "marker": "def browse_all"
+        },
+        {
+          "file": "control/app.py",
+          "marker": "row[\"region\"] = claim.get(\"region\") or region"
+        },
+        {
+          "file": "control/app.py",
+          "marker": "class Owners"
+        },
+        {
+          "file": "web/src/pages/Resources.jsx",
+          "marker": "View from all regions"
+        },
+        {
+          "file": "web/test/smoke.test.jsx",
+          "marker": "across every region"
+        }
+      ]
+    },
+    {
+      "id": "admin-mail-delivery",
+      "title": "The seeded admin has an address, so password reset can mail it",
+      "status": "done",
+      "reopened": false,
+      "evidence": [
+        {
+          "file": "control/app.py",
+          "marker": "ADMIN_EMAIL = os.environ.get(\"MC_ADMIN_EMAIL\""
+        },
+        {
+          "file": "control/app.py",
+          "marker": "def set_email"
+        },
+        {
+          "file": "control/app.py",
+          "marker": "--test-mail"
+        }
+      ],
+      "note": "2026-11-05: the seeded .env admin was created with an empty email, so /forgot matched nothing and no mail was ever sent. MC_ADMIN_EMAIL is now passed at seed time and backfilled; MC_SMTP_FROM falls back to MC_SMTP_USER."
+    },
+    {
       "id": "access-keys",
       "title": "Settings lists named access keys, masked, two per account",
       "status": "done",
@@ -261,6 +310,30 @@
         }
       ],
       "note": "2026-11-05: keys moved from one flat pair per principal to a named list (max 2, AWS's own IAM limit); the flat fields mirror the first key so the classic pages and the provision response keep working."
+    },
+    {
+      "id": "mc-config-prefix",
+      "title": "Control settings use MC_ and nothing shared with the emulator remains",
+      "status": "done",
+      "reopened": false,
+      "evidence": [
+        {
+          "file": "control/app.py",
+          "marker": "os.environ.get(\"MC_ADMIN_TOKEN\""
+        },
+        {
+          "file": "control/app.py",
+          "marker": "OIDC_SCOPES = \"openid profile email\""
+        },
+        {
+          "file": ".env.example",
+          "marker": "MC_OIDC_REALM=my-labs"
+        },
+        {
+          "file": "compose.yml",
+          "marker": "/srv/myinfra/containers/ministack-control/data"
+        }
+      ]
     },
     {
       "id": "qa-gate",

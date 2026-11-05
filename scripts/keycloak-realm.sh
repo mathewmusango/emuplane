@@ -95,4 +95,4 @@ print("wrote OIDC_CLIENT_SECRET to .env")
 PY
 
 printf 'realm %s / client %s ready\n' "$realm" "$client_id"
-printf 'next: set MINISTACK_AUTH_MODE=oidc (or both) in .env and recreate the control container\n'
+printf 'next: set MC_AUTH_MODE=oidc (or both) in .env and recreate the control container\n'
