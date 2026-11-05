@@ -88,8 +88,17 @@ const RESPONSES = {
   '/api/browse': {
     account: '111111111111',
     region: 'us-east-1',
+    regions: ['us-east-1', 'us-west-2'],
     service: 's3',
-    resources: [{ name: 'logs-bucket', kind: 'bucket', detail: {} }],
+    resources: [
+      {
+        name: 'logs-bucket',
+        kind: 'bucket',
+        region: 'us-east-1',
+        owner: { account: '111111111111', user: 'mathewmusango' },
+        detail: {},
+      },
+    ],
   },
   '/api/s3/objects': {
     bucket: 'logs-bucket',
@@ -158,6 +167,18 @@ describe('console', () => {
     const create = screen.getByRole('button', { name: 'Create access key' })
     expect(create.disabled).toBe(true)
     expect(screen.getByText('(2/2)')).toBeTruthy()
+  })
+
+  it('lists resources across every region when the toggle is on', async () => {
+    renderAt(<Resources />)
+    await screen.findByText('S3 resources')
+    expect(screen.queryByText('Region')).toBeNull()
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: /View from all regions/i }),
+    )
+    expect(await screen.findByText('Region')).toBeTruthy()
+    expect(screen.getByText(/created by mathewmusango/)).toBeTruthy()
+    expect(screen.getByText('us-east-1, us-west-2', { exact: false })).toBeTruthy()
   })
 
   it('shows the stored account name next to the alias', async () => {

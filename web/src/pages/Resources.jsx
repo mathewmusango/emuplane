@@ -67,6 +67,8 @@ export default function Resources() {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState(null)
   const [activeTab, setActiveTab] = useState('')
+  const [allRegions, setAllRegions] = useState(false)
+  const [regions, setRegions] = useState([])
   const [bucket, setBucket] = useState('')
   const [objects, setObjects] = useState([])
   const [objectsLoading, setObjectsLoading] = useState(false)
@@ -94,8 +96,9 @@ export default function Resources() {
     if (!account) return
     setLoading(true)
     try {
-      const payload = await api.browse(account, region, service)
+      const payload = await api.browse(account, allRegions ? 'all' : region, service)
       setRows(payload.resources || [])
+      setRegions(payload.regions || [])
       setError('')
     } catch (err) {
       setError(err.message)
@@ -103,7 +106,7 @@ export default function Resources() {
     } finally {
       setLoading(false)
     }
-  }, [account, region, service])
+  }, [account, allRegions, region, service])
 
   useEffect(() => {
     load()
@@ -283,7 +286,7 @@ export default function Resources() {
       items={visibleRows}
       loading={loading}
       loadingText="Reading resources"
-      trackBy="name"
+      trackBy={(item) => `${item.region || ''}/${item.kind}/${item.name}`}
       columnDefinitions={[
         {
           id: 'kind',
@@ -298,13 +301,28 @@ export default function Resources() {
           cell: (item) => <span className="mono">{item.name}</span>,
           sortingField: 'name',
         },
+        ...(allRegions
+          ? [
+              {
+                id: 'region',
+                header: 'Region',
+                cell: (item) => <span className="mono">{item.region || '—'}</span>,
+                sortingField: 'region',
+                width: 150,
+              },
+            ]
+          : []),
         {
           id: 'detail',
           header: 'Detail',
           cell: (item) =>
-            Object.entries(item.detail || {})
-              .filter(([, value]) => value)
-              .map(([key, value]) => `${key}=${value}`)
+            [
+              ...Object.entries(item.detail || {})
+                .filter(([, value]) => value)
+                .map(([key, value]) => `${key}=${value}`),
+              item.owner?.user ? `created by ${item.owner.user}` : '',
+            ]
+              .filter(Boolean)
               .join(' · '),
         },
         {
@@ -385,7 +403,7 @@ export default function Resources() {
         <Box textAlign="center">
           <SpaceBetween size="s">
             <Box color="text-body-secondary">
-              Nothing in this account and region yet.
+              Nothing in this account{allRegions ? '' : ' and region'} yet.
             </Box>
             <Button iconName="refresh" onClick={load}>
               Refresh
@@ -454,8 +472,24 @@ export default function Resources() {
                 placeholder="Choose a service"
                 ariaLabel="Service"
               />
+              <Toggle
+                checked={allRegions}
+                onChange={({ detail }) => setAllRegions(detail.checked)}
+                description="List this service across every region this account has enabled. Actions and bucket contents still use the region selected in the header."
+              >
+                View from all regions
+              </Toggle>
               <Box color="text-body-secondary" fontSize="body-s">
-                Account <code>{account}</code> · region <code>{region}</code>
+                Account <code>{account}</code> ·{' '}
+                {allRegions ? (
+                  <>
+                    regions <code>{regions.join(', ') || '—'}</code>
+                  </>
+                ) : (
+                  <>
+                    region <code>{region}</code>
+                  </>
+                )}
                 {meta?.accounts_scope === 'global' &&
                   ' · the account spans every region'}
               </Box>
@@ -471,8 +505,10 @@ export default function Resources() {
           {service === 's3' && (
             <Alert type="info" header="S3 bucket names are global">
               MiniStack does not isolate S3 per region, so a bucket created in one
-              region is visible from every region of the same account. Every other
-              service is region-isolated.
+              region is visible from every region of the same account. The region
+              shown against a bucket is the one recorded when its name was claimed,
+              not the region being queried. Every other service is
+              region-isolated.
             </Alert>
           )}
 

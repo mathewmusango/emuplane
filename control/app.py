@@ -68,7 +68,7 @@ USERS_DB = os.environ.get(
 )
 CONTROL_PORT = int(os.environ.get("CONTROL_PORT", "8080"))
 GATEWAY_PORT = int(os.environ.get("CONTROL_GATEWAY_PORT", "4566"))
-ADMIN_TOKEN = os.environ.get("MINISTACK_ADMIN_TOKEN", "").strip()
+ADMIN_TOKEN = os.environ.get("MC_ADMIN_TOKEN", "").strip()
 MODE_RAW = os.environ.get("MINISTACK_CONTROL_MODE", "central").strip().lower()
 # Accept a versioned prefix, e.g. v1:central, v1beta1:quorum, v1alpha1:mesh.
 MODE = MODE_RAW.split(":")[-1]
@@ -96,9 +96,7 @@ STARTED_AT = time.time()
 GATEWAY_URL = os.environ.get("MINISTACK_GATEWAY_URL", "https://aws.mus.com")
 CONSOLE_URL = os.environ.get("MINISTACK_CONSOLE_URL", "https://ministack.mus.com")
 # The optional resource browser (StackPort) running beside the control plane.
-RESOURCES_URL = os.environ.get(
-    "MINISTACK_RESOURCES_URL", "https://stackport.mus.com"
-).strip()
+# (Retired 2026-11-05; the classic nav links to /resources directly now.)
 # Regions offered in the console. MiniStack serves all of them; the list only
 # decides what the picker shows, and anything seen at the gateway is added.
 REGION_CHOICES = [
@@ -113,8 +111,9 @@ REGION_CHOICES = [
     "me-south-1", "me-central-1", "af-south-1", "il-central-1",
 ]
 
-# Which regions this instance exposes: `all` (default) or a comma list.
-REGION_SETTING = os.environ.get("MINISTACK_REGIONS", "all").strip()
+# Which regions this instance exposes. Unset means `all`: every region exists,
+# and the one a request uses comes from its SigV4 scope.
+REGION_SETTING = os.environ.get("MC_REGIONS", "all").strip()
 if REGION_SETTING.lower() in {"all", "*", ""}:
     ENABLED_REGIONS = list(REGION_CHOICES)
 else:
@@ -125,8 +124,10 @@ else:
     ] or [DEFAULT_REGION]
 
 # Optional bootstrap administrator. Only seeded into an empty user store.
-ADMIN_USER = os.environ.get("MINISTACK_ADMIN_USER", "").strip()
-ADMIN_PASSWORD = os.environ.get("MINISTACK_ADMIN_PASSWORD", "").strip()
+# The email matters: `/forgot` can only mail a user that has one.
+ADMIN_USER = os.environ.get("MC_ADMIN_USER", "").strip()
+ADMIN_EMAIL = os.environ.get("MC_ADMIN_EMAIL", "").strip()
+ADMIN_PASSWORD = os.environ.get("MC_ADMIN_PASSWORD", "").strip()
 
 # The React console. Built by `npm run build` in `web/` and mounted here; the
 # server-rendered pages stay available under /classic.
@@ -147,7 +148,7 @@ MIME = {
     ".woff2": "font/woff2",
     ".txt": "text/plain; charset=utf-8",
 }
-SESSION_SECONDS = int(os.environ.get("MINISTACK_SESSION_SECONDS", "28800"))
+SESSION_SECONDS = int(os.environ.get("MC_SESSION_SECONDS", "28800"))
 # AWS allows two access keys per IAM user; the console holds the same line per
 # account so a rotation can overlap (create the new key, then delete the old).
 MAX_ACCESS_KEYS = 2
@@ -158,66 +159,69 @@ SETTINGS_FILE = os.environ.get(
 AUDIT_FILE = os.environ.get(
     "CONTROL_AUDIT_FILE", "/var/lib/ministack/control/audit.jsonl"
 )
+# Who created a resource from the console. Best-effort provenance: the emulator
+# itself records no owner, so anything created with the CLI has none.
+OWNERS_FILE = os.environ.get(
+    "CONTROL_OWNERS_FILE", "/var/lib/ministack/control/ownership.json"
+)
 OTEL_ENDPOINT = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").rstrip("/")
 OTEL_SERVICE = os.environ.get("OTEL_SERVICE_NAME", "ministack-control")
 
-AUTH_MODE = os.environ.get("MINISTACK_AUTH_MODE", "local").strip().lower()
+AUTH_MODE = os.environ.get("MC_AUTH_MODE", "local").strip().lower()
 if AUTH_MODE not in {"local", "oidc", "both"}:
     AUTH_MODE = "local"
-AUDIT_ENABLED = os.environ.get("MINISTACK_AUDIT", "false").strip().lower() in {
+AUDIT_ENABLED = os.environ.get("MC_AUDIT", "false").strip().lower() in {
     "1",
     "true",
     "yes",
     "on",
 }
-RECENT_LIMIT = int(os.environ.get("MINISTACK_RECENT_LIMIT", "5") or 5)
-OIDC_ENABLED = os.environ.get("MINISTACK_OIDC_ENABLED", "true").strip().lower() in {
+RECENT_LIMIT = int(os.environ.get("MC_RECENT_LIMIT", "5") or 5)
+# The canonical public address. Reset links and the OIDC redirect derive from it.
+PUBLIC_URL = os.environ.get("MC_PUBLIC_URL", "https://ministack.mus.com").strip().rstrip("/")
+OIDC_ENABLED = os.environ.get("MC_OIDC_ENABLED", "true").strip().lower() in {
     "1",
     "true",
     "yes",
 }
 OIDC_PUBLIC_URL = os.environ.get(
-    "OIDC_PUBLIC_URL", "https://keycloak.mus.com"
+    "MC_OIDC_PUBLIC_URL", "https://keycloak.mus.com"
 ).rstrip("/")
 OIDC_INTERNAL_URL = os.environ.get(
-    "OIDC_INTERNAL_URL", "http://security-keycloak:8080"
+    "MC_OIDC_INTERNAL_URL", "http://security-keycloak:8080"
 ).rstrip("/")
-OIDC_REALM = os.environ.get("OIDC_REALM", "my-labs")
+OIDC_REALM = os.environ.get("MC_OIDC_REALM", "my-labs")
 # keycloak  = {public}/realms/{realm}/protocol/openid-connect/...
 # provider  = OpenBao-style identity/oidc provider discovery document
-OIDC_STYLE = os.environ.get("OIDC_STYLE", "keycloak").strip().lower()
+OIDC_STYLE = os.environ.get("MC_OIDC_STYLE", "keycloak").strip().lower()
 if OIDC_STYLE not in {"keycloak", "openbao", "provider"}:
     OIDC_STYLE = "keycloak"
-OIDC_PROVIDER = os.environ.get("OIDC_PROVIDER", "default").strip() or "default"
-OIDC_SCOPES = os.environ.get("OIDC_SCOPES", "openid profile email").strip()
-OIDC_DISCOVERY_URL = os.environ.get("OIDC_DISCOVERY_URL", "").strip()
-OIDC_AUTHORIZE_URL = os.environ.get("OIDC_AUTHORIZE_URL", "").strip()
-OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "ministack-control")
-OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "").strip()
+OIDC_PROVIDER = os.environ.get("MC_OIDC_PROVIDER", "default").strip() or "default"
+OIDC_SCOPES = "openid profile email"
+OIDC_DISCOVERY_URL = os.environ.get("MC_OIDC_DISCOVERY_URL", "").strip()
+OIDC_AUTHORIZE_URL = os.environ.get("MC_OIDC_AUTHORIZE_URL", "").strip()
+OIDC_CLIENT_ID = os.environ.get("MC_OIDC_CLIENT_ID", "ministack-control")
+OIDC_CLIENT_SECRET = os.environ.get("MC_OIDC_CLIENT_SECRET", "").strip()
 OIDC_REDIRECT_URI = os.environ.get(
-    "OIDC_REDIRECT_URI", "http://127.0.0.1:4570/oidc/callback"
+    "MC_OIDC_REDIRECT_URI", f"{PUBLIC_URL}/oidc/callback"
 )
-OIDC_PROVIDER_LABEL = (
-    os.environ.get("OIDC_PROVIDER_LABEL", "").strip()
-    or ("OpenBao" if OIDC_STYLE in {"openbao", "provider"} else "Keycloak")
-)
+OIDC_PROVIDER_LABEL = "OpenBao" if OIDC_STYLE in {"openbao", "provider"} else "Keycloak"
 # Client role that makes an OIDC identity a global admin, like Grafana's roles.
-OIDC_ADMIN_ROLE = os.environ.get("OIDC_ADMIN_ROLE", "global-admin").strip()
+OIDC_ADMIN_ROLE = os.environ.get("MC_OIDC_ADMIN_ROLE", "global-admin").strip()
 
 # --- email (password reset) --------------------------------------------
 # StartTLS on 587 by default; `ssl` for 465, `none` only for a local relay.
-SMTP_HOST = os.environ.get("MINISTACK_SMTP_HOST", "").strip()
-SMTP_PORT = int(os.environ.get("MINISTACK_SMTP_PORT", "587") or 587)
-SMTP_USER = os.environ.get("MINISTACK_SMTP_USER", "").strip()
-SMTP_PASSWORD = os.environ.get("MINISTACK_SMTP_PASSWORD", "").strip()
-SMTP_FROM = os.environ.get("MINISTACK_SMTP_FROM", "ministack@mus.com").strip()
-SMTP_FROM_NAME = os.environ.get("MINISTACK_SMTP_FROM_NAME", "MiniStack").strip()
-SMTP_TLS = os.environ.get("MINISTACK_SMTP_TLS", "starttls").strip().lower()
+SMTP_HOST = os.environ.get("MC_SMTP_HOST", "").strip()
+SMTP_PORT = int(os.environ.get("MC_SMTP_PORT", "587") or 587)
+SMTP_USER = os.environ.get("MC_SMTP_USER", "").strip()
+SMTP_PASSWORD = os.environ.get("MC_SMTP_PASSWORD", "").strip()
+# An authenticated relay usually insists the From address is the account it
+# authenticated as, so fall back to it rather than to a made-up domain.
+SMTP_FROM = os.environ.get("MC_SMTP_FROM", "").strip() or SMTP_USER
+SMTP_FROM_NAME = os.environ.get("MC_SMTP_FROM_NAME", "MiniStack").strip()
+SMTP_TLS = os.environ.get("MC_SMTP_TLS", "starttls").strip().lower()
 SMTP_ENABLED = bool(SMTP_HOST)
-PUBLIC_URL = os.environ.get(
-    "MINISTACK_PUBLIC_URL", "https://ministack.mus.com"
-).strip().rstrip("/")
-RESET_TTL_SECONDS = int(os.environ.get("MINISTACK_RESET_TTL_SECONDS", "1800"))
+RESET_TTL_SECONDS = int(os.environ.get("MC_RESET_TTL_SECONDS", "1800"))
 
 GLOBAL_SERVICES = {
     "iam",
@@ -295,6 +299,8 @@ def send_mail(to_address: str, subject: str, body: str) -> str:
     """One plain-text message through the configured relay. Returns "" or an error."""
     if not SMTP_ENABLED:
         return "email is not configured"
+    if not SMTP_FROM:
+        return "no sender address: set MC_SMTP_FROM or MC_SMTP_USER"
     message = EmailMessage()
     message["Subject"] = subject
     message["From"] = formataddr((SMTP_FROM_NAME, SMTP_FROM))
@@ -971,6 +977,17 @@ class UserStore:
                 (self._hash(password), username),
             )
 
+    def set_email(self, username: str, email: str) -> None:
+        """Fill in a missing address; never overwrite one the user already has."""
+        if not email:
+            return
+        with self.lock:
+            self._run(
+                "UPDATE users SET email = ? WHERE username = ? "
+                "AND (email IS NULL OR email = '')",
+                (email, username),
+            )
+
     def create_reset(self, username: str, token_hash: str, expires_at: int) -> None:
         user = self.get(username) or {}
         with self.lock:
@@ -1041,6 +1058,68 @@ class Settings:
                 os.replace(tmp, self.path)
             except OSError as exc:
                 print(f"control: could not persist settings: {exc}", flush=True)
+
+
+class Owners:
+    """Best-effort provenance: which principal created a named resource.
+
+    The emulator keeps no owner metadata, so this is a control-plane ledger keyed
+    by `account/service/name` (names are unique per service inside an account; S3
+    is account-scoped upstream anyway). A resource created with the CLI simply has
+    no entry — the console shows the account and leaves the user blank.
+    """
+
+    def __init__(self, path: str) -> None:
+        self.path = path
+        self.lock = threading.Lock()
+        self.entries: dict = {}
+        try:
+            with open(path, encoding="utf-8") as handle:
+                self.entries = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            self.entries = {}
+
+    @staticmethod
+    def _key(account: str, service: str, name: str) -> str:
+        return f"{account}/{service}/{name}"
+
+    def record(
+        self, account: str, region: str, service: str, name: str, user: str
+    ) -> None:
+        name = (name or "").strip()
+        if not name:
+            return
+        with self.lock:
+            self.entries[self._key(account, service, name)] = {
+                "user": user or "token",
+                "region": region,
+                "at": now(),
+            }
+            try:
+                os.makedirs(os.path.dirname(self.path), exist_ok=True)
+                tmp = f"{self.path}.tmp"
+                with open(tmp, "w", encoding="utf-8") as handle:
+                    json.dump(self.entries, handle, indent=2, sort_keys=True)
+                os.replace(tmp, self.path)
+            except OSError as exc:
+                print(f"control: could not persist ownership: {exc}", flush=True)
+
+    def get(self, account: str, service: str, name: str) -> dict:
+        return self.entries.get(self._key(account, service, name)) or {}
+
+    def forget(self, account: str) -> None:
+        with self.lock:
+            prefix = f"{account}/"
+            kept = {k: v for k, v in self.entries.items() if not k.startswith(prefix)}
+            if kept != self.entries:
+                self.entries = kept
+                try:
+                    tmp = f"{self.path}.tmp"
+                    with open(tmp, "w", encoding="utf-8") as handle:
+                        json.dump(self.entries, handle, indent=2, sort_keys=True)
+                    os.replace(tmp, self.path)
+                except OSError:
+                    pass
 
 
 class AuditLog:
@@ -1164,6 +1243,7 @@ ACCOUNTS = Accounts(ACCOUNTS_FILE)
 USERS = UserStore(USERS_DB)
 SETTINGS = Settings(SETTINGS_FILE)
 AUDIT = AuditLog(AUDIT_FILE)
+OWNERS = Owners(OWNERS_FILE)
 TELEMETRY = Telemetry()
 
 
@@ -1172,14 +1252,22 @@ def seed_local_admin() -> None:
 
     On a fresh deployment this is the known first login; it is marked global and
     default admin so the console can prompt to retire it once other admins exist.
+    The address matters: `/forgot` can only mail a user that has one, so an
+    existing seeded admin gets `MC_ADMIN_EMAIL` backfilled when it had none.
     """
-    if not ADMIN_USER or not ADMIN_PASSWORD or USERS.count():
+    if not ADMIN_USER or not ADMIN_PASSWORD:
+        return
+    if USERS.count():
+        if ADMIN_EMAIL:
+            USERS.set_email(ADMIN_USER, ADMIN_EMAIL)
         return
     account, _principal = ACCOUNTS.ensure_local(ADMIN_USER)
     account["global_admin"] = True
     account["default_admin"] = True
     ACCOUNTS._save()
-    USERS.create(ADMIN_USER, "", ADMIN_PASSWORD, account["account_id"], "root")
+    USERS.create(
+        ADMIN_USER, ADMIN_EMAIL, ADMIN_PASSWORD, account["account_id"], "root"
+    )
     AUDIT.record(
         "system",
         "account.seeded",
@@ -1363,6 +1451,7 @@ def delete_account(account: dict) -> None:
         iam_request(account_id, "DeleteUser", UserName=name)
     USERS.delete_account(account_id)
     ACCOUNTS.delete(account_id)
+    OWNERS.forget(account_id)
     with REGISTRY.lock:
         for bucket in [
             name
@@ -2569,8 +2658,8 @@ def xml_all(text: str, tag: str) -> list[str]:
     return re.findall(rf"<{tag}>([^<]+)</{tag}>", text)
 
 
-def browse(service: str, account: str, region: str) -> list[dict]:
-    """Return `[{name, kind, detail}]` for one service in one account."""
+def _browse_region(service: str, account: str, region: str) -> list[dict]:
+    """Return `[{name, kind, detail}]` for one service in one account/region."""
     rows: list[dict] = []
 
     if service == "iam":
@@ -2753,6 +2842,88 @@ def browse(service: str, account: str, region: str) -> list[dict]:
             for machine in machines
         ]
 
+    return rows
+
+
+# Parameters that name the resource an action creates or touches. The emulator
+# records no owner, so this is how the control learns who made what.
+OWNER_PARAMS = (
+    "Bucket", "QueueName", "TopicArn", "TableName", "UserName", "RoleName",
+    "FunctionName", "ParameterName", "SecretId", "StreamName", "logGroupName",
+    "stateMachineArn", "Name",
+)
+# Those whose row name is the last ARN segment.
+OWNER_ARN_PARAMS = {"TopicArn", "stateMachineArn", "SecretId"}
+
+
+def owner_name(params: dict) -> str:
+    """The resource name a successful action created/updated, or ""."""
+    for key in OWNER_PARAMS:
+        value = params.get(key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        value = value.strip()
+        if key in OWNER_ARN_PARAMS and value.startswith("arn:"):
+            return value.rsplit(":", 1)[-1]
+        return value
+    return ""
+
+
+def _bucket_claim(name: str) -> dict:
+    with REGISTRY.lock:
+        return dict(REGISTRY.buckets.get(name) or {})
+
+
+def _annotate(
+    service: str, account: str, region: str, rows: list[dict]
+) -> list[dict]:
+    """Attach the region and owner metadata every row carries.
+
+    S3 is account-scoped but not region-isolated upstream, so a bucket's region
+    is the one recorded when its name was claimed, not the region being queried.
+    """
+    for row in rows:
+        claim = _bucket_claim(row["name"]) if service == "s3" else {}
+        entry = OWNERS.get(account, service, row["name"])
+        owner = {"account": claim.get("account_id") or account}
+        if entry.get("user"):
+            owner["user"] = entry["user"]
+            owner["at"] = entry.get("at", "")
+        row["region"] = claim.get("region") or region
+        row["owner"] = owner
+        row["detail"] = dict(row.get("detail") or {})
+    return rows
+
+
+def browse(service: str, account: str, region: str) -> list[dict]:
+    """Rows for one service in one account/region, with region + owner."""
+    return _annotate(service, account, region, _browse_region(service, account, region))
+
+
+def served_regions(account: dict) -> list[str]:
+    """The account's enabled regions that the registered emulator serves."""
+    known = {node.get("region") for node in NODES if node.get("region")}
+    regions = [
+        name for name in ACCOUNTS.regions_of(account) if not known or name in known
+    ]
+    return regions or [DEFAULT_REGION]
+
+
+def browse_all(service: str, account: str, regions: list[str]) -> list[dict]:
+    """Every region at once; S3 is listed once because it is not region-isolated."""
+    rows: list[dict] = []
+    seen: set[tuple] = set()
+    for region in regions[:1] if service == "s3" else regions:
+        for row in browse(service, account, region):
+            key = (
+                row["kind"],
+                row["name"],
+                "" if service == "s3" else row.get("region", ""),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(row)
     return rows
 
 
@@ -3213,6 +3384,14 @@ class ControlHandler(BaseHTTPRequestHandler):
                 "password.reset_requested",
                 user.get("account_id", ""),
             )
+        elif user:
+            # Same response either way (no enumeration); the log tells an admin why
+            # nothing was sent.
+            print(
+                f"control: reset requested for {user['username']} but the account "
+                "has no email; set MC_ADMIN_EMAIL (seeded admin) or update the user",
+                flush=True,
+            )
         return self._page(self._forgot_page(message=generic))
 
     def _reset_submit(self) -> None:
@@ -3628,7 +3807,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         if path == "/api/browse":
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
-            region = (params.get("region") or [DEFAULT_REGION])[0]
+            region = (params.get("region") or [DEFAULT_REGION])[0].strip()
             service = (params.get("service") or ["iam"])[0]
             info = self._caller()
             if service not in BROWSE_SERVICES:
@@ -3642,18 +3821,26 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(
                     403, {"error": "this account is not signed in to that tenancy"}
                 )
-            if region not in ACCOUNTS.regions_of(target):
+            every = region.lower() in {"all", "*", "any"}
+            regions = served_regions(target)
+            if not every and region not in ACCOUNTS.regions_of(target):
                 return self._json(
                     403, {"error": f"region {region} is not enabled for this account"}
                 )
+            resources = (
+                browse_all(service, account, regions)
+                if every
+                else browse(service, account, region)
+            )
             return self._json(
                 200,
                 {
                     "account": target["account_id"],
-                    "region": region,
+                    "region": "all" if every else region,
+                    "regions": regions,
                     "service": service,
-                    "identity": identity(account, region),
-                    "resources": browse(service, account, region),
+                    "identity": identity(account, region if not every else regions[0]),
+                    "resources": resources,
                 },
             )
         if path == "/api/settings":
@@ -3962,6 +4149,12 @@ class ControlHandler(BaseHTTPRequestHandler):
             result = console.run_action(
                 service, operation, params, account, region, aws_call, signed_rest
             )
+            if result.get("ok"):
+                created = owner_name(params)
+                if created:
+                    OWNERS.record(
+                        account, region, service, created, info.get("user") or "token"
+                    )
             return self._json(
                 200 if result.get("ok") else 400,
                 dict(
@@ -4306,7 +4499,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             )
         else:
             services_nav = '<a href="/services">Services</a>'
-        resources_nav = '<a href="/resources">Resources</a>' if RESOURCES_URL else ""
+        resources_nav = '<a href="/resources">Resources</a>'
         return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -4686,4 +4879,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "--test-mail":
+        # Run inside the container, where the real settings and network live:
+        #   podman exec core-ministack-control python /app/app.py --test-mail you@example.com
+        problem = send_mail(
+            sys.argv[2],
+            "MiniStack control: test message",
+            "This message proves the control can reach its SMTP relay.\n",
+        )
+        print("sent" if not problem else problem, flush=True)
+        sys.exit(0 if not problem else 1)
     main()

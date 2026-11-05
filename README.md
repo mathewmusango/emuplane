@@ -12,10 +12,10 @@ an upstream image, the control plane is ours.
 | Field | Value |
 | --- | --- |
 | Tier | `core` |
-| Containers | `core-ministack-control` (gateway + console) and the optional `core-ministack-control-stackport` browser |
+| Containers | `core-ministack-control` (gateway + console) |
 | Depends on | `core-ministack` (the emulator, `services/ministack`) on `net-services` at `http://core-ministack:4566` |
 | Endpoints | `https://ministack.mus.com` (console/API) · `https://aws.mus.com` (AWS gateway); the same ports stay published on loopback (`4570`/`4571`) |
-| Data | `/srv/myinfra/containers/ministack/data/control` (accounts, sessions, registry, audit) |
+| Data | `/srv/myinfra/containers/ministack-control/data` (accounts, sessions, registry, ownership, audit) |
 | Restart | `"no"` — on demand, not in the always-on set |
 
 ## Topology
@@ -35,7 +35,7 @@ or a second account is a console action plus a client credential.
 
 | What | Where it comes from | Configured by |
 | --- | --- | --- |
-| Region | the SigV4 scope (`.../us-west-1/s3/aws4_request`), else `MINISTACK_REGION` | `MINISTACK_REGIONS` (the advertised set) + per-account opt-in |
+| Region | the SigV4 scope (`.../us-west-1/s3/aws4_request`), else `MINISTACK_REGION` | `MC_REGIONS` (the advertised set, hidden by default) + per-account opt-in |
 | Account | a 12-digit access key, else `MINISTACK_ACCOUNT_ID` | this control's account store |
 | State | partitioned per account; per region for every service except S3 and Aurora DSQL | the emulator (`services/ministack`) |
 
@@ -101,16 +101,20 @@ hanging.
 
 ## Tokens and authentication
 
+**Settings use the `MC_` prefix** (control plane); the emulator's own settings
+keep upstream's `MINISTACK_*` names in `../ministack/.env`. `CONTROL_*` stays for
+the container-internal paths and ports.
+
 | Credential | Where | What it protects |
 | --- | --- | --- |
-| `MINISTACK_ADMIN_TOKEN` | `.env` | Scripted API access (`Bearer`); writes refuse without a session or this token. |
-| `MINISTACK_ADMIN_USER` / `MINISTACK_ADMIN_PASSWORD` | `.env` | Bootstrap local admin, seeded **only when the user store is empty**. |
-| `MINISTACK_REGIONS` | `.env` | `all` (default) or a comma list; the regions this instance will accept. A new account still starts with `us-east-1` only. |
-| `MINISTACK_SMTP_*` | `.env` | Password-reset mail; the same relay Grafana uses. Empty host hides `/forgot`. |
-| `OIDC_ADMIN_ROLE` | `.env` | Client role that makes an OIDC identity a global admin (default `global-admin`). |
-| `OIDC_CLIENT_SECRET` | `.env` (written by `scripts/keycloak-realm.sh`) | OIDC code exchange. |
+| `MC_ADMIN_TOKEN` | `.env` | Scripted API access (`Bearer`); writes refuse without a session or this token. Empty disables bearer access. |
+| `MC_ADMIN_USER` / `MC_ADMIN_PASSWORD` / `MC_ADMIN_EMAIL` | `.env` | Bootstrap local admin, seeded **only when the user store is empty**. The email is what `/forgot` sends to — without one, the seeded admin cannot reset by mail. |
+| `MC_REGIONS` | `.env` (commented out) | `all` when unset, or a comma list; the regions this instance will accept. A new account still starts with `us-east-1` only. |
+| `MC_SMTP_*` | `.env` | Password-reset mail; the same relay Grafana uses. Empty host hides `/forgot`. |
+| `MC_OIDC_ADMIN_ROLE` | `.env` | Client role that makes an OIDC identity a global admin (default `global-admin`). |
+| `MC_OIDC_CLIENT_SECRET` | `.env` (written by `scripts/keycloak-realm.sh`) | OIDC code exchange. |
 
-On a fresh database the `MINISTACK_ADMIN_USER`/`MINISTACK_ADMIN_PASSWORD` pair is
+On a fresh database the `MC_ADMIN_USER`/`MC_ADMIN_PASSWORD` pair is
 seeded as the **default global admin**; every later account is created by that
 admin or by sign-up (when enabled). No other account comes from `.env`.
 
@@ -133,7 +137,7 @@ and the dashboard requires a session.
   with the seeded `.env` admin, another local user, or Keycloak. Sessions are
   server-side, `HttpOnly` cookies, 8h by default, persisted across restarts and
   extended on activity.
-- Scripted API access uses `Authorization: Bearer <MINISTACK_ADMIN_TOKEN>`
+- Scripted API access uses `Authorization: Bearer <MC_ADMIN_TOKEN>`
   instead of a session. The gateway (`4571`) is SigV4 and needs no session.
 
 ### Local users (SQLite)
@@ -151,13 +155,29 @@ the database answers only "is this password right, and which account is this".
 
 ### Password reset (SMTP)
 
-`/forgot` is only offered when `MINISTACK_SMTP_HOST` is set; the settings come
-from the same relay Grafana uses (`MINISTACK_SMTP_*` in `.env`, empty in
-`.env.example`). The token is stored only as a SHA-256 hash in `users.db`
-(`password_resets`), is single-use, expires after `MINISTACK_RESET_TTL_SECONDS`,
+`/forgot` is only offered when `MC_SMTP_HOST` is set; the settings come
+from the same relay Grafana uses (`MC_SMTP_*` in `.env`, empty in
+`.env.example`). `MC_SMTP_FROM` falls back to `MC_SMTP_USER`, because an
+authenticated relay usually requires the From address to be the account it
+authenticated as. The token is stored only as a SHA-256 hash in `users.db`
+(`password_resets`), is single-use, expires after `MC_RESET_TTL_SECONDS`,
 and a new request retires the previous link. The page answers the same generic
 sentence whether or not the address exists, so it cannot be used to enumerate
-accounts. Reset links point at `MINISTACK_PUBLIC_URL`.
+accounts. Reset links point at `MC_PUBLIC_URL`.
+
+> [!NOTE]
+> **A reset needs a stored address.** `USERS.create` takes the email; the seeded
+> `.env` admin got an empty one until 2026-11-05, so `/forgot` silently matched
+> nothing. `MC_ADMIN_EMAIL` is now passed at seed time and backfilled onto an
+> existing seeded admin that has none. The control logs "reset requested for X
+> but the account has no email" rather than failing silently. Test the relay
+> itself from inside the container with
+> `podman exec core-ministack-control python /app/app.py --test-mail you@example.com`.
+
+> [!NOTE]
+> Unlike Grafana, there is no *enable* switch: an empty `MC_SMTP_HOST` is the off
+> state. Keep it empty and `/forgot` is not offered, rather than showing a form
+> that cannot deliver.
 
 The control seeds **nothing** from `.env`. The first account created — by local
 sign-up or by the first Keycloak sign-in — is the platform owner: `global_admin`
@@ -250,21 +270,27 @@ never leaves the host.
 
 ### OIDC (Keycloak, with OpenBao available)
 
-`MINISTACK_AUTH_MODE` is `local` (default), `oidc` or `both`. With OIDC the
+`MC_AUTH_MODE` is `local` (default), `oidc` or `both`. With OIDC the
 login page offers **Sign in with Keycloak**; `/oidc/callback` completes an
 authorization-code flow with PKCE and reads the profile from `/userinfo` (no
 JWT signature validation; the tokens travel over TLS).
 
-- `OIDC_STYLE` — `keycloak` (live) or `openbao` (OpenBao's `identity/oidc`
+Four settings, the same shape Grafana uses — provider label, scopes and the
+redirect URI are derived in code:
+
+- `MC_OIDC_STYLE` — `keycloak` (live) or `openbao` (OpenBao's `identity/oidc`
   provider discovery).
-- `OIDC_PUBLIC_URL` — `https://keycloak.mus.com` (browser redirect).
-- `OIDC_INTERNAL_URL` — `http://security-keycloak:8080` (discovery, token and
+- `MC_OIDC_PUBLIC_URL` — `https://keycloak.mus.com` (browser redirect).
+- `MC_OIDC_INTERNAL_URL` — `http://security-keycloak:8080` (discovery, token and
   userinfo from the control container; lab names resolve to 127.0.0.1 inside
   containers, so the container never uses the public hostname).
-- `OIDC_REALM` — `my-labs`; `OIDC_CLIENT_ID` — `ministack-control`.
+- `MC_OIDC_REALM` — `my-labs`; `MC_OIDC_CLIENT_ID` — `ministack-control`.
 - Endpoints come from the realm's discovery document and the token/userinfo URLs
-  are rewritten onto `OIDC_INTERNAL_URL`, so switching IdPs is config only.
-  `OIDC_DISCOVERY_URL` / `OIDC_AUTHORIZE_URL` override either URL outright.
+  are rewritten onto `MC_OIDC_INTERNAL_URL`, so switching IdPs is config only.
+  `MC_OIDC_DISCOVERY_URL` / `MC_OIDC_AUTHORIZE_URL` override either URL outright.
+
+`MC_OIDC_REDIRECT_URI` defaults to `<MC_PUBLIC_URL>/oidc/callback`; set it only
+when the console is reached by another name.
 
 The realm `my-labs` and client `ministack-control` are created by
 `scripts/keycloak-realm.sh`. The realm user `mathewmusango` has a password (set
@@ -282,7 +308,7 @@ adds two client roles to `ministack-control` and maps groups onto them:
 | `ministack-users` | `account-user` | a normal account: own tenancy only |
 
 The control reads `resource_access[*].roles` (and `realm_access.roles`) from the
-userinfo response, so no extra mapper is needed; `OIDC_ADMIN_ROLE` renames the
+userinfo response, so no extra mapper is needed; `MC_OIDC_ADMIN_ROLE` renames the
 elevating role. Elevation happens on sign-in and is audited
 (`account.global_admin_granted`, `via: oidc`); removing the role in Keycloak does
 not demote by itself — an admin does that from **Accounts**.
@@ -291,9 +317,9 @@ not demote by itself — an admin does that from **Accounts**.
 configures OpenBao as an IdP (scopes `profile`/`email`, the
 `ministack-control` client application, provider allow-list) and it was verified
 end to end. Its authorize endpoint is OpenBao's **UI** route, so the browser
-signs in to OpenBao first; switching means setting `OIDC_STYLE=openbao`,
-`OIDC_PUBLIC_URL=https://openbao.mus.com`,
-`OIDC_INTERNAL_URL=http://security-openbao:8200`, `OIDC_PROVIDER=default` and
+signs in to OpenBao first; switching means setting `MC_OIDC_STYLE=openbao`,
+`MC_OIDC_PUBLIC_URL=https://openbao.mus.com`,
+`MC_OIDC_INTERNAL_URL=http://security-openbao:8200`, `MC_OIDC_PROVIDER=default` and
 that client's id/secret in `.env`, then recreating the container.
 
 ### Resource browser
@@ -301,31 +327,40 @@ that client's id/secret in `.env`, then recreating the container.
 `https://ministack.mus.com/resources` is our own browser, not an embed. It
 signs each read as that account's 12-digit **root**
 (`Credential=<id>/<date>/<region>/<service>/aws4_request`, dummy signature), so
-the control holds no AWS secret and can list **every** account — which a
-single-credential client like StackPort structurally cannot.
+the control holds no AWS secret and can list **every** account.
 
 - Three selects: **account** (every account in `accounts.json`, alias + ID),
   **region**, **service** (`BROWSE_SERVICES` in `control/app.py`).
 - The "Signed as" line comes from STS `GetCallerIdentity`, so the page proves
   which account actually answered.
-- Rows are `kind / name / detail` from the service's list call.
+- Rows are `kind / name / region / owner / detail`.
+- **Region-scoped objects.** Every row carries the region it lives in and its
+  owner (`{account, user?}`). S3 buckets are account-scoped upstream, so their
+  region is the one recorded when the name was claimed, not the region queried.
+- **View from all regions.** `GET /api/browse?region=all` sweeps every region the
+  account has enabled (matched against what the node serves) and merges the rows;
+  S3 is listed once. The console exposes it as a toggle on the Resources page.
+- **Owner metadata** comes from `data/control/ownership.json`: a successful
+  console action that names a resource records the creating principal. The
+  emulator keeps no owner, so CLI-created resources simply show the account.
 - JSON: `GET /api/browse?account=&region=&service=` — `400` for an unknown
-  service or a missing account, `404` for an unknown account.
+  service or a missing account, `404` for an unknown account, `403` for a
+  region the account has not enabled (or another tenancy).
 
 Coverage: IAM, S3, DynamoDB, SQS, SNS, Lambda, CloudWatch Logs, Secrets
 Manager, SSM, Kinesis and Step Functions. Listed shape only for now — no
-per-resource drill-down, search or write actions.
+per-resource drill-down or search; S3 buckets have an object view and write
+actions where the console declares them.
 
 > [!NOTE]
-> StackPort still runs on demand at `https://stackport.mus.com` for comparison.
-> It is being retired: dropping the `stackport` service, its Traefik route and
-> network alias leaves `/resources` as the only browser. The `STACKPORT_*`
-> variables stay only while that container exists.
+> StackPort is **gone** (2026-11-05): the service, its Traefik route and the
+> `STACKPORT_*` settings were removed with the `MC_` config cleanup. `/resources`
+> is the only browser.
 
 ## Console and control API (`https://ministack.mus.com`)
 
-The console is a **React SPA** built from `web/` (Cloudscape components, the same
-AWS-console design system StackPort uses). The control container serves it at
+The console is a **React SPA** built from `web/` (Cloudscape, the AWS-console
+design system). The control container serves it at
 `/`, so the dashboard, API and gateway share one host.
 
 ```sh
@@ -460,21 +495,27 @@ Prerequisite: the emulator (`services/ministack`) is running. `up.sh` refuses to
 start the gateway without it.
 
 ```sh
-cp .env.example .env      # set MINISTACK_ADMIN_TOKEN, MINISTACK_ADMIN_USER/PASSWORD
-install -d -m 0755 /srv/myinfra/containers/ministack/data/control
-./scripts/up.sh           # image build, network, dependency check, start
+cp .env.example .env      # MC_ADMIN_EMAIL, MC_ADMIN_PASSWORD, MC_ADMIN_TOKEN
+install -d -m 0755 /srv/myinfra/containers/ministack-control/data
+./scripts/up.sh           # data migration, network, dependency check, build, start
 ```
 
 `up.sh` runs `podman-compose build` first: this is our own image
-(`localhost/ministack-control:<tag>`, tag from `MINISTACK_CONTROL_TAG`, default
-`dev`). The emulator stays the pinned upstream image and lives in its own repo.
+(`localhost/ministack-control:<tag>`, tag from `MC_IMAGE_TAG`, default `dev`).
+The emulator stays the pinned upstream image and lives in its own repo.
 
-The control's data directory defaults to the path it used before the split
-(`/srv/myinfra/containers/ministack/data/control`), so accounts, sessions and the
-bucket registry survive the move. Set `MINISTACK_CONTROL_DATA_DIR` in `.env` to
-point somewhere else — for example
-`/srv/myinfra/containers/ministack-control/data` once you have moved the files
-with the container stopped.
+**The control owns its data directory** (`MC_DATA_DIR`,
+`/srv/myinfra/containers/ministack-control/data`) — it no longer shares a tree
+with the emulator. It was migrated out of
+`/srv/myinfra/containers/ministack/data/control` on 2026-11-05: `up.sh` copies
+the old directory into the new one when the new one is still empty, and refuses
+if the control container is running (it re-saves `accounts.json` on writes, so a
+live copy can lose data). The old copy is left in place.
+
+`MC_ADMIN_TOKEN` is optional: it is a bearer token for scripted API access, not a
+password. Generate one with
+`python3 -c "import secrets; print(secrets.token_hex(24))"`; leaving it empty
+disables bearer access and changes nothing about the console session.
 
 No `sudo` is needed: `/srv/myinfra/containers` is user-owned on this box.
 

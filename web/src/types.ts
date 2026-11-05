@@ -66,9 +66,17 @@ export interface ResourceDetail {
   [key: string]: string | number | boolean | null | undefined
 }
 
+export interface ResourceOwner {
+  account?: string
+  user?: string
+  at?: string
+}
+
 export interface ResourceRow {
   name: string
   kind: string
+  region?: string
+  owner?: ResourceOwner
   detail: ResourceDetail
 }
 
@@ -81,6 +89,7 @@ export interface Identity {
 export interface BrowseResult {
   account: string
   region: string
+  regions?: string[]
   service: string
   identity: Identity
   resources: ResourceRow[]
