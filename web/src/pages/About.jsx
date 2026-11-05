@@ -3,18 +3,11 @@ import ColumnLayout from '@cloudscape-design/components/column-layout'
 import Container from '@cloudscape-design/components/container'
 import ContentLayout from '@cloudscape-design/components/content-layout'
 import Header from '@cloudscape-design/components/header'
-import Link from '@cloudscape-design/components/link'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import StatusIndicator from '@cloudscape-design/components/status-indicator'
 import { useSession } from '../context'
 import { Shell } from '../components/Shell'
 
-const LINKS = [
-  { label: 'MiniStack documentation', url: 'https://ministack.org/docs/' },
-  { label: 'Multi-tenancy (accounts and regions)', url: 'https://ministack.org/docs/multi-tenancy' },
-  { label: 'MiniStack on GitHub', url: 'https://github.com/ministackorg/ministack' },
-  { label: 'StackPort (UI inspiration)', url: 'https://github.com/DaviReisVieira/stackport' },
-]
 
 export default function About() {
   const { meta, me } = useSession()
@@ -38,14 +31,6 @@ export default function About() {
                 <Box>
                   <Box variant="awsui-key-label">Emulator</Box>
                   <StatusIndicator type="success">{meta?.version || 'unknown'}</StatusIndicator>
-                </Box>
-                <Box>
-                  <Box variant="awsui-key-label">Mode</Box>
-                  —
-                </Box>
-                <Box>
-                  <Box variant="awsui-key-label">Login</Box>
-                  {meta?.login || 'local'}
                 </Box>
                 <Box>
                   <Box variant="awsui-key-label">Signed in</Box>
@@ -97,16 +82,6 @@ export default function About() {
               </SpaceBetween>
             </Container>
           </ColumnLayout>
-
-          <Container header={<Header variant="h2">References</Header>}>
-            <SpaceBetween size="xs">
-              {LINKS.map((link) => (
-                <Link key={link.url} href={link.url} external>
-                  {link.label}
-                </Link>
-              ))}
-            </SpaceBetween>
-          </Container>
         </SpaceBetween>
       </ContentLayout>
     </Shell>

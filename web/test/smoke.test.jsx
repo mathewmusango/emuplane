@@ -7,6 +7,7 @@ import Onboarding from '../src/pages/Onboarding'
 import Resources from '../src/pages/Resources'
 import Settings from '../src/pages/Settings'
 import Accounts from '../src/pages/Accounts'
+import About from '../src/pages/About'
 
 const META = {
   product: 'MiniStack',
@@ -23,8 +24,8 @@ const META = {
   platform_admin: true,
   regions: ['us-east-1', 'us-west-2'],
   active_regions: ['us-east-1'],
-  gateway: 'https://aws.mus.com',
-  console: 'https://ministack.mus.com',
+  gateway: 'https://ministack.mus.com',
+  console: 'https://ministack-control.mus.com',
   checked_at: '',
 }
 
@@ -185,5 +186,14 @@ describe('console', () => {
     renderAt(<Accounts />)
     expect(await screen.findByText('Mathew Musango')).toBeTruthy()
     expect(screen.getAllByText('mathewmusango').length).toBeGreaterThan(0)
+  })
+
+  it('renders the endpoints without the mode, login or references rows', async () => {
+    renderAt(<About />)
+    expect(await screen.findByText('https://ministack-control.mus.com')).toBeTruthy()
+    expect(screen.getByText('https://ministack.mus.com')).toBeTruthy()
+    expect(screen.queryByText('Mode')).toBeNull()
+    expect(screen.queryByText('Login')).toBeNull()
+    expect(screen.queryByText('References')).toBeNull()
   })
 })

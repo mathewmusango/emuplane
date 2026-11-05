@@ -2,13 +2,15 @@
   "clientId": "ministack-control",
   "name": "MiniStack control",
   "description": "MiniStack control plane (accounts, IAM, dashboard)",
-  "rootUrl": "https://ministack.mus.com",
-  "baseUrl": "https://ministack.mus.com",
+  "rootUrl": "https://ministack-control.mus.com",
+  "baseUrl": "https://ministack-control.mus.com",
   "redirectUris": [
-    "http://127.0.0.1:4570/oidc/callback"
+    "http://127.0.0.1:4570/oidc/callback",
+    "https://ministack-control.mus.com/oidc/callback"
   ],
   "webOrigins": [
-    "http://127.0.0.1:4570"
+    "http://127.0.0.1:4570",
+    "https://ministack-control.mus.com"
   ],
   "protocol": "openid-connect",
   "publicClient": false,

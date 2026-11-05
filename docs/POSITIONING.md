@@ -56,7 +56,7 @@ post — they are the upstream project's figures, not this deployment's:
 - "under 2 seconds", "~30 MB RAM" — unmeasured; this control adds its own image.
 - "no tokens, no telemetry" — a commitment to make deliberately, not a slogan.
 - port `4566` as a universal port — that is LocalStack's convention; here the
-  gateway is `https://aws.mus.com` (and `4571` on loopback).
+  gateway is `https://ministack.mus.com` (and `4571` on loopback).
 
 Branding must also not be built around a competitor's licensing or pricing: that
 changes, and it is not the value this project offers.
@@ -64,6 +64,6 @@ changes, and it is not the value this project offers.
 ## What this note does not change
 
 Container names (`core-ministack`, `core-ministack-control`), repositories,
-hostnames (`ministack.mus.com`, `aws.mus.com`) and the `MINISTACK_*` environment
+hostnames (`ministack-control.mus.com`, `ministack.mus.com`) and the `MINISTACK_*` environment
 variables all stay as they are. A rename would be a deliberate, separate change
 after the screening above.

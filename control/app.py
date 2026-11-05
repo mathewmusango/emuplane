@@ -93,10 +93,12 @@ NODE_TTL_SECONDS = int(os.environ.get("NODE_TTL_SECONDS", "30"))
 API_VERSION = "v1"
 STARTED_AT = time.time()
 # Canonical public addresses shown in the UI (Traefik, lab wildcard cert).
-GATEWAY_URL = os.environ.get("MINISTACK_GATEWAY_URL", "https://aws.mus.com")
-CONSOLE_URL = os.environ.get("MINISTACK_CONSOLE_URL", "https://ministack.mus.com")
-# The optional resource browser (StackPort) running beside the control plane.
-# (Retired 2026-11-05; the classic nav links to /resources directly now.)
+# The gateway took over `ministack.mus.com` on 2026-11-05; `aws.mus.com` stays
+# routed as a deprecated alias so existing client configs keep working.
+GATEWAY_URL = os.environ.get("MC_GATEWAY_URL", "https://ministack.mus.com")
+CONSOLE_URL = os.environ.get(
+    "MC_CONSOLE_URL", "https://ministack-control.mus.com"
+)
 # Regions offered in the console. MiniStack serves all of them; the list only
 # decides what the picker shows, and anything seen at the gateway is added.
 REGION_CHOICES = [
@@ -178,7 +180,9 @@ AUDIT_ENABLED = os.environ.get("MC_AUDIT", "false").strip().lower() in {
 }
 RECENT_LIMIT = int(os.environ.get("MC_RECENT_LIMIT", "5") or 5)
 # The canonical public address. Reset links and the OIDC redirect derive from it.
-PUBLIC_URL = os.environ.get("MC_PUBLIC_URL", "https://ministack.mus.com").strip().rstrip("/")
+PUBLIC_URL = os.environ.get(
+    "MC_PUBLIC_URL", "https://ministack-control.mus.com"
+).strip().rstrip("/")
 OIDC_ENABLED = os.environ.get("MC_OIDC_ENABLED", "true").strip().lower() in {
     "1",
     "true",

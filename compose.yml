@@ -1,18 +1,3 @@
-# ministack-control — gateway, console and accounts for the MiniStack emulator.
-#
-#   ./scripts/up.sh
-#
-# The emulator is its own service (`services/ministack`): one container, every
-# region and every account. This container is the front door:
-#   - 127.0.0.1:4571 is the single AWS gateway, aware of region and account;
-#   - 127.0.0.1:4570 is the login-gated control API and console;
-#   - bucket names are reserved in one registry, so a name cannot exist twice
-#     (AWS keeps S3 names unique across accounts and regions alike).
-#
-# Env comes from ./.env (MC_* settings) and this file carries structure only.
-# The control reaches the emulator by container name over net-services, never
-# by a host port.
-
 name: core_ministack-control
 
 services:
@@ -29,16 +14,13 @@ services:
       tier: "core"
       managed-by: "my-labs"
       traefik.enable: "true"
-      # Dashboard + control API over TLS.
-      traefik.http.routers.ministack.rule: "Host(`ministack.mus.com`)"
+      traefik.http.routers.ministack.rule: "Host(`ministack-control.mus.com`)"
       traefik.http.routers.ministack.entrypoints: "websecure"
       traefik.http.routers.ministack.tls: "true"
       traefik.http.routers.ministack.middlewares: "hsts@file"
       traefik.http.routers.ministack.service: "ministack"
       traefik.http.services.ministack.loadbalancer.server.port: "8080"
-      # The AWS gateway over TLS. Clients sign Host: aws.mus.com, and the
-      # gateway forwards that Host untouched so SigV4 still verifies.
-      traefik.http.routers.ministack-aws.rule: "Host(`aws.mus.com`)"
+      traefik.http.routers.ministack-aws.rule: "Host(`ministack.mus.com`) || Host(`aws.mus.com`)"
       traefik.http.routers.ministack-aws.entrypoints: "websecure"
       traefik.http.routers.ministack-aws.tls: "true"
       traefik.http.routers.ministack-aws.middlewares: "hsts@file"
@@ -56,7 +38,6 @@ services:
       - "127.0.0.1:${MC_UI_PORT:-4570}:8080"
       - "127.0.0.1:${MC_GATEWAY_PORT:-4571}:4566"
     volumes:
-      # Accounts, sessions, the bucket registry, ownership and the audit trail.
       - "${MC_DATA_DIR:-/srv/myinfra/containers/ministack-control/data}:/var/lib/ministack/control:Z"
       - /etc/localtime:/etc/localtime:ro
     networks:

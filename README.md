@@ -14,7 +14,7 @@ an upstream image, the control plane is ours.
 | Tier | `core` |
 | Containers | `core-ministack-control` (gateway + console) |
 | Depends on | `core-ministack` (the emulator, `services/ministack`) on `net-services` at `http://core-ministack:4566` |
-| Endpoints | `https://ministack.mus.com` (console/API) · `https://aws.mus.com` (AWS gateway); the same ports stay published on loopback (`4570`/`4571`) |
+| Endpoints | `https://ministack-control.mus.com` (console/API) · `https://ministack.mus.com` (AWS gateway, `aws.mus.com` kept as a deprecated alias); the same ports stay published on loopback (`4570`/`4571`) |
 | Data | `/srv/myinfra/containers/ministack-control/data` (accounts, sessions, registry, ownership, audit) |
 | Restart | `"no"` — on demand, not in the always-on set |
 
@@ -54,8 +54,9 @@ name, each with a masked ID and a masked secret. Create one to get the pair once
 (secret shown a single time, with **Download .csv**), delete one to revoke it.
 An account holds **at most two** keys, so a rotation can overlap: create the
 new key, switch the client, then delete the old one. Point any client at
-`https://aws.mus.com` (Traefik, lab wildcard certificate) —
-`http://127.0.0.1:4571` still works for anything that cannot resolve lab names.
+`https://ministack.mus.com` (Traefik, lab wildcard certificate; `aws.mus.com`
+still routes to the same gateway as a deprecated alias), or at
+`http://127.0.0.1:4571` when the lab names do not resolve.
 
 A 12-digit access key is that account's **root** and accepts any secret; an
 `AKIA…` key is verified by IAM. Because regions are not configured, the region
@@ -72,7 +73,7 @@ isolates state per region and account, so that layer was redundant and is gone:
 `AGENT_POLL_SECONDS` no longer drive anything. `control/agent.py` and the mode
 labels stay in the tree as history, not as a supported path.
 
-## Gateway (`https://aws.mus.com`)
+## Gateway (`https://ministack.mus.com`)
 
 The single AWS entrypoint. It reads the **SigV4 signing region** (or
 `X-Ministack-Region` for unsigned callers) and the access key, then forwards to
@@ -133,7 +134,7 @@ There is no direct access to the backend stack. The emulator publishes no host
 port; the only ways in are the dashboard (`4570`) and the AWS gateway (`4571`),
 and the dashboard requires a session.
 
-- Sign in at <https://ministack.mus.com/login> (or <http://127.0.0.1:4570/login>)
+- Sign in at <https://ministack-control.mus.com/login> (or <http://127.0.0.1:4570/login>)
   with the seeded `.env` admin, another local user, or Keycloak. Sessions are
   server-side, `HttpOnly` cookies, 8h by default, persisted across restarts and
   extended on activity.
@@ -255,7 +256,7 @@ the classic pages and the provision response still read. Same-account calls are
 then a real, enforced identity:
 
 ```sh
-aws --endpoint-url https://aws.mus.com sts get-caller-identity
+aws --endpoint-url https://ministack.mus.com sts get-caller-identity
 # Arn: arn:aws:iam::111111111111:user/mathewmusango
 ```
 
@@ -324,7 +325,7 @@ that client's id/secret in `.env`, then recreating the container.
 
 ### Resource browser
 
-`https://ministack.mus.com/resources` is our own browser, not an embed. It
+`https://ministack-control.mus.com/resources` is our own browser, not an embed. It
 signs each read as that account's 12-digit **root**
 (`Credential=<id>/<date>/<region>/<service>/aws4_request`, dummy signature), so
 the control holds no AWS secret and can list **every** account.
@@ -357,7 +358,7 @@ actions where the console declares them.
 > `STACKPORT_*` settings were removed with the `MC_` config cleanup. `/resources`
 > is the only browser.
 
-## Console and control API (`https://ministack.mus.com`)
+## Console and control API (`https://ministack-control.mus.com`)
 
 The console is a **React SPA** built from `web/` (Cloudscape, the AWS-console
 design system). The control container serves it at
@@ -528,7 +529,7 @@ Write them into your own shell/profile; nothing here is pre-wired:
 ```sh
 cd ~/Workspace/myprojects/my-portfolio/terraform/infra/site
 
-export AWS_ENDPOINT_URL=https://aws.mus.com
+export AWS_ENDPOINT_URL=https://ministack.mus.com
 export AWS_ACCESS_KEY_ID=<the account's access key>
 export AWS_SECRET_ACCESS_KEY=<the matching secret>
 export AWS_REGION=us-east-1            # any region; the signature carries it
@@ -552,8 +553,8 @@ the same bucket name is visible there.
 
 > [!NOTE]
 > **Containerised clients cannot use the lab hostnames.** Podman containers get
-> the host's router DNS, so `aws.mus.com` resolves publicly (the real mus.com),
-> not to Traefik. Add `--add-host aws.mus.com:127.0.0.1` for a client container,
+> the host's router DNS, so `ministack.mus.com` resolves publicly (the real
+> mus.com), not to Traefik. Add `--add-host ministack.mus.com:127.0.0.1` for a client container,
 > or use `http://127.0.0.1:4571`. Host tools (Terraform, curl, browsers) use the
 > local resolver and need nothing.
 
@@ -586,8 +587,7 @@ that clears its registry entries and starts the next scan clean.
 
 ## Files
 
-- [`compose.yml`](compose.yml) — the control plane (gateway + console) and the
-  optional StackPort browser.
+- [`compose.yml`](compose.yml) — the control plane (gateway + console).
 - [`control/app.py`](control/app.py) — gateway, console pages, control API.
 - [`control/console.py`](control/console.py) — the GUI action catalogue and the
   AWS calls each operation maps to.
@@ -605,3 +605,10 @@ that clears its registry entries and starts the next scan clean.
 > [!NOTE]
 > The fields and naming above come from `services/README.md`. Scaffold new
 > services with `./scripts/new-service` rather than copying an existing one.
+
+## References
+
+- [MiniStack documentation](https://ministack.org/docs/)
+- [Multi-tenancy (accounts and regions)](https://ministack.org/docs/multi-tenancy)
+- [MiniStack on GitHub](https://github.com/ministackorg/ministack)
+- [StackPort (UI inspiration)](https://github.com/DaviReisVieira/stackport)

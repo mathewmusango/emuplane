@@ -336,6 +336,27 @@
       ]
     },
     {
+      "id": "about-page-endpoints",
+      "title": "About shows instance, tenancy and endpoints only",
+      "status": "done",
+      "reopened": false,
+      "evidence": [
+        {
+          "file": "web/src/pages/About.jsx",
+          "marker": "Signed in"
+        },
+        {
+          "file": "web/test/smoke.test.jsx",
+          "marker": "without the mode, login or references rows"
+        },
+        {
+          "file": "compose.yml",
+          "marker": "Host(`ministack-control.mus.com`)"
+        }
+      ],
+      "note": "2026-11-05: the Mode and Login rows and the References links are gone; the console moved to ministack-control.mus.com and the AWS gateway took over ministack.mus.com (aws.mus.com stays as a deprecated alias)."
+    },
+    {
       "id": "qa-gate",
       "title": "QA gate checks signed-off work and secrets",
       "status": "done",
