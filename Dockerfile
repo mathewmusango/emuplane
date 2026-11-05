@@ -28,7 +28,7 @@ FROM docker.io/library/python:3.13-alpine@sha256:7984cf56ceaddebe4fefeb75d64000b
 
 LABEL org.opencontainers.image.title="ministack-control" \
       org.opencontainers.image.description="MiniStack console, control API and AWS gateway" \
-      org.opencontainers.image.source="https://github.com/mathewmusango/ministack" \
+      org.opencontainers.image.source="https://github.com/mathewmusango/ministack-control" \
       org.opencontainers.image.licenses="MIT"
 
 # No .pyc files in the image, and logs stream out unbuffered.
