@@ -1,0 +1,86 @@
+// AWS-style service names: acronyms stay upper-case, the rest is CamelCase.
+const NAMES = {
+  s3: 'S3',
+  iam: 'IAM',
+  sts: 'STS',
+  sqs: 'SQS',
+  sns: 'SNS',
+  ec2: 'EC2',
+  ecs: 'ECS',
+  eks: 'EKS',
+  ecr: 'ECR',
+  efs: 'EFS',
+  ssm: 'SSM',
+  kms: 'KMS',
+  ses: 'SES',
+  rds: 'RDS',
+  acm: 'ACM',
+  mq: 'MQ',
+  waf: 'WAF',
+  wafv2: 'WAFv2',
+  imds: 'IMDS',
+  cur: 'CUR',
+  dsql: 'Aurora DSQL',
+  dynamodb: 'DynamoDB',
+  dynamodbstreams: 'DynamoDB Streams',
+  cloudformation: 'CloudFormation',
+  cloudfront: 'CloudFront',
+  cloudtrail: 'CloudTrail',
+  cloudwatch: 'CloudWatch',
+  logs: 'CloudWatch Logs',
+  apigateway: 'ApiGateway',
+  route53: 'Route 53',
+  route53resolver: 'Route 53 Resolver',
+  events: 'EventBridge',
+  scheduler: 'EventBridge Scheduler',
+  stepfunctions: 'Step Functions',
+  states: 'Step Functions',
+  secretsmanager: 'Secrets Manager',
+  s3tables: 'S3 Tables',
+  s3files: 'S3 Files',
+  rdsdata: 'RDS Data',
+  'rds-data': 'RDS Data',
+  elasticloadbalancing: 'Elastic Load Balancing',
+  elb: 'Elastic Load Balancing',
+  elasticache: 'ElastiCache',
+  elasticfilesystem: 'EFS',
+  elasticmapreduce: 'EMR',
+  'ecs-metadata': 'ECS Metadata',
+  'ec2-metadata': 'EC2 Metadata',
+  kinesisanalyticsv2: 'Kinesis Analytics',
+  cognito: 'Cognito',
+  'cognito-idp': 'Cognito',
+  'cognito-identity': 'Cognito Identity',
+  appsync: 'AppSync',
+  'appsync-events': 'AppSync Events',
+  cloudcontrol: 'Cloud Control',
+  'resource-groups': 'Resource Groups',
+  servicediscovery: 'Cloud Map',
+  appconfig: 'AppConfig',
+  appconfigdata: 'AppConfig Data',
+  codebuild: 'CodeBuild',
+  opensearch: 'OpenSearch',
+  opensearchserverless: 'OpenSearch Serverless',
+  bedrock: 'Bedrock',
+  'bedrock-runtime': 'Bedrock Runtime',
+  'bedrock-agent': 'Bedrock Agents',
+  'bedrock-agent-runtime': 'Bedrock Agents',
+  'bedrock-agentcore': 'Bedrock AgentCore',
+  'lambda-core': 'Lambda',
+  'lambda-microvms': 'Lambda MicroVMs',
+  transfer: 'Transfer Family',
+  's3-resource-selector': 'S3',
+}
+
+const words = (name) =>
+  name
+    .split('-')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('')
+
+export function serviceLabel(name) {
+  if (!name) return ''
+  if (name.length <= 3) return name.toUpperCase()
+  return NAMES[name] || words(name)
+}

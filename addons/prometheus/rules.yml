@@ -1,0 +1,17 @@
+# Alert rules for ministack.
+#
+# Merged by services/metrics/scripts/collect.py (see services/README.md). An
+# empty `groups:` list is inert on purpose; fill it in when the service should
+# page. Nothing is skipped or filtered at assembly time.
+
+groups: []
+#  - name: ministack
+#    rules:
+#      - alert: ministackDown
+#        expr: up{job="ministack"} == 0
+#        for: 5m
+#        labels:
+#          severity: warning
+#        annotations:
+#          summary: "ministack is not answering Prometheus"
+#          description: "Unscrapeable for 5 minutes."

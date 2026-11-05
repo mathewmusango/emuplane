@@ -1,0 +1,28 @@
+# Gatus checks for ministack.
+#
+# Merged into the running Gatus config by services/gatus/scripts/collect.py
+# (see services/README.md). Delete this file if the service needs no
+# status-page check. Endpoints alert only where an `alerts:` block is present.
+
+endpoints: []
+#  - name: ministack-http
+#    group: app
+#    url: "https://ministack.mus.com/"
+#    interval: 60s
+#    conditions:
+#      - "[STATUS] == 200"
+#      - "[RESPONSE_TIME] < 2000"
+#      - "[CERTIFICATE_EXPIRATION] > 720h"
+#    # Alerts are opt-in: without this block the endpoint is visible on the
+#    # status page and never pages (the on-demand / archived shape).
+#    # alerts:
+#    #   - type: custom
+#    #     failure-threshold: 3
+#    #     success-threshold: 2
+#
+#  - name: ministack-tcp
+#    group: app
+#    url: "tcp://core-ministack:PORT"
+#    interval: 5m
+#    conditions:
+#      - "[CONNECTED] == true"

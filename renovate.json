@@ -1,0 +1,6 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "pinDigests": true,
+  "description": "The Dockerfile pins multi-arch index digests; Renovate is the only thing that should move them."
+}

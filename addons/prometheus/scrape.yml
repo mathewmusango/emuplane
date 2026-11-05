@@ -1,0 +1,10 @@
+# Prometheus scrape job for ministack.
+#
+# Merged by services/metrics/scripts/collect.py (see services/README.md).
+# Only fill this in if the image exposes /metrics — most do not. Address the
+# container by NAME, not by its lab hostname: podman copies the host's
+# /etc/hosts into containers, where the lab names point at 127.0.0.1.
+scrape_configs: []
+#  - job_name: ministack
+#    static_configs:
+#      - targets: ["core-ministack:PORT"]

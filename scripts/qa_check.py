@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""QA gate: signed-off behaviour must still be there and nothing secret leaks.
+
+`qa/tasks.json` lists each completed task with evidence: a file plus a literal
+marker that proves the behaviour still exists. This catches reverted or
+"redone" tasks without failing on unrelated edits to the same file.
+
+If a change is intentional, set the task `"reopened": true` (and say why), make
+the change, then clear the flag once it is signed off again.
+
+Usage:
+  python3 scripts/qa_check.py            # evidence + security + py_compile
+  python3 scripts/qa_check.py --tests    # also run the web test suite
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import py_compile
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+MANIFEST = ROOT / "qa" / "tasks.json"
+
+SECRET_PATTERNS = [
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"(?i)aws_secret_access_key\s*=\s*[A-Za-z0-9/+=]{20,}"),
+]
+IGNORED_DIRS = {".git", "node_modules", "dist", "target", "__pycache__"}
+
+
+def load() -> dict:
+    with open(MANIFEST, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def verify(manifest: dict) -> list[str]:
+    problems = []
+    for task in manifest["tasks"]:
+        if task.get("status") != "done" or task.get("reopened"):
+            continue
+        for item in task.get("evidence", []):
+            path = ROOT / item["file"]
+            if not path.is_file():
+                problems.append(f"{task['id']}: missing {item['file']}")
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError as exc:
+                problems.append(f"{task['id']}: cannot read {item['file']} ({exc})")
+                continue
+            if item["marker"] not in text:
+                problems.append(
+                    f"{task['id']}: marker missing from {item['file']} — "
+                    f"was the work reverted? ({item['marker']})"
+                )
+    return problems
+
+
+def tracked_files() -> list[Path]:
+    try:
+        output = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return [
+            path
+            for path in ROOT.rglob("*")
+            if path.is_file() and not (set(path.parts) & IGNORED_DIRS)
+        ]
+    return [ROOT / line for line in output.splitlines() if line.strip()]
+
+
+def security() -> list[str]:
+    problems = []
+    files = tracked_files()
+    names = {path.relative_to(ROOT).as_posix() for path in files}
+    for required in ("SECURITY.md", "LICENSE", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md"):
+        if required not in names:
+            problems.append(f"missing repo policy file {required}")
+    if ".env" in names:
+        problems.append(".env is tracked; secrets must never be committed")
+    for path in files:
+        relative = path.relative_to(ROOT).as_posix()
+        if relative.endswith((".png", ".jpg", ".ico", ".woff", ".woff2")):
+            continue
+        if any(part in IGNORED_DIRS for part in path.parts):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if relative.endswith(".example"):
+            continue
+        for pattern in SECRET_PATTERNS:
+            if pattern.search(text):
+                problems.append(f"{relative}: looks like a committed secret")
+                break
+    return problems
+
+
+def compile_python() -> list[str]:
+    problems = []
+    for path in (ROOT / "control").glob("*.py"):
+        try:
+            py_compile.compile(str(path), doraise=True)
+        except py_compile.PyCompileError as exc:
+            problems.append(f"{path.name}: {exc.msg}")
+    return problems
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tests", action="store_true")
+    args = parser.parse_args()
+
+    manifest = load()
+    problems = verify(manifest) + security() + compile_python()
+    if args.tests:
+        result = subprocess.run(["npm", "test", "--silent"], cwd=ROOT / "web")
+        if result.returncode != 0:
+            problems.append("web test suite failed")
+
+    if problems:
+        print("QA gate failed:")
+        for problem in problems:
+            print(f"  - {problem}")
+        return 1
+    done = [task for task in manifest["tasks"] if task.get("status") == "done"]
+    print(
+        f"QA gate passed: {len(done)}/{len(manifest['tasks'])} tasks signed off, "
+        "no secret patterns, Python compiles"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,45 @@
+{
+  "clientId": "ministack-control",
+  "name": "MiniStack control",
+  "description": "MiniStack control plane (accounts, IAM, dashboard)",
+  "rootUrl": "https://ministack.mus.com",
+  "baseUrl": "https://ministack.mus.com",
+  "redirectUris": [
+    "http://127.0.0.1:4570/oidc/callback"
+  ],
+  "webOrigins": [
+    "http://127.0.0.1:4570"
+  ],
+  "protocol": "openid-connect",
+  "publicClient": false,
+  "clientAuthenticatorType": "client-secret",
+  "bearerOnly": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "fullScopeAllowed": false,
+  "consentRequired": false,
+  "frontchannelLogout": false,
+  "enabled": true,
+  "defaultClientScopes": [
+    "web-origins",
+    "acr",
+    "profile",
+    "roles",
+    "basic",
+    "email"
+  ],
+  "optionalClientScopes": [
+    "address",
+    "phone",
+    "organization",
+    "offline_access",
+    "microprofile-jwt"
+  ],
+  "attributes": {
+    "realm_client": "false"
+  },
+  "protocolMappers": [],
+  "roles": []
+}

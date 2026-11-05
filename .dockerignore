@@ -1,0 +1,26 @@
+# Keep the build context to the two things the image needs: `control/` and the
+# console sources in `web/`. Everything here is either rebuilt inside the image,
+# local configuration, or repo material the control never reads.
+
+.git
+.github
+.gitignore
+.env
+*.bak
+Dockerfile
+.dockerignore
+README.md
+__pycache__/
+*.pyc
+
+# Built in the image, never copied in.
+web/node_modules/
+web/dist/
+
+# Repo material with no runtime use.
+addons/
+cli/
+docs/
+qa/
+web/README.md
+web/test/
