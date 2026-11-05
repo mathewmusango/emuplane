@@ -1,6 +1,6 @@
 # MiniStack console
 
-The React console served at `https://ministack.mus.com/`. It is a Vite app built
+The React console served at `https://ministack-control.mus.com/`. It is a Vite app built
 with [Cloudscape](https://cloudscape.design/), the AWS console design system, and
 talks only to the control plane's `/api/*` routes.
 

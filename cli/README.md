@@ -7,7 +7,7 @@ checking a change without a browser.
 ```sh
 cd cli
 cargo build --release
-export MC_CONSOLE=https://ministack.mus.com
+export MC_CONSOLE=https://ministack-control.mus.com
 export MC_ADMIN_TOKEN=…        # or --token-file
 
 ./target/release/ministackctl whoami
