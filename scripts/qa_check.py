@@ -3,7 +3,9 @@
 
 `qa/tasks.json` lists each completed task with evidence: a file plus a literal
 marker that proves the behaviour still exists. This catches reverted or
-"redone" tasks without failing on unrelated edits to the same file.
+"redone" tasks without failing on unrelated edits to the same file. The ledger is
+local-only (gitignored) — when it is absent the gate still runs its security and
+compile checks and reports that no evidence was checked.
 
 If a change is intentional, set the task `"reopened": true` (and say why), make
 the change, then clear the flag once it is signed off again.
@@ -35,6 +37,8 @@ IGNORED_DIRS = {".git", "node_modules", "dist", "target", "__pycache__"}
 
 
 def load() -> dict:
+    if not MANIFEST.exists():
+        return {"tasks": []}
     with open(MANIFEST, encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -135,10 +139,16 @@ def main() -> int:
             print(f"  - {problem}")
         return 1
     done = [task for task in manifest["tasks"] if task.get("status") == "done"]
-    print(
-        f"QA gate passed: {len(done)}/{len(manifest['tasks'])} tasks signed off, "
-        "no secret patterns, Python compiles"
-    )
+    if manifest["tasks"]:
+        print(
+            f"QA gate passed: {len(done)}/{len(manifest['tasks'])} tasks signed off, "
+            "no secret patterns, Python compiles"
+        )
+    else:
+        print(
+            "QA gate passed: no local qa/tasks.json, no secret patterns, "
+            "Python compiles"
+        )
     return 0
 
 

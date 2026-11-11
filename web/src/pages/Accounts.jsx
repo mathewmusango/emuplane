@@ -26,7 +26,6 @@ export default function Accounts() {
   const [confirming, setConfirming] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [savingAdmin, setSavingAdmin] = useState('')
-  const [audit, setAudit] = useState([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -68,20 +67,6 @@ export default function Accounts() {
       setSavingAdmin('')
     }
   }
-
-  useEffect(() => {
-    if (!meta?.platform_admin) return
-    let cancelled = false
-    api
-      .audit(50)
-      .then((rows) => {
-        if (!cancelled) setAudit(rows)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [meta?.platform_admin, accounts])
 
   const toggleDisabled = async (item, disabled) => {
     setSavingAdmin(item.account_id)
@@ -328,29 +313,6 @@ export default function Accounts() {
                 : []),
             ]}
           />
-
-          {meta?.platform_admin && meta?.audit_enabled && (
-            <Table
-              items={audit}
-              trackBy="at"
-              header={
-                <Header
-                  variant="h2"
-                  counter={`(${audit.length})`}
-                  description="Identity and tenancy changes recorded by the control plane."
-                >
-                  Audit trail
-                </Header>
-              }
-              columnDefinitions={[
-                { id: 'at', header: 'When', cell: (item) => item.at, width: 220 },
-                { id: 'actor', header: 'Actor', cell: (item) => item.actor, width: 170 },
-                { id: 'action', header: 'Action', cell: (item) => item.action },
-                { id: 'target', header: 'Target', cell: (item) => item.target },
-              ]}
-              empty={<Box textAlign="center">No audit entries yet.</Box>}
-            />
-          )}
 
           <Modal
             visible={Boolean(confirming)}

@@ -9,38 +9,67 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [ ! -f .env ]; then
-  echo "missing .env: cp .env.example .env and fill it in" >&2
-  exit 1
+  cp .env.example .env
+  echo "created .env from .env.example"
 fi
+chmod 600 .env
 
-data_dir=$(sed -n 's/^MC_DATA_DIR=//p' .env)
-data_dir=${data_dir:-/srv/myinfra/containers/ministack-control/data}
-legacy_dir=/srv/myinfra/containers/ministack/data/control
+# First-run secrets are seeded into .env itself, so they survive a data wipe and
+# the container never needs to write to the host. An existing value always wins.
+python3 - <<'PY'
+from pathlib import Path
+import secrets
+import sys
 
-# One-time move out of the emulator's data tree: accounts, sessions, the bucket
-# registry and the audit trail. Only when the new directory has nothing in it,
-# and never while the control is running (it re-saves accounts.json on writes).
-if [ ! -d "$data_dir" ] || [ -z "$(ls -A "$data_dir" 2>/dev/null)" ]; then
-  if [ -d "$legacy_dir" ] && [ -n "$(ls -A "$legacy_dir" 2>/dev/null)" ]; then
-    running=$(podman inspect --format '{{.State.Running}}' core-ministack-control 2>/dev/null || true)
-    if [ "$running" = "true" ]; then
-      echo "core-ministack-control is running; its data must be migrated stopped:" >&2
-      echo "  podman-compose down" >&2
-      echo "  ./scripts/up.sh" >&2
-      exit 1
-    fi
-    install -d -m 0755 "$data_dir"
-    cp -a "$legacy_dir"/. "$data_dir"/
-    echo "migrated control data: $legacy_dir -> $data_dir"
-    echo "the old copy is left in place; remove it once you are satisfied"
+path = Path(".env")
+lines = path.read_text().splitlines()
+
+def value_of(key):
+    for line in lines:
+        if line.startswith(key + "="):
+            return line.partition("=")[2].strip()
+    return ""
+
+generated = []
+for key, factory in (
+    ("MC_ADMIN_TOKEN", lambda: secrets.token_hex(24)),
+    ("MC_ADMIN_PASSWORD", lambda: secrets.token_urlsafe(18)),
+):
+    if not value_of(key):
+        generated.append((key, factory()))
+
+if not generated:
+    sys.exit(0)
+
+keys = dict(generated)
+out, replaced = [], set()
+for line in lines:
+    key = line.partition("=")[0].strip()
+    if key in keys:
+        out.append(f"{key}={keys[key]}")
+        replaced.add(key)
+    else:
+        out.append(line)
+for key, value in generated:
+    if key not in replaced:
+        out.append(f"{key}={value}")
+
+path.write_text("\n".join(out) + "\n")
+path.chmod(0o600)
+print("seeded into .env: " + ", ".join(key for key, _ in generated))
+PY
+
+require() {
+  value=$(sed -n "s/^$1=//p" .env)
+  if [ -z "$value" ]; then
+    echo "missing $1 in .env" >&2
+    exit 1
   fi
-fi
+  printf '%s' "$value"
+}
 
-if [ ! -d "$data_dir" ]; then
-  echo "missing data directory: $data_dir" >&2
-  echo "create it once: install -d -m 0755 $data_dir" >&2
-  exit 1
-fi
+data_dir=$(require MC_DATA_DIR)
+install -d -m 0755 "$data_dir"
 
 if ! podman container exists core-ministack; then
   echo "the emulator is not created: start it first" >&2
@@ -58,12 +87,12 @@ if ! podman network exists net-services; then
 fi
 
 podman-compose build
-podman-compose up -d
+# Compose compares the image tag, not the image ID: without --force-recreate a
+# rebuilt image is never picked up.
+podman-compose up -d --force-recreate
 
-ui_port=$(sed -n 's/^MC_UI_PORT=//p' .env)
-ui_port=${ui_port:-4570}
-gateway_port=$(sed -n 's/^MC_GATEWAY_PORT=//p' .env)
-gateway_port=${gateway_port:-4571}
+ui_port=$(require MC_UI_PORT)
+gateway_port=$(require MC_GATEWAY_PORT)
 
 for _ in $(seq 1 60); do
   if curl -fsS -m 2 -o /dev/null "http://127.0.0.1:${ui_port}/health"; then
@@ -76,5 +105,5 @@ done
 printf '\nendpoints (only these are published):\n'
 printf '  dashboard   http://127.0.0.1:%s/  (sign in required)\n' "$ui_port"
 printf '  control API http://127.0.0.1:%s/api/%s/\n' "$ui_port" v1
-printf '  AWS gateway 127.0.0.1:%s  (use an access key from the console)\n' "$gateway_port"
+printf '  emulator gateway 127.0.0.1:%s  (use an access key from the console)\n' "$gateway_port"
 printf '\nThe emulator (core-ministack) is internal to net-services.\n'

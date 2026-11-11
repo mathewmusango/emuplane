@@ -38,6 +38,16 @@ export default function Settings() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
+  const [profile, setProfile] = useState({
+    name: '',
+    email: '',
+    current_password: '',
+    new_password: '',
+  })
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileNotice, setProfileNotice] = useState('')
+  const [profileError, setProfileError] = useState('')
+
   const loadKeys = useCallback(async () => {
     setLoadingKeys(true)
     try {
@@ -55,6 +65,59 @@ export default function Settings() {
   useEffect(() => {
     loadKeys()
   }, [loadKeys])
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .me()
+      .then((payload) => {
+        if (!cancelled) {
+          setProfile((prev) => ({
+            ...prev,
+            name: payload.name || '',
+            email: payload.email || '',
+          }))
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const setProfileField = (name) => ({ detail }) =>
+    setProfile((prev) => ({ ...prev, [name]: detail.value }))
+
+  const saveProfile = async (event) => {
+    if (event) event.preventDefault()
+    setProfileError('')
+    setProfileNotice('')
+    if (profile.new_password && profile.new_password.length < 8) {
+      setProfileError('The new password must be at least 8 characters.')
+      return
+    }
+    setSavingProfile(true)
+    try {
+      const payload = { name: profile.name, email: profile.email }
+      if (profile.new_password) {
+        payload.current_password = profile.current_password
+        payload.new_password = profile.new_password
+      }
+      const updated = await api.updateMe(payload)
+      setProfile({
+        name: updated.name || '',
+        email: updated.email || '',
+        current_password: '',
+        new_password: '',
+      })
+      setProfileNotice('Account updated.')
+      refresh()
+    } catch (err) {
+      setProfileError(err.message)
+    } finally {
+      setSavingProfile(false)
+    }
+  }
 
   useEffect(() => {
     if (!meta?.platform_admin) return
@@ -146,6 +209,7 @@ export default function Settings() {
   const regionRows = (meta?.all_regions || []).map((name) => ({
     name,
     enabled: enabledRegions.includes(name),
+    automatic: (meta?.auto_regions || []).includes(name),
     locked: name === 'us-east-1',
   }))
 
@@ -157,7 +221,7 @@ export default function Settings() {
         header={
           <Header
             variant="h1"
-            description="Session, access keys, sign-up and the regions this account can use."
+            description="My account, session, access keys, sign-up and the regions this account can use."
           >
             Settings
           </Header>
@@ -188,6 +252,87 @@ export default function Settings() {
                 <Box>{me?.role || '—'}</Box>
               </div>
             </ColumnLayout>
+          </Container>
+
+          <Container
+            header={
+              <Header
+                variant="h2"
+                description="Your display name, email and password. Leave the password fields empty to keep the current one."
+              >
+                My account
+              </Header>
+            }
+          >
+            <Form
+              actions={
+                <Button
+                  variant="primary"
+                  loading={savingProfile}
+                  onClick={saveProfile}
+                >
+                  Save changes
+                </Button>
+              }
+            >
+              <SpaceBetween size="m">
+                {profileNotice && (
+                  <Alert
+                    type="success"
+                    dismissible
+                    onDismiss={() => setProfileNotice('')}
+                  >
+                    {profileNotice}
+                  </Alert>
+                )}
+                {profileError && <Alert type="error">{profileError}</Alert>}
+                <ColumnLayout columns={2}>
+                  <FormField
+                    label="Display name"
+                    description="Shown next to the account alias."
+                  >
+                    <Input
+                      value={profile.name}
+                      onChange={setProfileField('name')}
+                      placeholder="Mathew Musango"
+                    />
+                  </FormField>
+                  <FormField
+                    label="Email"
+                    description="Optional; recorded on your user."
+                  >
+                    <Input
+                      type="email"
+                      value={profile.email}
+                      onChange={setProfileField('email')}
+                      placeholder="you@example.com"
+                    />
+                  </FormField>
+                  <FormField
+                    label="Current password"
+                    description="Only needed when setting a new password."
+                  >
+                    <Input
+                      type="password"
+                      autoComplete="current-password"
+                      value={profile.current_password}
+                      onChange={setProfileField('current_password')}
+                    />
+                  </FormField>
+                  <FormField
+                    label="New password"
+                    description="At least 8 characters."
+                  >
+                    <Input
+                      type="password"
+                      autoComplete="new-password"
+                      value={profile.new_password}
+                      onChange={setProfileField('new_password')}
+                    />
+                  </FormField>
+                </ColumnLayout>
+              </SpaceBetween>
+            </Form>
           </Container>
 
           <Container
@@ -371,7 +516,16 @@ export default function Settings() {
                 {
                   id: 'name',
                   header: 'Region',
-                  cell: (item) => <span className="mono">{item.name}</span>,
+                  cell: (item) => (
+                    <SpaceBetween direction="horizontal" size="xs">
+                      <span className="mono">{item.name}</span>
+                      {item.automatic && (
+                        <Box color="text-body-secondary" fontSize="body-s">
+                          enabled on first use
+                        </Box>
+                      )}
+                    </SpaceBetween>
+                  ),
                   sortingField: 'name',
                 },
                 {

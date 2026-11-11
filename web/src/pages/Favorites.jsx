@@ -24,8 +24,8 @@ const views = [
 
 export default function Favorites() {
   const navigate = useNavigate()
-  const { favorites, toggleFavorite } = useFavorites()
-  const { account, region } = useSession()
+  const { account, region, meta } = useSession()
+  const { favorites, toggleFavorite } = useFavorites(meta?.me?.account)
   const [catalogue, setCatalogue] = useState(null)
   const [services, setServices] = useState({})
   const [counts, setCounts] = useState({})

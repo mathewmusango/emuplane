@@ -12,6 +12,12 @@ npm run typecheck # tsc --noEmit (typed api.ts + types.ts)
 npm test          # Vitest + Testing Library in jsdom
 ```
 
+Dependencies are pinned by `package-lock.json` and Dependabot owns the bumps. The
+toolchain is Vite 8 + Vitest 5 + jsdom 31 and needs **Node 22.12 or newer** — the
+image's `node:22-alpine` stage satisfies it, so the container build stays the
+reference. `npm audit` is expected to report zero vulnerabilities; treat a new
+advisory as a task, not background noise.
+
 `dist/` and `node_modules/` are gitignored. The control container mounts
 `web/dist` read-only, so run `npm run build` and restart
 `core-ministack-control` after a change. Until `dist/` exists, `/` answers `503`
@@ -43,14 +49,14 @@ Mapped from [Cloudscape patterns](https://cloudscape.design/patterns/):
 | Rule | Where it is enforced |
 | --- | --- |
 | A session sees only its own account | `/api/meta` filters the account list, `/api/users` returns one account, `/api/browse` and `/api/exec` answer `403` for another account |
-| Regions are opt-in per account | `accounts.json` stores `regions`; every browse/exec checks it; Settings toggles them; `us-east-1` cannot be disabled |
+| Regions are opt-in per account | `control.db` stores `regions`; every browse/exec checks it; Settings toggles them; `us-east-1` cannot be disabled |
 | Only the platform admin crosses accounts | The `.env` operator and the admin bearer token; only they may provision or delete accounts |
 | The default admin is disposable | The first account is marked default; once another global admin exists, Dashboard banners to disable or delete it. Disabling drops its sessions and cannot remove the last enabled admin. |
 | S3 names are global | Upstream limitation; the S3 page says so |
 
 Service coverage against the upstream catalogue (101 services, 2,519
-operations) is generated into [`../docs/SERVICES.md`](../docs/SERVICES.md) by
-`scripts/upstream_services.py`.
+operations) is generated locally by `scripts/upstream_services.py` into the
+gitignored `docs/` folder.
 
 Deliberately deferred: configurable dashboard (`board-components`), saved filter
 sets, help panel, multi-step create wizard, split view and an unsaved-changes
@@ -72,9 +78,8 @@ without waiting upstream, but **forks are not build inputs**:
 
 ## Tracking
 
-S3 parity against the upstream operation list is tracked in the private repo
-[`mathewmusango/ministack-s3-tasks`](https://github.com/mathewmusango/ministack-s3-tasks)
-(`S3.md` plus a checklist issue). It is a tracker only — implementation stays in
+S3 parity against the upstream operation list is tracked on the `ministack` GitHub
+project board (#10) as one draft issue per operation. Implementation stays in
 `control/` and `web/`.
 
 ## Upstream

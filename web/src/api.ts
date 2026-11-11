@@ -1,18 +1,20 @@
 import type {
   ActionCatalogue,
   ActionResult,
-  AuditEntry,
+
   BrowseResult,
   CountsResult,
   CredentialsResult,
   DeleteAccountResult,
   Meta,
+  MeResult,
   NewAccessKeyResult,
   NodeRow,
   ObjectsResult,
   ProvisionResult,
   RegionResult,
   SettingsResult,
+  UpdateMeResult,
   UserAccount,
 } from './types'
 
@@ -117,5 +119,11 @@ export const api = {
   settings: () => request<SettingsResult>('/api/settings'),
   setSettings: (payload: Partial<SettingsResult>) =>
     request<SettingsResult>('/api/settings', { method: 'POST', body: payload }),
-  audit: (limit = 100) => request<AuditEntry[]>(`/api/audit?limit=${limit}`),
+  me: () => request<MeResult>('/api/accounts/me'),
+  updateMe: (payload: {
+    name?: string
+    email?: string
+    current_password?: string
+    new_password?: string
+  }) => request<UpdateMeResult>('/api/me', { method: 'POST', body: payload }),
 }

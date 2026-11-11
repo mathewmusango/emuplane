@@ -30,7 +30,7 @@ export default function About() {
               <SpaceBetween size="xs">
                 <Box>
                   <Box variant="awsui-key-label">Emulator</Box>
-                  <StatusIndicator type="success">{meta?.version || 'unknown'}</StatusIndicator>
+                  <StatusIndicator type="success">{meta?.emulator_version || 'unknown'}</StatusIndicator>
                 </Box>
                 <Box>
                   <Box variant="awsui-key-label">Signed in</Box>
@@ -72,7 +72,7 @@ export default function About() {
                   <code>{meta?.console}</code>
                 </Box>
                 <Box>
-                  <Box variant="awsui-key-label">AWS gateway</Box>
+                  <Box variant="awsui-key-label">Emulator gateway</Box>
                   <code>{meta?.gateway}</code>
                 </Box>
                 <Box>

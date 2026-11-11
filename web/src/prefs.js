@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { applyMode, Mode } from '@cloudscape-design/global-styles'
 
-const FAV_KEY = 'ministack:favorites'
+const FAV_PREFIX = 'ministack:favorites'
 const FAV_EVENT = 'ministack:favorites-changed'
 
-function readFavorites() {
+// Browser state is scoped to the signed-in account: a new account (or a wiped
+// database, which mints new IDs) starts with an empty list instead of replaying
+// whatever the previous tenancy left behind.
+const keyFor = (prefix, scope) => `${prefix}:${scope || 'anon'}`
+
+function readFavorites(key) {
   try {
-    const stored = localStorage.getItem(FAV_KEY)
+    const stored = localStorage.getItem(key)
     return stored ? JSON.parse(stored) : []
   } catch {
     return []
@@ -14,23 +19,25 @@ function readFavorites() {
 }
 
 // Service-level favorites, mirrored in every hook instance and the top-nav pins.
-export function useFavorites() {
-  const [favorites, setFavorites] = useState(readFavorites)
+export function useFavorites(scope) {
+  const key = keyFor(FAV_PREFIX, scope)
+  const [favorites, setFavorites] = useState(() => readFavorites(key))
 
   useEffect(() => {
-    const sync = () => setFavorites(readFavorites())
+    setFavorites(readFavorites(key))
+    const sync = () => setFavorites(readFavorites(key))
     window.addEventListener(FAV_EVENT, sync)
     return () => window.removeEventListener(FAV_EVENT, sync)
-  }, [])
+  }, [key])
 
   const toggleFavorite = useCallback((service) => {
-    const current = readFavorites()
+    const current = readFavorites(key)
     const next = current.includes(service)
       ? current.filter((item) => item !== service)
       : [...current, service]
-    localStorage.setItem(FAV_KEY, JSON.stringify(next))
+    localStorage.setItem(key, JSON.stringify(next))
     window.dispatchEvent(new Event(FAV_EVENT))
-  }, [])
+  }, [key])
 
   const isFavorite = useCallback(
     (service) => favorites.includes(service),
@@ -48,12 +55,12 @@ export function applyTheme(theme) {
   applyMode(dark ? Mode.Dark : Mode.Light)
 }
 
-const RECENT_KEY = 'ministack:recent'
+const RECENT_PREFIX = 'ministack:recent'
 const RECENT_EVENT = 'ministack:recent-changed'
 
-function readRecent() {
+function readRecent(key) {
   try {
-    const stored = localStorage.getItem(RECENT_KEY)
+    const stored = localStorage.getItem(key)
     return stored ? JSON.parse(stored) : []
   } catch {
     return []
@@ -61,20 +68,22 @@ function readRecent() {
 }
 
 // Recently visited services, newest first, shared by the dashboard and shell.
-export function useRecent() {
-  const [recent, setRecent] = useState(readRecent)
+export function useRecent(scope) {
+  const key = keyFor(RECENT_PREFIX, scope)
+  const [recent, setRecent] = useState(() => readRecent(key))
 
   useEffect(() => {
-    const sync = () => setRecent(readRecent())
+    setRecent(readRecent(key))
+    const sync = () => setRecent(readRecent(key))
     window.addEventListener(RECENT_EVENT, sync)
     return () => window.removeEventListener(RECENT_EVENT, sync)
-  }, [])
+  }, [key])
 
   const addRecent = useCallback((service) => {
-    const next = [service, ...readRecent().filter((item) => item !== service)].slice(0, 8)
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+    const next = [service, ...readRecent(key).filter((item) => item !== service)].slice(0, 8)
+    localStorage.setItem(key, JSON.stringify(next))
     window.dispatchEvent(new Event(RECENT_EVENT))
-  }, [])
+  }, [key])
 
   return { recent, addRecent }
 }

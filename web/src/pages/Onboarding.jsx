@@ -96,7 +96,7 @@ export default function Onboarding() {
         header={
           <Header
             variant="h1"
-            description="Provisions an account, a local login and one IAM access key. The account ID then works in every region. Signing in with Keycloak for the first time mints an account the same way."
+            description="Provisions an account, a local login and one IAM access key. The account ID then works in every region."
           >
             Onboard an account
           </Header>

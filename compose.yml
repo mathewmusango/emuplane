@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: "localhost/ministack-control:${MC_IMAGE_TAG:-dev}"
+    image: "localhost/ministack-control:dev"
     container_name: core-ministack-control
     hostname: core-ministack-control
     restart: "no"
@@ -29,16 +29,11 @@ services:
     command: ["python", "/app/app.py"]
     env_file:
       - ./.env
-    environment:
-      CONTROL_REGISTRY_FILE: /var/lib/ministack/control/registry.json
-      CONTROL_PORT: "8080"
-      CONTROL_GATEWAY_PORT: "4566"
-      MINISTACK_NODE_URL: http://core-ministack:4566
     ports:
-      - "127.0.0.1:${MC_UI_PORT:-4570}:8080"
-      - "127.0.0.1:${MC_GATEWAY_PORT:-4571}:4566"
+      - "127.0.0.1:${MC_UI_PORT:?MC_UI_PORT is required}:8080"
+      - "127.0.0.1:${MC_GATEWAY_PORT:?MC_GATEWAY_PORT is required}:4566"
     volumes:
-      - "${MC_DATA_DIR:-/srv/myinfra/containers/ministack-control/data}:/var/lib/ministack/control:Z"
+      - "${MC_DATA_DIR:?MC_DATA_DIR is required}:/var/lib/ministack/control:Z"
       - /etc/localtime:/etc/localtime:ro
     networks:
       - net-services

@@ -48,8 +48,8 @@ export default function Resources() {
   const { service: routeService } = useParams()
   const navigate = useNavigate()
   const { account, region, meta } = useSession()
-  const { toggleFavorite, isFavorite } = useFavorites()
-  const { addRecent } = useRecent()
+  const { toggleFavorite, isFavorite } = useFavorites(meta?.me?.account)
+  const { addRecent } = useRecent(meta?.me?.account)
 
   const service = routeService || 's3'
   const [catalogue, setCatalogue] = useState(null)
@@ -490,8 +490,7 @@ export default function Resources() {
                     region <code>{region}</code>
                   </>
                 )}
-                {meta?.accounts_scope === 'global' &&
-                  ' · the account spans every region'}
+                {' · the account spans every region'}
               </Box>
             </SpaceBetween>
           </Container>
@@ -504,11 +503,11 @@ export default function Resources() {
 
           {service === 's3' && (
             <Alert type="info" header="S3 bucket names are global">
-              MiniStack does not isolate S3 per region, so a bucket created in one
-              region is visible from every region of the same account. The region
-              shown against a bucket is the one recorded when its name was claimed,
-              not the region being queried. Every other service is
-              region-isolated.
+              A bucket name is unique across every region and account, and the bucket
+              itself lives in one region: this page lists the buckets homed in the
+              region selected in the header. Address a bucket from another region and
+              S3 answers <code>301</code> with the region to use. Turn on{' '}
+              <b>View from all regions</b> to see every bucket with its region.
             </Alert>
           )}
 

@@ -4,7 +4,7 @@
 One process, two listeners:
 
   :8080  admin API and HTML dashboard (published as 127.0.0.1:4570)
-  :4566  AWS gateway, the single entrypoint for every AWS client
+  :4566  emulator gateway, the single entrypoint for every AWS client
          (published as 127.0.0.1:4571)
 
 Design rules:
@@ -34,47 +34,27 @@ import html
 import http.client
 import json
 import os
-import queue
 import re
 import secrets
-import smtplib
 import sqlite3
 import signal
 import sys
 import threading
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
-from email.message import EmailMessage
-from email.utils import formataddr
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
 
-REGISTRY_FILE = os.environ.get(
-    "CONTROL_REGISTRY_FILE", "/var/lib/ministack/control/registry.json"
-)
-NODES_FILE = os.environ.get(
-    "CONTROL_NODES_FILE", "/var/lib/ministack/control/nodes.json"
-)
-ACCOUNTS_FILE = os.environ.get(
-    "CONTROL_ACCOUNTS_FILE", "/var/lib/ministack/control/accounts.json"
-)
-USERS_DB = os.environ.get(
-    "CONTROL_USERS_DB", "/var/lib/ministack/control/users.db"
-)
+# One SQLite file holds every control-plane document: accounts, users,
+# sessions, ownership, settings and the bucket registry. There are no side files
+# and no import path: a deployment starts from an empty database or restores one.
+DB_FILE = os.environ.get("CONTROL_DB", "").strip()
 CONTROL_PORT = int(os.environ.get("CONTROL_PORT", "8080"))
 GATEWAY_PORT = int(os.environ.get("CONTROL_GATEWAY_PORT", "4566"))
 ADMIN_TOKEN = os.environ.get("MC_ADMIN_TOKEN", "").strip()
-MODE_RAW = os.environ.get("MINISTACK_CONTROL_MODE", "central").strip().lower()
-# Accept a versioned prefix, e.g. v1:central, v1beta1:quorum, v1alpha1:mesh.
-MODE = MODE_RAW.split(":")[-1]
-if MODE not in {"central", "mesh", "quorum"}:
-    MODE = "central"
-MESH_TOKEN = os.environ.get("MINISTACK_MESH_TOKEN", "").strip()
 # One emulator, many regions and accounts: these are data, not containers.
 # MiniStack's own fallback region for unsigned callers. There is no configured
 # region list: every region exists, and the one a request uses comes from its
@@ -82,23 +62,30 @@ MESH_TOKEN = os.environ.get("MINISTACK_MESH_TOKEN", "").strip()
 DEFAULT_REGION = "us-east-1"
 SEEN_REGIONS: set[str] = set()
 SEEN_LOCK = threading.Lock()
-NODE_NAME = os.environ.get("MINISTACK_NODE_NAME", "ministack").strip() or "ministack"
-NODE_URL = os.environ.get(
-    "MINISTACK_NODE_URL", "http://core-ministack:4566"
-).rstrip("/")
+NODE_NAME = os.environ.get("MINISTACK_NODE_NAME", "").strip()
+NODE_URL = os.environ.get("MINISTACK_NODE_URL", "").strip().rstrip("/")
 POLL_SECONDS = int(os.environ.get("CONTROL_POLL_SECONDS", "10"))
-JOIN_TOKEN = os.environ.get("MINISTACK_JOIN_TOKEN", "").strip()
-NODE_TTL_SECONDS = int(os.environ.get("NODE_TTL_SECONDS", "30"))
 
 API_VERSION = "v1"
 STARTED_AT = time.time()
 # Canonical public addresses shown in the UI (Traefik, lab wildcard cert).
 # The gateway took over `ministack.mus.com` on 2026-11-05; `aws.mus.com` stays
 # routed as a deprecated alias so existing client configs keep working.
-GATEWAY_URL = os.environ.get("MC_GATEWAY_URL", "https://ministack.mus.com")
-CONSOLE_URL = os.environ.get(
-    "MC_CONSOLE_URL", "https://ministack-control.mus.com"
-)
+GATEWAY_URL = os.environ.get("MC_GATEWAY_URL", "").strip().rstrip("/")
+CONSOLE_URL = os.environ.get("MC_CONSOLE_URL", "").strip().rstrip("/")
+
+REQUIRED_SETTINGS = {
+    "CONTROL_DB": DB_FILE,
+    "MINISTACK_NODE_NAME": NODE_NAME,
+    "MINISTACK_NODE_URL": NODE_URL,
+    "MC_GATEWAY_URL": GATEWAY_URL,
+    "MC_CONSOLE_URL": CONSOLE_URL,
+}
+MISSING_SETTINGS = [name for name, value in REQUIRED_SETTINGS.items() if not value]
+if MISSING_SETTINGS:
+    sys.exit(
+        "control: missing required .env setting(s): " + ", ".join(MISSING_SETTINGS)
+    )
 # Regions offered in the console. MiniStack serves all of them; the list only
 # decides what the picker shows, and anything seen at the gateway is added.
 REGION_CHOICES = [
@@ -113,20 +100,7 @@ REGION_CHOICES = [
     "me-south-1", "me-central-1", "af-south-1", "il-central-1",
 ]
 
-# Which regions this instance exposes. Unset means `all`: every region exists,
-# and the one a request uses comes from its SigV4 scope.
-REGION_SETTING = os.environ.get("MC_REGIONS", "all").strip()
-if REGION_SETTING.lower() in {"all", "*", ""}:
-    ENABLED_REGIONS = list(REGION_CHOICES)
-else:
-    ENABLED_REGIONS = [
-        name.strip()
-        for name in REGION_SETTING.split(",")
-        if name.strip() in REGION_CHOICES
-    ] or [DEFAULT_REGION]
-
 # Optional bootstrap administrator. Only seeded into an empty user store.
-# The email matters: `/forgot` can only mail a user that has one.
 ADMIN_USER = os.environ.get("MC_ADMIN_USER", "").strip()
 ADMIN_EMAIL = os.environ.get("MC_ADMIN_EMAIL", "").strip()
 ADMIN_PASSWORD = os.environ.get("MC_ADMIN_PASSWORD", "").strip()
@@ -154,78 +128,7 @@ SESSION_SECONDS = int(os.environ.get("MC_SESSION_SECONDS", "28800"))
 # AWS allows two access keys per IAM user; the console holds the same line per
 # account so a rotation can overlap (create the new key, then delete the old).
 MAX_ACCESS_KEYS = 2
-MODE_STABILITY = {"central": "stable", "quorum": "beta", "mesh": "alpha"}
-SETTINGS_FILE = os.environ.get(
-    "CONTROL_SETTINGS_FILE", "/var/lib/ministack/control/settings.json"
-)
-AUDIT_FILE = os.environ.get(
-    "CONTROL_AUDIT_FILE", "/var/lib/ministack/control/audit.jsonl"
-)
-# Who created a resource from the console. Best-effort provenance: the emulator
-# itself records no owner, so anything created with the CLI has none.
-OWNERS_FILE = os.environ.get(
-    "CONTROL_OWNERS_FILE", "/var/lib/ministack/control/ownership.json"
-)
-OTEL_ENDPOINT = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").rstrip("/")
-OTEL_SERVICE = os.environ.get("OTEL_SERVICE_NAME", "ministack-control")
-
-AUTH_MODE = os.environ.get("MC_AUTH_MODE", "local").strip().lower()
-if AUTH_MODE not in {"local", "oidc", "both"}:
-    AUTH_MODE = "local"
-AUDIT_ENABLED = os.environ.get("MC_AUDIT", "false").strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
 RECENT_LIMIT = int(os.environ.get("MC_RECENT_LIMIT", "5") or 5)
-# The canonical public address. Reset links and the OIDC redirect derive from it.
-PUBLIC_URL = os.environ.get(
-    "MC_PUBLIC_URL", "https://ministack-control.mus.com"
-).strip().rstrip("/")
-OIDC_ENABLED = os.environ.get("MC_OIDC_ENABLED", "true").strip().lower() in {
-    "1",
-    "true",
-    "yes",
-}
-OIDC_PUBLIC_URL = os.environ.get(
-    "MC_OIDC_PUBLIC_URL", "https://keycloak.mus.com"
-).rstrip("/")
-OIDC_INTERNAL_URL = os.environ.get(
-    "MC_OIDC_INTERNAL_URL", "http://security-keycloak:8080"
-).rstrip("/")
-OIDC_REALM = os.environ.get("MC_OIDC_REALM", "my-labs")
-# keycloak  = {public}/realms/{realm}/protocol/openid-connect/...
-# provider  = OpenBao-style identity/oidc provider discovery document
-OIDC_STYLE = os.environ.get("MC_OIDC_STYLE", "keycloak").strip().lower()
-if OIDC_STYLE not in {"keycloak", "openbao", "provider"}:
-    OIDC_STYLE = "keycloak"
-OIDC_PROVIDER = os.environ.get("MC_OIDC_PROVIDER", "default").strip() or "default"
-OIDC_SCOPES = "openid profile email"
-OIDC_DISCOVERY_URL = os.environ.get("MC_OIDC_DISCOVERY_URL", "").strip()
-OIDC_AUTHORIZE_URL = os.environ.get("MC_OIDC_AUTHORIZE_URL", "").strip()
-OIDC_CLIENT_ID = os.environ.get("MC_OIDC_CLIENT_ID", "ministack-control")
-OIDC_CLIENT_SECRET = os.environ.get("MC_OIDC_CLIENT_SECRET", "").strip()
-OIDC_REDIRECT_URI = os.environ.get(
-    "MC_OIDC_REDIRECT_URI", f"{PUBLIC_URL}/oidc/callback"
-)
-OIDC_PROVIDER_LABEL = "OpenBao" if OIDC_STYLE in {"openbao", "provider"} else "Keycloak"
-# Client role that makes an OIDC identity a global admin, like Grafana's roles.
-OIDC_ADMIN_ROLE = os.environ.get("MC_OIDC_ADMIN_ROLE", "global-admin").strip()
-
-# --- email (password reset) --------------------------------------------
-# StartTLS on 587 by default; `ssl` for 465, `none` only for a local relay.
-SMTP_HOST = os.environ.get("MC_SMTP_HOST", "").strip()
-SMTP_PORT = int(os.environ.get("MC_SMTP_PORT", "587") or 587)
-SMTP_USER = os.environ.get("MC_SMTP_USER", "").strip()
-SMTP_PASSWORD = os.environ.get("MC_SMTP_PASSWORD", "").strip()
-# An authenticated relay usually insists the From address is the account it
-# authenticated as, so fall back to it rather than to a made-up domain.
-SMTP_FROM = os.environ.get("MC_SMTP_FROM", "").strip() or SMTP_USER
-SMTP_FROM_NAME = os.environ.get("MC_SMTP_FROM_NAME", "MiniStack").strip()
-SMTP_TLS = os.environ.get("MC_SMTP_TLS", "starttls").strip().lower()
-SMTP_ENABLED = bool(SMTP_HOST)
-RESET_TTL_SECONDS = int(os.environ.get("MC_RESET_TTL_SECONDS", "1800"))
 
 GLOBAL_SERVICES = {
     "iam",
@@ -299,192 +202,155 @@ def now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
 
 
-def send_mail(to_address: str, subject: str, body: str) -> str:
-    """One plain-text message through the configured relay. Returns "" or an error."""
-    if not SMTP_ENABLED:
-        return "email is not configured"
-    if not SMTP_FROM:
-        return "no sender address: set MC_SMTP_FROM or MC_SMTP_USER"
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = formataddr((SMTP_FROM_NAME, SMTP_FROM))
-    message["To"] = to_address
-    message.set_content(body)
-    try:
-        if SMTP_TLS == "ssl":
-            client = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15)
-        else:
-            client = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15)
-        with client:
-            if SMTP_TLS == "starttls":
-                client.starttls()
-            if SMTP_USER:
-                client.login(SMTP_USER, SMTP_PASSWORD)
-            client.send_message(message)
-    except (OSError, smtplib.SMTPException) as exc:
-        # The exception text can carry the relay's banner, never the password.
-        return f"could not send mail: {exc.__class__.__name__}: {exc}"
-    return ""
+# One emulator: it comes from the environment, not from a database or discovery.
+NODES: list[dict] = [
+    {
+        "name": NODE_NAME,
+        "region": DEFAULT_REGION,
+        "endpoint": NODE_URL,
+        "static": True,
+    }
+]
 
 
-# The emulator entry, refreshed from NodeRegistry. Everything below iterates
-# this list; it is replaced in place so module-level readers always see truth.
-NODES: list[dict] = []
+class ControlDB:
+    """One SQLite database for every control-plane document.
 
+    The control used to keep a family of side files beside `users.db`, each
+    rewritten whole with a tmp-file rename: seven write paths, seven permission
+    fixups, no shared transaction and no way to query them. Everything lives in
+    this one file now — one thing to back up, one set of permissions, and SQL for
+    the reads the console already makes (live sessions, owner lookup). The
+    in-memory dicts stay the working set; each store writes through.
+    """
 
-class NodeRegistry:
-    """One configured emulator; seeded at startup, never discovered."""
+    SCHEMA = (
+        """CREATE TABLE IF NOT EXISTS users (
+               username TEXT PRIMARY KEY COLLATE NOCASE,
+               email TEXT,
+               password_hash TEXT NOT NULL,
+               account_id TEXT NOT NULL,
+               role TEXT NOT NULL DEFAULT 'root',
+               created_at TEXT NOT NULL,
+               last_login TEXT)""",
+        """CREATE TABLE IF NOT EXISTS accounts (
+               account_id TEXT PRIMARY KEY,
+               payload TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS sessions (
+               token TEXT PRIMARY KEY,
+               expires REAL NOT NULL,
+               payload TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS owners (
+               key TEXT PRIMARY KEY,
+               payload TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS settings (
+               key TEXT PRIMARY KEY,
+               value TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS buckets (
+               name TEXT PRIMARY KEY,
+               payload TEXT NOT NULL)""",
+        """CREATE TABLE IF NOT EXISTS bucket_nodes (
+               name TEXT PRIMARY KEY,
+               payload TEXT NOT NULL)""",
+    )
 
     def __init__(self, path: str) -> None:
         self.path = path
-        self.lock = threading.Lock()
-        self.nodes: dict[str, dict] = {}
-        self._load()
-        self._sync()
-
-    def _load(self) -> None:
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        for statement in self.SCHEMA:
+            self._run(statement)
         try:
-            with open(self.path, encoding="utf-8") as handle:
-                data = json.load(handle)
-            self.nodes = {node["name"]: node for node in data.get("nodes", [])}
-        except (OSError, json.JSONDecodeError):
-            self.nodes = {}
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
 
-    def _save(self) -> None:
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        tmp = f"{self.path}.tmp"
-        with open(tmp, "w", encoding="utf-8") as handle:
-            json.dump(
-                {"nodes": sorted(self.nodes.values(), key=lambda n: n["name"])},
-                handle,
-                indent=2,
-            )
-        os.replace(tmp, self.path)
+    def connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.path, timeout=5)
+        conn.row_factory = sqlite3.Row
+        return conn
 
-    def _sync(self) -> None:
-        NODES[:] = sorted(self.nodes.values(), key=lambda node: node["name"])
+    def _run(self, sql: str, params: tuple = (), fetch: str = "") -> object:
+        conn = self.connect()
+        try:
+            cursor = conn.execute(sql, params)
+            if fetch == "one":
+                row = cursor.fetchone()
+                conn.commit()
+                return dict(row) if row is not None else None
+            if fetch == "all":
+                rows = [dict(row) for row in cursor.fetchall()]
+                conn.commit()
+                return rows
+            conn.commit()
+            return None
+        finally:
+            conn.close()
 
-    def ensure_static(
-        self, name: str, endpoint: str, region: str
-    ) -> None:
-        """Seed the emulator entry: it is configured, never discovered.
+    def execute(self, sql: str, params: tuple = ()) -> None:
+        self._run(sql, params)
 
-        MiniStack already serves every region and account from one process, so
-        there is nothing to discover and nothing that may expire.
-        """
-        with self.lock:
-            # One emulator is the whole model; entries registered by the retired
-            # per-region agents are leftovers and must not linger in the UI.
-            self.nodes = {}
-            node = {
-                "name": name,
-                "region": region,
-                "endpoint": endpoint,
-                "agent": "",
-                "static": True,
-                "last_seen": time.time(),
-            }
-            self.nodes[name] = node
-            self._save()
-            self._sync()
+    def rows(self, sql: str, params: tuple = ()) -> list[dict]:
+        return self._run(sql, params, fetch="all") or []
 
-    def register(self, payload: dict, token: str) -> tuple[int, str]:
-        name = str(payload.get("name", "")).strip()
-        region = str(payload.get("region", "")).strip()
-        account = str(payload.get("account_id", "")).strip()
-        endpoint = str(payload.get("endpoint", "")).strip()
-        agent = str(payload.get("agent", "")).strip()
-        if not JOIN_TOKEN or not hmac.compare_digest(token, JOIN_TOKEN):
-            return 401, "invalid join token"
-        if not name or not region or not endpoint:
-            return 400, "name, region and endpoint are required"
-        with self.lock:
-            for other in self.nodes.values():
-                if other["region"] == region and other["name"] != name:
-                    return 409, f"region {region} is already registered by {other['name']}"
-            existing = self.nodes.get(name)
-            if existing and existing["region"] != region:
-                return 409, f"node {name} is already registered in {existing['region']}"
-            self.nodes[name] = {
-                "name": name,
-                "region": region,
-                "account_id": account,
-                "endpoint": endpoint,
-                "agent": agent,
-                "last_seen": time.time(),
-            }
-            self._save()
-            self._sync()
-        return 201 if existing is None else 200, "registered"
+    def row(self, sql: str, params: tuple = ()) -> dict | None:
+        return self._run(sql, params, fetch="one")
 
-    def heartbeat(self, name: str) -> bool:
-        with self.lock:
-            node = self.nodes.get(name)
-            if node is None:
-                return False
-            node["last_seen"] = time.time()
-            self._save()
-            self._sync()
-            return True
+    def count(self, table: str) -> int:
+        found = self.row(f"SELECT COUNT(*) AS n FROM {table}")
+        return int(found["n"]) if found else 0
 
-    def expire(self, ttl: int = NODE_TTL_SECONDS) -> None:
-        cutoff = time.time() - ttl
-        with self.lock:
-            stale = [
-                name
-                for name, node in self.nodes.items()
-                if not node.get("static") and node.get("last_seen", 0) < cutoff
-            ]
-            if not stale:
-                return
-            for name in stale:
-                del self.nodes[name]
-            self._save()
-            self._sync()
+    def replace(self, table: str, rows: list[tuple]) -> None:
+        """Rewrite one whole table in a single transaction."""
+        self.rewrite({table: rows})
 
-    def snapshot(self) -> list[dict]:
-        with self.lock:
-            return [dict(node) for node in self.nodes.values()]
+    def rewrite(self, tables: dict[str, list[tuple]]) -> None:
+        """Rewrite several tables atomically — the multi-store write."""
+        conn = self.connect()
+        try:
+            with conn:
+                for table, rows in tables.items():
+                    conn.execute(f"DELETE FROM {table}")
+                    if rows:
+                        placeholders = ",".join("?" * len(rows[0]))
+                        conn.executemany(
+                            f"INSERT INTO {table} VALUES ({placeholders})", rows
+                        )
+        finally:
+            conn.close()
 
 
 class Accounts:
-    """Accounts are the tenancy boundary; Keycloak subjects map into them.
+    """Accounts are the tenancy boundary.
 
-    On disk (v2):
+    Stored as one row per account in `control.db`, each carrying this shape:
 
-        {"accounts": {"111111111111": {
-             "account_id": "111111111111", "alias": "mathewmusango",
-             "root": "mathewmusango", "created_at": "...",
-             "users": {"mathewmusango": {"username": ..., "subject": ..., "role": "root"}}}},
-         "subjects": {"<oidc sub>": "111111111111"}}
+        {"account_id": "111111111111", "alias": "mathewmusango",
+         "root": "mathewmusango", "created_at": "...",
+         "users": {"mathewmusango": {"username": ..., "role": "root"}}}
 
     A principal holds its IAM keys in `access_keys` (name, id, secret, created).
     The flat `access_key_id` / `secret_access_key` / `credentials_issued` fields
     mirror the first key: the classic pages and the provision response still read
     them, so they stay as a pointer, never a second copy.
 
-    v1 was `{"accounts": {username: account_id}}` — one account per federation.
-    It is migrated on load: the username becomes the account alias and its
-    unbound root user, so the first Keycloak sign-in claims it.
+    The pre-2026-11-11 v1 shape (`{username: account_id}`) is converted during
+    the one-time SQLite import.
     """
 
-    def __init__(self, path: str) -> None:
-        self.path = path
+    def __init__(self, db: ControlDB) -> None:
+        self.db = db
         self.lock = threading.Lock()
         self.accounts: dict[str, dict] = {}
-        self.subjects: dict[str, str] = {}
         self._load()
 
     def _load(self) -> None:
-        try:
-            with open(self.path, encoding="utf-8") as handle:
-                raw = json.load(handle)
-        except (OSError, json.JSONDecodeError):
-            return
-        accounts = raw.get("accounts") or {}
-        if all(isinstance(value, dict) for value in accounts.values()):
-            self.accounts = accounts
-            self.subjects = dict(raw.get("subjects") or {})
+        self.accounts = {
+            row["account_id"]: json.loads(row["payload"])
+            for row in self.db.rows("SELECT account_id, payload FROM accounts")
+        }
+        if self.accounts:
             changed = False
             for account in self.accounts.values():
                 if "global_admin" not in account:
@@ -546,17 +412,6 @@ class Accounts:
                     changed = True
             if changed:
                 self._save()
-            return
-        # v1 migration: {username: account_id}
-        for username, account_id in accounts.items():
-            account = self._blank(account_id, username)
-            account["users"][username] = {
-                "username": username,
-                "subject": None,
-                "role": "root",
-            }
-            self.accounts[account_id] = account
-        self._save()
 
     @staticmethod
     def _blank(account_id: str, alias: str) -> dict:
@@ -567,6 +422,9 @@ class Accounts:
             "created_at": now(),
             # Regions are opt-in per account, like AWS. us-east-1 is always on.
             "regions": [DEFAULT_REGION],
+            # Regions added because a request used them (see enable_region), so
+            # the console can say why they are on.
+            "auto_regions": [],
             "global_admin": False,
             "default_admin": False,
             "disabled": False,
@@ -574,15 +432,13 @@ class Accounts:
         }
 
     def _save(self) -> None:
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        tmp = f"{self.path}.tmp"
-        with open(tmp, "w", encoding="utf-8") as handle:
-            json.dump(
-                {"accounts": self.accounts, "subjects": self.subjects},
-                handle,
-                indent=2,
-            )
-        os.replace(tmp, self.path)
+        self.db.replace(
+            "accounts",
+            [
+                (account_id, json.dumps(account))
+                for account_id, account in self.accounts.items()
+            ],
+        )
 
     @staticmethod
     def _slug(value: str) -> str:
@@ -617,17 +473,15 @@ class Accounts:
             if candidate not in self.accounts:
                 return candidate
 
-    def create(self, subject: str, username: str) -> tuple[dict, dict]:
+    def create(self, username: str) -> tuple[dict, dict]:
         account_id = self._new_id()
         account = self._blank(account_id, self.unique_alias(username))
         # The first account owns the platform; it can promote the next ones.
         account["global_admin"] = not self.accounts
         account["default_admin"] = account["global_admin"]
-        user = {"username": username, "subject": subject, "role": "root"}
+        user = {"username": username, "role": "root"}
         account["users"][username] = user
         self.accounts[account_id] = account
-        if subject:
-            self.subjects[subject] = account_id
         self._save()
         return account, user
 
@@ -640,50 +494,6 @@ class Accounts:
         self._save()
         return account
 
-    def _principal(self, account: dict, subject: str) -> dict | None:
-        for user in account["users"].values():
-            if subject and user.get("subject") == subject:
-                return user
-        return None
-
-    def resolve(
-        self,
-        subject: str,
-        username: str,
-        account_ref: str | None = None,
-        create: bool = False,
-    ) -> tuple[dict | None, dict | str]:
-        """Map an OIDC identity to `(account, principal)` or `(None, error)`."""
-        with self.lock:
-            if account_ref:
-                account = self.by_ref(account_ref)
-                if account is None:
-                    return None, "unknown account ID or alias"
-                user = self._principal(account, subject)
-                if user is None:
-                    return None, "not a member of that account"
-                return account, user
-
-            account_id = self.subjects.get(subject or "")
-            if account_id and account_id in self.accounts:
-                account = self.accounts[account_id]
-                user = self._principal(account, subject)
-                if user is not None:
-                    return account, user
-
-            # Migration path: a principal created before subjects were keys.
-            for candidate in self.accounts.values():
-                user = candidate["users"].get(username)
-                if user is not None and not user.get("subject"):
-                    user["subject"] = subject
-                    self.subjects[subject] = candidate["account_id"]
-                    self._save()
-                    return candidate, user
-
-            if create:
-                return self.create(subject, username)
-            return None, "no account for this identity; create one"
-
     def ensure_local(self, username: str) -> tuple[dict, dict]:
         """The `.env` admin signs in as the root of its own account."""
         with self.lock:
@@ -693,7 +503,7 @@ class Accounts:
                     return account, user
             account = self._blank(self._new_id(), self.unique_alias(username))
             account["global_admin"] = not self.accounts
-            user = {"username": username, "subject": None, "role": "root"}
+            user = {"username": username, "role": "root"}
             account["users"][username] = user
             self.accounts[account["account_id"]] = account
             self._save()
@@ -707,6 +517,17 @@ class Accounts:
         user["access_key_id"] = primary.get("access_key_id")
         user["secret_access_key"] = primary.get("secret_access_key")
         user["credentials_issued"] = primary.get("created_at")
+
+    def account_for_key(self, key_id: str) -> str:
+        """Account that owns an IAM key, from the local store."""
+        if not key_id:
+            return ""
+        for account in self.accounts.values():
+            for user in (account.get("users") or {}).values():
+                for key in user.get("access_keys") or []:
+                    if key.get("access_key_id") == key_id:
+                        return account["account_id"]
+        return ""
 
     def key_count(self, account: dict) -> int:
         """Every IAM key the account holds, across its principals."""
@@ -783,6 +604,30 @@ class Accounts:
             if account is None:
                 return None
             account["regions"] = sorted({DEFAULT_REGION, *regions})
+            # A region that is no longer enabled is no longer "added on first
+            # use" either; keep the note only for regions still on.
+            if account.get("auto_regions"):
+                account["auto_regions"] = [
+                    name for name in account["auto_regions"] if name in account["regions"]
+                ]
+            self._save()
+            return account
+
+    def enable_region(self, account_id: str, region: str) -> dict | None:
+        """Enable one advertised region because a request needed it.
+
+        The gateway calls this when a client signs for a region the account has
+        not enabled but is a region MiniStack serves. The region is
+        recorded in `auto_regions` so the console can say it was enabled on
+        first use rather than by hand.
+        """
+        with self.lock:
+            account = self.accounts.get(account_id)
+            if account is None or region in self.regions_of(account):
+                return account
+            account["regions"] = sorted({DEFAULT_REGION, *account["regions"], region})
+            auto = sorted({*(account.get("auto_regions") or []), region})
+            account["auto_regions"] = auto
             self._save()
             return account
 
@@ -818,55 +663,25 @@ class Accounts:
             account = self.accounts.pop(account_id, None)
             if account is None:
                 return None
-            self.subjects = {
-                subject: bound
-                for subject, bound in self.subjects.items()
-                if bound != account_id
-            }
             self._save()
             return account
 
 
 class UserStore:
-    """Local credentials in SQLite: username -> password hash -> account.
+    """Local credentials: username -> password hash -> account.
 
-    Tenancy lives in `accounts.json`; this store answers only "is this password
-    right, and which account does the username belong to". SQLite is enough for
-    one control replica — swapping `_connect` for Postgres is the nod when more
-    than one runs.
+    The tables live in the same `control.db` as the rest of the control state;
+    this store answers only "is this password right, and which account does the
+    username belong to". SQLite is enough for one control replica — swapping
+    `_connect` for Postgres is the nod when more than one runs.
     """
 
     ROUNDS = 260_000
 
-    def __init__(self, path: str) -> None:
-        self.path = path
-        directory = os.path.dirname(path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
+    def __init__(self, db: ControlDB) -> None:
+        self.db = db
+        self.path = db.path
         self.lock = threading.Lock()
-        self._run(
-            """CREATE TABLE IF NOT EXISTS users (
-                   username TEXT PRIMARY KEY COLLATE NOCASE,
-                   email TEXT,
-                   password_hash TEXT NOT NULL,
-                   account_id TEXT NOT NULL,
-                   role TEXT NOT NULL DEFAULT 'root',
-                   created_at TEXT NOT NULL,
-                   last_login TEXT)"""
-        )
-        # One row per outstanding reset link: only the hash of the token is kept.
-        self._run(
-            """CREATE TABLE IF NOT EXISTS password_resets (
-                   token_hash TEXT PRIMARY KEY,
-                   username TEXT NOT NULL COLLATE NOCASE,
-                   account_id TEXT NOT NULL DEFAULT '',
-                   expires_at INTEGER NOT NULL,
-                   used_at TEXT)"""
-        )
-        try:
-            os.chmod(path, 0o600)
-        except OSError:
-            pass
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=5)
@@ -955,31 +770,9 @@ class UserStore:
             )
         return user
 
-    def all(self) -> list[dict]:
-        return self._run(
-            "SELECT username, email, account_id, role, created_at, last_login "
-            "FROM users ORDER BY username",
-            fetch="all",
-        )
-
     def delete_account(self, account_id: str) -> None:
         with self.lock:
             self._run("DELETE FROM users WHERE account_id = ?", (account_id,))
-            self._run("DELETE FROM password_resets WHERE account_id = ?", (account_id,))
-
-    def by_email(self, email: str) -> dict | None:
-        if not email:
-            return None
-        return self._run(
-            "SELECT * FROM users WHERE email = ? COLLATE NOCASE", (email,), fetch="one"
-        )
-
-    def set_password(self, username: str, password: str) -> None:
-        with self.lock:
-            self._run(
-                "UPDATE users SET password_hash = ? WHERE username = ?",
-                (self._hash(password), username),
-            )
 
     def set_email(self, username: str, email: str) -> None:
         """Fill in a missing address; never overwrite one the user already has."""
@@ -992,61 +785,32 @@ class UserStore:
                 (email, username),
             )
 
-    def create_reset(self, username: str, token_hash: str, expires_at: int) -> None:
-        user = self.get(username) or {}
+    def update_email(self, username: str, email: str) -> None:
+        """Set the address from the owner's own request."""
         with self.lock:
-            # One live link per user: asking again retires the previous one.
-            self._run("DELETE FROM password_resets WHERE username = ?", (username,))
             self._run(
-                "INSERT INTO password_resets (token_hash, username, account_id, "
-                "expires_at) VALUES (?, ?, ?, ?)",
-                (token_hash, username, user.get("account_id", ""), expires_at),
+                "UPDATE users SET email = ? WHERE username = ?",
+                (email, username),
             )
 
-    def peek_reset(self, token_hash: str) -> dict | None:
-        """An unused, unexpired reset row, without redeeming it."""
-        row = self._run(
-            "SELECT * FROM password_resets WHERE token_hash = ?",
-            (token_hash,),
-            fetch="one",
-        )
-        if row is None or row.get("used_at"):
-            return None
-        if int(row.get("expires_at") or 0) < int(time.time()):
-            return None
-        return row
-
-    def consume_reset(self, token_hash: str) -> dict | None:
-        """Redeem a token once; returns its row or None when stale/unknown."""
+    def set_password(self, username: str, password: str) -> None:
         with self.lock:
-            row = self._run(
-                "SELECT * FROM password_resets WHERE token_hash = ?",
-                (token_hash,),
-                fetch="one",
-            )
-            if row is None or row.get("used_at"):
-                return None
-            if int(row.get("expires_at") or 0) < int(time.time()):
-                return None
             self._run(
-                "UPDATE password_resets SET used_at = ? WHERE token_hash = ?",
-                (now(), token_hash),
+                "UPDATE users SET password_hash = ? WHERE username = ?",
+                (self._hash(password), username),
             )
-            return row
 
 
 class Settings:
     """Small persisted control-plane settings (sign-up toggle, ...)."""
 
-    def __init__(self, path: str) -> None:
-        self.path = path
+    def __init__(self, db: ControlDB) -> None:
+        self.db = db
         self.lock = threading.Lock()
-        self.values: dict = {}
-        try:
-            with open(path, encoding="utf-8") as handle:
-                self.values = json.load(handle)
-        except (OSError, json.JSONDecodeError):
-            self.values = {}
+        self.values: dict = {
+            row["key"]: json.loads(row["value"])
+            for row in db.rows("SELECT key, value FROM settings")
+        }
 
     def get(self, key: str, default=None):
         return self.values.get(key, default)
@@ -1055,13 +819,13 @@ class Settings:
         with self.lock:
             self.values[key] = value
             try:
-                os.makedirs(os.path.dirname(self.path), exist_ok=True)
-                tmp = f"{self.path}.tmp"
-                with open(tmp, "w", encoding="utf-8") as handle:
-                    json.dump(self.values, handle, indent=2)
-                os.replace(tmp, self.path)
-            except OSError as exc:
-                print(f"control: could not persist settings: {exc}", flush=True)
+                self.db.execute(
+                    "INSERT INTO settings (key, value) VALUES (?, ?)"
+                    " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (key, json.dumps(value)),
+                )
+            except sqlite3.Error as exc:
+                print(f"control: could not persist setting {key}: {exc}", flush=True)
 
 
 class Owners:
@@ -1073,15 +837,13 @@ class Owners:
     no entry — the console shows the account and leaves the user blank.
     """
 
-    def __init__(self, path: str) -> None:
-        self.path = path
+    def __init__(self, db: ControlDB) -> None:
+        self.db = db
         self.lock = threading.Lock()
-        self.entries: dict = {}
-        try:
-            with open(path, encoding="utf-8") as handle:
-                self.entries = json.load(handle)
-        except (OSError, json.JSONDecodeError):
-            self.entries = {}
+        self.entries: dict = {
+            row["key"]: json.loads(row["payload"])
+            for row in db.rows("SELECT key, payload FROM owners")
+        }
 
     @staticmethod
     def _key(account: str, service: str, name: str) -> str:
@@ -1094,18 +856,16 @@ class Owners:
         if not name:
             return
         with self.lock:
-            self.entries[self._key(account, service, name)] = {
-                "user": user or "token",
-                "region": region,
-                "at": now(),
-            }
+            key = self._key(account, service, name)
+            entry = {"user": user or "token", "region": region, "at": now()}
+            self.entries[key] = entry
             try:
-                os.makedirs(os.path.dirname(self.path), exist_ok=True)
-                tmp = f"{self.path}.tmp"
-                with open(tmp, "w", encoding="utf-8") as handle:
-                    json.dump(self.entries, handle, indent=2, sort_keys=True)
-                os.replace(tmp, self.path)
-            except OSError as exc:
+                self.db.execute(
+                    "INSERT INTO owners (key, payload) VALUES (?, ?)"
+                    " ON CONFLICT(key) DO UPDATE SET payload = excluded.payload",
+                    (key, json.dumps(entry)),
+                )
+            except sqlite3.Error as exc:
                 print(f"control: could not persist ownership: {exc}", flush=True)
 
     def get(self, account: str, service: str, name: str) -> dict:
@@ -1118,153 +878,39 @@ class Owners:
             if kept != self.entries:
                 self.entries = kept
                 try:
-                    tmp = f"{self.path}.tmp"
-                    with open(tmp, "w", encoding="utf-8") as handle:
-                        json.dump(self.entries, handle, indent=2, sort_keys=True)
-                    os.replace(tmp, self.path)
-                except OSError:
+                    self.db.execute(
+                        "DELETE FROM owners WHERE key LIKE ?", (f"{prefix}%",)
+                    )
+                except sqlite3.Error:
                     pass
 
 
-class AuditLog:
-    """Append-only JSONL audit trail for identity and tenancy changes."""
+DB = ControlDB(DB_FILE)
 
-    def __init__(self, path: str) -> None:
-        self.path = path
-        self.lock = threading.Lock()
-
-    def record(self, actor: str, action: str, target: str = "", detail: dict | None = None) -> None:
-        entry = {
-            "at": now(),
-            "actor": actor or "system",
-            "action": action,
-            "target": target,
-            "detail": detail or {},
-        }
-        with self.lock:
-            try:
-                os.makedirs(os.path.dirname(self.path), exist_ok=True)
-                with open(self.path, "a", encoding="utf-8") as handle:
-                    handle.write(json.dumps(entry) + "\n")
-            except OSError as exc:
-                print(f"control: could not write audit log: {exc}", flush=True)
-
-    def recent(self, limit: int = 100) -> list[dict]:
-        try:
-            with open(self.path, encoding="utf-8") as handle:
-                lines = handle.read().splitlines()[-limit:]
-        except OSError:
-            return []
-        entries = []
-        for line in lines:
-            try:
-                entries.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-        return list(reversed(entries))
-
-
-class Telemetry:
-    """OTLP/HTTP JSON spans. A no-op unless OTEL_EXPORTER_OTLP_ENDPOINT is set."""
-
-    def __init__(self) -> None:
-        self.enabled = bool(OTEL_ENDPOINT)
-        self.queue: queue.Queue = queue.Queue(maxsize=512)
-        if self.enabled:
-            threading.Thread(target=self._run, daemon=True).start()
-
-    def start(self, method: str, path: str, headers) -> dict | None:
-        if not self.enabled:
-            return None
-        trace = (headers.get("traceparent") or "").split("-")
-        trace_id = trace[1] if len(trace) >= 3 and len(trace[1]) == 32 else secrets.token_hex(16)
-        parent_id = trace[2] if len(trace) >= 3 and len(trace[2]) == 16 else ""
-        span = {
-            "traceId": trace_id,
-            "spanId": secrets.token_hex(8),
-            "name": f"{method} {path.split('?')[0]}",
-            "kind": 2,
-            "startTimeUnixNano": str(time.time_ns()),
-            "attributes": [
-                {"key": "http.request.method", "value": {"stringValue": method}},
-                {"key": "url.path", "value": {"stringValue": path.split('?')[0]}},
-            ],
-        }
-        if parent_id:
-            span["parentSpanId"] = parent_id
-        return span
-
-    def finish(self, span: dict | None, status: int) -> None:
-        if span is None:
-            return
-        span["endTimeUnixNano"] = str(time.time_ns())
-        span["attributes"].append(
-            {"key": "http.response.status_code", "value": {"intValue": int(status or 0)}}
-        )
-        span["status"] = {"code": 2 if int(status or 0) >= 500 else 1}
-        try:
-            self.queue.put_nowait(span)
-        except queue.Full:
-            pass
-
-    def _run(self) -> None:
-        while True:
-            batch = []
-            try:
-                batch.append(self.queue.get(timeout=2))
-                while len(batch) < 64:
-                    batch.append(self.queue.get_nowait())
-            except queue.Empty:
-                pass
-            if not batch:
-                continue
-            payload = {
-                "resourceSpans": [
-                    {
-                        "resource": {
-                            "attributes": [
-                                {"key": "service.name", "value": {"stringValue": OTEL_SERVICE}}
-                            ]
-                        },
-                        "scopeSpans": [{"spans": batch}],
-                    }
-                ]
-            }
-            try:
-                request = urllib.request.Request(
-                    f"{OTEL_ENDPOINT}/v1/traces",
-                    data=json.dumps(payload).encode(),
-                    headers={"Content-Type": "application/json"},
-                )
-                urllib.request.urlopen(request, timeout=3).read()
-            except OSError:
-                pass
-
-
-NODE_REGISTRY = NodeRegistry(NODES_FILE)
-NODE_REGISTRY.ensure_static(NODE_NAME, NODE_URL, DEFAULT_REGION)
-ACCOUNTS = Accounts(ACCOUNTS_FILE)
-USERS = UserStore(USERS_DB)
-SETTINGS = Settings(SETTINGS_FILE)
-AUDIT = AuditLog(AUDIT_FILE)
-OWNERS = Owners(OWNERS_FILE)
-TELEMETRY = Telemetry()
+ACCOUNTS = Accounts(DB)
+USERS = UserStore(DB)
+SETTINGS = Settings(DB)
+OWNERS = Owners(DB)
 
 
 def seed_local_admin() -> None:
-    """Seed the optional `.env` administrator into an empty user store.
+    """Seed the bootstrap administrator into an empty user store.
 
-    On a fresh deployment this is the known first login; it is marked global and
-    default admin so the console can prompt to retire it once other admins exist.
-    The address matters: `/forgot` can only mail a user that has one, so an
-    existing seeded admin gets `MC_ADMIN_EMAIL` backfilled when it had none.
+    `MC_ADMIN_USER` names it and `MC_ADMIN_PASSWORD` holds its password —
+    `scripts/up.sh` fills both into `.env` on first run. Only the hash is stored,
+    and everything is a no-op once any user exists.
     """
-    if not ADMIN_USER or not ADMIN_PASSWORD:
+    if not ADMIN_USER:
         return
     if USERS.count():
         if ADMIN_EMAIL:
             USERS.set_email(ADMIN_USER, ADMIN_EMAIL)
         return
+    if not ADMIN_PASSWORD:
+        sys.exit(
+            "control: MC_ADMIN_PASSWORD is empty; run ./scripts/up.sh "
+            "(it seeds one into .env) or set it in .env"
+        )
     account, _principal = ACCOUNTS.ensure_local(ADMIN_USER)
     account["global_admin"] = True
     account["default_admin"] = True
@@ -1272,13 +918,7 @@ def seed_local_admin() -> None:
     USERS.create(
         ADMIN_USER, ADMIN_EMAIL, ADMIN_PASSWORD, account["account_id"], "root"
     )
-    AUDIT.record(
-        "system",
-        "account.seeded",
-        account["account_id"],
-        {"alias": account["alias"], "via": "env", "global_admin": True},
-    )
-    print("control: seeded the .env administrator into users.db", flush=True)
+    print("control: seeded the bootstrap administrator", flush=True)
 
 
 seed_local_admin()
@@ -1320,10 +960,8 @@ def iam_request(account_id: str, action: str, **params) -> tuple[bool, str]:
         conn.close()
 
 
-def issue_credentials(account: dict, principal: dict) -> str:
-    """Create the IAM user + first access key once. Returns an error string or ""."""
-    if principal.get("access_keys"):
-        return ""
+def ensure_iam_user(account: dict, principal: dict) -> str:
+    """Create the IAM user and its admin policy once. Returns "" or an error."""
     account_id = account["account_id"]
     username = principal["username"]
     ok, body = iam_request(account_id, "CreateUser", UserName=username)
@@ -1332,9 +970,7 @@ def issue_credentials(account: dict, principal: dict) -> str:
     policy = json.dumps(
         {
             "Version": "2012-10-17",
-            "Statement": [
-                {"Effect": "Allow", "Action": "*", "Resource": "*"}
-            ],
+            "Statement": [{"Effect": "Allow", "Action": "*", "Resource": "*"}],
         }
     )
     ok, body = iam_request(
@@ -1346,7 +982,7 @@ def issue_credentials(account: dict, principal: dict) -> str:
     )
     if not ok:
         return f"PutUserPolicy failed: {body[:120]}"
-    return create_access_key(account, principal, "primary")
+    return ""
 
 
 def create_access_key(
@@ -1362,6 +998,9 @@ def create_access_key(
     username = principal["username"]
     if ACCOUNTS.key_count(account) >= MAX_ACCESS_KEYS:
         return None, f"an account may hold at most {MAX_ACCESS_KEYS} access keys"
+    problem = ensure_iam_user(account, principal)
+    if problem:
+        return None, problem
     ok, body = iam_request(account_id, "CreateAccessKey", UserName=username)
     if not ok:
         return None, f"CreateAccessKey failed: {body[:120]}"
@@ -1466,115 +1105,6 @@ def delete_account(account: dict) -> None:
         REGISTRY.save()
 
 
-OIDC_CACHE: dict[str, dict] = {}
-OIDC_LOCK = threading.Lock()
-
-
-def oidc_available() -> bool:
-    """OIDC is optional: env toggle, a configured client and a matching mode."""
-    return OIDC_ENABLED and AUTH_MODE in {"oidc", "both"} and bool(OIDC_CLIENT_ID)
-
-
-def oidc_is_provider() -> bool:
-    return OIDC_STYLE in {"openbao", "provider"}
-
-
-def oidc_roles(profile: dict) -> set[str]:
-    """Realm and client roles from a Keycloak-style profile.
-
-    Grafana reads its roles the same way: the client roles live under
-    `resource_access.<client>.roles`, so this works without a custom mapper.
-    """
-    roles: set[str] = set()
-    realm = profile.get("realm_access") or {}
-    roles.update(str(name) for name in realm.get("roles") or [])
-    for client in (profile.get("resource_access") or {}).values():
-        roles.update(str(name) for name in (client or {}).get("roles") or [])
-    return roles
-
-
-def oidc_discovery_url() -> str:
-    if OIDC_DISCOVERY_URL:
-        return OIDC_DISCOVERY_URL
-    if oidc_is_provider():
-        return (
-            f"{OIDC_INTERNAL_URL}/v1/identity/oidc/provider/{OIDC_PROVIDER}"
-            "/.well-known/openid-configuration"
-        )
-    return (
-        f"{OIDC_INTERNAL_URL}/realms/{OIDC_REALM}"
-        "/.well-known/openid-configuration"
-    )
-
-
-def oidc_internal(url: str) -> str:
-    """Point a public endpoint at the address the control container can reach."""
-    if OIDC_PUBLIC_URL and url.startswith(OIDC_PUBLIC_URL):
-        return OIDC_INTERNAL_URL + url[len(OIDC_PUBLIC_URL):]
-    return url
-
-
-def oidc_public(url: str) -> str:
-    """The browser must use the public address, never a container name."""
-    if OIDC_INTERNAL_URL and url.startswith(OIDC_INTERNAL_URL):
-        return OIDC_PUBLIC_URL + url[len(OIDC_INTERNAL_URL):]
-    return url
-
-
-def oidc_discovery() -> dict:
-    with OIDC_LOCK:
-        if OIDC_CACHE.get("config"):
-            return OIDC_CACHE["config"]
-    with urllib.request.urlopen(oidc_discovery_url(), timeout=5) as response:
-        config = json.loads(response.read())
-    with OIDC_LOCK:
-        OIDC_CACHE["config"] = config
-    return config
-
-
-def oidc_endpoint(kind: str) -> str:
-    """Token/userinfo (and other) endpoints on the internal network."""
-    keys = {
-        "auth": "authorization_endpoint",
-        "token": "token_endpoint",
-        "userinfo": "userinfo_endpoint",
-        "jwks": "jwks_uri",
-    }
-    url = ""
-    try:
-        url = oidc_discovery().get(keys.get(kind, f"{kind}_endpoint"), "")
-    except (OSError, ValueError):
-        url = ""
-    if not url:
-        if oidc_is_provider():
-            url = f"{OIDC_PUBLIC_URL}/v1/identity/oidc/provider/{OIDC_PROVIDER}/{kind}"
-        else:
-            url = f"{OIDC_PUBLIC_URL}/realms/{OIDC_REALM}/protocol/openid-connect/{kind}"
-    return oidc_internal(url)
-
-
-def oidc_authorization_url(query: str) -> str:
-    """The authorize endpoint the browser is sent to."""
-    if OIDC_AUTHORIZE_URL:
-        return f"{OIDC_AUTHORIZE_URL}?{query}"
-    base = ""
-    try:
-        base = oidc_discovery().get("authorization_endpoint", "")
-    except (OSError, ValueError):
-        base = ""
-    if base:
-        base = oidc_public(base)
-    elif oidc_is_provider():
-        # OpenBao serves the authorize endpoint through its UI so an
-        # unauthenticated browser is asked to sign in first.
-        base = (
-            f"{OIDC_PUBLIC_URL}/ui/vault/identity/oidc/provider/{OIDC_PROVIDER}/authorize"
-        )
-    else:
-        base = f"{OIDC_PUBLIC_URL}/realms/{OIDC_REALM}/protocol/openid-connect/auth"
-    return f"{base}?{query}"
-
-
 def primary_node() -> dict | None:
     for node in NODES:
         if node["region"] == DEFAULT_REGION:
@@ -1603,34 +1133,36 @@ def node_by_name(name: str) -> dict | None:
 class Registry:
     """Bucket ownership plus the last known inventory of every node."""
 
-    def __init__(self, path: str) -> None:
-        self.path = path
+    def __init__(self, db: ControlDB) -> None:
+        self.db = db
         self.lock = threading.Lock()
         self.buckets: dict[str, dict] = {}
         self.nodes: dict[str, dict] = {}
         self._load()
 
     def _load(self) -> None:
-        try:
-            with open(self.path, encoding="utf-8") as handle:
-                data = json.load(handle)
-            self.buckets = data.get("buckets", {})
-            self.nodes = data.get("nodes", {})
-        except (OSError, json.JSONDecodeError):
-            self.buckets = {}
-            self.nodes = {}
+        self.buckets = {
+            row["name"]: json.loads(row["payload"])
+            for row in self.db.rows("SELECT name, payload FROM buckets")
+        }
+        self.nodes = {
+            row["name"]: json.loads(row["payload"])
+            for row in self.db.rows("SELECT name, payload FROM bucket_nodes")
+        }
 
     def save(self) -> None:
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        tmp = f"{self.path}.tmp"
-        with open(tmp, "w", encoding="utf-8") as handle:
-            json.dump(
-                {"buckets": self.buckets, "nodes": self.nodes},
-                handle,
-                indent=2,
-                sort_keys=True,
-            )
-        os.replace(tmp, self.path)
+        self.db.rewrite(
+            {
+                "buckets": [
+                    (name, json.dumps(entry))
+                    for name, entry in self.buckets.items()
+                ],
+                "bucket_nodes": [
+                    (name, json.dumps(entry))
+                    for name, entry in self.nodes.items()
+                ],
+            }
+        )
 
     def reserve(
         self, bucket: str, region: str, node: dict, account: str = ""
@@ -1678,12 +1210,15 @@ class Registry:
             return dict(self.nodes)
 
     def reconcile(
-        self, node: dict, names: list[str], reachable: bool, account: str = ""
+        self, node: dict, names: dict[str, str], reachable: bool, account: str = ""
     ) -> list[str]:
         """Merge one account's inventory. Unreachable keeps the last known set.
 
-        The listing is per account, so pruning is too: entries belonging to
-        other accounts must survive a reconcile of the root account.
+        ``names`` maps bucket name to the region it was listed in: S3 state is
+        account- and region-scoped, so an inventory is assembled one region at
+        a time. The listing is per account, so pruning is too: entries
+        belonging to other accounts must survive a reconcile of the root
+        account.
         """
         conflicts: list[str] = []
         checked = now()
@@ -1702,7 +1237,7 @@ class Registry:
                     entry = self.buckets.get(name)
                     if entry is None:
                         self.buckets[name] = {
-                            "region": node["region"],
+                            "region": names[name],
                             "node": node["name"],
                             "account_id": owner,
                             "last_seen": checked,
@@ -1732,45 +1267,45 @@ class Registry:
         return conflicts
 
 
-REGISTRY = Registry(REGISTRY_FILE)
+REGISTRY = Registry(DB)
 
 # node health + service availability, refreshed by the poller
 HEALTH: dict[str, dict] = {}
 HEALTH_LOCK = threading.Lock()
 
-# control-plane sessions (in memory: a restart signs everyone out)
+# control-plane sessions (in memory, write-through to control.db)
 SESSIONS: dict[str, dict] = {}
 SESSIONS_LOCK = threading.Lock()
-SESSIONS_FILE = os.environ.get(
-    "CONTROL_SESSIONS_FILE", "/var/lib/ministack/control/sessions.json"
-)
 
 
 def save_sessions() -> None:
     """Persist live sessions so a container restart does not sign everyone out."""
+    rows = [
+        (token, float(info.get("expires", 0)), json.dumps(info))
+        for token, info in list(SESSIONS.items())
+        if isinstance(info, dict)
+    ]
     try:
-        directory = os.path.dirname(SESSIONS_FILE)
-        os.makedirs(directory, exist_ok=True)
-        tmp = f"{SESSIONS_FILE}.tmp"
-        with open(tmp, "w", encoding="utf-8") as handle:
-            json.dump(SESSIONS, handle)
-        os.chmod(tmp, 0o600)
-        os.replace(tmp, SESSIONS_FILE)
-    except OSError as exc:
+        DB.replace("sessions", rows)
+    except sqlite3.Error as exc:
         print(f"control: could not persist sessions: {exc}", flush=True)
 
 
 def load_sessions() -> None:
-    try:
-        with open(SESSIONS_FILE, encoding="utf-8") as handle:
-            stored = json.load(handle)
-    except (OSError, json.JSONDecodeError):
-        return
     current = time.time()
+    restored = 0
     with SESSIONS_LOCK:
-        for token, info in stored.items():
+        for row in DB.rows("SELECT token, payload FROM sessions"):
+            try:
+                info = json.loads(row["payload"])
+            except json.JSONDecodeError:
+                continue
             if isinstance(info, dict) and info.get("expires", 0) > current:
-                SESSIONS[token] = info
+                SESSIONS[row["token"]] = info
+                restored += 1
+    DB.execute("DELETE FROM sessions WHERE expires <= ?", (current,))
+    if restored:
+        print(f"control: restored {restored} live session(s)", flush=True)
 
 
 load_sessions()
@@ -1790,7 +1325,6 @@ def new_session(
             "via": via,
         }
         save_sessions()
-    AUDIT.record(username, "session.started", account)
     return token
 
 
@@ -1814,18 +1348,6 @@ def session_info(token: str) -> dict | None:
             info["expires"] = extended
             save_sessions()
         return info
-
-
-def login_label(info: dict | None) -> str:
-    """How this caller signed in: `local`, or `oidc(<provider>)`."""
-    via = (info or {}).get("via")
-    if via == "oidc" or (via is None and AUTH_MODE == "oidc"):
-        return f"oidc({OIDC_PROVIDER_LABEL})" if OIDC_PROVIDER_LABEL else "oidc"
-    if via == "local":
-        return "local"
-    if AUTH_MODE == "both":
-        return "local | oidc"
-    return "local"
 
 
 def session_ok(token: str) -> bool:
@@ -1929,30 +1451,31 @@ def health_snapshot() -> dict:
         }
 
 
-def list_bucket_names(node: dict, account: str = "") -> tuple[bool, list[str]]:
-    """List one account's buckets. A 12-digit key is that account's root."""
+def list_bucket_names(
+    node: dict, account: str = "", region: str = ""
+) -> tuple[bool, dict[str, str]]:
+    """List one account's buckets in one region. A 12-digit key is that
+    account's root.
+
+    ListBuckets is regional: the signing region decides what is enumerated, so
+    an account's inventory is the union of the listings over its enabled
+    regions.
+    """
+    region = region or DEFAULT_REGION
     extra = {}
     if account:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         extra["Authorization"] = (
-            f"AWS4-HMAC-SHA256 Credential={account}/{stamp}/{DEFAULT_REGION}"
+            f"AWS4-HMAC-SHA256 Credential={account}/{stamp}/{region}"
             "/s3/aws4_request, SignedHeaders=host, Signature=local"
         )
     status, body = node_request(
         node, "GET", "/?x-id=ListBuckets", timeout=10, extra_headers=extra
     )
     if status != 200:
-        return False, []
-    return True, re.findall(r"<Bucket>.*?<Name>([^<]+)</Name>", body.decode(), re.S)
-
-
-def live_bucket_owner(bucket: str) -> dict | None:
-    """Ask every reachable node directly, in case the cache drifted."""
-    for node in NODES:
-        status, _ = node_request(node, "HEAD", f"/{bucket}", timeout=3)
-        if status == 200:
-            return node
-    return None
+        return False, {}
+    found = re.findall(r"<Bucket>.*?<Name>([^<]+)</Name>", body.decode(), re.S)
+    return True, {name: region for name in found}
 
 
 def refresh_registry() -> dict:
@@ -1962,9 +1485,14 @@ def refresh_registry() -> dict:
     reconcile never sees — or prunes — another account's buckets.
     """
     conflicts: list[str] = []
-    for account_id in list(ACCOUNTS.accounts):
+    for account_id, account in list(ACCOUNTS.accounts.items()):
+        regions = ACCOUNTS.regions_of(account)
         for node in NODES:
-            reachable, names = list_bucket_names(node, account_id)
+            reachable, names = False, {}
+            for region in regions:
+                ok, found = list_bucket_names(node, account_id, region)
+                reachable = reachable or ok
+                names.update(found)
             conflicts.extend(
                 REGISTRY.reconcile(node, names, reachable, account_id)
             )
@@ -1979,128 +1507,40 @@ def refresh_registry() -> dict:
 # replication backends
 
 
-def agent_call(node: dict, method: str, path: str, payload: dict | None = None):
-    url = urlsplit(node.get("agent", ""))
-    if not url.hostname:
-        return 0, b""
-    conn = http.client.HTTPConnection(url.hostname, url.port or 80, timeout=4)
-    body = None
-    headers = {"Host": f"{url.hostname}:{url.port or 80}"}
-    if payload is not None:
-        body = json.dumps(payload).encode()
-        headers["Content-Type"] = "application/json"
-        headers["Content-Length"] = str(len(body))
-    if MESH_TOKEN:
-        headers["Authorization"] = f"Bearer {MESH_TOKEN}"
-    try:
-        conn.request(method, path, body=body, headers=headers)
-        response = conn.getresponse()
-        return response.status, response.read()
-    except OSError:
-        return 0, b""
-    finally:
-        conn.close()
-
-
-def agent_state() -> dict:
-    for node in NODES:
-        status, body = agent_call(node, "GET", "/state")
-        if status == 200:
-            try:
-                return json.loads(body)
-            except json.JSONDecodeError:
-                continue
-    return {"buckets": {}, "conflicts": [], "heights": {}, "events": 0}
-
-
-def agent_status() -> list[dict]:
-    rows = []
-    for node in NODES:
-        status, body = agent_call(node, "GET", "/health")
-        entry = {"node": node["name"], "reachable": status == 200}
-        if status == 200:
-            try:
-                entry.update(json.loads(body))
-            except json.JSONDecodeError:
-                pass
-        rows.append(entry)
-    return rows
-
-
 def current_buckets() -> dict:
-    if MODE == "central":
-        return REGISTRY.snapshot()
-    return agent_state().get("buckets", {})
+    return REGISTRY.snapshot()
 
 
 def bucket_owner(bucket: str) -> dict | None:
-    if MODE == "central":
-        return REGISTRY.owner(bucket)
-    return agent_state().get("buckets", {}).get(bucket)
+    return REGISTRY.owner(bucket)
+
+
+def bucket_taken(name: str) -> str:
+    """The one message for a name that is already taken.
+
+    The emulator sends the same sentence, so the answer does not depend on which
+    layer caught it.
+    """
+    return f"Bucket {name} already exists"
 
 
 def reserve_across(
     bucket: str, region: str, account: str = ""
 ) -> tuple[bool, str, int]:
-    """Reserve a name according to the active mode. Returns (ok, code, status)."""
-    if MODE == "central":
-        node = node_by_region(region)
-        if node is None:
-            return False, "no emulator is registered", 503
-        if REGISTRY.reserve(bucket, region, node, account) is None:
-            return False, "already registered", 409
-        return True, "", 0
+    """Claim a bucket name for this create; an existing name is refused.
 
-    if bucket_owner(bucket):
-        return False, "already registered in the federation", 409
-    live = live_bucket_owner(bucket)
-    if live is not None:
-        agent_call(
-            live, "POST", "/reserve", {"bucket": bucket, "region": live["region"]}
-        )
-        return False, f"already exists in {live['region']}", 409
-
-    owner = node_by_region(region)
-    if owner is None:
-        return False, "no nodes have joined the federation", 503
-    reachable = {
-        node["name"]
-        for node in NODES
-        if agent_call(node, "GET", "/health")[0] == 200
-    }
-    if MODE == "quorum":
-        needed = len(NODES) // 2 + 1
-        if len(reachable) < needed:
-            return (
-                False,
-                f"quorum not met: {len(reachable)}/{needed} agents reachable",
-                503,
-            )
-    if owner["name"] not in reachable:
-        return False, f"agent for {owner['name']} is unreachable", 503
-    status, _ = agent_call(
-        owner, "POST", "/reserve", {"bucket": bucket, "region": region}
-    )
-    if status in (200, 201):
-        return True, "", 0
-    if status == 409:
-        return False, "already registered in the federation", 409
-    return False, f"reservation failed on {owner['name']} (HTTP {status})", 503
-
+    One answer for every duplicate — this account's or another's, this region's
+    or another's — with the same ``409`` and message the emulator gives.
+    """
+    node = node_by_region(region)
+    if node is None:
+        return False, "no emulator is configured", 503
+    if REGISTRY.reserve(bucket, region, node, account) is None:
+        return False, bucket_taken(bucket), 409
+    return True, "", 0
 
 def release_across(bucket: str) -> None:
-    if MODE == "central":
-        REGISTRY.release(bucket)
-        return
-    entry = bucket_owner(bucket)
-    if entry:
-        node = node_by_name(entry["node"])
-        if node is not None:
-            status, _ = agent_call(node, "POST", "/release", {"bucket": bucket})
-            if status in (200, 201):
-                return
-    for node in NODES:
-        agent_call(node, "POST", "/release", {"bucket": bucket})
+    REGISTRY.release(bucket)
 
 
 # --------------------------------------------------------------------------
@@ -2137,8 +1577,11 @@ def request_account(headers, query: str) -> str:
         match = re.match(
             r"([^/]+)/\d{8}/", (params.get("X-Amz-Credential") or [""])[0]
         )
-    if match and re.fullmatch(r"\d{12}", match.group(1)):
-        return match.group(1)
+    if match:
+        ref = match.group(1)
+        if re.fullmatch(r"\d{12}", ref):
+            return ref
+        return ACCOUNTS.account_for_key(ref)
     return ""
 
 
@@ -2249,17 +1692,36 @@ class GatewayHandler(BaseHTTPRequestHandler):
         region, service = detect_region_service(self.headers, urlsplit(self.path).query)
         account = request_account(self.headers, urlsplit(self.path).query)
 
+        if account and service not in GLOBAL_SERVICES:
+            owner = ACCOUNTS.accounts.get(account)
+            if owner is not None and region not in ACCOUNTS.regions_of(owner):
+                if region not in REGION_CHOICES:
+                    self._error(
+                        403,
+                        "AccessDenied",
+                        f"region {region} is not enabled for this account",
+                    )
+                    return
+                # A region MiniStack serves, so the reference is
+                # honoured and recorded as enabled on first use instead of being
+                # refused. A region outside the catalogue stays refused.
+                ACCOUNTS.enable_region(account, region)
+                print(
+                    f"gateway: enabled {region} for {owner.get('alias', account)} on first use",
+                    flush=True,
+                )
+
         if service in GLOBAL_SERVICES:
             node = primary_node()
             if node is None:
-                self._error(503, "ServiceUnavailable", "no nodes have joined the federation")
+                self._error(503, "ServiceUnavailable", "no emulator is configured")
                 return
             self._forward(node, node["region"], body)
             return
         if service != "s3":
             node = node_by_region(region)
             if node is None:
-                self._error(503, "ServiceUnavailable", "no nodes have joined the federation")
+                self._error(503, "ServiceUnavailable", "no emulator is configured")
                 return
             self._forward(node, region, body)
             return
@@ -2268,7 +1730,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if not bucket:
             node = node_by_region(region)
             if node is None:
-                self._error(503, "ServiceUnavailable", "no nodes have joined the federation")
+                self._error(503, "ServiceUnavailable", "no emulator is configured")
                 return
             self._forward(node, region, body)
             return
@@ -2300,7 +1762,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 return
             node = node_by_region(region)
             if node is None:
-                self._error(503, "ServiceUnavailable", "no nodes have joined the federation")
+                self._error(503, "ServiceUnavailable", "no emulator is configured")
                 return
             try:
                 status, headers, payload = proxy(
@@ -2319,7 +1781,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             entry = bucket_owner(bucket)
             node = node_by_name(entry["node"]) if entry else node_by_region(region)
             if node is None:
-                self._error(503, "ServiceUnavailable", "no nodes have joined the federation")
+                self._error(503, "ServiceUnavailable", "no emulator is configured")
                 return
             try:
                 status, headers, payload = proxy(
@@ -2336,7 +1798,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
         entry = bucket_owner(bucket)
         node = node_by_name(entry["node"]) if entry else node_by_region(region)
         if node is None:
-            self._error(503, "ServiceUnavailable", "no nodes have joined the federation")
+            self._error(503, "ServiceUnavailable", "no emulator is configured")
             return
         self._forward(node, region, body)
 
@@ -2970,7 +2432,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 "<body style='font:15px system-ui;padding:2rem;background:#0f1b2d;color:#e6edf7'>"
                 "<h1>Console not built</h1><p>Run <code>npm install &amp;&amp; npm run build</code>"
                 " in <code>services/ministack-control/web</code>, then restart this container.</p>"
-                f"<p>The server-rendered pages are still at <a style='color:#7cc4ff' href='/classic'>/classic</a>.</p>",
+                "<p>The server-rendered pages are still at <a style='color:#7cc4ff' href='/classic'>/classic</a>.</p>",
                 503,
             )
         self.send_response(200)
@@ -2999,163 +2461,6 @@ class ControlHandler(BaseHTTPRequestHandler):
             if key:
                 cookies[key] = value
         return cookies
-
-    def _oidc_start(self) -> None:
-        if AUTH_MODE not in {"oidc", "both"}:
-            return self._page(self._login_page("OIDC sign-in is disabled."), 404)
-        if not oidc_is_provider() and not OIDC_CLIENT_SECRET:
-            return self._page(
-                self._login_page("OIDC is not configured (OIDC_CLIENT_SECRET)."), 500
-            )
-        query = parse_qs(urlsplit(self.path).query)
-        intent = (query.get("intent") or ["root"])[0].strip().lower()
-        if intent not in {"root", "signup", "user"}:
-            intent = "root"
-        account_ref = re.sub(
-            r"[^A-Za-z0-9-]", "", (query.get("account") or [""])[0]
-        )[:64]
-        if intent == "user" and not account_ref:
-            return self._page(
-                self._login_page("Enter the account ID or alias to sign in to."), 400
-            )
-        state = secrets.token_urlsafe(24)
-        verifier = secrets.token_urlsafe(48)
-        challenge = (
-            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
-            .rstrip(b"=")
-            .decode()
-        )
-        params = urlencode(
-            {
-                "client_id": OIDC_CLIENT_ID,
-                "response_type": "code",
-                "scope": OIDC_SCOPES,
-                "redirect_uri": OIDC_REDIRECT_URI,
-                "state": state,
-                "code_challenge": challenge,
-                "code_challenge_method": "S256",
-            }
-        )
-        location = oidc_authorization_url(params)
-        self.send_response(302)
-        self.send_header("Location", location)
-        self.send_header(
-            "Set-Cookie", f"oidc_state={state}; Path=/; Max-Age=300; HttpOnly; SameSite=Lax"
-        )
-        self.send_header(
-            "Set-Cookie",
-            f"oidc_verifier={verifier}; Path=/; Max-Age=300; HttpOnly; SameSite=Lax",
-        )
-        self.send_header(
-            "Set-Cookie",
-            f"oidc_intent={intent}; Path=/; Max-Age=300; HttpOnly; SameSite=Lax",
-        )
-        self.send_header(
-            "Set-Cookie",
-            f"oidc_account={account_ref}; Path=/; Max-Age=300; HttpOnly; SameSite=Lax",
-        )
-        self.send_header("Content-Length", "0")
-        self.end_headers()
-
-    def _oidc_callback(self, query: str) -> None:
-        params = parse_qs(query)
-        code = (params.get("code") or [""])[0]
-        state = (params.get("state") or [""])[0]
-        cookies = self._cookies()
-        if not code or not state or state != cookies.get("oidc_state"):
-            return self._page(self._login_page("Invalid OIDC state; try again."), 400)
-        try:
-            payload = {
-                "grant_type": "authorization_code",
-                "code": code,
-                "redirect_uri": OIDC_REDIRECT_URI,
-                "client_id": OIDC_CLIENT_ID,
-                "code_verifier": cookies.get("oidc_verifier", ""),
-            }
-            # A public client has no secret: OpenBao's `none` auth method.
-            if OIDC_CLIENT_SECRET:
-                payload["client_secret"] = OIDC_CLIENT_SECRET
-            data = urlencode(payload).encode()
-            request = urllib.request.Request(
-                oidc_endpoint("token"),
-                data=data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-            )
-            with urllib.request.urlopen(request, timeout=10) as response:
-                tokens = json.loads(response.read())
-            request = urllib.request.Request(
-                oidc_endpoint("userinfo"),
-                headers={"Authorization": f"Bearer {tokens.get('access_token', '')}"},
-            )
-            with urllib.request.urlopen(request, timeout=10) as response:
-                profile = json.loads(response.read())
-        except (OSError, ValueError) as exc:
-            return self._page(self._login_page(f"OIDC sign-in failed: {exc}"), 502)
-        subject = str(profile.get("sub") or "").strip()
-        username = str(
-            profile.get("preferred_username")
-            or profile.get("email")
-            or subject
-            or "oidc-user"
-        ).strip()
-        if not subject:
-            return self._page(
-                self._login_page("The identity provider returned no subject."), 502
-            )
-        intent = cookies.get("oidc_intent", "root")
-        account_ref = cookies.get("oidc_account", "")
-        account, principal = ACCOUNTS.resolve(
-            subject, username, account_ref or None, create=(intent == "signup")
-        )
-        if account is None:
-            return self._page(self._login_page(str(principal)), 403)
-        if account.get("disabled"):
-            return self._page(self._login_page("This account is disabled."), 403)
-        # Keycloak is the source of truth for who is a global admin: the client
-        # role `global-admin` (OIDC_ADMIN_ROLE) elevates, and the console role
-        # mirrors it. Removing the role in Keycloak does not demote by itself,
-        # a global admin can still do that from Accounts.
-        roles = oidc_roles(profile)
-        if OIDC_ADMIN_ROLE and OIDC_ADMIN_ROLE in roles and not account.get("global_admin"):
-            updated = ACCOUNTS.set_global_admin(account["account_id"], True)
-            if updated is not None:
-                account = updated
-            AUDIT.record(
-                username,
-                "account.global_admin_granted",
-                account["account_id"],
-                {"via": "oidc", "role": OIDC_ADMIN_ROLE},
-            )
-        problem = issue_credentials(account, principal)
-        if problem:
-            print(f"control: IAM credentials for {principal['username']}: {problem}", flush=True)
-        token = new_session(
-            principal["username"],
-            account["account_id"],
-            principal["role"],
-            account["alias"],
-        )
-        self.send_response(302)
-        self.send_header("Location", "/")
-        self.send_header(
-            "Set-Cookie",
-            f"ministack_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
-            "HttpOnly; SameSite=Lax",
-        )
-        self.send_header(
-            "Set-Cookie", "oidc_state=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
-        )
-        self.send_header(
-            "Set-Cookie", "oidc_verifier=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
-        )
-        self.send_header(
-            "Set-Cookie", "oidc_intent=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
-        )
-        self.send_header(
-            "Set-Cookie", "oidc_account=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
-        )
-        self.send_header("Content-Length", "0")
-        self.end_headers()
 
     def _session_token(self) -> str:
         for part in self.headers.get("Cookie", "").split(";"):
@@ -3208,13 +2513,10 @@ class ControlHandler(BaseHTTPRequestHandler):
 
     def _logout(self) -> None:
         token = self._session_token()
-        info = session_info(token) if token else None
         if token:
             with SESSIONS_LOCK:
                 SESSIONS.pop(token, None)
                 save_sessions()
-        if info:
-            AUDIT.record(info.get("user", "user"), "session.ended", info.get("account", ""))
         self.send_response(302)
         self.send_header("Location", "/login")
         self.send_header(
@@ -3225,13 +2527,6 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _login(self) -> None:
-        if AUTH_MODE == "oidc":
-            return self._page(
-                self._login_page(
-                    f"Local sign-in is disabled; use {OIDC_PROVIDER_LABEL}."
-                ),
-                403,
-            )
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length).decode() if length else ""
         form = parse_qs(raw)
@@ -3258,15 +2553,11 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._page(
                 self._login_page("This account is disabled.", next_path), 403
             )
-        problem = issue_credentials(account, principal)
-        if problem:
-            print(f"control: IAM credentials for {username}: {problem}", flush=True)
         token = new_session(
             record["username"],
             account["account_id"],
             principal["role"],
             account["alias"],
-            via="oidc",
         )
         self.send_response(302)
         self.send_header("Location", next_path)
@@ -3281,13 +2572,6 @@ class ControlHandler(BaseHTTPRequestHandler):
     def _signup(self) -> None:
         if not SETTINGS.get("signup_enabled", True):
             return self._page(self._signup_page("Sign-up is disabled on this lab."), 403)
-        if AUTH_MODE == "oidc":
-            return self._page(
-                self._signup_page(
-                    f"Local sign-up is disabled; use {OIDC_PROVIDER_LABEL}."
-                ),
-                403,
-            )
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length).decode() if length else ""
         form = parse_qs(raw)
@@ -3321,22 +2605,8 @@ class ControlHandler(BaseHTTPRequestHandler):
             account["account_id"],
             principal.get("role", "root"),
         )
-        AUDIT.record(
-            username,
-            "account.created",
-            account["account_id"],
-            {
-                "alias": account["alias"],
-                "via": "local-signup",
-                "global_admin": bool(account.get("global_admin")),
-            },
-        )
-        problem = issue_credentials(account, principal)
-        if problem:
-            print(f"control: IAM credentials for {username}: {problem}", flush=True)
         token = new_session(
-            username, account["account_id"], principal["role"], account["alias"],
-            via="oidc",
+            username, account["account_id"], principal["role"], account["alias"]
         )
         self.send_response(302)
         self.send_header("Location", "/")
@@ -3347,90 +2617,6 @@ class ControlHandler(BaseHTTPRequestHandler):
         )
         self.send_header("Content-Length", "0")
         self.end_headers()
-
-    def _forgot(self) -> None:
-        if AUTH_MODE == "oidc":
-            return self._page(
-                self._forgot_page(
-                    f"Local accounts are disabled; use {OIDC_PROVIDER_LABEL}."
-                ),
-                403,
-            )
-        if not SMTP_ENABLED:
-            return self._page(
-                self._forgot_page("Email is not configured on this instance."), 503
-            )
-        form = self._form()
-        address = str(form.get("email") or "").strip()
-        # Same answer whether or not the address exists: no account enumeration.
-        generic = "If that address belongs to an account, a reset link is on its way."
-        user = USERS.by_email(address) or USERS.get(address)
-        if user and (user.get("email") or ""):
-            token = secrets.token_urlsafe(32)
-            digest = hashlib.sha256(token.encode()).hexdigest()
-            USERS.create_reset(
-                user["username"], digest, int(time.time()) + RESET_TTL_SECONDS
-            )
-            link = f"{PUBLIC_URL}/reset?token={quote(token)}"
-            body = (
-                f"Hello {user['username']},\n\n"
-                "Someone asked to reset the password for your MiniStack account.\n"
-                f"Open this link within {RESET_TTL_SECONDS // 60} minutes:\n\n"
-                f"{link}\n\n"
-                "If this was not you, ignore this message; the password is "
-                "unchanged.\n"
-            )
-            problem = send_mail(user["email"], "Reset your MiniStack password", body)
-            if problem:
-                print(f"control: password reset mail: {problem}", flush=True)
-            AUDIT.record(
-                user["username"],
-                "password.reset_requested",
-                user.get("account_id", ""),
-            )
-        elif user:
-            # Same response either way (no enumeration); the log tells an admin why
-            # nothing was sent.
-            print(
-                f"control: reset requested for {user['username']} but the account "
-                "has no email; set MC_ADMIN_EMAIL (seeded admin) or update the user",
-                flush=True,
-            )
-        return self._page(self._forgot_page(message=generic))
-
-    def _reset_submit(self) -> None:
-        form = self._form()
-        token = str(form.get("token") or "").strip()
-        password = str(form.get("password") or "")
-        confirm = str(form.get("confirm") or "")
-        digest = hashlib.sha256(token.encode()).hexdigest()
-        row = USERS.peek_reset(digest) if token else None
-        if row is None:
-            return self._page(
-                self._reset_page(token, "That reset link is no longer valid."), 400
-            )
-        if len(password) < 8:
-            return self._page(
-                self._reset_page(
-                    token, "Password must be at least 8 characters."
-                ),
-                400,
-            )
-        if password != confirm:
-            return self._page(
-                self._reset_page(token, "The passwords do not match."), 400
-            )
-        consumed = USERS.consume_reset(digest)
-        if consumed is None:
-            return self._page(
-                self._reset_page(token, "That reset link is no longer valid."), 400
-            )
-        USERS.set_password(consumed["username"], password)
-        purge_sessions(consumed.get("account_id", ""))
-        AUDIT.record(
-            consumed["username"], "password.reset", consumed.get("account_id", "")
-        )
-        self._redirect("/login?reset=1")
 
     def _auth_layout(self, title: str, body: str) -> str:
         return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -3463,18 +2649,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         notice = f'<div class="error">{html.escape(error)}</div>' if error else ""
         if message:
             notice += f'<div class="ok">{html.escape(message)}</div>'
-        oidc = oidc_available()
-        provider = html.escape(OIDC_PROVIDER_LABEL)
-        divider = (
-            '<div class="divider">or</div>'
-            f'<a class="secondary" href="/oidc/start?intent=root">'
-            f"Sign in with {provider}</a>"
-            if oidc
-            else ""
-        )
-        if AUTH_MODE == "oidc":
-            local = ""
-        elif not USERS.count():
+        if not USERS.count():
             local = (
                 '<div class="error">No local users yet. A global admin can '
                 "provision the first one.</div>"
@@ -3492,11 +2667,6 @@ class ControlHandler(BaseHTTPRequestHandler):
                    required></div>
           <button type="submit">Sign in</button>
         </form>"""
-        forgot = (
-            '<div class="links"><a href="/forgot">Forgot password?</a></div>'
-            if AUTH_MODE != "oidc"
-            else ""
-        )
         return self._auth_layout(
             "Sign in",
             f"""
@@ -3506,78 +2676,11 @@ class ControlHandler(BaseHTTPRequestHandler):
     <p class="sub">Sign in to your account</p>
     {notice}
     {local}
-    {divider}
-    {forgot}
-""",
-        )
-
-    def _forgot_page(self, error: str = "", message: str = "") -> str:
-        notice = f'<div class="error">{html.escape(error)}</div>' if error else ""
-        if message:
-            notice += f'<div class="ok">{html.escape(message)}</div>'
-        if not SMTP_ENABLED:
-            form = (
-                '<p class="sub">Email is not configured on this instance, so a '
-                "reset link cannot be sent. Ask a global admin to reset your "
-                "password.</p>"
-            )
-        else:
-            form = """
-        <form method="post" action="/forgot">
-          <div class="field"><label for="email">Email address</label>
-            <input id="email" name="email" type="email"
-                   autocomplete="email" placeholder="email" required autofocus></div>
-          <button type="submit">Send reset link</button>
-        </form>"""
-        return self._auth_layout(
-            "Forgot password",
-            f"""
-    <div class="brand"><img class="logo" src="/ministack-logo.png"
-         alt="MiniStack"></div>
-    <h1>Forgot password?</h1>
-    <p class="sub">We will email you a link to set a new password</p>
-    {notice}
-    {form}
-    <div class="links"><a href="/login">Back to sign in</a></div>
-""",
-        )
-
-    def _reset_page(self, token: str, error: str = "") -> str:
-        notice = f'<div class="error">{html.escape(error)}</div>' if error else ""
-        return self._auth_layout(
-            "Set a new password",
-            f"""
-    <div class="brand"><img class="logo" src="/ministack-logo.png"
-         alt="MiniStack"></div>
-    <h1>Set a new password</h1>
-    <p class="sub">This link can be used once</p>
-    {notice}
-    <form method="post" action="/reset">
-      <input type="hidden" name="token" value="{html.escape(token)}">
-      <div class="field"><label for="password">New password</label>
-        <input id="password" name="password" type="password"
-               autocomplete="new-password" placeholder="new password"
-               required autofocus></div>
-      <div class="field"><label for="confirm">Confirm password</label>
-        <input id="confirm" name="confirm" type="password"
-               autocomplete="new-password" placeholder="repeat new password"
-               required></div>
-      <button type="submit">Update password</button>
-    </form>
-    <div class="links"><a href="/login">Back to sign in</a></div>
 """,
         )
 
     def _signup_page(self, error: str = "", username: str = "", email: str = "") -> str:
         notice = f'<div class="error">{html.escape(error)}</div>' if error else ""
-        oidc = oidc_available()
-        alternate = (
-            '<div class="divider">or</div>'
-            f'<a class="secondary" href="/oidc/start?intent=signup">'
-            f"Continue with {html.escape(OIDC_PROVIDER_LABEL)}</a>"
-            if oidc
-            else ""
-        )
         return self._auth_layout(
             "Create account",
             f"""
@@ -3601,33 +2704,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                autocomplete="new-password" required></div>
       <button type="submit">Create account</button>
     </form>
-    {alternate}
     <div class="links">Already have an account? <a href="/login">Sign in</a></div>
-""",
-        )
-
-    def _iam_page(self, error: str = "") -> str:
-        notice = f'<div class="error">{html.escape(error)}</div>' if error else ""
-        if AUTH_MODE not in {"oidc", "both"}:
-            form = '<p class="sub">OIDC sign-in is disabled.</p>'
-        else:
-            form = f"""
-    <form method="get" action="/oidc/start">
-      <input type="hidden" name="intent" value="user">
-      <div class="field"><label for="account">Account ID or alias</label>
-        <input id="account" name="account" autocomplete="off" required autofocus></div>
-      <button type="submit">Sign in with {html.escape(OIDC_PROVIDER_LABEL)}</button>
-    </form>"""
-        return self._auth_layout(
-            "Service account",
-            f"""
-    <div class="brand"><img class="logo" src="/ministack-logo.png"
-         alt="MiniStack"></div>
-    <h1>Sign in with an account ID</h1>
-    <p class="sub">Your identity must already be a principal in that account</p>
-    {notice}
-    {form}
-    <div class="links"><a href="/login">Back to sign in</a></div>
 """,
         )
 
@@ -3651,43 +2728,11 @@ class ControlHandler(BaseHTTPRequestHandler):
     def _route_get(self):
         path = urlsplit(self.path).path
         if path == "/health":
-            return self._json(
-                200,
-                {
-                    "status": "ok",
-                    "api_version": API_VERSION,
-                    "uptime_seconds": int(time.time() - STARTED_AT),
-                    "mode": MODE,
-                    "stability": MODE_STABILITY.get(MODE, "unknown"),
-                    "auth": AUTH_MODE,
-                    "accounts": len(ACCOUNTS.accounts),
-                    "regions_seen": sorted(SEEN_REGIONS),
-                },
-            )
+            # Public and unauthenticated: liveness only. Counts, uptime, mode and
+            # seen regions are in `/api/meta`, behind a session.
+            return self._json(200, {"status": "ok"})
         if path == "/login":
-            params = parse_qs(urlsplit(self.path).query)
-            message = (
-                "Password updated. Sign in with the new one."
-                if (params.get("reset") or [""])[0] == "1"
-                else ""
-            )
-            return self._page(self._login_page(message=message))
-        if path == "/forgot":
-            return self._page(self._forgot_page())
-        if path == "/reset":
-            params = parse_qs(urlsplit(self.path).query)
-            token = (params.get("token") or [""])[0].strip()
-            digest = hashlib.sha256(token.encode()).hexdigest()
-            if not token or USERS.peek_reset(digest) is None:
-                return self._page(
-                    self._forgot_page(
-                        error="That reset link is no longer valid. Ask for a new one."
-                    ),
-                    400,
-                )
-            return self._page(self._reset_page(token))
-        if path == "/login/iam":
-            return self._page(self._iam_page())
+            return self._page(self._login_page())
         if path == "/signup":
             return self._page(self._signup_page())
         if path in SPA_ROUTES or path.startswith("/resources/"):
@@ -3698,17 +2743,8 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._asset(path)
         if path == "/ministack-logo.png":
             return self._asset(path)
-        if path == "/oidc/start":
-            return self._oidc_start()
-        if path == "/oidc/callback":
-            return self._oidc_callback(urlsplit(self.path).query)
         if path == "/logout":
             return self._logout()
-        if path in ("/api/nodes/discovery", "/api/v1/nodes/discovery"):
-            token = self.headers.get("X-Join-Token", "")
-            if not JOIN_TOKEN or not hmac.compare_digest(token, JOIN_TOKEN):
-                return self._json(401, {"error": "invalid join token"})
-            return self._json(200, {"nodes": NODE_REGISTRY.snapshot()})
         if path.startswith("/api"):
             if not self._authenticated():
                 return self._json(401, {"error": "authentication required"})
@@ -3718,11 +2754,17 @@ class ControlHandler(BaseHTTPRequestHandler):
 
         if path == "/api/accounts/me":
             info = session_info(self._session_token()) or {}
+            account = ACCOUNTS.by_ref(info.get("account", "")) if info else None
+            record = USERS.get(info.get("user", "")) if info else None
             return self._json(
                 200,
                 {
-                    key: info.get(key)
-                    for key in ("user", "account", "alias", "role", "expires")
+                    **{
+                        key: info.get(key)
+                        for key in ("user", "account", "alias", "role", "expires")
+                    },
+                    "name": (account or {}).get("name", ""),
+                    "email": (record or {}).get("email") or "",
                 },
             )
         if path == "/api/credentials":
@@ -3851,24 +2893,8 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(
                 200,
                 {
-                    "signup_enabled": bool(SETTINGS.get("signup_enabled", True)),
-                    "instance_regions": list(ENABLED_REGIONS),
                 },
             )
-        if path == "/api/audit":
-            info = self._caller()
-            if not AUDIT_ENABLED:
-                return self._json(404, {"error": "audit trail is disabled"})
-            if not self._platform(info):
-                return self._json(
-                    403, {"error": "only a global admin can read the audit trail"}
-                )
-            params = parse_qs(urlsplit(self.path).query)
-            try:
-                limit = min(int((params.get("limit") or ["100"])[0]), 500)
-            except ValueError:
-                limit = 100
-            return self._json(200, AUDIT.recent(limit))
         if path == "/api/meta":
             info = self._caller()
             platform = self._platform(info)
@@ -3892,9 +2918,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             enabled = list(ACCOUNTS.regions_of(current)) if current else []
             if not enabled:
                 enabled = [DEFAULT_REGION]
-            node_regions = sorted(
-                {node.get("region") for node in NODES if node.get("region")}
-            )
+            auto_regions = sorted((current or {}).get("auto_regions") or [])
             visible = [
                 account
                 for account in ACCOUNTS.accounts.values()
@@ -3905,12 +2929,8 @@ class ControlHandler(BaseHTTPRequestHandler):
                 {
                     "product": "MiniStack",
                     "api_version": API_VERSION,
-                    "mode": MODE,
-                    "auth": AUTH_MODE,
-                    "login": login_label(info),
                     "recent_limit": RECENT_LIMIT,
-                    "audit_enabled": AUDIT_ENABLED,
-                    "version": version or "unknown",
+                    "emulator_version": version or "unknown",
                     "me": {
                         key: display.get(key)
                         for key in ("user", "account", "alias", "role")
@@ -3930,15 +2950,11 @@ class ControlHandler(BaseHTTPRequestHandler):
                     # Accounts are one global tenancy per identity: the same
                     # account ID works in every region, now and in a future
                     # multi-region cluster. Regions are a data axis only.
-                    "accounts_scope": "global",
                     # Selectable regions are the ones this account enabled.
                     "regions": enabled,
-                    "all_regions": list(ENABLED_REGIONS),
-                    "instance_regions": list(ENABLED_REGIONS),
-                    "node_regions": node_regions,
-                    "active_regions": sorted(set(enabled) & set(node_regions)),
+                    "auto_regions": auto_regions,
+                    "all_regions": list(REGION_CHOICES),
                     "platform_admin": platform,
-                    "signup_enabled": bool(SETTINGS.get("signup_enabled", True)),
                     "default_admin": bool(current and current.get("default_admin")),
                     "other_global_admins": sum(
                         1
@@ -3957,7 +2973,6 @@ class ControlHandler(BaseHTTPRequestHandler):
                     "gateway": GATEWAY_URL,
                     "console": CONSOLE_URL,
                     "uptime_seconds": int(time.time() - STARTED_AT),
-                    "checked_at": health.get("checked_at", ""),
                 },
             )
         if path == "/api/actions":
@@ -3988,7 +3003,6 @@ class ControlHandler(BaseHTTPRequestHandler):
                             {
                                 "username": user["username"],
                                 "role": user.get("role"),
-                                "subject_bound": bool(user.get("subject")),
                                 "access_key_id": user.get("access_key_id"),
                             }
                             for user in account["users"].values()
@@ -3999,18 +3013,12 @@ class ControlHandler(BaseHTTPRequestHandler):
                 ],
             )
         if path == "/api/nodes":
-            agents = (
-                {row["node"]: row for row in agent_status()}
-                if MODE != "central"
-                else {}
-            )
             return self._json(
                 200,
                 [
                     dict(
                         node,
                         health=health_snapshot()["nodes"].get(node["name"], {}),
-                        agent=agents.get(node["name"], {}),
                     )
                     for node in NODES
                 ],
@@ -4020,13 +3028,10 @@ class ControlHandler(BaseHTTPRequestHandler):
         if path == "/api/buckets":
             return self._json(200, current_buckets())
         if path == "/api/s3":
-            payload = {"mode": MODE, "buckets": current_buckets()}
-            if MODE == "central":
-                payload["nodes"] = REGISTRY.node_snapshot()
-            else:
-                payload["mesh"] = agent_state()
-                payload["agents"] = agent_status()
-            return self._json(200, payload)
+            return self._json(
+                200,
+                {"buckets": current_buckets(), "nodes": REGISTRY.node_snapshot()},
+            )
         if path in ("/classic", "/classic/", "/index.html"):
             return self._page(self._dashboard())
         if path in ("/classic/services", "/classic/services/"):
@@ -4043,22 +3048,62 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._redirect("/resources/s3")
         self._json(404, {"error": "not found"})
 
+    def _update_me(self) -> None:
+        """Let a signed-in principal change its own name, email and password."""
+        info = session_info(self._session_token())
+        if not info:
+            return self._json(400, {"error": "sign in to change your own account"})
+        payload = self._body()
+        account = ACCOUNTS.by_ref(info.get("account", "")) or {}
+        username = info.get("user", "")
+        if not account or username not in (account.get("users") or {}):
+            return self._json(400, {"error": "this session has no local account"})
+        name = payload.get("name")
+        email = payload.get("email")
+        current = str(payload.get("current_password") or "")
+        new = str(payload.get("new_password") or "")
+        if new:
+            if len(new) < 8:
+                return self._json(
+                    400, {"error": "the new password must be at least 8 characters"}
+                )
+            if USERS.verify(username, current) is None:
+                return self._json(
+                    403, {"error": "the current password is not correct"}
+                )
+        if email is not None:
+            email = str(email).strip()
+            if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+                return self._json(
+                    400, {"error": "that email address does not look right"}
+                )
+            USERS.update_email(username, email)
+        if name is not None:
+            ACCOUNTS.set_name(account["account_id"], str(name).strip())
+        if new:
+            USERS.set_password(username, new)
+        updated = ACCOUNTS.by_ref(account["account_id"]) or {}
+        record = USERS.get(username) or {}
+        return self._json(
+            200,
+            {
+                "user": username,
+                "account": account["account_id"],
+                "name": updated.get("name", ""),
+                "email": record.get("email") or "",
+            },
+        )
+
     def _route_post(self):
         path = urlsplit(self.path).path
         if path == "/login":
             return self._login()
         if path == "/signup":
             return self._signup()
-        if path == "/forgot":
-            return self._forgot()
-        if path == "/reset":
-            return self._reset_submit()
         if path.startswith("/api"):
             path = self._api_path(path)
-        if path == "/api/nodes/register":
-            return self._register_node()
-        if path == "/api/nodes/heartbeat":
-            return self._heartbeat()
+        if path == "/api/me":
+            return self._update_me()
         if not self._require_admin():
             return
         if path == "/api/credentials":
@@ -4081,7 +3126,6 @@ class ControlHandler(BaseHTTPRequestHandler):
                 problem = delete_access_key(
                     account_obj, principal, key_id
                 )
-                audited = "credentials.deleted"
             elif action == "create":
                 name = str(payload.get("name", "")).strip()
                 if not re.fullmatch(r"[A-Za-z0-9._ -]{1,32}", name):
@@ -4093,26 +3137,14 @@ class ControlHandler(BaseHTTPRequestHandler):
                         },
                     )
                 key, problem = create_access_key(account_obj, principal, name)
-                audited = "credentials.created"
             elif action == "rotate":
                 key, problem = rotate_credentials(
                     account_obj["account_id"], principal["username"]
                 )
-                audited = "credentials.rotated"
             else:
                 return self._json(400, {"error": f"unknown action: {action}"})
             if problem:
                 return self._json(502, {"error": problem})
-            AUDIT.record(
-                info.get("user", "token"),
-                audited,
-                account_obj["account_id"],
-                {
-                    "user": principal["username"],
-                    "key": (key or {}).get("access_key_id")
-                    or payload.get("access_key_id"),
-                },
-            )
             return self._json(
                 200,
                 {
@@ -4197,26 +3229,16 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if USERS.exists(username):
                 return self._json(400, {"error": "that username is already registered"})
-            account, principal = ACCOUNTS.create("", username)
+            account, principal = ACCOUNTS.create(username)
             if display_name:
                 ACCOUNTS.set_name(account["account_id"], display_name)
             USERS.create(
                 username, email, password, account["account_id"],
                 principal.get("role", "root"),
             )
-            problem = issue_credentials(account, principal)
+            _key, problem = create_access_key(account, principal, "primary")
             if problem:
                 return self._json(502, {"error": problem})
-            AUDIT.record(
-                info.get("user", "token"),
-                "account.created",
-                account["account_id"],
-                {
-                    "alias": account["alias"],
-                    "via": "api",
-                    "global_admin": bool(account.get("global_admin")),
-                },
-            )
             return self._json(
                 201,
                 {
@@ -4247,12 +3269,6 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(400, {"error": problem})
             if disabled:
                 purge_sessions(account["account_id"])
-            AUDIT.record(
-                info.get("user", "token"),
-                "account.disabled" if disabled else "account.enabled",
-                account["account_id"],
-                {"alias": account["alias"]},
-            )
             return self._json(
                 200,
                 {"account": account["account_id"], "disabled": disabled},
@@ -4278,12 +3294,6 @@ class ControlHandler(BaseHTTPRequestHandler):
                     400, {"error": "you cannot remove your own global admin role"}
                 )
             ACCOUNTS.set_global_admin(account["account_id"], enabled)
-            AUDIT.record(
-                info.get("user", "token"),
-                "account.global_admin" if enabled else "account.global_admin_removed",
-                account["account_id"],
-                {"alias": account["alias"]},
-            )
             return self._json(
                 200,
                 {
@@ -4301,17 +3311,11 @@ class ControlHandler(BaseHTTPRequestHandler):
             if "signup_enabled" in payload:
                 enabled = bool(payload.get("signup_enabled"))
                 SETTINGS.set("signup_enabled", enabled)
-                AUDIT.record(
-                    info.get("user", "token"),
-                    "settings.signup",
-                    "signup_enabled",
-                    {"enabled": enabled},
-                )
             return self._json(
                 200,
                 {
                     "signup_enabled": bool(SETTINGS.get("signup_enabled", True)),
-                    "instance_regions": list(ENABLED_REGIONS),
+                    "instance_regions": list(REGION_CHOICES),
                 },
             )
         if path == "/api/regions":
@@ -4327,7 +3331,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                     403, {"error": "this account is not signed in to that tenancy"}
                 )
             region = str(payload.get("region", "")).strip()
-            if region not in ENABLED_REGIONS:
+            if region not in REGION_CHOICES:
                 return self._json(400, {"error": "unknown region"})
             enabled = bool(payload.get("enabled", True))
             current = set(ACCOUNTS.regions_of(target))
@@ -4336,12 +3340,6 @@ class ControlHandler(BaseHTTPRequestHandler):
             elif region != DEFAULT_REGION:
                 current.discard(region)
             account = ACCOUNTS.set_regions(target["account_id"], sorted(current))
-            AUDIT.record(
-                info.get("user", "token"),
-                "region.enabled" if enabled else "region.disabled",
-                target["account_id"],
-                {"region": region},
-            )
             return self._json(
                 200,
                 {
@@ -4351,11 +3349,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             )
         if path == "/api/refresh":
             self._body()
-            if MODE == "central":
-                return self._json(200, refresh_registry())
-            return self._json(
-                200, {"mode": MODE, **agent_state(), "agents": agent_status()}
-            )
+            return self._json(200, refresh_registry())
         if path == "/api/reserve":
             payload = self._body()
             name = str(payload.get("name", "")).strip()
@@ -4365,50 +3359,28 @@ class ControlHandler(BaseHTTPRequestHandler):
             ok, message, code = reserve_across(name, region)
             if not ok:
                 return self._json(code, {"error": message})
-            return self._json(201, {"bucket": name, "region": region, "mode": MODE})
+            return self._json(201, {"bucket": name, "region": region})
         match = re.fullmatch(r"/api/nodes/([^/]+)/reset", path)
         if match:
             node = node_by_name(match.group(1))
             if not node:
                 return self._json(404, {"error": "unknown node"})
             status, _ = node_request(node, "POST", "/_ministack/reset", timeout=30)
-            if MODE == "central":
-                with REGISTRY.lock:
-                    for bucket in [
-                        name
-                        for name, entry in REGISTRY.buckets.items()
-                        if entry["node"] == node["name"]
-                    ]:
-                        REGISTRY.buckets.pop(bucket, None)
-                    cached = REGISTRY.nodes.get(node["name"], {})
-                    if cached:
-                        cached["buckets"] = []
-                    REGISTRY.save()
-            else:
-                state = agent_state()
-                for bucket, entry in state.get("buckets", {}).items():
-                    if entry.get("node") == node["name"]:
-                        release_across(bucket)
+            with REGISTRY.lock:
+                for bucket in [
+                    name
+                    for name, entry in REGISTRY.buckets.items()
+                    if entry["node"] == node["name"]
+                ]:
+                    REGISTRY.buckets.pop(bucket, None)
+                cached = REGISTRY.nodes.get(node["name"], {})
+                if cached:
+                    cached["buckets"] = []
+                REGISTRY.save()
             return self._json(
                 200 if status == 200 else 502, {"node": node["name"], "upstream": status}
             )
         self._json(404, {"error": "not found"})
-
-    def _register_node(self) -> None:
-        token = self.headers.get("X-Join-Token", "")
-        status, message = NODE_REGISTRY.register(self._body(), token)
-        return self._json(
-            status, {"status": message, "nodes": NODE_REGISTRY.snapshot()}
-        )
-
-    def _heartbeat(self) -> None:
-        token = self.headers.get("X-Join-Token", "")
-        if not JOIN_TOKEN or not hmac.compare_digest(token, JOIN_TOKEN):
-            return self._json(401, {"error": "invalid join token"})
-        name = str(self._body().get("name", ""))
-        if not NODE_REGISTRY.heartbeat(name):
-            return self._json(404, {"error": "unknown node"})
-        return self._json(200, {"node": name, "linked": True})
 
     def _route_delete(self):
         if not self._require_admin():
@@ -4432,12 +3404,6 @@ class ControlHandler(BaseHTTPRequestHandler):
                     400, {"error": "you cannot delete the account you are signed in to"}
                 )
             delete_account(account)
-            AUDIT.record(
-                info.get("user", "token"),
-                "account.deleted",
-                account["account_id"],
-                {"alias": account["alias"]},
-            )
             return self._json(
                 200,
                 {"deleted": account["account_id"], "alias": account["alias"]},
@@ -4448,25 +3414,14 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(200, {"removed": match.group(1)})
         self._json(404, {"error": "not found"})
 
-    def send_response(self, code, message=None):
-        self._status = code
-        super().send_response(code, message)
-
-    def _instrumented(self, route):
-        span = TELEMETRY.start(self.command or "", self.path or "", self.headers)
-        try:
-            return route()
-        finally:
-            TELEMETRY.finish(span, getattr(self, "_status", 0))
-
     def do_GET(self):
-        return self._instrumented(self._route_get)
+        return self._route_get()
 
     def do_POST(self):
-        return self._instrumented(self._route_post)
+        return self._route_post()
 
     def do_DELETE(self):
-        return self._instrumented(self._route_delete)
+        return self._route_delete()
 
     # ---------------------------------------------------------------- pages
 
@@ -4533,29 +3488,6 @@ class ControlHandler(BaseHTTPRequestHandler):
             for node in NODES
         )
         mesh_html = ""
-        if MODE != "central":
-            state = agent_state()
-            agents = agent_status()
-            agent_rows = "".join(
-                "<tr>"
-                f"<td>{html.escape(row['node'])}</td>"
-                f"<td>{'<span class=up>UP</span>' if row['reachable'] else '<span class=down>DOWN</span>'}</td>"
-                f"<td>{html.escape(str(row.get('events', '-')))}</td>"
-                f"<td>{html.escape(str(row.get('peer_count', '-')))}</td>"
-                "</tr>"
-                for row in agents
-            )
-            conflicts = state.get("conflicts", [])
-            conflict_text = (
-                '<span class=down>' + html.escape(", ".join(conflicts)) + "</span>"
-                if conflicts
-                else '<span class=up>none</span>'
-            )
-            mesh_html = f"""<h2>Replication ({html.escape(MODE)})</h2>
-<table><thead><tr><th>Agent</th><th>Health</th><th>Events</th><th>Peers</th></tr></thead>
-<tbody>{agent_rows}</tbody></table>
-<p class="muted">Chain heights: {html.escape(json.dumps(state.get('heights', {}), sort_keys=True))}
- · conflicts: {conflict_text}</p>"""
         info = session_info(self._session_token()) or {}
         account = info.get("account") or "unassigned"
         alias = info.get("alias") or "-"
@@ -4587,7 +3519,7 @@ The account ID alone also works as a root access key (any secret).</p>
             f'<option value="{html.escape(region)}"'
             f'{" selected" if region == DEFAULT_REGION else ""}>'
             f"{html.escape(region)}</option>"
-            for region in sorted(set(ENABLED_REGIONS) | SEEN_REGIONS)
+            for region in sorted(set(REGION_CHOICES) | SEEN_REGIONS)
         )
         body = f"""
 <h1>Overview</h1>
@@ -4674,7 +3606,7 @@ document.getElementById('credrotate').onsubmit = async (event) => {{
             f'<option value="{html.escape(choice)}"'
             f'{" selected" if choice == region else ""}>'
             f"{html.escape(choice)}</option>"
-            for choice in sorted(set(ENABLED_REGIONS) | SEEN_REGIONS)
+            for choice in sorted(set(REGION_CHOICES) | SEEN_REGIONS)
         )
         services = "".join(
             f'<option value="{html.escape(name)}"'
@@ -4760,7 +3692,6 @@ grouped like the upstream catalogue; checked {html.escape(health.get('checked_at
                     f"<td>{html.escape(account['alias'])}</td>"
                     f"<td>{html.escape(name)}</td>"
                     f"<td>{html.escape(str(user.get('role', '-')))}</td>"
-                    f"<td>{'bound' if user.get('subject') else '—'}</td>"
                     f"<td><code>{html.escape(user.get('access_key_id') or '—')}</code></td>"
                     f"<td>{html.escape(str(user.get('credentials_issued') or '—'))}</td>"
                     "</tr>"
@@ -4770,8 +3701,8 @@ grouped like the upstream catalogue; checked {html.escape(health.get('checked_at
 <p class="muted">An account is the tenancy boundary; a principal is an identity
 inside one. The account ID lives here as data — it is never configuration.</p>
 <table><thead><tr><th>Account ID</th><th>Alias</th><th>Principal</th><th>Role</th>
-<th>Keycloak</th><th>Access key</th><th>Issued</th></tr></thead>
-<tbody>{''.join(rows) or '<tr><td colspan="7" class="muted">no accounts yet</td></tr>'}</tbody></table>
+<th>Access key</th><th>Issued</th></tr></thead>
+<tbody>{''.join(rows) or '<tr><td colspan="6" class="muted">no accounts yet</td></tr>'}</tbody></table>
 <p class="muted">Secrets are not shown here; the signed-in principal sees its own
 on the <a href="/">overview</a>.</p>
 """
@@ -4791,51 +3722,30 @@ on the <a href="/">overview</a>.</p>
             "</tr>"
             for name, entry in sorted(buckets.items())
         ) or '<tr><td colspan="6" class="muted">no buckets registered</td></tr>'
-        if MODE == "central":
-            node_cache = REGISTRY.node_snapshot()
-            inventory = "".join(
-                "<tr>"
-                f"<td>{html.escape(node['name'])}</td>"
-                f"<td>{'<span class=up>UP</span>' if health.get('nodes', {}).get(node['name'], {}).get('reachable') else '<span class=down>DOWN</span>'}</td>"
-                f"<td>{html.escape(str(node_cache.get(node['name'], {}).get('last_seen', '-')))}</td>"
-                f"<td>{len(node_cache.get(node['name'], {}).get('buckets', []))}</td>"
-                f"<td>{html.escape(', '.join(node_cache.get(node['name'], {}).get('buckets', [])) or '-')}</td>"
-                "</tr>"
-                for node in NODES
-            )
-            inventory_title = "Per-node cached inventory"
-            inventory_header = (
-                "<th>Node</th><th>Health</th><th>Inventory from</th>"
-                "<th>Buckets</th><th>Names</th>"
-            )
-            inventory_note = (
-                "An unreachable node keeps its last successful inventory; "
-                "those rows are marked stale instead of disappearing."
-            )
-        else:
-            state = agent_state()
-            inventory = "".join(
-                "<tr>"
-                f"<td>{html.escape(row['node'])}</td>"
-                f"<td>{'<span class=up>UP</span>' if row['reachable'] else '<span class=down>DOWN</span>'}</td>"
-                f"<td>{html.escape(str(row.get('events', '-')))}</td>"
-                f"<td>{html.escape(str(row.get('peer_count', '-')))}</td>"
-                "</tr>"
-                for row in agent_status()
-            )
-            inventory_title = f"Replication agents ({MODE})"
-            inventory_header = "<th>Agent</th><th>Health</th><th>Events</th><th>Peers</th>"
-            inventory_note = (
-                "Chain heights: "
-                + json.dumps(state.get("heights", {}), sort_keys=True)
-                + " · conflicts: "
-                + (", ".join(state.get("conflicts", [])) or "none")
-            )
+        node_cache = REGISTRY.node_snapshot()
+        inventory = "".join(
+            "<tr>"
+            f"<td>{html.escape(node['name'])}</td>"
+            f"<td>{'<span class=up>UP</span>' if health.get('nodes', {}).get(node['name'], {}).get('reachable') else '<span class=down>DOWN</span>'}</td>"
+            f"<td>{html.escape(str(node_cache.get(node['name'], {}).get('last_seen', '-')))}</td>"
+            f"<td>{len(node_cache.get(node['name'], {}).get('buckets', []))}</td>"
+            f"<td>{html.escape(', '.join(node_cache.get(node['name'], {}).get('buckets', [])) or '-')}</td>"
+            "</tr>"
+            for node in NODES
+        )
+        inventory_title = "Cached inventory"
+        inventory_header = (
+            "<th>Node</th><th>Health</th><th>Inventory from</th>"
+            "<th>Buckets</th><th>Names</th>"
+        )
+        inventory_note = (
+            "An unreachable emulator keeps its last successful inventory; "
+            "those rows are marked stale instead of disappearing."
+        )
         body = f"""
 <h1>S3</h1>
-<p class="muted">Mode <code>{html.escape(MODE)}</code>. Bucket names are
-reserved across the federation. The home region is where the bucket was
-created and stays authoritative even while that node is offline.</p>
+<p class="muted">Bucket names are reserved globally: one registry, one
+emulator. The home region is where the bucket was created.</p>
 <h2>Registered buckets</h2>
 <table><thead><tr><th>Bucket</th><th>Home region</th><th>Node</th>
 <th>Account</th><th>Last seen</th><th>State</th></tr></thead>
@@ -4857,7 +3767,7 @@ document.getElementById('refresh').onsubmit = async (event) => {{
 
 def main() -> None:
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
-    os.makedirs(os.path.dirname(REGISTRY_FILE), exist_ok=True)
+    os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
     control = ThreadingHTTPServer(("0.0.0.0", CONTROL_PORT), ControlHandler)
     gateway = ThreadingHTTPServer(("0.0.0.0", GATEWAY_PORT), GatewayHandler)
     threading.Thread(target=gateway.serve_forever, daemon=True).start()
@@ -4865,10 +3775,8 @@ def main() -> None:
     def poller() -> None:
         while True:
             try:
-                NODE_REGISTRY.expire()
                 poll_health()
-                if MODE == "central":
-                    refresh_registry()
+                refresh_registry()
             except Exception as exc:  # keep the poller alive
                 print(f"poller error: {exc}", flush=True)
             time.sleep(POLL_SECONDS)
@@ -4883,14 +3791,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[1] == "--test-mail":
-        # Run inside the container, where the real settings and network live:
-        #   podman exec core-ministack-control python /app/app.py --test-mail you@example.com
-        problem = send_mail(
-            sys.argv[2],
-            "MiniStack control: test message",
-            "This message proves the control can reach its SMTP relay.\n",
-        )
-        print("sent" if not problem else problem, flush=True)
-        sys.exit(0 if not problem else 1)
     main()

@@ -21,8 +21,8 @@ import { Shell, loadCatalogue } from '../components/Shell'
 
 export default function Services() {
   const navigate = useNavigate()
-  const { account, region } = useSession()
-  const { toggleFavorite, isFavorite } = useFavorites()
+  const { account, region, meta } = useSession()
+  const { toggleFavorite, isFavorite } = useFavorites(meta?.me?.account)
   const [services, setServices] = useState({})
   const [counts, setCounts] = useState({})
   const [catalogue, setCatalogue] = useState(null)

@@ -15,24 +15,30 @@ export interface SessionUser {
   role?: string
 }
 
+export interface MeResult extends SessionUser {
+  expires?: number
+  name?: string
+  email?: string
+}
+
+export interface UpdateMeResult {
+  user: string
+  account: string
+  name: string
+  email: string
+}
+
 export interface Meta {
   product: string
   api_version: string
-  mode: string
-  auth: string
-  audit_enabled: boolean
-  login?: string
   recent_limit?: number
-  version: string
+  emulator_version: string
   me: SessionUser
   accounts: AccountSummary[]
-  accounts_scope: string
   regions: string[]
+  auto_regions?: string[]
   all_regions: string[]
-  node_regions: string[]
-  active_regions: string[]
   platform_admin: boolean
-  signup_enabled: boolean
   default_admin: boolean
   other_global_admins: number
   total_accounts: number
@@ -40,7 +46,6 @@ export interface Meta {
   gateway: string
   console: string
   uptime_seconds: number
-  checked_at: string
 }
 
 export interface NodeHealth {
@@ -58,7 +63,6 @@ export interface NodeRow {
   region: string
   endpoint?: string
   static?: boolean
-  last_seen?: number
   health?: NodeHealth
 }
 
@@ -169,7 +173,6 @@ export interface ProvisionResult {
 export interface UserRow {
   username: string
   role?: string
-  subject_bound?: boolean
   access_key_id?: string
 }
 
@@ -224,12 +227,4 @@ export interface DeleteAccountResult {
 export interface SettingsResult {
   signup_enabled: boolean
   instance_regions: string[]
-}
-
-export interface AuditEntry {
-  at: string
-  actor: string
-  action: string
-  target: string
-  detail?: Record<string, unknown>
 }

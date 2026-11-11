@@ -30,7 +30,7 @@ function formatUptime(seconds) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { meta, account, region, refresh: refreshMeta } = useSession()
-  const { recent } = useRecent()
+  const { recent } = useRecent(meta?.me?.account)
   const [services, setServices] = useState({})
   const [counts, setCounts] = useState({})
   const [nodes, setNodes] = useState([])
@@ -185,7 +185,7 @@ export default function Dashboard() {
                   {formatUptime(meta?.uptime_seconds)}
                 </Box>
                 <Box color="text-body-secondary" fontSize="body-s">
-                  emulator {meta?.version || 'unknown'}
+                  emulator {meta?.emulator_version || 'unknown'}
                 </Box>
               </div>
             </ColumnLayout>
@@ -198,7 +198,7 @@ export default function Dashboard() {
                 <Link href={meta?.console} external>{meta?.console || '—'}</Link>
               </div>
               <div>
-                <Box variant="awsui-key-label">AWS gateway</Box>
+                <Box variant="awsui-key-label">Emulator gateway</Box>
                 <Link href={meta?.gateway} external>{meta?.gateway || '—'}</Link>
               </div>
               <div>

@@ -10,7 +10,9 @@ form fields and the API call stay recognisable as the CLI equivalent.
 
 from __future__ import annotations
 
+import html
 import json
+import re
 
 
 def field(name, label="", required=False, kind="text", placeholder="", default=""):
@@ -690,6 +692,29 @@ def public_catalogue() -> dict:
     }
 
 
+def _error_message(body: str, status: int) -> str:
+    """The human half of a failed call: S3's XML ``<Message>`` or AWS JSON.
+
+    The console shows this instead of the wire format, so a duplicate bucket
+    reads as the sentence the emulator sent, not as a status code next to an
+    XML blob.
+    """
+    text = body or ""
+    match = re.search(r"<Message>(.*?)</Message>", text, re.S)
+    if match:
+        return html.unescape(match.group(1)).strip()
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        payload = None
+    if isinstance(payload, dict):
+        for key in ("message", "Message", "error", "errorMessage"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return f"HTTP {status}" if status else "the emulator did not answer"
+
+
 def run_action(service, operation, params, account, region, call, s3):
     spec = CATALOGUE.get(service)
     if spec is None:
@@ -715,4 +740,5 @@ def run_action(service, operation, params, account, region, call, s3):
         "status": status,
         "cli": op.get("cli", ""),
         "body": body[:20000],
+        "error": "" if ok else _error_message(body, status),
     }

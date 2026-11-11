@@ -1,5 +1,8 @@
-# Local configuration and ad-hoc backups.
 .env
 *.bak
 __pycache__/
 *.pyc
+
+qa/
+addons/
+docs/

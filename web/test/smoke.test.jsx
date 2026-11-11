@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SessionProvider } from '../src/context'
 import App from '../src/App'
+import Dashboard from '../src/pages/Dashboard'
 import Onboarding from '../src/pages/Onboarding'
 import Resources from '../src/pages/Resources'
 import Settings from '../src/pages/Settings'
@@ -12,21 +13,18 @@ import About from '../src/pages/About'
 const META = {
   product: 'MiniStack',
   api_version: 'v1',
-  mode: 'central',
-  auth: 'both',
-  version: '1.5.37',
+  emulator_version: '1.5.37',
   me: { user: 'mathewmusango', account: '111111111111', alias: 'mathewmusango', role: 'root' },
   accounts: [
     { account_id: '111111111111', alias: 'mathewmusango', users: 1 },
     { account_id: '161418427515', alias: 'musangomathew', users: 1 },
   ],
-  accounts_scope: 'global',
   platform_admin: true,
   regions: ['us-east-1', 'us-west-2'],
-  active_regions: ['us-east-1'],
+  all_regions: ['us-east-1', 'us-west-2'],
   gateway: 'https://ministack.mus.com',
   console: 'https://ministack-control.mus.com',
-  checked_at: '',
+  uptime_seconds: 60,
 }
 
 const ACTIONS = {
@@ -59,11 +57,19 @@ const RESPONSES = {
       global_admin: true,
       default_admin: false,
       disabled: false,
-      users: [{ username: 'mathewmusango', role: 'root', subject_bound: false }],
+      users: [{ username: 'mathewmusango', role: 'root' }],
     },
   ],
   '/api/nodes': [],
   '/api/settings': { signup_enabled: true },
+  '/api/accounts/me': {
+    user: 'mathewmusango',
+    account: '111111111111',
+    alias: 'mathewmusango',
+    role: 'root',
+    name: 'Mathew Musango',
+    email: 'mathew@example.com',
+  },
   '/api/credentials': {
     account: '111111111111',
     user: 'mathewmusango',
@@ -85,7 +91,6 @@ const RESPONSES = {
       },
     ],
   },
-  '/api/audit': [],
   '/api/browse': {
     account: '111111111111',
     region: 'us-east-1',
@@ -162,6 +167,9 @@ describe('console', () => {
 
   it('lists access keys masked and refuses a third key', async () => {
     renderAt(<Settings />)
+    expect(await screen.findByText('My account')).toBeTruthy()
+    expect(screen.getByDisplayValue('Mathew Musango')).toBeTruthy()
+    expect(screen.getByDisplayValue('mathew@example.com')).toBeTruthy()
     expect(await screen.findByText('laptop-cli')).toBeTruthy()
     expect(screen.getByText('ci-pipeline')).toBeTruthy()
     expect(screen.getAllByText('••••••••••••').length).toBe(2)
@@ -180,6 +188,20 @@ describe('console', () => {
     expect(await screen.findByText('Region')).toBeTruthy()
     expect(screen.getByText(/created by mathewmusango/)).toBeTruthy()
     expect(screen.getByText('us-east-1, us-west-2', { exact: false })).toBeTruthy()
+  })
+
+  it('scopes recently visited to the signed-in account', async () => {
+    localStorage.clear()
+    localStorage.setItem('ministack:recent', JSON.stringify(['s3']))
+    const first = renderAt(<Dashboard />)
+    expect(await screen.findByText('Services answering')).toBeTruthy()
+    expect(screen.queryByText('Recently visited')).toBeNull()
+    first.unmount()
+
+    localStorage.setItem('ministack:recent:111111111111', JSON.stringify(['s3']))
+    renderAt(<Dashboard />)
+    expect(await screen.findByText('Recently visited')).toBeTruthy()
+    localStorage.clear()
   })
 
   it('shows the stored account name next to the alias', async () => {

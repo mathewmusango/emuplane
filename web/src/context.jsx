@@ -71,7 +71,6 @@ export function SessionProvider({ children }) {
       setRegion,
       account,
       setAccount,
-      activeRegions: meta?.active_regions || [],
     }),
     [meta, error, loading, refresh, region, account, setRegion, setAccount],
   )
