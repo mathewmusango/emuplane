@@ -1515,13 +1515,16 @@ def bucket_owner(bucket: str) -> dict | None:
     return REGISTRY.owner(bucket)
 
 
+BUCKET_TAKEN = "Bucket {name} already exists"
+
+
 def bucket_taken(name: str) -> str:
     """The one message for a name that is already taken.
 
     The emulator sends the same sentence, so the answer does not depend on which
     layer caught it.
     """
-    return f"Bucket {name} already exists"
+    return BUCKET_TAKEN.format(name=name)
 
 
 def reserve_across(
@@ -1752,14 +1755,25 @@ class GatewayHandler(BaseHTTPRequestHandler):
         )
 
         if create:
-            ok, message, code = reserve_across(bucket, region, account)
-            if not ok:
-                self._error(
-                    code,
-                    "BucketAlreadyExists" if code == 409 else "ServiceUnavailable",
-                    message,
-                )
+            entry = bucket_owner(bucket)
+            reserved = entry is None
+            if entry is None:
+                ok, message, code = reserve_across(bucket, region, account)
+                if not ok:
+                    self._error(
+                        code,
+                        "BucketAlreadyExists" if code == 409 else "ServiceUnavailable",
+                        message,
+                    )
+                    return
+            elif entry.get("account_id") != account or entry.get("region") != region:
+                # Another account's name, or this account's bucket in another
+                # region: one answer, whichever account or region asks.
+                self._error(409, "BucketAlreadyExists", bucket_taken(bucket))
                 return
+            # The owner re-creating in the bucket's own region is forwarded: the
+            # emulator answers AWS's 200-and-reset (us-east-1) or
+            # BucketAlreadyOwnedByYou, and either way the reservation stays.
             node = node_by_region(region)
             if node is None:
                 self._error(503, "ServiceUnavailable", "no emulator is configured")
@@ -1769,10 +1783,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
                     node, self.command, self.path, self.headers, body
                 )
             except OSError as exc:
-                release_across(bucket)
+                if reserved:
+                    release_across(bucket)
                 self._error(503, "ServiceUnavailable", f"{node['name']} unreachable: {exc}")
                 return
-            if not 200 <= status < 300:
+            if not 200 <= status < 300 and reserved:
                 release_across(bucket)
             self._send(status, headers, payload)
             return
@@ -2345,8 +2360,9 @@ def _annotate(
 ) -> list[dict]:
     """Attach the region and owner metadata every row carries.
 
-    S3 is account-scoped but not region-isolated upstream, so a bucket's region
-    is the one recorded when its name was claimed, not the region being queried.
+    S3 rows carry no region of their own: ``ListBuckets`` answers per region on
+    the fork image, so the queried region is the bucket's home. Owner metadata
+    still comes from the name registry.
     """
     for row in rows:
         claim = _bucket_claim(row["name"]) if service == "s3" else {}
@@ -2355,7 +2371,10 @@ def _annotate(
         if entry.get("user"):
             owner["user"] = entry["user"]
             owner["at"] = entry.get("at", "")
-        row["region"] = claim.get("region") or region
+        if service == "s3":
+            row["region"] = region
+        else:
+            row["region"] = claim.get("region") or region
         row["owner"] = owner
         row["detail"] = dict(row.get("detail") or {})
     return rows
@@ -2376,10 +2395,14 @@ def served_regions(account: dict) -> list[str]:
 
 
 def browse_all(service: str, account: str, regions: list[str]) -> list[dict]:
-    """Every region at once; S3 is listed once because it is not region-isolated."""
+    """Every region at once: one row per resource.
+
+    A bucket name is unique partition-wide, so S3 rows dedupe by name alone;
+    every other service may reuse a name in another region.
+    """
     rows: list[dict] = []
     seen: set[tuple] = set()
-    for region in regions[:1] if service == "s3" else regions:
+    for region in regions:
         for row in browse(service, account, region):
             key = (
                 row["kind"],
