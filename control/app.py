@@ -68,9 +68,8 @@ POLL_SECONDS = int(os.environ.get("CONTROL_POLL_SECONDS", "10"))
 
 API_VERSION = "v1"
 STARTED_AT = time.time()
-# Canonical public addresses shown in the UI (Traefik, lab wildcard cert).
-# The gateway took over `ministack.mus.com` on 2026-11-05; `aws.mus.com` stays
-# routed as a deprecated alias so existing client configs keep working.
+# Canonical public addresses shown in the UI. A deployment publishes them (a
+# reverse proxy, a published port); the console displays whatever is set here.
 GATEWAY_URL = os.environ.get("MC_GATEWAY_URL", "").strip().rstrip("/")
 CONSOLE_URL = os.environ.get("MC_CONSOLE_URL", "").strip().rstrip("/")
 

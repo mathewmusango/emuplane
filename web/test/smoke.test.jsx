@@ -22,8 +22,8 @@ const META = {
   platform_admin: true,
   regions: ['us-east-1', 'us-west-2'],
   all_regions: ['us-east-1', 'us-west-2'],
-  gateway: 'https://ministack.mus.com',
-  console: 'https://ministack-control.mus.com',
+  gateway: 'https://ministack.example.com',
+  console: 'https://ministack-control.example.com',
   uptime_seconds: 60,
 }
 
@@ -212,8 +212,8 @@ describe('console', () => {
 
   it('renders the endpoints without the mode, login or references rows', async () => {
     renderAt(<About />)
-    expect(await screen.findByText('https://ministack-control.mus.com')).toBeTruthy()
-    expect(screen.getByText('https://ministack.mus.com')).toBeTruthy()
+    expect(await screen.findByText('https://ministack-control.example.com')).toBeTruthy()
+    expect(screen.getByText('https://ministack.example.com')).toBeTruthy()
     expect(screen.queryByText('Mode')).toBeNull()
     expect(screen.queryByText('Login')).toBeNull()
     expect(screen.queryByText('References')).toBeNull()
