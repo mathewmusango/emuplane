@@ -1,5 +1,7 @@
 # ministack-control
 
+[![Semgrep](https://github.com/mathewmusango/ministack-control/actions/workflows/semgrep.yml/badge.svg)](https://github.com/mathewmusango/ministack-control/actions/workflows/semgrep.yml)
+
 The control plane for the MiniStack emulator: the emulator gateway, the accounts and
 sessions, the console and the bucket registry. It is what makes a local emulator
 rehearse a production Terraform deployment (`my-portfolio`) without touching a
@@ -37,11 +39,13 @@ or a second account is a console action plus a client credential.
 | --- | --- | --- |
 | Region | the SigV4 scope (`.../us-west-1/s3/aws4_request`), else `MINISTACK_REGION` | the per-account opt-in, chosen from the supported set |
 | Account | a 12-digit access key, else `MINISTACK_ACCOUNT_ID` | this control's account store |
-| State | partitioned per account; per region for every service except S3 and Aurora DSQL | the emulator (`services/ministack`) |
+| State | partitioned per account; per region for every service, S3 included on the fork image; Aurora DSQL stays account-scoped | the emulator (`services/ministack`) |
 
-S3 and Aurora DSQL are **account-scoped but not region-isolated** (an upstream
-limitation): two regions within one account see the same buckets. That matches
-`ListBuckets`, but do not expect per-region S3 clones.
+S3 is region-isolated on the fork image: a bucket lives in one region,
+`ListBuckets` answers with the signing region's buckets, and a request signed for
+another region gets the `301 PermanentRedirect` AWS returns. Aurora DSQL remains
+**account-scoped but not region-isolated** (an upstream limitation): two regions
+within one account see the same state.
 
 The emulator is not published on the host; the control reaches it at
 `http://core-ministack:4566` over `net-services`.
@@ -93,7 +97,9 @@ unique partition-wide.
 
 - `CreateBucket` is **reserved atomically** and recorded against the requesting
   account (from the access key); a second claim gets `409 BucketAlreadyExists`,
-  whichever account or region asks.
+  whichever account or region asks. The one exception is the owner re-creating a
+  bucket in its own region: that request is forwarded, so the emulator answers
+  AWS's `200` (us-east-1, ACLs reset) or `BucketAlreadyOwnedByYou`.
 - `DeleteBucket` on success releases the name.
 - The registry is rebuilt from the emulator's `ListBuckets` at startup, on
   `POST /api/refresh`, and by the 10s poller. That listing is **per account**
@@ -256,6 +262,50 @@ set up IAM in any account without holding a long-lived secret. A principal's
 issued secret lives in the `accounts` table in `control.db`, which is why that
 file is `0600` and never leaves the host.
 
+### Account to first S3 call
+
+**Create the account and its login.** Sign up at `/signup` (username, optional
+email, password of 8+ characters; the first account becomes the platform owner),
+or have the platform administrator provision one and hand back the one-time key
+pair:
+
+```sh
+curl -sS -X POST https://ministack-control.mus.com/api/accounts \
+  -H "Authorization: Bearer $MC_ADMIN_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","email":"alice@example.test","password":"Correct-Horse-1","name":"Alice"}'
+# → account_id, alias, iam_user, aws_access_key_id, aws_secret_access_key, regions
+```
+
+**Get a secret key.** Sign in and open **Settings → Access keys → Create**
+(`POST /api/credentials {"action":"create","name":"laptop"}`). The secret is
+shown once, with **Download .csv**; an account holds at most two keys, so a
+rotation can overlap. Creating the first key also creates the principal's IAM
+user and its `ministack-admin` policy.
+
+**Enable the region.** A new account starts with `us-east-1` alone. Add more in
+**Settings → Regions** (`POST /api/regions {"region":"eu-west-1","enabled":true}`);
+signing for a region the account has not enabled is `403 AccessDenied`.
+
+**Use the service** — path-style, signed as the account's `AKIA…` key:
+
+```sh
+export AWS_ACCESS_KEY_ID=AKIA…
+export AWS_SECRET_ACCESS_KEY=…
+export AWS_DEFAULT_REGION=us-east-1
+export AWS_ENDPOINT_URL=https://ministack.mus.com
+
+aws sts get-caller-identity          # arn:aws:iam::<account>:user/alice
+aws s3 mb s3://alice-artifacts
+aws s3 cp ./file.txt s3://alice-artifacts/
+aws s3 ls                            # alice-artifacts only: ListBuckets is per region
+```
+
+A bucket name claimed in any account or region is refused everywhere else —
+`409 BucketAlreadyExists`, one message, one registry. Your own bucket in its own
+region is AWS's answer: `200` in us-east-1 with the ACLs reset, and
+`BucketAlreadyOwnedByYou` elsewhere.
+
 ### Resource browser
 
 `https://ministack-control.mus.com/resources` is our own browser, not an embed. It
@@ -269,11 +319,12 @@ the control holds no AWS secret and can list **every** account.
   which account actually answered.
 - Rows are `kind / name / region / owner / detail`.
 - **Region-scoped objects.** Every row carries the region it lives in and its
-  owner (`{account, user?}`). S3 buckets are account-scoped upstream, so their
-  region is the one recorded when the name was claimed, not the region queried.
+  owner (`{account, user?}`). An S3 bucket's region is the one it was created
+  in; the registry still records the region a name was claimed in.
 - **View from all regions.** `GET /api/browse?region=all` sweeps every region the
   account has enabled (matched against what the node serves) and merges the rows;
-  S3 is listed once. The console exposes it as a toggle on the Resources page.
+  S3 rows dedupe by name, because a bucket name is unique partition-wide. The
+  console exposes it as a toggle on the Resources page.
 - **Owner metadata** comes from the `owners` table in `control.db`: a successful
   console action that names a resource records the creating principal. The
   emulator keeps no owner, so CLI-created resources simply show the account.
@@ -385,9 +436,12 @@ Pages: **Dashboard** (`/`), **Resources** (`/resources/:service`), **Favorites**
   shows the secret once. The inviter stays signed in.
 
 > [!NOTE]
-> S3 bucket names are global in MiniStack: a bucket made in one region is visible
-> in every region of the same account, and the console says so on the S3 page.
-> Every other service is region-isolated.
+> A bucket name is global in MiniStack — one registry reserves it across every
+> account and region — but the **bucket** lives in exactly one region: another
+> region of the same account does not list it, and a request signed for the wrong
+> region is a `301 PermanentRedirect` to its home. Re-creating your own bucket in
+> its own region follows AWS: `200` in us-east-1 (ACLs reset) and
+> `BucketAlreadyOwnedByYou` elsewhere.
 
 API responses carry `api_version` (`v1`); routes accept both `/api/...` and
 `/api/v1/...`.
@@ -487,8 +541,9 @@ terraform apply
 ```
 
 The metrics root follows with `key=metrics/terraform.tfstate`. For a different
-region, change `AWS_REGION`/`TF_VAR_aws_region`; S3 state is account-scoped, so
-the same bucket name is visible there.
+region, change `AWS_REGION`/`TF_VAR_aws_region` — an S3 bucket lives in exactly
+one region, so a state bucket is not visible, and its name is not reusable, in
+another.
 
 > [!NOTE]
 > **Containerised clients cannot use the lab hostnames.** Podman containers get
@@ -506,7 +561,8 @@ the same bucket name is visible there.
 - Account **root** keys (the 12-digit ID) are accepted with any secret, by
   design; only issued `AKIA…` keys are verified. The control's own tokens
   authenticate the console, not AWS.
-- MiniStack's own S3 home-region behaviour stays intact inside the emulator.
+- S3 buckets are region-scoped on the fork image: `ListBuckets` answers per
+  region, and a request signed for the wrong region is the `301` AWS returns.
 
 ## Operations
 
