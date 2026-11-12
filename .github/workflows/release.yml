@@ -1,8 +1,8 @@
 name: "Release: Image"
 
-# A release is a tag push (v0.1.0): the image is built, scanned, and only then
-# published, so a failing scan never leaves a tag in GHCR. The GitHub release
-# follows the image.
+# A release is a tag push (v0.1.0). The library leaf builds the image, scans it
+# with Trivy, and only then pushes, so a failing scan never leaves a tag in GHCR;
+# the GitHub release follows the image.
 on:
   push:
     tags: ["v*"]
@@ -15,13 +15,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Not part of the library: the tag really has to be the commit that was
+  # released, and a tag ruleset cannot express that (the ref lands first).
   guard:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: The tag must be the tip of main
         run: |
           set -euo pipefail
@@ -33,68 +36,13 @@ jobs:
 
   image:
     needs: guard
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-      - name: Tags
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-      - name: Build (no push yet)
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: .
-          file: Dockerfile
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Scan the built image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      # Same tags, same cache: this build is a cache hit, and it is the one that
-      # carries the SBOM and provenance attestations.
-      - name: Push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          sbom: true
-          provenance: true
-          cache-from: type=gha
+    uses: mathewmusango/my-workflows/.github/workflows/release-image-ghcr.yml@b6dd35e704c8b95d70d9b068f64f59b18bef167c # v2026.1112.2318Z
 
   release:
     needs: image
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
     permissions:
       contents: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
-        with:
-          generate_release_notes: true
+    uses: mathewmusango/my-workflows/.github/workflows/release-github.yml@b6dd35e704c8b95d70d9b068f64f59b18bef167c # v2026.1112.2318Z

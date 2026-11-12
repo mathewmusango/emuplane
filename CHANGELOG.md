@@ -21,6 +21,14 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- CI now calls the shared workflow leaves — `checks-*`, `tests-vitest`,
+  `release-image-ghcr`, `release-github`, `security-deps` and
+  `security-npm-audit` — pinned at
+  `my-workflows@v2026.1112.2318Z`, instead of carrying copies of their logic.
+  The release leaf builds and scans before it pushes; the tag-must-be-`main`
+  guard stays local because a tag ruleset cannot express it.
+- `checks.yml` grants `pull-requests: read`: the leaves use `dorny/paths-filter`,
+  and a called workflow can only downgrade the token it is given.
 - `compose.yml` is generic: the image comes from `MC_IMAGE` (default: the
   published GHCR tag), ports and the data directory have defaults, `.env` is
   optional, and no container names, hostnames or routes are baked in. A private

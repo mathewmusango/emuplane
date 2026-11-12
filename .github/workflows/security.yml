@@ -15,8 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Dependency review needs the dependency graph and GHAS, so it only runs once the
+  # repository is public.
   deps:
     if: ${{ !github.event.repository.private }}
-    uses: mathewmusango/my-workflows/.github/workflows/security-deps.yml@bbd8872398c1b646afb9f05e1ab25a2398a0821c # v2026.1021.2041Z
+    uses: mathewmusango/my-workflows/.github/workflows/security-deps.yml@b6dd35e704c8b95d70d9b068f64f59b18bef167c # v2026.1112.2318Z
   npm-audit:
-    uses: mathewmusango/my-workflows/.github/workflows/security-npm-audit.yml@bbd8872398c1b646afb9f05e1ab25a2398a0821c # v2026.1021.2041Z
+    uses: mathewmusango/my-workflows/.github/workflows/security-npm-audit.yml@b6dd35e704c8b95d70d9b068f64f59b18bef167c # v2026.1112.2318Z
