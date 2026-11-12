@@ -26,5 +26,12 @@ updates:
       web:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    # The React type packages are a matched pair: a major bump of one does not
+    # resolve against the other, so both majors stay a deliberate migration.
+    ignore:
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: chore
