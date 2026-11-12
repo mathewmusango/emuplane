@@ -1,0 +1,27 @@
+name: "CI: Checks"
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    uses: mathewmusango/my-workflows/.github/workflows/checks-python.yml@5a9c6ac6ab5285996efab6bef73a1b9c4978198d # v2026.1009.1321Z
+  js:
+    uses: mathewmusango/my-workflows/.github/workflows/checks-js.yml@5a9c6ac6ab5285996efab6bef73a1b9c4978198d # v2026.1009.1321Z
+  shell:
+    uses: mathewmusango/my-workflows/.github/workflows/checks-shell.yml@5a9c6ac6ab5285996efab6bef73a1b9c4978198d # v2026.1009.1321Z
+  yaml:
+    uses: mathewmusango/my-workflows/.github/workflows/checks-yaml.yml@5a9c6ac6ab5285996efab6bef73a1b9c4978198d # v2026.1009.1321Z
+  docker:
+    uses: mathewmusango/my-workflows/.github/workflows/checks-docker.yml@9e3134ce58ba072fedef442e19d1355001659172 # v2026.1020.2007Z

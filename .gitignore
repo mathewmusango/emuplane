@@ -1,4 +1,5 @@
 .env
+compose.mylab.yml
 *.bak
 __pycache__/
 *.pyc

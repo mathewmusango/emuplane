@@ -1,0 +1,22 @@
+name: "CI: Security"
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deps:
+    if: ${{ !github.event.repository.private }}
+    uses: mathewmusango/my-workflows/.github/workflows/security-deps.yml@bbd8872398c1b646afb9f05e1ab25a2398a0821c # v2026.1021.2041Z
+  npm-audit:
+    uses: mathewmusango/my-workflows/.github/workflows/security-npm-audit.yml@bbd8872398c1b646afb9f05e1ab25a2398a0821c # v2026.1021.2041Z

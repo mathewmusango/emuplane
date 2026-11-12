@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start the MiniStack control plane: gateway, console, accounts.
 #
-# The emulator is a separate service (`services/ministack`). This script
+# The emulator is a separate service and a separate repository. This script
 # refuses to start until it is running, because a gateway with no emulator
 # answers every request with an error.
 set -euo pipefail
@@ -71,25 +71,46 @@ require() {
 data_dir=$(require MC_DATA_DIR)
 install -d -m 0755 "$data_dir"
 
-if ! podman container exists core-ministack; then
+# The emulator is a separate service. Its container name is a lab detail, so it
+# comes from .env (default: the compose service name).
+emulator=$(sed -n 's/^MC_EMULATOR_CONTAINER=//p' .env)
+emulator=${emulator:-ministack}
+
+if ! podman container exists "$emulator"; then
   echo "the emulator is not created: start it first" >&2
   echo "  cd ../ministack && ./scripts/up.sh" >&2
   exit 1
 fi
-if [ "$(podman inspect --format '{{.State.Running}}' core-ministack 2>/dev/null)" != "true" ]; then
-  echo "the emulator (core-ministack) is not running: start it first" >&2
+if [ "$(podman inspect --format '{{.State.Running}}' "$emulator" 2>/dev/null)" != "true" ]; then
+  echo "the emulator ($emulator) is not running: start it first" >&2
   echo "  cd ../ministack && ./scripts/up.sh" >&2
   exit 1
 fi
 
-if ! podman network exists net-services; then
-  podman network create net-services
+# The project name prefixes the containers' compose labels; the default matches
+# the generic compose.yml.
+project=$(sed -n 's/^MC_PROJECT_NAME=//p' .env)
+project=${project:-ministack-control}
+
+# compose.yml is the generic definition; an untracked overlay of the same name
+# (compose.<site>.yml, picked up from MC_OVERLAY) may add container names, routes,
+# an external network and extra mounts. -p is explicit because podman-compose
+# resolves the project name from the first file and would otherwise miss the
+# containers the overlay named.
+compose=(podman-compose -p "$project" -f compose.yml)
+overlay=$(sed -n 's/^MC_OVERLAY=//p' .env)
+if [ -n "$overlay" ] && [ -f "$overlay" ]; then
+  compose+=(-f "$overlay")
 fi
 
-podman-compose build
-# Compose compares the image tag, not the image ID: without --force-recreate a
-# rebuilt image is never picked up.
-podman-compose up -d --force-recreate
+# The overlay usually joins a network the emulator is already on; MC_NETWORK names
+# it, and up.sh creates it when it is missing.
+network=$(sed -n 's/^MC_NETWORK=//p' .env)
+if [ -n "$network" ] && ! podman network exists "$network"; then
+  podman network create "$network"
+fi
+
+"${compose[@]}" up -d --force-recreate
 
 ui_port=$(require MC_UI_PORT)
 gateway_port=$(require MC_GATEWAY_PORT)
@@ -106,4 +127,4 @@ printf '\nendpoints (only these are published):\n'
 printf '  dashboard   http://127.0.0.1:%s/  (sign in required)\n' "$ui_port"
 printf '  control API http://127.0.0.1:%s/api/%s/\n' "$ui_port" v1
 printf '  emulator gateway 127.0.0.1:%s  (use an access key from the console)\n' "$gateway_port"
-printf '\nThe emulator (core-ministack) is internal to net-services.\n'
+printf '\nThe emulator (%s) is reached over the compose network, never published.\n' "$emulator"

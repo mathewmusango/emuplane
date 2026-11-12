@@ -1,31 +1,113 @@
-# ministack-control
+<h1 align="center">Ministack Control</h1>
+<p align="center"><strong>The control plane for the MiniStack AWS emulator.</strong></p>
+<p align="center">Emulator gateway · Accounts, logins and access keys · Console and control API</p>
 
-[![Semgrep](https://github.com/mathewmusango/ministack-control/actions/workflows/semgrep.yml/badge.svg)](https://github.com/mathewmusango/ministack-control/actions/workflows/semgrep.yml)
+<p align="center">
+  <a href="https://github.com/mathewmusango/ministack-control/actions/workflows/release.yml"><img src="https://github.com/mathewmusango/ministack-control/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="https://github.com/mathewmusango/ministack-control/actions/workflows/semgrep.yml"><img src="https://github.com/mathewmusango/ministack-control/actions/workflows/semgrep.yml/badge.svg" alt="Semgrep"></a>
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
+  <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python">
+  <a href="https://github.com/users/mathewmusango/packages/container/package/ministack-control"><img src="https://img.shields.io/badge/ghcr.io-ministack--control-blue?logo=github" alt="ghcr.io"></a>
+</p>
 
-The control plane for the MiniStack emulator: the emulator gateway, the accounts and
-sessions, the console and the bucket registry. It is what makes a local emulator
-rehearse a production Terraform deployment (`my-portfolio`) without touching a
-real AWS account.
+<!--
+  Badges to add later, with what each needs:
+  - GitHub release: a tag or release; the repo has neither yet.
+  - Docker pulls: GitHub Packages (ghcr.io) exposes **no pull counts**, so there is
+    no equivalent of Docker Hub's pulls badge. The ghcr.io badge above is a registry
+    label, not a statistic; it starts resolving when the package is published.
+-->
 
-The emulator itself is a separate service and a separate repository —
-[`services/ministack`](../ministack). This one never contains it: the emulator is
-an upstream image, the control plane is ours.
+---
+
+## Why Ministack Control?
+
+Ministack Control is the control plane for the MiniStack emulator. Short version:
+
+- It holds the accounts, and the logins inside them.
+- It issues the access keys clients sign with. The secret is shown once.
+- It is the endpoint AWS clients and Terraform point at.
+- It serves the console, the control API and the resource browser.
+
+The emulator it fronts is our fork of MiniStack,
+[`mathewmusango/ministack-upstream`](https://github.com/mathewmusango/ministack-upstream),
+on branch
+[`feat/s3-region-scoped-state`](https://github.com/mathewmusango/ministack-upstream/tree/feat/s3-region-scoped-state).
+It is upstream [`ministackorg/ministack`](https://github.com/ministackorg/ministack)
+`v1.5.40` plus S3 region isolation, which upstream does not have yet, published as
+`ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.2-full`.
+
+## Multi-tenancy and regions
+
+MiniStack already partitions state per account and per region, and its own
+[README](https://github.com/ministackorg/ministack#readme) covers the mechanics —
+the 12-digit access key and the SigV4 scope. This service adds the policy on top:
+
+- **Regions are opt-in per account.** A region the instance does not serve is
+  refused; one it serves is enabled on first use. The console lists only the enabled
+  regions.
+- **Logins belong to accounts.** A person signs in as a principal inside one
+  account, with its own IAM user and keys — never as a second account.
+- **Neither is a container.** A second account or a new region is one record, not a
+  second emulator.
+
+## Plain MiniStack or this fork?
+
+Plain [MiniStack](https://github.com/ministackorg/ministack) already isolates state
+per account and per region, for every service except S3. The fork closes that gap:
+
+| S3 behaviour | Plain MiniStack | This fork |
+| --- | --- | --- |
+| A bucket belongs to | the account, in every region | exactly one account and region |
+| `ListBuckets` | every bucket in the account | the signing region's buckets |
+| Wrong-region request | reaches the bucket | `301 PermanentRedirect` with `x-amz-bucket-region` |
+| State | shared namespace, unique names advised | one record under `(account, region, name)` |
+
+## Compatibility with MiniStack
+
+The fork is upstream `v1.5.40` plus one patch, so everything a client sees stays the
+same:
+
+- **Same API and ports.** Every service, operation and wire shape is upstream's;
+  nothing is renamed and no endpoint moves.
+- **Same configuration.** The `MINISTACK_*` variables keep their names and meanings
+  — `AUTH`, `PERSIST_STATE`, `S3_PERSIST`, `MINISTACK_REGION` and the rest.
+- **Same image shape.** Built from upstream's `Dockerfile.full`, and the `-full`
+  suffix keeps the pin a drop-in for `ministackorg/ministack:<version>-full`.
+- **Same duplicate-name behaviour.** AWS's rule for an owner re-create is untouched:
+  `200` in us-east-1 with the ACLs reset, `BucketAlreadyOwnedByYou` elsewhere.
+- **One visible difference.** S3 state is region-scoped, as the table above shows. A
+  client that stays in one region sees no change at all.
 
 | Field | Value |
 | --- | --- |
-| Tier | `core` |
-| Containers | `core-ministack-control` (gateway + console) |
-| Depends on | `core-ministack` (the emulator, `services/ministack`) on `net-services` at `http://core-ministack:4566` |
-| Endpoints | `https://ministack-control.mus.com` (console/API) · `https://ministack.mus.com` (emulator gateway, `aws.mus.com` kept as a deprecated alias); the same ports stay published on loopback (`4570`/`4571`) |
-| Data | `/srv/myinfra/containers/ministack-control/data` (one SQLite database: accounts, users, sessions, registry, ownership, settings) |
+| Runs | `ministack-control`: the console, the control API and the AWS gateway |
+| Depends on | the MiniStack emulator, a separate service on port `4566` |
+| Endpoints | `http://localhost:4570` (console/API) · `http://localhost:4571` (emulator gateway), loopback only |
+| Data | `${MC_DATA_DIR}` — one SQLite database: accounts, users, sessions, registry, ownership, settings |
 | Restart | `"no"` — on demand, not in the always-on set |
+
+## Versioning and the image
+
+The image is `ghcr.io/mathewmusango/ministack-control:<version>`, built and pushed
+by [`.github/workflows/release.yml`](.github/workflows/release.yml) on every `v*`
+tag, together with the GitHub Release.
+
+| Bump | When | Example |
+| --- | --- | --- |
+| minor | a feature | `0.1.0` → `0.2.0`, up to `0.10.0` |
+| patch | a Dependabot or Renovate PR | `0.1.0` → `0.1.10` |
+| major | by hand | `0.1.0` → `1.0.0` |
+
+The git tag carries a `v` (`v0.1.0`); the image tag does not (`0.1.0`). `latest`
+follows the newest tag. Nothing is tagged yet — `0.1.0` is the first.
 
 ## Topology
 
 ```mermaid
 flowchart LR
-    client[AWS client / terraform] -->|4571 gateway| control[core-ministack-control]
-    control -->|"every region, every account"| node[core-ministack<br/>services/ministack]
+    client[AWS client / terraform] -->|4571 gateway| control[ministack-control]
+    control -->|"every region, every account"| node[ministack<br/>the emulator]
     browser[browser] -->|"4570 console + API"| control
 ```
 
@@ -39,7 +121,7 @@ or a second account is a console action plus a client credential.
 | --- | --- | --- |
 | Region | the SigV4 scope (`.../us-west-1/s3/aws4_request`), else `MINISTACK_REGION` | the per-account opt-in, chosen from the supported set |
 | Account | a 12-digit access key, else `MINISTACK_ACCOUNT_ID` | this control's account store |
-| State | partitioned per account; per region for every service, S3 included on the fork image; Aurora DSQL stays account-scoped | the emulator (`services/ministack`) |
+| State | partitioned per account; per region for every service, S3 included on the fork image; Aurora DSQL stays account-scoped | the emulator image |
 
 S3 is region-isolated on the fork image: a bucket lives in one region,
 `ListBuckets` answers with the signing region's buckets, and a request signed for
@@ -48,7 +130,7 @@ another region gets the `301 PermanentRedirect` AWS returns. Aurora DSQL remains
 within one account see the same state.
 
 The emulator is not published on the host; the control reaches it at
-`http://core-ministack:4566` over `net-services`.
+`MINISTACK_NODE_URL` (`http://ministack:4566` on a shared compose network).
 
 ### Credentials
 
@@ -58,9 +140,9 @@ name, each with a masked ID and a masked secret. Create one to get the pair once
 (secret shown a single time, with **Download .csv**), delete one to revoke it.
 An account holds **at most two** keys, so a rotation can overlap: create the
 new key, switch the client, then delete the old one. Point any client at
-`https://ministack.mus.com` (Traefik, lab wildcard certificate; `aws.mus.com`
-still routes to the same gateway as a deprecated alias), or at
-`http://127.0.0.1:4571` when the lab names do not resolve.
+`https://ministack.example.com` (a reverse proxy in front of the published
+port, with `aws.example.com` kept as a deprecated alias), or at
+`http://127.0.0.1:4571` directly.
 
 A 12-digit access key is that account's **root** and accepts any secret; an
 `AKIA…` key is verified by IAM. The region a request uses is the one the client
@@ -71,13 +153,13 @@ region.
 
 The first cut ran one emulator and one ledger agent **per region** and federated
 them (gossip, per-node ledgers, quorum). MiniStack already isolates state per
-region and account, so that layer was redundant: `compose.yml` starts one node and
+region and account, so that layer was redundant: the emulator is one process and
 the control takes its address from `MINISTACK_NODE_URL` — no join, heartbeat,
 expiry, mode or peer gossip. The registration endpoints,
 `MINISTACK_CONTROL_MODE`, `MINISTACK_JOIN_TOKEN`, `MINISTACK_MESH_TOKEN` and
 `NODE_TTL_SECONDS` are removed with `control/agent.py`.
 
-## Gateway (`https://ministack.mus.com`)
+## Gateway (`https://ministack.example.com`)
 
 The single AWS entrypoint. It reads the **SigV4 signing region** (or
 `X-Ministack-Region` for unsigned callers) and the access key, then forwards to
@@ -133,7 +215,7 @@ the control exits at startup naming whatever is missing.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `MC_DATA_DIR` | `/srv/myinfra/containers/ministack-control/data` | host directory for `control.db` (compose interpolation) |
+| `MC_DATA_DIR` | `./data` | host directory for `control.db` (compose interpolation) |
 | `MC_UI_PORT` | `4570` | loopback port for the console and control API |
 | `MC_GATEWAY_PORT` | `4571` | loopback port for the emulator gateway |
 | `MINISTACK_NODE_URL` | required | the emulator endpoint the control talks to |
@@ -171,7 +253,7 @@ There is no direct access to the backend stack. The emulator publishes no host
 port; the only ways in are the dashboard (`4570`) and the emulator gateway (`4571`),
 and the dashboard requires a session.
 
-- Sign in at <https://ministack-control.mus.com/login> (or <http://127.0.0.1:4570/login>)
+- Sign in at <https://ministack-control.example.com/login> (or <http://127.0.0.1:4570/login>)
   with the seeded `.env` admin or another local user. Sessions are server-side,
   `HttpOnly` cookies, 8h by default, persisted across restarts and extended on
   activity.
@@ -249,7 +331,7 @@ the classic pages and the provision response still read. Same-account calls are
 then a real, enforced identity:
 
 ```sh
-aws --endpoint-url https://ministack.mus.com sts get-caller-identity
+aws --endpoint-url https://ministack.example.com sts get-caller-identity
 # Arn: arn:aws:iam::111111111111:user/mathewmusango
 ```
 
@@ -270,7 +352,7 @@ or have the platform administrator provision one and hand back the one-time key
 pair:
 
 ```sh
-curl -sS -X POST https://ministack-control.mus.com/api/accounts \
+curl -sS -X POST https://ministack-control.example.com/api/accounts \
   -H "Authorization: Bearer $MC_ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"username":"alice","email":"alice@example.test","password":"Correct-Horse-1","name":"Alice"}'
@@ -293,7 +375,7 @@ signing for a region the account has not enabled is `403 AccessDenied`.
 export AWS_ACCESS_KEY_ID=AKIA…
 export AWS_SECRET_ACCESS_KEY=…
 export AWS_DEFAULT_REGION=us-east-1
-export AWS_ENDPOINT_URL=https://ministack.mus.com
+export AWS_ENDPOINT_URL=https://ministack.example.com
 
 aws sts get-caller-identity          # arn:aws:iam::<account>:user/alice
 aws s3 mb s3://alice-artifacts
@@ -308,7 +390,7 @@ region is AWS's answer: `200` in us-east-1 with the ACLs reset, and
 
 ### Resource browser
 
-`https://ministack-control.mus.com/resources` is our own browser, not an embed. It
+`https://ministack-control.example.com/resources` is our own browser, not an embed. It
 signs each read as that account's 12-digit **root**
 (`Credential=<id>/<date>/<region>/<service>/aws4_request`, dummy signature), so
 the control holds no AWS secret and can list **every** account.
@@ -342,7 +424,7 @@ actions where the console declares them.
 > `STACKPORT_*` settings were removed with the `MC_` config cleanup. `/resources`
 > is the only browser.
 
-## Console and control API (`https://ministack-control.mus.com`)
+## Console and control API (`https://ministack-control.example.com`)
 
 The console is a **React SPA** built from `web/` (Cloudscape, the AWS-console
 design system). The control container serves it at
@@ -476,11 +558,11 @@ API responses carry `api_version` (`v1`); routes accept both `/api/...` and
 
 ## Start
 
-Prerequisite: the emulator (`services/ministack`) is running. `up.sh` refuses to
+Prerequisite: the emulator is running. `up.sh` refuses to
 start the gateway without it.
 
 ```sh
-./scripts/up.sh           # .env, data dir, network, build, start
+./scripts/up.sh           # .env, data dir, pull the image, start
 ```
 
 The first run creates `.env` from `.env.example` (mode `0600`) and the data
@@ -494,24 +576,24 @@ keys already set: an empty `MC_ADMIN_TOKEN` leaves bearer access off, and an emp
 `MC_ADMIN_PASSWORD` stops the control with a message rather than seeding an admin
 nobody can sign in as.
 
-`up.sh` runs `podman-compose build` first: this is our own image
-(`localhost/ministack-control:dev` — the tag is set in `compose.yml`).
-The emulator stays the pinned upstream image and lives in its own repo.
+`up.sh` pulls the image that `MC_IMAGE` names — `compose.yml` defaults it to the
+published GHCR tag — and starts the container. The emulator is a separate image
+and a separate repository.
 
-**The control owns its data directory** (`MC_DATA_DIR`,
-`/srv/myinfra/containers/ministack-control/data`), created by `up.sh` (mode
-`0755`). It holds one file, `control.db`; there is no migration path from the old
+**The control owns its data directory** (`MC_DATA_DIR`, `./data` unless `.env`
+says otherwise), created by `up.sh` (mode `0755`). It holds one file, `control.db`; there is no migration path from the old
 JSON side files. Back up the directory (or take a SQLite copy) while the control
 is stopped — it writes on every change, so a live copy can lose data.
 
 `MC_ADMIN_TOKEN` is optional: it is a bearer token for scripted API access, not a
 password. Leave it empty and the control generates one on first run, stores it in
 `control.db` and prints it once to the container log (`podman logs
-core-ministack-control | grep generated`). Set it to pin your own, e.g.
+ministack-control | grep generated`). Set it to pin your own, e.g.
 `python3 -c "import secrets; print(secrets.token_hex(24))"`. Either way the
 console session is unaffected.
 
-No `sudo` is needed: `/srv/myinfra/containers` is user-owned on this box.
+Nothing here needs `sudo`: the data directory is bind-mounted and created by
+your own user.
 
 ## Terraform rehearsal (my-portfolio prod)
 
@@ -520,9 +602,9 @@ in — the secret itself is only ever returned once, when the key is created).
 Write them into your own shell/profile; nothing here is pre-wired:
 
 ```sh
-cd ~/Workspace/myprojects/my-portfolio/terraform/infra/site
+cd my-portfolio/terraform/infra/site
 
-export AWS_ENDPOINT_URL=https://ministack.mus.com
+export AWS_ENDPOINT_URL=https://ministack.example.com
 export AWS_ACCESS_KEY_ID=<the account's access key>
 export AWS_SECRET_ACCESS_KEY=<the matching secret>
 export AWS_REGION=us-east-1            # any region; the signature carries it
@@ -546,11 +628,11 @@ one region, so a state bucket is not visible, and its name is not reusable, in
 another.
 
 > [!NOTE]
-> **Containerised clients cannot use the lab hostnames.** Podman containers get
-> the host's router DNS, so `ministack.mus.com` resolves publicly (the real
-> mus.com), not to Traefik. Add `--add-host ministack.mus.com:127.0.0.1` for a client container,
-> or use `http://127.0.0.1:4571`. Host tools (Terraform, curl, browsers) use the
-> local resolver and need nothing.
+> **A containerised client resolves names with its own DNS.** When the gateway is
+> reached by a hostname through a reverse proxy, that name means something else
+> inside a client container. Pass
+> `--add-host ministack.example.com:host-gateway`, or put the client on the same
+> network and use the container name and port.
 
 ## Limits
 
@@ -567,15 +649,14 @@ another.
 ## Operations
 
 ```sh
-podman-compose ps
-podman-compose logs -f
-podman-compose down
-podman-compose pull && ./scripts/up.sh
+./scripts/up.sh                                   # start (pulls the image)
+podman-compose -p ministack-control -f compose.yml ps
+podman-compose -p ministack-control -f compose.yml logs -f
+podman-compose -p ministack-control -f compose.yml down
 ```
 
-This stops/starts the **control plane** only. The emulator has its own compose
-project; use `services/ministack` for that (`podman-compose -f
-../ministack/compose.yml ps`, or `cd ../ministack && ./scripts/up.sh`).
+This stops/starts the **control plane** only. The emulator runs from its own
+compose file, in its own repository, and these commands never touch it.
 
 Reset the emulator from the dashboard or `POST /api/nodes/ministack/reset`;
 that clears its registry entries and starts the next scan clean.
