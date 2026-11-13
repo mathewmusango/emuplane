@@ -97,6 +97,28 @@ Rules:
 - **No standing admin.** Substrate admin sessions are short-lived; the console
   re-authenticates rather than holding a long token.
 
+## Email and events — SES and SNS, not SMTP
+
+The emulator implements SES (`ses.py`, `ses_v2.py`) and SNS (`sns.py`), so the
+control plane never speaks SMTP: it calls the same emulator it fronts, signed
+exactly like any other control call.
+
+- **Transactional mail** — address verification, password reset, "your root
+  credentials were deleted" — goes through **SES `SendEmail`**. The emulator
+  keeps sent mail per account/region and exposes it at
+  `GET /_ministack/ses/messages`, so the console gets a **Mailbox** view with no
+  mail service, no relay and no deliverability to arrange.
+- **Events** — account created or closed, root credentials deleted, break-glass
+  assumed — publish to an SNS topic (`ministack-control-events`). Mail is for
+  people, a topic is for machines: local consumers subscribe over HTTP or SQS
+  and nothing leaves the host.
+- **Tokens** — verification and reset tokens are single-use, hashed at rest and
+  TTL'd, the same contract as sessions. The reset link carries the raw token
+  once, in the mail; the SES record is the audit copy.
+- **Why not SMTP** — an SMTP client would add a dependency, a relay and a
+  deliverability problem to reproduce what the emulator already stores. It
+  comes back only if mail must actually leave the host.
+
 ## Slices
 
 Ordered so each one is verifiable on its own.
@@ -112,6 +134,9 @@ Ordered so each one is verifiable on its own.
 5. **Break-glass and root lifecycle** — the two destructive paths, both audited.
 6. **Bootstrap hardening** — Layer 0 ordering, idempotency, and a clear failure
    when the emulator is unreachable.
+7. **Email and events** — SES send for verification and reset, the console's
+   Mailbox view over `/_ministack/ses/messages`, and the SNS topic for account
+   and root-lifecycle events.
 
 ## Not in scope
 
