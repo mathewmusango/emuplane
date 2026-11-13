@@ -183,7 +183,7 @@ describe('console', () => {
     await screen.findByText('S3 resources')
     expect(screen.queryByText('Region')).toBeNull()
     fireEvent.click(
-      await screen.findByRole('checkbox', { name: /View from all regions/i }),
+      await screen.findByRole('switch', { name: /View from all regions/i }),
     )
     expect(await screen.findByText('Region')).toBeTruthy()
     expect(screen.getByText(/created by mathewmusango/)).toBeTruthy()

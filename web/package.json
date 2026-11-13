@@ -11,9 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@cloudscape-design/components": "^3.0.1359",
+    "@cloudscape-design/components": "^3.0.1410",
     "@cloudscape-design/global-styles": "^1.0.67",
-    "lucide-react": "^1.7.0",
+    "lucide-react": "^1.70.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.14.0"
