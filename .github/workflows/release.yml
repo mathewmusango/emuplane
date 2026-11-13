@@ -39,10 +39,10 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: mathewmusango/my-workflows/.github/workflows/release-image-ghcr.yml@b3e68febda512c508d6cf7fd934f32a9d1cb35c9 # v2026.1113.0738Z
+    uses: mathewmusango/my-workflows/.github/workflows/release-image-ghcr.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
 
   release:
     needs: image
     permissions:
       contents: write
-    uses: mathewmusango/my-workflows/.github/workflows/release-github.yml@b3e68febda512c508d6cf7fd934f32a9d1cb35c9 # v2026.1113.0738Z
+    uses: mathewmusango/my-workflows/.github/workflows/release-github.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z

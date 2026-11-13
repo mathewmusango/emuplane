@@ -88,17 +88,18 @@ if [ "$(podman inspect --format '{{.State.Running}}' "$emulator" 2>/dev/null)" !
 fi
 
 # The project name prefixes the containers' compose labels; the default matches
-# the generic compose.yml.
+# the generic docker-compose.yml.
 project=$(sed -n 's/^MC_PROJECT_NAME=//p' .env)
 project=${project:-ministack-control}
 
-# compose.yml is the generic definition; an untracked overlay of the same name
-# (compose.<site>.yml, picked up from MC_OVERLAY) may add container names, routes,
-# an external network and extra mounts. -p is explicit because podman-compose
+# docker-compose.yml is the generic definition; an untracked overlay (compose.yml
+# by default, or whatever MC_OVERLAY names) may add container names, routes, an
+# external network and extra mounts. -p is explicit because podman-compose
 # resolves the project name from the first file and would otherwise miss the
 # containers the overlay named.
-compose=(podman-compose -p "$project" -f compose.yml)
+compose=(podman-compose -p "$project" -f docker-compose.yml)
 overlay=$(sed -n 's/^MC_OVERLAY=//p' .env)
+overlay=${overlay:-compose.yml}
 if [ -n "$overlay" ] && [ -f "$overlay" ]; then
   compose+=(-f "$overlay")
 fi

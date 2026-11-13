@@ -1,8 +1,10 @@
 .env
-compose.mylab.yml
+/compose.yml
 *.bak
 __pycache__/
 *.pyc
+.ruff
+.ruff_cache/
 
 qa/
 addons/

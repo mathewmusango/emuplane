@@ -576,7 +576,7 @@ keys already set: an empty `MC_ADMIN_TOKEN` leaves bearer access off, and an emp
 `MC_ADMIN_PASSWORD` stops the control with a message rather than seeding an admin
 nobody can sign in as.
 
-`up.sh` pulls the image that `MC_IMAGE` names — `compose.yml` defaults it to the
+`up.sh` pulls the image that `MC_IMAGE` names — `docker-compose.yml` defaults it to the
 published GHCR tag — and starts the container. The emulator is a separate image
 and a separate repository.
 
@@ -650,9 +650,9 @@ another.
 
 ```sh
 ./scripts/up.sh                                   # start (pulls the image)
-podman-compose -p ministack-control -f compose.yml ps
-podman-compose -p ministack-control -f compose.yml logs -f
-podman-compose -p ministack-control -f compose.yml down
+podman-compose -p ministack-control -f docker-compose.yml ps
+podman-compose -p ministack-control -f docker-compose.yml logs -f
+podman-compose -p ministack-control -f docker-compose.yml down
 ```
 
 This stops/starts the **control plane** only. The emulator runs from its own
@@ -663,7 +663,7 @@ that clears its registry entries and starts the next scan clean.
 
 ## Files
 
-- [`compose.yml`](compose.yml) — the control plane (gateway + console).
+- [`docker-compose.yml`](docker-compose.yml) — the control plane (gateway + console).
 - [`control/app.py`](control/app.py) — gateway, console pages, control API.
 - [`control/console.py`](control/console.py) — the GUI action catalogue and the
   AWS calls each operation maps to.

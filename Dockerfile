@@ -8,7 +8,7 @@
 #
 # The first stage builds `web/dist`, so the runtime image is self-contained:
 # nothing is bind-mounted from the host and nothing has to be built there.
-# The emulator stays a separate upstream image (see compose.yml).
+# The emulator stays a separate upstream image (see docker-compose.yml).
 
 FROM docker.io/library/node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS web
 
@@ -46,7 +46,7 @@ COPY control/app.py control/console.py /app/
 # The control API, and the AWS gateway that fronts the emulator.
 EXPOSE 8080 4566
 
-# The healthcheck lives in compose.yml: podman's default OCI image format
+# The healthcheck lives in docker-compose.yml: podman's default OCI image format
 # ignores `HEALTHCHECK`, and a warning on every build is worse than the
 # declaration being in one place.
 #
