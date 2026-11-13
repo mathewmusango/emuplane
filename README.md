@@ -31,11 +31,10 @@ Ministack Control is the control plane for the MiniStack emulator. Short version
 
 The emulator it fronts is our fork of MiniStack,
 [`mathewmusango/ministack-upstream`](https://github.com/mathewmusango/ministack-upstream),
-on branch
-[`feat/s3-region-scoped-state`](https://github.com/mathewmusango/ministack-upstream/tree/feat/s3-region-scoped-state).
+on `main` (the S3 patch lives there; the old feature branch is docs-only).
 It is upstream [`ministackorg/ministack`](https://github.com/ministackorg/ministack)
 `v1.5.40` plus S3 region isolation, which upstream does not have yet, published as
-`ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.2-full`.
+`ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full`.
 
 ## Multi-tenancy and regions
 
