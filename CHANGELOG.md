@@ -57,15 +57,18 @@ the minor number is bumped by hand, patch releases are the bot's.
   256×144 / 16 kB, and the icon PNGs are stripped, palettised and compressed
   (the 512px file goes 309 kB → 81 kB).
 - **The product mark is the app icon, not a drawing.** `web/public/emuplane.png`
-  (512², corners flood-filled transparent, so the rounded square sits on any
-  background) replaces the hand-drawn `emuplane.svg`; the sign-in card, the
-  console's fallback identity and every favicon derive from it. The SVG is gone,
-  and the icon links are PNG-only.
+  (512²) replaces the hand-drawn `emuplane.svg`; the sign-in card, the console's
+  fallback identity and every favicon derive from it. The SVG is gone, and the
+  icon links are PNG-only. Its corners are cleared with a corner **flood fill**
+  (`-draw "color 0,0 floodfill"` on the alpha channel) — the earlier attempt used
+  `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
+  `-transparent white` would punch out the white browser panel inside the mark.
+  The sign-in card shows it at 5rem, so no white box appears in dark mode.
 - **The user-type step puts Next and the signup route on one row** (`Next | OR |
-  Create account`), and the password step's "Sign in to a different account" is
-  set on two lines so both actions in that row are the same height. The sign-up
-  page's alternative reads "Sign in to an existing account" on a rounded box
-  rather than a pill, because it wraps.
+  Create account`), and the password steps give both actions a 3.5rem box so the
+  two-line "Sign in to a different account" is not squeezed. The sign-up page's
+  alternative reads "Sign in to an existing account" on a rounded box rather than
+  a pill, because it wraps.
 - **The sign-in pages were unified.** Both cards now use the same frame (8px
   radius, no shadow, `#f2f3f3` page), the same input size, and an OR rule between
   the primary action and the alternative. On `/login` the signup route is one box

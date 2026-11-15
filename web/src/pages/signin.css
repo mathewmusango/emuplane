@@ -50,9 +50,9 @@ body.awsui-dark-mode {
    way the sign-up page shows it. */
 .signin__mark {
   display: block;
-  height: 3.6rem;
+  height: 5rem;
   width: auto;
-  margin: 0 auto 1.75rem;
+  margin: 0 auto 1.25rem;
 }
 
 /* Title block: the heading carries its own bottom margin, the lead sits under it. */
@@ -187,6 +187,13 @@ body.awsui-dark-mode {
 .signin__actions--row button {
   width: auto;
   flex: 1 1 8rem;
+}
+
+/* The password steps put a two-line label beside the primary action; a taller
+   box keeps the pair the same height instead of squeezing the label. */
+.signin__actions--tall button {
+  min-height: 3.5rem;
+  padding-block: 0.4rem;
 }
 
 /* "OR" between the two actions that share a row. */

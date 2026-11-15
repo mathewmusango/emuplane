@@ -382,7 +382,7 @@ export default function SignIn() {
             <SpaceBetween size="l">
               {notice}
               {passwordField}
-              <div className="signin__actions signin__actions--row">
+              <div className="signin__actions signin__actions--row signin__actions--tall">
                 <Button variant="primary" formAction="submit" loading={busy}>
                   Sign in
                 </Button>
@@ -460,7 +460,7 @@ export default function SignIn() {
                 />
               </FormField>
               {passwordField}
-              <div className="signin__actions signin__actions--row">
+              <div className="signin__actions signin__actions--row signin__actions--tall">
                 <Button variant="primary" formAction="submit" loading={busy}>
                   Sign in
                 </Button>
