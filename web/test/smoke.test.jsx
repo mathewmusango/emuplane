@@ -56,6 +56,14 @@ const RESPONSES = {
     role: 'root',
   },
   '/api/auth/mfa': { ok: true },
+  '/api/auth/remember': {
+    ok: true,
+    token: 'test-token',
+    user: 'mathewmusango',
+    account: '111111111111',
+    alias: 'mathewmusango',
+    role: 'root',
+  },
   '/api/services': { s3: { emuplane: true } },
   '/api/actions': ACTIONS,
   '/api/users': [
@@ -152,6 +160,26 @@ describe('console', () => {
     expect(screen.getAllByText('Console Home').length).toBeGreaterThan(0)
     expect(screen.getAllByText('111111111111', { exact: false }).length).toBeGreaterThan(0)
     expect(screen.getAllByText('us-east-1', { exact: false }).length).toBeGreaterThan(0)
+  })
+
+  it('opens the account menu and turns multi-session on', async () => {
+    localStorage.clear()
+    renderAt(<App />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: /mathewmusango \(111111111111\)/ }),
+    )
+    const toggle = await screen.findByRole('button', {
+      name: 'Turn on multi-session support',
+    })
+    fireEvent.click(toggle)
+    // The label flips only if the remember call resolved and the flag was stored.
+    expect(
+      await screen.findByRole('button', { name: 'Turn off multi-session support' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Add session' }),
+    ).toBeTruthy()
+    localStorage.clear()
   })
 
   it('names the account in the bar, and the identity beneath it', async () => {

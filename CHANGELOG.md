@@ -82,6 +82,10 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **The menu footer is one presentable set.** Multi-session, Add session and
+  Switch role now share Sign out's shape — same height, radius and weight — with
+  Sign out keeping the accent as the only control that ends the session. The
+  bordered boxes looked unfinished beside it.
 - **"Add session" appears under the toggle** once multi-session is on: it opens
   the sign-in page in add mode (`/login?add=1`), which says what it is doing and
   stores the new identity alongside the current one instead of replacing it.

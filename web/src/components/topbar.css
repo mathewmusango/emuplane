@@ -386,34 +386,34 @@ body.awsui-dark-mode .topbar__copy code {
   padding: 0.35rem 0.9rem 0.15rem;
 }
 
-.topbar__box {
-  width: auto !important;
-  padding: 0.4rem 0.75rem !important;
-  border: 1px solid #c9d3e6 !important;
-  border-radius: 6px;
-  background: #ffffff !important;
-  color: #0b1b3f !important;
-  font-size: 0.8rem !important;
-  text-align: center !important;
-}
-
-.topbar__box:hover {
-  background: #eef3ff !important;
-  border-color: #1b4fd8 !important;
-}
-
+/* Footer controls share one shape: the same height, radius and weight as Sign
+   out, so the block reads as a set rather than three stray boxes. Sign out keeps
+   the accent because it is the one that ends the session. */
+.topbar__box,
 .topbar__signout {
   width: auto !important;
-  padding: 0.4rem 0.9rem !important;
+  padding: 0.45rem 0.9rem !important;
+  border: 0 !important;
   border-radius: 6px;
   background: #0b1b3f !important;
   color: #ffffff !important;
+  font-size: 0.8rem !important;
   font-weight: 700;
   text-align: center !important;
 }
 
+.topbar__box:hover,
 .topbar__signout:hover {
   background: #16305e !important;
+}
+
+.topbar__signout {
+  background: #ff8a1f !important;
+  color: #0b1b3f !important;
+}
+
+.topbar__signout:hover {
+  background: #ef700a !important;
 }
 
 .topbar__identity {
@@ -428,13 +428,16 @@ body.awsui-dark-mode .topbar__copy code {
 }
 
 body.awsui-dark-mode .topbar__box {
-  background: #0a1220 !important;
-  border-color: #23324f !important;
+  background: #23324f !important;
   color: #e8eefb !important;
 }
 
+body.awsui-dark-mode .topbar__box:hover {
+  background: #2d4064 !important;
+}
+
 body.awsui-dark-mode .topbar__signout {
-  background: #6cb6ff !important;
+  background: #ff8a1f !important;
   color: #0b1b3f !important;
 }
 
