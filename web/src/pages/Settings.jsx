@@ -469,7 +469,7 @@ export default function Settings() {
                 ]}
                 empty={
                   <Box textAlign="center">
-                    No access keys. Create one to sign AWS clients against this
+                    No access keys. Create one to sign clients against this
                     account.
                   </Box>
                 }

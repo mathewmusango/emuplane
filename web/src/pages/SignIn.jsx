@@ -251,7 +251,7 @@ export default function SignIn() {
 
   if (step === 'type') {
     return (
-      <Card title="Sign In" description="Access your AWS account by user type.">
+      <Card title="Sign In" description="Access your account by user type.">
         <form onSubmit={chooseType}>
           <Form>
             <SpaceBetween size="l">
@@ -312,7 +312,7 @@ export default function SignIn() {
                 </Button>
                 <div className="signin__or">OR</div>
                 <Button formAction="none" onClick={signUp}>
-                  New to AWS? Sign up
+                  New here? Sign up
                 </Button>
               </div>
             </SpaceBetween>
@@ -364,7 +364,7 @@ export default function SignIn() {
                   Sign in to a different account
                 </Button>
                 <button type="button" className="signin__textlink" onClick={signUp}>
-                  Create a new AWS account
+                  Create a new account
                 </button>
               </div>
             </SpaceBetween>
@@ -448,7 +448,7 @@ export default function SignIn() {
                   Sign in using root user email
                 </Button>
                 <button type="button" className="signin__textlink" onClick={signUp}>
-                  Create a new AWS account
+                  Create a new account
                 </button>
               </div>
             </SpaceBetween>

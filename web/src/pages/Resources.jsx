@@ -523,7 +523,7 @@ export default function Resources() {
               header={
                 <Header
                   variant="h2"
-                  description="Each action is the AWS API call the CLI would make, signed as this account's root."
+                  description="Each action is the API call the CLI would make, signed as this account's root."
                 >
                   Actions
                 </Header>

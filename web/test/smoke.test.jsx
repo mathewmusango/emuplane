@@ -230,7 +230,7 @@ describe('console', () => {
 
   it('signs a root user in through the login page', async () => {
     renderAt(<App />, ['/login'])
-    expect(await screen.findByText('Access your AWS account by user type.')).toBeTruthy()
+    expect(await screen.findByText('Access your account by user type.')).toBeTruthy()
 
     fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
       target: { value: 'root@example.com' },
@@ -256,7 +256,7 @@ describe('console', () => {
     RESPONSES['/api/auth/login'] = { ...original, mfa_required: true }
     try {
       renderAt(<App />, ['/login'])
-      expect(await screen.findByText('Access your AWS account by user type.')).toBeTruthy()
+      expect(await screen.findByText('Access your account by user type.')).toBeTruthy()
 
       fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
         target: { value: 'root@example.com' },

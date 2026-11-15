@@ -18,7 +18,7 @@ export default function About() {
         header={
           <Header
             variant="h1"
-            description="A private, prod-shaped AWS replica running on one host."
+            description="A private, prod-shaped emulator of cloud APIs on one host."
           >
             About MiniStack
           </Header>
