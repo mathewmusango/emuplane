@@ -155,10 +155,10 @@ export default function Dashboard() {
       {names.map((name) => (
         <li key={name}>
           <a
-            href={`/resources/${name}`}
+            href={`/${name}/home`}
             onClick={(event) => {
               event.preventDefault()
-              navigate(`/resources/${name}`)
+              navigate(`/${name}/home`)
             }}
           >
             <ServiceIcon name={name} size={18} />

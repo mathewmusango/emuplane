@@ -539,8 +539,10 @@ pattern-to-screen mapping, the testing setup and the forked dependency repos.
 It also records the upstream issue this console is a candidate answer to
 ([ministackorg/ministack#314](https://github.com/ministackorg/ministack/issues/314)).
 
-Pages: **Dashboard** (`/`), **Resources** (`/resources/:service`), **Favorites**,
-**Accounts**, **Onboarding**, **Settings**, **About**.
+Pages: **Home** (`/`), **All services** (`/services`), a service
+(`/<service>/home?region=<region>` — the console's own shape, so a link
+reproduces the account's view), **Settings**, **About**. `/resources/<service>`
+redirects into the service URL.
 
 - **Region selector** — the picker lists the regions the signed-in account
   **enabled** (Settings → Regions; `us-east-1` cannot be disabled). Regions are

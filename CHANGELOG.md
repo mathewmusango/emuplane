@@ -130,6 +130,11 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **Favorites is a pane in the services menu**, directly under Recently visited:
   the starred services, alphabetical, in the same list as every other pane —
   rather than a page of its own.
+- **A service lives at `/<service>/home?region=<region>`**, the console's own URL
+  shape: the service is a path segment and the region is in the query, so a
+  copied link reproduces the view. `?region=` is adopted on load and kept in step
+  as the selector changes; `/resources/<service>` redirects into it and the
+  server serves `/<service>/home` as a console route.
 - **Breadcrumbs tell one story.** The root crumb still said "MiniStack" and pages
   repeated "Home" beneath it. The bar now reads `Home / <page>`, with services as
   `Home / All services` and a service as `Home / All services / S3` (its display

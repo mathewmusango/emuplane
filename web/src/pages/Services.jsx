@@ -78,7 +78,7 @@ export default function Services() {
     return groupByCategory(names)
   }, [catalogue])
 
-  const open = (name) => navigate(`/resources/${name}`)
+  const open = (name) => navigate(`/${name}/home`)
 
   return (
     <Shell
@@ -129,7 +129,7 @@ export default function Services() {
                           className="services-group__icon"
                         />
                         <Link
-                          href={`/resources/${name}`}
+                          href={`/${name}/home`}
                           onFollow={(event) => {
                             event.preventDefault()
                             open(name)

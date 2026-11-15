@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Badge from '@cloudscape-design/components/badge'
 import Box from '@cloudscape-design/components/box'
@@ -47,7 +47,9 @@ function pretty(body) {
 export default function Resources() {
   const { service: routeService } = useParams()
   const navigate = useNavigate()
-  const { account, region, meta } = useSession()
+  const { account, region, setRegion, meta } = useSession()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlRegion = searchParams.get('region') || ''
   const { addRecent } = useRecent(meta?.me?.account)
 
   const service = routeService || 's3'
@@ -67,6 +69,18 @@ export default function Resources() {
   const [result, setResult] = useState(null)
   const [activeTab, setActiveTab] = useState('')
   const [allRegions, setAllRegions] = useState(false)
+  // A link carries the region it was made in; adopt it, then keep the URL
+  // updated as the selection changes, so a copy always reproduces the view.
+  useEffect(() => {
+    if (urlRegion && urlRegion !== region) setRegion(urlRegion)
+  }, [urlRegion, region, setRegion])
+
+  useEffect(() => {
+    if (urlRegion !== region) {
+      setSearchParams({ region }, { replace: true })
+    }
+  }, [region, urlRegion, setSearchParams])
+
   const [regions, setRegions] = useState([])
   const [bucket, setBucket] = useState('')
   const [objects, setObjects] = useState([])

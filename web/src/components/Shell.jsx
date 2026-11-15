@@ -134,7 +134,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         serviceNames={serviceNames}
         servicesOpen={servicesOpen}
         onToggleServices={() => setServicesOpen((open) => !open)}
-        onPickService={(name) => go(`/resources/${name}`)}
+        onPickService={(name) => go(`/${name}/home`)}
         onNavigate={go}
         dark={dark}
         onToggleTheme={toggleTheme}

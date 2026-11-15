@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import ErrorBoundary from '@cloudscape-design/components/error-boundary'
 import Dashboard from './pages/Dashboard'
 import Services from './pages/Services'
@@ -6,6 +6,16 @@ import Resources from './pages/Resources'
 import Settings from './pages/Settings'
 import About from './pages/About'
 import SignIn from './pages/SignIn'
+import { useSession } from './context'
+
+/** The console's service path is `/<service>/home?region=<region>`, the shape the
+ *  real console uses, so a link reproduces the account's view. The old
+ *  `/resources/<service>` path redirects into it. */
+function ServiceRedirect() {
+  const { service = 's3' } = useParams()
+  const { region } = useSession()
+  return <Navigate to={`/${service}/home?region=${region}`} replace />
+}
 
 export default function App() {
   return (
@@ -14,7 +24,8 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/services" element={<Services />} />
         <Route path="/resources" element={<Navigate to="/services" replace />} />
-        <Route path="/resources/:service" element={<Resources />} />
+        <Route path="/:service/home" element={<Resources />} />
+        <Route path="/resources/:service" element={<ServiceRedirect />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/about" element={<About />} />
         {/* The sign-in screens are the login page: the control plane serves this

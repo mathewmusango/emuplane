@@ -2240,6 +2240,12 @@ def signed_s3(
     return signed_rest("s3", account, region, method, path, body)
 
 
+def is_service_home(path: str) -> bool:
+    """`/<service>/home` is a console route: the shape the real one uses."""
+    parts = [part for part in path.split("/") if part]
+    return len(parts) == 2 and parts[1] == "home"
+
+
 def static_asset(url_path: str) -> tuple[bytes, str] | None:
     """One built asset from `web/dist`, or None. Traversal-safe."""
     if not (
@@ -3229,7 +3235,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._redirect("/services")
         if path in PUBLIC_SPA_ROUTES:
             return self._spa()
-        if path in SPA_ROUTES or path.startswith("/resources/"):
+        if path in SPA_ROUTES or path.startswith("/resources/") or is_service_home(path):
             if not self._authenticated():
                 return self._redirect("/login?next=" + quote(path))
             return self._spa()
