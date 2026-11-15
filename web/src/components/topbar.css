@@ -437,3 +437,20 @@ body.awsui-dark-mode .topbar__signout {
   background: #6cb6ff !important;
   color: #0b1b3f !important;
 }
+
+/* The footer stacks: the account-level action spans the width, and the two
+   identity actions sit on a row of their own at the trailing edge. */
+.topbar__footer {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.topbar__box--wide {
+  width: 100% !important;
+}
+
+.topbar__footer-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

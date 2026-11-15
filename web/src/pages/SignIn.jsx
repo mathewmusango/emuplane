@@ -119,6 +119,7 @@ export default function SignIn() {
   const requested = params.get('next') || '/'
   const next = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/'
   const justReset = params.get('reset') === '1'
+  const adding = params.get('add') === '1'
 
   const [step, setStep] = useState('type')
   const [userType, setUserType] = useState('root')
@@ -253,6 +254,12 @@ export default function SignIn() {
   const done = justReset ? (
     <Alert type="success">Your password was changed. Sign in with the new one.</Alert>
   ) : null
+  const addingSession = adding ? (
+    <Alert type="info">
+      Adding a session. The one you are signed in to now stays switchable from the
+      account menu.
+    </Alert>
+  ) : null
 
   const passwordField = (
     <SpaceBetween size="xs">
@@ -294,6 +301,7 @@ export default function SignIn() {
         <form onSubmit={chooseType}>
           <Form>
             <SpaceBetween size="l">
+              {addingSession}
               {done}
               {notice}
               <div className="signin__types">

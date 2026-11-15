@@ -17,14 +17,6 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# The control container: EP_CONTROL_CONTAINER, else the one the overlay labels
-# (the same discovery token.sh and password.sh use — the compose project name and
-# the container name do not always agree).
-container=$(sed -n 's/^EP_CONTROL_CONTAINER=//p' .env 2>/dev/null)
-if [ -z "$container" ]; then
-  container=$(podman ps -a --filter label=app=emuplane --format '{{.Names}}' | head -n 1)
-fi
-container=${container:-emuplane}
 port=$(sed -n 's/^EP_UI_PORT=//p' .env 2>/dev/null)
 port=${port:-4570}
 
@@ -40,6 +32,14 @@ web() {
 }
 
 api() {
+  # Discovery lives here, not at the top: `web` must not need podman at all, so
+  # it keeps working from a sandbox or a shell without it.
+  local container
+  container=$(sed -n 's/^EP_CONTROL_CONTAINER=//p' .env 2>/dev/null)
+  if [ -z "$container" ]; then
+    container=$(podman ps -a --filter label=app=emuplane --format '{{.Names}}' | head -n 1)
+  fi
+  container=${container:-emuplane}
   podman restart "$container" >/dev/null
   for _ in $(seq 1 30); do
     if curl -fsS -m 2 -o /dev/null "http://127.0.0.1:${port}/health"; then

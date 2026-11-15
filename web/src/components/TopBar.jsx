@@ -366,7 +366,7 @@ export default function TopBar({
               <div className="topbar__footer">
                 <button
                   type="button"
-                  className="topbar__box"
+                  className="topbar__box topbar__box--wide"
                   disabled={busy}
                   onClick={async () => {
                     setBusy(true)
@@ -394,22 +394,39 @@ export default function TopBar({
                     ? 'Turn off multi-session support'
                     : 'Turn on multi-session support'}
                 </button>
-                {!isRoot && (
+                {multi && (
                   <button
                     type="button"
-                    className="topbar__box"
-                    onClick={() => window.location.assign('/logout')}
+                    className="topbar__box topbar__box--wide"
+                    // Signing in again adds an identity to the list rather than
+                    // replacing the current one: the cookie moves, the stored
+                    // token keeps this session switchable.
+                    onClick={() => {
+                      setAccountOpen(false)
+                      onNavigate('/login?add=1')
+                    }}
                   >
-                    Switch role
+                    Add session
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="topbar__signout"
-                  onClick={() => window.location.assign('/logout')}
-                >
-                  Sign out
-                </button>
+                <div className="topbar__footer-row">
+                  {!isRoot && (
+                    <button
+                      type="button"
+                      className="topbar__box"
+                      onClick={() => window.location.assign('/logout')}
+                    >
+                      Switch role
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="topbar__signout"
+                    onClick={() => window.location.assign('/logout')}
+                  >
+                    Sign out
+                  </button>
+                </div>
               </div>
             </div>
           )}

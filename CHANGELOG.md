@@ -82,6 +82,9 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **"Add session" appears under the toggle** once multi-session is on: it opens
+  the sign-in page in add mode (`/login?add=1`), which says what it is doing and
+  stores the new identity alongside the current one instead of replacing it.
 - **Multi-session support is real, and opt-in.** Turning it on in the account
   menu hands the browser this session's token (`POST /api/auth/remember`), and
   each later sign-in stores its own; the menu then lists the identities and
