@@ -29,6 +29,10 @@ export default function About() {
             <Container header={<Header variant="h3">This instance</Header>}>
               <SpaceBetween size="xs">
                 <Box>
+                  <Box variant="awsui-key-label">Backend</Box>
+                  {meta?.backend || 'unknown'}
+                </Box>
+                <Box>
                   <Box variant="awsui-key-label">Emulator</Box>
                   <StatusIndicator type="success">{meta?.emulator_version || 'unknown'}</StatusIndicator>
                 </Box>

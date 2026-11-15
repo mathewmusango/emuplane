@@ -133,13 +133,13 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         id="top-nav"
         identity={{
           href: '/',
-          // The console wears the backend's identity: the profile named by EP_BACKEND
-          // supplies the title and the mark, and Emuplane's own mark stands in when
-          // that profile has no logo.
-          title: meta?.backend || 'Emuplane',
+          // The product owns the chrome: the mark is Emuplane's and the title is
+          // the product name. Which backend is being fronted is operator
+          // context, not branding — it lives in About and in `/api/meta`.
+          title: 'Emuplane',
           logo: {
-            src: meta?.backend_logo || '/emuplane.png',
-            alt: meta?.backend || 'Emuplane',
+            src: '/emuplane.png',
+            alt: 'Emuplane',
           },
           onFollow: (event) => {
             event.preventDefault()

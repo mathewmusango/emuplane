@@ -1924,17 +1924,17 @@ def mask(value: str) -> str:
 
 AUTH_STYLE = """
   :root {
-    --bg: #f2f3f3; --panel: #ffffff; --fg: #16191f; --muted: #5f6b7a;
-    --border: #d5dbdb; --input: #ffffff; --primary: #ff9900;
-    --primary-hover: #ec7211; --link: #0972d3;
+    --bg: #f3f6fc; --panel: #ffffff; --fg: #0b1b3f; --muted: #5a6b8c;
+    --border: #d7e0f5; --input: #ffffff; --primary: #ff8a1f;
+    --primary-hover: #ef700a; --link: #1b4fd8;
     --error-bg: #fdf3f3; --error-border: #e07979; --error-fg: #8b1a1a;
     --ok-bg: #f1f8f3; --ok-border: #7fb98a; --ok-fg: #1d5b2c;
     color-scheme: light;
   }
   [data-theme="dark"] {
-    --bg: #0f141a; --panel: #161d26; --fg: #e9ecef; --muted: #9aa4b2;
-    --border: #2b3540; --input: #0f141a; --primary: #ff9900;
-    --primary-hover: #ec7211; --link: #6cb6ff;
+    --bg: #0a1220; --panel: #111c31; --fg: #e8eefb; --muted: #93a4c4;
+    --border: #23324f; --input: #0a1220; --primary: #ff8a1f;
+    --primary-hover: #ef700a; --link: #6cb6ff;
     --error-bg: #2a1215; --error-border: #6e2b2b; --error-fg: #ff8f8f;
     --ok-bg: #10241a; --ok-border: #2f6b45; --ok-fg: #7fe0a0;
     color-scheme: dark;
@@ -1973,7 +1973,7 @@ AUTH_STYLE = """
                 border-color: transparent; }
   input::placeholder { color: var(--muted); opacity: .8; }
   button { width: 100%; margin-top: 1rem; padding: .65rem; border: 0;
-           border-radius: 8px; background: var(--primary); color: #16191f;
+           border-radius: 8px; background: var(--primary); color: #0b1b3f;
            font: inherit; font-weight: 700; cursor: pointer; }
   button:hover { background: var(--primary-hover); }
   .auth-title { text-align: left; font-size: 1.75rem; line-height: 1.25;

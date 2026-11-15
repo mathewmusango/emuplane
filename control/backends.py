@@ -21,9 +21,9 @@ class Backend:
     """What the console and the operator need to know about a backend."""
 
     id: str
-    title: str = ""          # shown as the node's name; empty means the URL host
+    title: str = ""          # the backend's name, shown in About
     port: int = 4566         # the port that backend listens on by default
-    logo: str = ""           # console mark, served from web/public; empty is fine
+    logo: str = ""           # optional mark; empty means Emuplane's own
     note: str = ""           # one line of operator context, not behaviour
 
 
@@ -35,7 +35,6 @@ PROFILES: dict[str, Backend] = {
     "ministack": Backend(
         "ministack",
         title="MiniStack",
-        logo="/backends/ministack.png",
         note="S3 state is account-scoped and the fork serves every region.",
     ),
     "floci": Backend(

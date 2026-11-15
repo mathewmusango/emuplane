@@ -28,3 +28,31 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Brand palette, taken from Emuplane's own mark: navy ink, royal blue, sky,
+   orange. Cloudscape publishes its tokens on `body` inside an `@layer`, so an
+   unlayered override here wins without `!important` and without forking the
+   component library. Each mode is declared separately: the light link colour is
+   unreadable on the dark surface, which is why the dark block repeats it. */
+body:not(.awsui-dark-mode) {
+  --color-background-button-primary-default: #ff8a1f;
+  --color-background-button-primary-hover: #ef700a;
+  --color-background-button-primary-active: #d65f05;
+  --color-text-link-default: #1b4fd8;
+  --color-text-link-hover: #123aa8;
+  --color-text-accent: #1b4fd8;
+  --color-border-item-focused: #1b4fd8;
+  --color-background-item-selected: #eaf0ff;
+  --color-background-container-header: #ffffff;
+}
+
+body.awsui-dark-mode {
+  --color-background-button-primary-default: #ff8a1f;
+  --color-background-button-primary-hover: #ef700a;
+  --color-background-button-primary-active: #d65f05;
+  --color-text-link-default: #6cb6ff;
+  --color-text-link-hover: #9ad2ff;
+  --color-text-accent: #6cb6ff;
+  --color-border-item-focused: #6cb6ff;
+  --color-background-item-selected: #17233d;
+}

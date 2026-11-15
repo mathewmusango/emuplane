@@ -73,6 +73,17 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **The product owns the chrome.** The console's top navigation is Emuplane's mark
+  and title, not the backend's: `web/public/backends/ministack.png` is deleted and
+  the profiles no longer carry a logo. Which backend is being fronted is operator
+  context now, shown in About, not branding.
+- **The palette comes from the mark.** Navy ink (`#0b1b3f`), royal blue
+  (`#1b4fd8`) for links and focus, the logo's orange (`#ff8a1f`) for primary
+  actions, on a blue-tinted page (`#f3f6fc`) and a navy dark surface (`#0a1220`).
+  The console takes it by overriding Cloudscape's tokens on `body` — they are
+  published inside an `@layer`, so the unlayered override wins with no
+  `!important` and no forked component library; each mode is declared separately
+  because the light link blue is unreadable on the dark surface.
 - **The user-type step puts Next and the signup route on one row** (`Next | OR |
   Create account`), and the password steps give both actions a 3.5rem box so the
   two-line "Sign in to a different account" is not squeezed. The sign-up page's

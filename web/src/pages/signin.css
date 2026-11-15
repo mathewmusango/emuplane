@@ -12,11 +12,11 @@
    empty space around the card the same colour — including any area beyond the
    viewport, which a headless full-page capture exposes. */
 body {
-  background: #f2f3f3;
+  background: #f3f6fc;
 }
 
 body.awsui-dark-mode {
-  background: #0f141a;
+  background: #0a1220;
 }
 
 .signin {
@@ -86,7 +86,7 @@ body.awsui-dark-mode {
 }
 
 .signin__lead strong {
-  color: var(--color-text-body-default, #16191f);
+  color: var(--color-text-body-default, #0b1b3f);
 }
 
 /* An inline "(not you?)" link that is really a button. */
@@ -95,7 +95,7 @@ body.awsui-dark-mode {
   background: none;
   border: 0;
   padding: 0;
-  color: var(--color-text-link-default, #0972d3);
+  color: var(--color-text-link-default, #1b4fd8);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -127,12 +127,12 @@ body.awsui-dark-mode {
 }
 
 .signin__types [role="radiogroup"] > *:hover {
-  border-color: var(--color-border-container-default, #0972d3);
+  border-color: var(--color-border-container-default, #1b4fd8);
 }
 
 .signin__types [role="radiogroup"] > *:has(input:checked) {
-  border-color: var(--color-border-container-default, #0972d3);
-  background: #f1f8ff;
+  border-color: var(--color-border-container-default, #1b4fd8);
+  background: #eef3ff;
 }
 
 /* Buttons: full width, pill-shaped, AWS orange for the primary action. */
@@ -152,21 +152,21 @@ body.awsui-dark-mode {
   /* Emuplane's accent, the colour of the mark's plane. Cloudscape paints its
      primary action blue through its own token rules, so this surface overrides
      it — and the sign-up page uses the same orange and radius. */
-  background: #ff9900 !important;
-  border-color: #ff9900 !important;
+  background: #ff8a1f !important;
+  border-color: #ff8a1f !important;
   border-radius: 0.5rem !important;
-  color: #16191f !important;
+  color: #0b1b3f !important;
   font-weight: 700;
 }
 
 .signin__actions button[class*="variant-primary"]:hover {
-  background: #ec7211 !important;
-  border-color: #ec7211 !important;
-  color: #16191f !important;
+  background: #ef700a !important;
+  border-color: #ef700a !important;
+  color: #0b1b3f !important;
 }
 
 .signin__actions button[class*="variant-primary"]:focus-visible {
-  outline-color: #0972d3;
+  outline-color: #1b4fd8;
 }
 
 /* Secondary actions keep Cloudscape's neutral outline — no second accent. */
@@ -230,7 +230,7 @@ body.awsui-dark-mode {
 }
 
 .signin__forgot a {
-  color: var(--color-text-link-default, #0972d3);
+  color: var(--color-text-link-default, #1b4fd8);
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
@@ -270,7 +270,7 @@ body.awsui-dark-mode {
 
 .signin__eye:hover,
 .signin__eye:focus-visible {
-  color: var(--color-text-body-default, #16191f);
+  color: var(--color-text-body-default, #0b1b3f);
   background: rgba(0, 0, 0, 0.05);
 }
 
@@ -313,7 +313,7 @@ body.awsui-dark-mode {
   background: transparent;
   /* Explicit ink per mode rather than `inherit`: the icon must never take its
      colour from a surface that happens to match the card. */
-  color: #16191f;
+  color: #0b1b3f;
   opacity: 1;
   cursor: pointer;
 }
