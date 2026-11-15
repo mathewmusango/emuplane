@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { useLocation } from 'react-router-dom'
 import { MemoryRouter } from 'react-router-dom'
 import { SessionProvider } from '../src/context'
 import App from '../src/App'
@@ -234,6 +235,29 @@ describe('console', () => {
     ).toBeTruthy()
     expect(localStorage.getItem('emuplane:favorites:111111111111')).toBeTruthy()
     localStorage.clear()
+  })
+
+  it('follows the region picker into the URL', async () => {
+    const Probe = () => {
+      const location = useLocation()
+      return <div data-testid="location">{location.pathname + location.search}</div>
+    }
+    renderAt(
+      <>
+        <App />
+        <Probe />
+      </>,
+      ['/s3/home?region=us-east-1'],
+    )
+    expect(await screen.findByText('S3 resources')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /N\. Virginia/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Oregon/ }))
+
+    await screen.findByText(/region=us-west-2/)
+    expect(screen.getByTestId('location').textContent).toBe(
+      '/s3/home?region=us-west-2',
+    )
   })
 
   it('renders the resource table and its action form', async () => {

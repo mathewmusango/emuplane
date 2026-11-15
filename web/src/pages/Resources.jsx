@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Badge from '@cloudscape-design/components/badge'
@@ -69,16 +69,22 @@ export default function Resources() {
   const [result, setResult] = useState(null)
   const [activeTab, setActiveTab] = useState('')
   const [allRegions, setAllRegions] = useState(false)
-  // A link carries the region it was made in; adopt it, then keep the URL
-  // updated as the selection changes, so a copy always reproduces the view.
+  // A link carries the region it was made in: adopt it **once**, when the page
+  // mounts. Re-adopting on every region change made the picker's choice get
+  // undone by the URL a moment later, which read as "switching does nothing".
+  const adopted = useRef(false)
   useEffect(() => {
+    if (adopted.current) return
+    adopted.current = true
     if (urlRegion && urlRegion !== region) setRegion(urlRegion)
-  }, [urlRegion, region, setRegion])
+    // Mount only: the URL seeds the page, it does not own it afterwards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
+  // From then on the URL follows the selection, so a copied link reproduces it.
   useEffect(() => {
-    if (urlRegion !== region) {
-      setSearchParams({ region }, { replace: true })
-    }
+    if (urlRegion === region) return
+    setSearchParams({ region }, { replace: true })
   }, [region, urlRegion, setSearchParams])
 
   const [regions, setRegions] = useState([])

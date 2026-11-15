@@ -249,6 +249,12 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Fixed
 
+- **Switching region updates the URL.** The page adopted `?region=` on every
+  render where it differed, so the picker's choice was overwritten by the URL a
+  moment later — switching looked like it did nothing. The URL now seeds the page
+  once, on mount, and then follows the selection (the round trip `/s3/home`
+  `?region=us-east-1` → picker → `?region=us-west-2` is covered by a test).
+
 - **Enabling a region works again.** Removing the global-admin endpoint in
   `4f6464a` sliced from that route to the next occurrence of the buckets regex,
   which took `/api/regions`, `/api/refresh`, `/api/reserve`,
