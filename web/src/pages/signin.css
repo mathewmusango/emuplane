@@ -8,18 +8,43 @@
    `[class*=…]` selectors below are stable across versions; the structural ones
    (`form > div`, `[role=radiogroup] > div`) do not depend on class names at all. */
 
+/* The page frame: Cloudscape themes the components, and these two rules give the
+   empty space around the card the same colour — including any area beyond the
+   viewport, which a headless full-page capture exposes. */
+body {
+  background: #f2f3f3;
+}
+
+body.awsui-dark-mode {
+  background: #0f141a;
+}
+
 .signin {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding: 44px 16px 64px;
-  background: var(--color-background-layout-main, #f2f3f3);
 }
 
 .signin__card {
   width: 100%;
   max-width: 25rem;
+}
+
+/* The card plus the row above it (the theme switch), so the switch can never sit
+   underneath the card. */
+.signin__frame {
+  width: 100%;
+  max-width: 25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.signin__topbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .signin__body {
@@ -189,4 +214,35 @@
   .signin__card {
     max-width: 100%;
   }
+}
+
+/* Theme switch, top-right. It shows the mode a click takes you to, follows the
+   system until someone clicks, and remembers the explicit choice — the same
+   contract as the top navigation's toggle. */
+.signin__theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--color-border-container-divider, #c6c6cd);
+  border-radius: 999px;
+  background: var(--color-background-container-content, #ffffff);
+  color: var(--color-text-body-default, #16191f);
+  cursor: pointer;
+}
+
+.signin__theme:hover {
+  border-color: var(--color-border-container-default, #0972d3);
+}
+
+/* Cloudscape marks dark mode with a body class, so the few literal colours here
+   follow that class rather than the OS query. */
+.awsui-dark-mode .signin__types [role="radiogroup"] > *:has(input:checked) {
+  background: rgba(255, 153, 0, 0.14);
+}
+
+.awsui-dark-mode .signin__actions button[class*="variant-normal"]:hover {
+  background: rgba(9, 114, 211, 0.18) !important;
 }

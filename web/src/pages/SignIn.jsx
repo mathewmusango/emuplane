@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Button from '@cloudscape-design/components/button'
@@ -13,6 +14,7 @@ import Popover from '@cloudscape-design/components/popover'
 import RadioGroup from '@cloudscape-design/components/radio-group'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import { api } from '../api'
+import { useThemeMode } from '../components/themeToggle'
 import './signin.css'
 
 // '' when the value is usable, otherwise the sentence the field shows. The server
@@ -75,9 +77,26 @@ const ACCOUNT_HELP =
 // The card every screen sits in: one narrow panel on the page background, the way
 // AWS lays out its own sign-in pages.
 function Card({ title, description, info, children }) {
+  const { dark, toggle } = useThemeMode()
   return (
     <div className="signin">
-      <div className="signin__card">
+      <div className="signin__frame">
+        <div className="signin__topbar">
+          <button
+            type="button"
+            className="signin__theme"
+            onClick={toggle}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {dark ? (
+              <Sun size={18} aria-hidden="true" />
+            ) : (
+              <Moon size={18} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+        <div className="signin__card">
         <Container>
           <div className="signin__body">
             <img className="signin__mark" src="/emuplane.svg" alt="Emuplane" />
@@ -90,6 +109,7 @@ function Card({ title, description, info, children }) {
             {children}
           </div>
         </Container>
+        </div>
       </div>
     </div>
   )

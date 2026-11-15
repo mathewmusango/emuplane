@@ -29,6 +29,12 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **The sign-in page carries a theme switch.** It follows the system by default
+  (`system` is the stored preference), and a click pins light or dark under
+  `emuplane:theme` — shared with the console's own toggle. `signin.css` colours the
+  page frame from the body's `awsui-dark-mode` class, so the space around the card
+  matches the mode rather than the OS query.
+
 - **The project is Emuplane, and it is not tied to one backend.** Renamed from
   MinStack Control: the image is `ghcr.io/mathewmusango/emuplane`, the stack and its
   tables are `emuplane` / `emuplane-*`, the cookie is `emuplane_session`, browser keys

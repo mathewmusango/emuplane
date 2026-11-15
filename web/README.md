@@ -134,6 +134,12 @@ does not bounce a 401 from either route (every other path still redirects to
 answer). Enrolment does not exist yet, so it is false for every account and the
 third screen is not reached; `POST /api/auth/mfa` answers `501` until it does.
 
+**Theme.** The page follows the OS until the switch in the top-right corner is
+clicked: the stored preference is `system` (Cloudscape's mode is applied on boot
+and re-applied when the OS changes), and a click pins an explicit light or dark
+choice under `emuplane:theme` — the same preference the top navigation toggles, so
+the console opens in the mode you picked on the sign-in page.
+
 "Remember this account" (IAM branch) keeps the account ID or alias in
 `localStorage` under `emuplane:signin-account`; it is cleared on every other
 successful sign-in. "Create a new AWS account" and "New to AWS? Sign up" open
