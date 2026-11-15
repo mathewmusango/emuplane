@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Bell,
+  Check,
   ChevronDown,
   Copy,
   LayoutGrid,
@@ -77,6 +78,7 @@ export default function TopBar({
   const [multi, setMulti] = useState(() => multiSessionEnabled())
   const [identities, setIdentities] = useState(() => readIdentities())
   const [busy, setBusy] = useState(false)
+  const copiedTimer = useRef(null)
   const accountRef = useRef(null)
   const regionRef = useRef(null)
 
@@ -95,6 +97,8 @@ export default function TopBar({
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
   }, [])
+
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), [])
 
   useEffect(() => {
     const onClick = (event) => {
@@ -125,7 +129,8 @@ export default function TopBar({
     try {
       await navigator.clipboard.writeText(account || '')
       setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      window.clearTimeout(copiedTimer.current)
+      copiedTimer.current = window.setTimeout(() => setCopied(false), 1600)
     } catch {
       // clipboard denied: the ID is on screen anyway
     }
@@ -287,12 +292,17 @@ export default function TopBar({
                       <code>{groupId(account)}</code>
                       <button
                         type="button"
-                        aria-label="Copy account ID"
+                        aria-label={copied ? 'Copied' : 'Copy account ID'}
                         title={copied ? 'Copied' : 'Copy account ID'}
                         onClick={copyId}
                       >
-                        <Copy size={14} />
+                        {copied ? <Check size={14} /> : <Copy size={14} />}
                       </button>
+                      {copied && (
+                        <span className="topbar__copied" role="status">
+                          Copied
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="topbar__field">
@@ -322,12 +332,17 @@ export default function TopBar({
                       <code>{groupId(account)}</code>
                       <button
                         type="button"
-                        aria-label="Copy account ID"
+                        aria-label={copied ? 'Copied' : 'Copy account ID'}
                         title={copied ? 'Copied' : 'Copy account ID'}
                         onClick={copyId}
                       >
-                        <Copy size={14} />
+                        {copied ? <Check size={14} /> : <Copy size={14} />}
                       </button>
+                      {copied && (
+                        <span className="topbar__copied" role="status">
+                          Copied
+                        </span>
+                      )}
                     </div>
                   </div>
                 </>

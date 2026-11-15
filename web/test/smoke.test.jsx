@@ -163,6 +163,18 @@ describe('console', () => {
     expect(screen.getAllByText('us-east-1', { exact: false }).length).toBeGreaterThan(0)
   })
 
+  it('says Copied after copying the account ID', async () => {
+    Object.assign(navigator, {
+      clipboard: { writeText: () => Promise.resolve() },
+    })
+    renderAt(<App />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: /mathewmusango \(111111111111\)/ }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Copy account ID' }))
+    expect(await screen.findByText('Copied')).toBeTruthy()
+  })
+
   it('opens the account menu and turns multi-session on', async () => {
     localStorage.clear()
     renderAt(<App />)

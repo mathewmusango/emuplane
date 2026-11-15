@@ -82,6 +82,9 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **Copying the account ID says so.** The icon becomes a tick and "Copied"
+  appears beside it for a moment — the old feedback was only in the tooltip,
+  which is no use once the pointer is on the button.
 - **The menu footer is one presentable set.** Multi-session, Add session and
   Switch role now share Sign out's shape — same height, radius and weight — with
   Sign out keeping the accent as the only control that ends the session. The

@@ -457,3 +457,11 @@ body.awsui-dark-mode .topbar__signout {
   justify-content: flex-end;
   gap: 0.5rem;
 }
+
+/* Copy feedback: the tick replaces the icon and the word appears beside it, so
+   "did that work?" is answered without moving the eye. */
+.topbar__copied {
+  color: #1a7f37;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
