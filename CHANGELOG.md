@@ -119,6 +119,13 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **The identity line under the chip is readable now** (0.8rem, was 0.68rem). It
   sat at caption size, which read as decoration rather than the name of the
   identity you are signed in as. The 3.25rem bar still holds both lines.
+- **Missing service icons fixed.** `serviceIconUrl()` is `undefined` for a
+  service with no mapped artwork, so the shortcut list drew a broken `<img>` for
+  every such service. It renders `ServiceIcon`, which falls back to a neutral
+  glyph.
+- **Favorites is a pane in the services menu**, directly under Recently visited:
+  the starred services, alphabetical, in the same list as every other pane —
+  rather than a page of its own.
 - **Home is tidier.** The grid's cards share a height per row (`align-items:
   stretch`) instead of each hugging its own content, and service shortcuts are a
   two-column list of links with their icons rather than a strip of buttons that

@@ -16,7 +16,7 @@ import { api } from '../api'
 import { useSession } from '../context'
 import { useRecent } from '../prefs'
 import { Shell, loadCatalogue } from '../components/Shell'
-import { serviceIconUrl } from '../serviceIcons'
+import { ServiceIcon } from '../serviceIcons'
 import { serviceLabel } from '../serviceLabels'
 
 // Console Home is a grid of widgets rather than one fixed page: the layout the
@@ -161,7 +161,7 @@ export default function Dashboard() {
               navigate(`/resources/${name}`)
             }}
           >
-            <img src={serviceIconUrl(name)} alt="" aria-hidden="true" />
+            <ServiceIcon name={name} size={18} />
             {serviceLabel(name)}
           </a>
         </li>

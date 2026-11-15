@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { serviceLabel } from '../serviceLabels'
 import { describeService, groupByCategory } from '../serviceCatalogue'
+import { useFavorites } from '../prefs'
 import './services-menu.css'
 
 // The services menu: a category rail on the left, the services themselves on the
@@ -31,6 +32,7 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
   const [pane, setPane] = useState('recent')
   const panel = useRef(null)
 
+  const { favorites } = useFavorites(account)
   const grouped = useMemo(() => groupByCategory(names), [names])
   const categories = grouped.map((group) => group.category)
   const recent = useMemo(() => readRecent(account), [account])
@@ -47,13 +49,22 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
     if (pane === 'recent') {
       return [...new Set(recent)].filter((name) => names.includes(name)).sort()
     }
+    if (pane === 'favorites') {
+      return [...new Set(favorites)].filter((name) => names.includes(name)).sort()
+    }
     if (pane === 'all') return [...names].sort()
     const group = grouped.find((item) => item.category === pane)
     return group ? group.services : []
   }
 
   const title =
-    pane === 'recent' ? 'Recently visited' : pane === 'all' ? 'All services' : pane
+    pane === 'recent'
+      ? 'Recently visited'
+      : pane === 'favorites'
+        ? 'Favorites'
+        : pane === 'all'
+          ? 'All services'
+          : pane
 
   const choose = (name) => {
     rememberService(account, name)
@@ -77,6 +88,13 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
             onClick={() => setPane('recent')}
           >
             Recently visited
+          </button>
+          <button
+            type="button"
+            className={`services-menu__link${pane === 'favorites' ? ' is-active' : ''}`}
+            onClick={() => setPane('favorites')}
+          >
+            Favorites
           </button>
           <button
             type="button"
@@ -104,7 +122,9 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
             <p className="services-menu__empty">
               {pane === 'recent'
                 ? 'Nothing visited yet. Open a service and it lands here.'
-                : 'Nothing in this category.'}
+                : pane === 'favorites'
+                  ? 'No favorites yet. Star a service on All services.'
+                  : 'Nothing in this category.'}
             </p>
           ) : (
             <ul className="services-menu__items">
