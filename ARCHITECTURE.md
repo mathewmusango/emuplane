@@ -57,9 +57,10 @@ same SigV4 signer the gateway already uses.
   a local service, and the substrate's access patterns are key lookups.
 - **The trade-off, stated plainly:** the control plane now depends on the
   emulator being up. That is already true of the gateway (`up.sh` refuses to
-  start without it), so the dependency is not new — it is only wider. Table
-  creation is the first thing Layer 0 does, and every failure names the
-  endpoint it could not reach.
+  start without it), so the dependency is not new — it is only wider. The tables
+  are created by the bootstrap stack (`bootstrap/template.yml`, applied by the
+  first-setup init job); Layer 0 verifies them and refuses to serve when one is
+  missing, naming it. A failure to reach the endpoint is reported the same way.
 
 ### Tables
 
@@ -70,14 +71,18 @@ the point — the schema is a reviewable artifact, not a side effect of startup.
 
 | Table | Key | Holds |
 | --- | --- | --- |
-| `ministack-principals` | `pk = PRINCIPAL#<id>` | root, IAM users, substrate admins; argon2 hash, account, type |
-| `ministack-accounts` | `pk = ACCOUNT#<12-digit>` | alias, cell, status, `root_credentials_enabled`, users |
-| `ministack-sessions` | `pk = SESSION#<sha256(token)>` | principal, account, `is_elevated`, `expires_at` |
-| `ministack-cells` | `pk = CELL#<id>` | endpoint, status (`ACTIVE`/`DRAINING`/`OFFLINE`), weight |
-| `ministack-audit` | `pk = ACTOR#<id>`, `sk = <ts>#<uuid>` | action, outcome, target account |
+| `emuplane-principals` | `pk = PRINCIPAL#<id>` | root, IAM users, substrate admins; argon2 hash, account, type |
+| `emuplane-accounts` | `pk = ACCOUNT#<12-digit>` | alias, cell, status, `root_credentials_enabled`, users |
+| `emuplane-sessions` | `pk = SESSION#<sha256(token)>` | principal, account, `is_elevated`, `expires_at` |
+| `emuplane-cells` | `pk = CELL#<id>` | endpoint, status (`ACTIVE`/`DRAINING`/`OFFLINE`), weight |
+| `emuplane-audit` | `pk = ACTOR#<id>`, `sk = <ts>#<uuid>` | action, outcome, target account |
 
-Sessions are stored **hashed**, never raw; the raw token exists only in the
-response that created it. TTL is set on `expires_at` so expiry needs no sweeper.
+Sessions are supposed to be stored **hashed**, never raw, with the raw token
+living only in the response that created it. **That is not true yet:**
+`save_sessions()` keys the `emuplane-sessions` rows by the raw token, so anyone
+who can read that table can replay a live session. Fixing the key to the token's
+digest is a small, urgent change. Expiry is kept in the payload (`expires`) and
+enforced on read.
 
 ## Identity and the three logins
 
@@ -92,10 +97,12 @@ Modeled on the five sign-in screens we are copying:
 
 Rules:
 
-- **Root login is disableable.** `DELETE /org/accounts/<id>/root-credentials`
-  clears the principal's password hash, flips
-  `root_credentials_enabled=false`, and purges that principal's sessions. A
-  later root login is `403`, and the attempt is audited as `DENIED`.
+- **Root login is disableable (designed, slice 5 — only the read side exists).**
+  `DELETE /org/accounts/<id>/root-credentials` is meant to clear the principal's
+  password hash, flip `root_credentials_enabled=false` and purge that principal's
+  sessions; `POST /api/auth/login` already refuses a root whose flag is false, but
+  nothing sets the flag today, and no audit rows are written (`emuplane-audit` is
+  provisioned and unused).
 - **Break-glass is 15 minutes and audited before it is issued.**
   `POST /sts/assume-root` records the justification, then returns a token whose
   session carries `is_elevated=true`. Only an elevated session may override a
