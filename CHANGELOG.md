@@ -112,6 +112,9 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **The menu footer is boxes.** Divider, then "Turn on multi-session support" and
   — for an IAM user — "Switch role" as bordered boxes, with Sign out as the only
   filled control.
+- **The identity line under the chip is readable now** (0.8rem, was 0.68rem). It
+  sat at caption size, which read as decoration rather than the name of the
+  identity you are signed in as. The 3.25rem bar still holds both lines.
 - **The account menu leads with the account's identity** — Account ID (grouped,
   copyable), Account name, Account colour, Account alias, and for an IAM user its
   own username — then the links: Account, Organization, Service quotas, Billing

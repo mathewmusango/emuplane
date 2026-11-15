@@ -155,8 +155,10 @@
   max-width: 16rem;
   overflow: hidden;
   color: #5a6b8c;
-  font-size: 0.68rem;
-  line-height: 1.1;
+  /* The identity under the chip: smaller than the account line beside it, but
+     still body-legible — 0.68rem read as a caption nobody was meant to read. */
+  font-size: 0.8rem;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
