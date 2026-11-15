@@ -235,7 +235,7 @@ describe('console', () => {
     renderAt(<App />, ['/login'])
     expect(await screen.findByText('Access your account by user type.')).toBeTruthy()
 
-    fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
+    fireEvent.change(screen.getByLabelText('Email address'), {
       target: { value: 'root@example.com' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
@@ -243,7 +243,7 @@ describe('console', () => {
     expect(await screen.findByText('Root user sign in')).toBeTruthy()
     expect(screen.getByText('root@example.com')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /Show password/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }))
     fireEvent.change(screen.getByLabelText('Password'), {
       target: { value: 'correct horse battery' },
     })
@@ -261,7 +261,7 @@ describe('console', () => {
       renderAt(<App />, ['/login'])
       expect(await screen.findByText('Access your account by user type.')).toBeTruthy()
 
-      fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
+      fireEvent.change(screen.getByLabelText('Email address'), {
         target: { value: 'root@example.com' },
       })
       fireEvent.click(screen.getByRole('button', { name: 'Next' }))

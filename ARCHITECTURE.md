@@ -77,12 +77,22 @@ the point — the schema is a reviewable artifact, not a side effect of startup.
 | `emuplane-cells` | `pk = CELL#<id>` | endpoint, status (`ACTIVE`/`DRAINING`/`OFFLINE`), weight |
 | `emuplane-audit` | `pk = ACTOR#<id>`, `sk = <ts>#<uuid>` | action, outcome, target account |
 
-Sessions are supposed to be stored **hashed**, never raw, with the raw token
-living only in the response that created it. **That is not true yet:**
-`save_sessions()` keys the `emuplane-sessions` rows by the raw token, so anyone
-who can read that table can replay a live session. Fixing the key to the token's
-digest is a small, urgent change. Expiry is kept in the payload (`expires`) and
-enforced on read.
+Sessions are stored **hashed**, never raw: `save_sessions()` keys the
+`emuplane-sessions` rows by the token's SHA-256 (`session_key()`), so a copy of
+the table cannot replay a live session. The raw token exists only in the cookie
+that created it. Rows written before that change were keyed by the raw token;
+`load_sessions()` re-keys them on start-up and drops the raw copy. Expiry is kept
+in the payload (`expires`) and enforced on read, extended on activity.
+
+**Password recovery is local, because there is no mail transport.** A locked-out
+principal is reset by someone who can reach the deployment: an administrator
+over `POST /api/users/<username>/password` (bearer token, or a signed-in
+platform admin), or the platform owner from the host with
+`./scripts/password.sh <username>`. Either path revokes every session that
+principal holds. `/forgot` is the public page that explains this. The user store
+reads through to DynamoDB on every lookup (`UserStore._reload()`) precisely so an
+out-of-process reset takes effect immediately instead of at the next restart —
+and so a login cannot write a stale cached hash back over a reset.
 
 ## Identity and the three logins
 

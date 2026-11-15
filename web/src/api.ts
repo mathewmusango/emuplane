@@ -25,9 +25,12 @@ interface RequestOptions {
   headers?: Record<string, string>
 }
 
-// A 401 means the session expired: bounce to the login screens. The two sign-in
-// routes are the exception — they are served without a session, and a 401 there
-// is the answer to a wrong password, not an expired session.
+// A 401 usually means the session expired: bounce to the login screens. Two cases
+// are the exception and keep the server's own sentence — a sign-in call (401 is
+// the answer to a wrong password) and the sign-in screens themselves (there is no
+// session to lose, and replacing the reason with "session expired" hides it).
+const SIGNED_OUT_ROUTES = ['/login', '/signin', '/forgot']
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(path, {
     credentials: 'same-origin',
@@ -39,12 +42,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: options.body ? JSON.stringify(options.body) : undefined,
   })
 
-  if (response.status === 401) {
-    const here = window.location.pathname
-    if (here !== '/login' && here !== '/signin') {
-      const next = encodeURIComponent(window.location.pathname + window.location.search)
-      window.location.assign(`/login?next=${next}`)
-    }
+  const onSignIn = SIGNED_OUT_ROUTES.includes(window.location.pathname)
+  if (response.status === 401 && !path.startsWith('/api/auth/') && !onSignIn) {
+    const next = encodeURIComponent(window.location.pathname + window.location.search)
+    window.location.assign(`/login?next=${next}`)
     throw new Error('Your session expired. Sign in again.')
   }
 

@@ -42,7 +42,7 @@ WORKDIR /app
 # editing `control/` only rewrites the small layer after it.
 COPY --from=web /src/dist /app/static
 COPY control/app.py control/console.py control/dynamo.py control/store.py control/api_token.py \
-     control/backends.py /app/
+     control/password.py control/backends.py /app/
 # The first-setup init job and the stack it applies (`docker-compose.yml` runs
 # it as the `bootstrap` service, before the control starts).
 COPY bootstrap /app/bootstrap

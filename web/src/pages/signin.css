@@ -180,25 +180,13 @@ body.awsui-dark-mode {
 .signin__actions--row {
   flex-direction: row;
   align-items: stretch;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
 .signin__actions--row button {
   width: auto;
-}
-
-.signin__actions--row button[class*="variant-primary"] {
-  flex: 1 1 auto;
-}
-
-/* "OR" between the two actions on the user-type step. */
-.signin__or-inline {
-  flex: 0 0 auto;
-  align-self: center;
-  color: var(--color-text-body-secondary, #5f6b7a);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  flex: 1 1 8rem;
 }
 
 /* The "OR" rule between a primary action and the alternative below it. */
@@ -206,6 +194,7 @@ body.awsui-dark-mode {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin: 0.9rem 0;
   color: var(--color-text-body-secondary, #5f6b7a);
   font-size: 0.75rem;
   font-weight: 600;
@@ -226,6 +215,100 @@ body.awsui-dark-mode {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+/* The sign-up route on the user-type step: one box, the caption naming it and the
+   action directly beneath — no rule or gap between the two. */
+.signin__new {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid var(--color-border-container-divider, #c6c6cd);
+  border-radius: 0.75rem;
+  padding: 0.7rem 1rem;
+  text-align: center;
+}
+
+.signin__new-caption {
+  color: var(--color-text-body-secondary, #5f6b7a);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.signin__new-action {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-link-default, #0972d3);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.signin__new-action:hover,
+.signin__new-action:focus-visible {
+  text-decoration: underline;
+}
+
+/* "Forgot password?" sits at the trailing edge, under the password field. */
+.signin__forgot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.signin__forgot a {
+  color: var(--color-text-link-default, #0972d3);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.signin__forgot a:hover {
+  text-decoration: underline;
+}
+
+/* The reveal control sits inside the field, so it has to be positioned against
+   the input itself and the input has to leave room for it. */
+.signin__password {
+  position: relative;
+}
+
+.signin__password input {
+  padding-inline-end: 2.25rem !important;
+}
+
+.signin__eye {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 0.375rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-text-body-secondary, #5f6b7a);
+  cursor: pointer;
+}
+
+.signin__eye:hover,
+.signin__eye:focus-visible {
+  color: var(--color-text-body-default, #16191f);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.awsui-dark-mode .signin__eye:hover,
+.awsui-dark-mode .signin__eye:focus-visible {
+  color: #e9ebed;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Inputs read as one calm column: same radius, slightly taller than default. */

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Moon, Sun } from 'lucide-react'
+import { Eye, EyeOff, Moon, Sun } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Button from '@cloudscape-design/components/button'
@@ -68,7 +68,7 @@ const IAM_HELP =
   'An IAM user belongs to exactly one account. The account ID or alias is the tenancy boundary; the username only has to be unique inside that account.'
 
 const RESET_HELP =
-  'Password reset mail is not wired yet — it arrives with the Mailbox view. Until then, an admin who can reach this account sets a new password from Settings.'
+  'Password reset in this deployment is local, with no mail: an administrator who can reach this account sets a new password. If you are the platform owner, run ./scripts/password.sh <username> in the service directory. Settings also offers a password change once you are signed in.'
 
 const ACCOUNT_HELP =
   'The account ID is the 12 digits on the onboarding receipt. The alias is the short name the account was created with; either one identifies the tenancy.'
@@ -241,28 +241,33 @@ export default function SignIn() {
   const passwordField = (
     <SpaceBetween size="xs">
       <FormField label="Password" errorText={errors.password}>
-        <Input
-          type={showPassword ? 'text' : 'password'}
-          autoComplete="current-password"
-          value={password}
-          onChange={({ detail }) => setPassword(detail.value)}
-        />
+        {/* The reveal control lives inside the field, the way AWS does it, so the
+            eye lines up with the input it acts on. */}
+        <div className="signin__password">
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            value={password}
+            onChange={({ detail }) => setPassword(detail.value)}
+          />
+          <button
+            type="button"
+            className="signin__eye"
+            onClick={() => setShowPassword((shown) => !shown)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            title={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? (
+              <EyeOff size={16} strokeWidth={2} aria-hidden="true" />
+            ) : (
+              <Eye size={16} strokeWidth={2} aria-hidden="true" />
+            )}
+          </button>
+        </div>
       </FormField>
-      <div className="signin__row">
-        <Checkbox
-          checked={showPassword}
-          onChange={({ detail }) => setShowPassword(detail.checked)}
-        >
-          Show password
-        </Checkbox>
-        <Popover
-          header="Password reset"
-          content={RESET_HELP}
-          dismissButton
-          size="medium"
-        >
-          {userType === 'iam' ? 'Having trouble?' : 'Forgot password?'}
-        </Popover>
+      <div className="signin__forgot">
+        <a href="/forgot">Forgot password?</a>
       </div>
     </SpaceBetween>
   )
@@ -302,13 +307,16 @@ export default function SignIn() {
               </div>
 
               {userType === 'root' ? (
-                <FormField label="Email address" errorText={errors.email}>
+                <FormField
+                  label="Email address"
+                  errorText={errors.email}
+                  constraintText="username@example.com, username+one@example.com"
+                >
                   <Input
                     type="email"
                     autoComplete="username"
                     value={email}
                     onChange={({ detail }) => setEmail(detail.value)}
-                    placeholder="username@example.com"
                   />
                 </FormField>
               ) : (
@@ -324,14 +332,21 @@ export default function SignIn() {
                 </FormField>
               )}
 
-              <div className="signin__actions signin__actions--row">
+              <div className="signin__actions">
                 <Button variant="primary" formAction="submit">
                   Next
                 </Button>
-                <span className="signin__or-inline">OR</span>
-                <Button formAction="none" onClick={signUp}>
-                  New Account? Signup
-                </Button>
+              </div>
+
+              <div className="signin__or">OR</div>
+
+              {/* "New Account?" and the signup action are one box: the caption
+                  labels it, the action sits directly under the caption. */}
+              <div className="signin__new">
+                <span className="signin__new-caption">New Account?</span>
+                <button type="button" className="signin__new-action" onClick={signUp}>
+                  Signup
+                </button>
               </div>
             </SpaceBetween>
           </Form>
@@ -374,16 +389,13 @@ export default function SignIn() {
             <SpaceBetween size="l">
               {notice}
               {passwordField}
-              <div className="signin__actions">
+              <div className="signin__actions signin__actions--row">
                 <Button variant="primary" formAction="submit" loading={busy}>
                   Sign in
                 </Button>
                 <Button formAction="none" onClick={back}>
                   Sign in to a different account
                 </Button>
-                <button type="button" className="signin__textlink" onClick={signUp}>
-                  Create a new account
-                </button>
               </div>
             </SpaceBetween>
           </Form>
@@ -451,7 +463,7 @@ export default function SignIn() {
                 />
               </FormField>
               {passwordField}
-              <div className="signin__actions">
+              <div className="signin__actions signin__actions--row">
                 <Button variant="primary" formAction="submit" loading={busy}>
                   Sign in
                 </Button>
@@ -465,9 +477,6 @@ export default function SignIn() {
                 >
                   Sign in using root user email
                 </Button>
-                <button type="button" className="signin__textlink" onClick={signUp}>
-                  Create a new account
-                </button>
               </div>
             </SpaceBetween>
           </Form>

@@ -281,6 +281,10 @@ and the dashboard requires a session.
 - Scripted API access uses `Authorization: Bearer <token>` instead of a session.
   Mint one with `./scripts/token.sh` (printed once, stored hashed); the gateway
   (`4571`) is SigV4 and needs no session.
+- Locked out of every account? Reset one from the host:
+  `./scripts/password.sh <username>` (generates and prints a password once; add
+  `--password VALUE` to set your own). It revokes that principal's sessions, and
+  it takes effect immediately because the user store reads through to DynamoDB.
 
 ### Storage (the emulator's DynamoDB)
 
@@ -298,6 +302,7 @@ plane is a tenant of the service it manages, and its state moves with that servi
 | --- | --- |
 | `/login` | the console's five sign-in screens: user type → root email (or IAM account + username) → password → MFA. `POST /api/auth/login` mints the session |
 | `/signup` | one step: email, account name, password and confirmation → **Create Account**, which creates the account (fresh 12-digit ID, unique alias) and signs in. **The first one becomes the default global admin.** Link-free by design — reachable only when sign-up is enabled |
+| `/forgot` | password recovery: there is no mail transport, so the page explains the local reset — an administrator sets a new password, or the platform owner runs `./scripts/password.sh <username>`. A reset revokes that principal's sessions |
 
 ### The sign-in screens
 

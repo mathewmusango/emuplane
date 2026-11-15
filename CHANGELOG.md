@@ -26,6 +26,11 @@ the minor number is bumped by hand, patch releases are the bot's.
 - `dependabot.yml` (github-actions + `web/` npm, 7-day cooldown, minor/patch
   grouped), `renovate.json` for the Dockerfile base-image digests, `ruff.toml`,
   and the issue/PR templates.
+- **Local password recovery.** `POST /api/users/<username>/password` sets a new
+  password (platform admin or bearer token), and `./scripts/password.sh <username>`
+  does it from the host for someone locked out of everything. Both revoke that
+  principal's sessions. `/forgot` is the public page that explains the path, since
+  this deployment has no mail transport to send a reset link.
 
 ### Changed
 
@@ -33,7 +38,11 @@ the minor number is bumped by hand, patch releases are the bot's.
   page were removed on request: `Create Account` takes email, account name and
   password, creates the account and signs in. The SES send path went with them;
   transactional mail stays a slice-7 design, not code.
-- **Both auth pages put their two actions on one line with OR between them.**
+- **The sign-in pages were unified.** Both cards now use the same frame (8px
+  radius, no shadow, `#f2f3f3` page), the same input size, and an OR rule between
+  the primary action and the alternative. On `/login` the signup route is one box
+  — `New Account?` with `Signup` directly under it. `/signup` keeps its two fields
+  above the action row, with the eye control inside both password inputs.
 
 - **The sign-in page carries a theme switch.** It follows the system by default
   (`system` is the stored preference), and a click pins light or dark under
@@ -55,6 +64,22 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **The gateway listens on 8081, not 4566.** The control's own listener no longer
   reuses the backend's port: `EP_GATEWAY_PORT=8081` inside the container, published
   on `EP_PUBLISHED_GATEWAY_PORT=4571`, forwarding to the backend's `EP_BACKEND_PORT`.
+
+### Fixed
+
+- **A failed sign-in says why.** `web/src/api.ts` turned *every* 401 into “Your
+  session expired. Sign in again.” — including the answer to a wrong password, so
+  the real reason (and the fact that no account existed yet) was hidden. The
+  session-expiry bounce now skips `/api/auth/*` and the signed-out routes.
+- **Sessions are stored as digests.** `emuplane-sessions` rows were keyed by the
+  raw token, so a copy of the table could replay a live session. They are keyed by
+  `sha256(token)` now (`session_key()`), and start-up re-keys any row written the
+  old way, dropping the raw copy.
+- **A password reset takes effect immediately, and cannot be undone by a login.**
+  `UserStore` served the copy it loaded at start-up, so an out-of-process reset was
+  invisible until the next restart — and the next successful sign-in wrote that
+  stale hash back over it. Reads now go through `_reload()`, which re-reads the
+  table each time.
 
 ### Changed
 

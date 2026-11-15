@@ -42,7 +42,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, quote, urlencode, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
@@ -653,14 +653,29 @@ class UserStore:
         self.users[self._key(username)] = record
         self.db.put("users", self._key(username), json.dumps(record))
 
+    def _reload(self) -> dict[str, dict]:
+        """Read the whole table again.
+
+        Credentials are written by more than one process: this server, and the
+        host-side `password.py` that resets a locked-out principal. Serving a
+        copy loaded at start-up would leave a reset invisible until a restart,
+        so every read goes to the store. The table holds one row per principal,
+        which makes this a scan of a handful of rows.
+        """
+        try:
+            self.users = self.db.payloads("users")
+        except (OSError, DynamoError) as exc:
+            print(f"control: could not read users: {exc}", flush=True)
+        return self.users
+
     def count(self) -> int:
-        return len(self.users)
+        return len(self._reload())
 
     def get(self, username: str) -> dict | None:
-        return self.users.get(self._key(username))
+        return self._reload().get(self._key(username))
 
     def exists(self, username: str) -> bool:
-        return self._key(username) in self.users
+        return self._key(username) in self._reload()
 
     def find_by_email(self, email: str) -> dict | None:
         """The user record whose address matches, case-insensitively.
@@ -671,7 +686,7 @@ class UserStore:
         wanted = (email or "").strip().lower()
         if not wanted:
             return None
-        for user in self.users.values():
+        for user in self._reload().values():
             if (user.get("email") or "").strip().lower() == wanted:
                 return user
         return None
@@ -709,7 +724,7 @@ class UserStore:
 
     def delete_account(self, account_id: str) -> None:
         with self.lock:
-            for key, user in list(self.users.items()):
+            for key, user in list(self._reload().items()):
                 if user.get("account_id") == account_id:
                     del self.users[key]
                     self.db.delete("users", key)
@@ -1179,11 +1194,21 @@ SESSIONS: dict[str, dict] = {}
 SESSIONS_LOCK = threading.Lock()
 
 
+def session_key(token: str) -> str:
+    """The store key for a session token: a digest, never the token itself.
+
+    A session token is a bearer credential, so a copy of the table must not be
+    enough to replay it. The cookie carries the raw token; the store keeps only
+    its SHA-256, which is what the lookup hashes again.
+    """
+    return hashlib.sha256((token or "").encode()).hexdigest()
+
+
 def save_sessions() -> None:
     """Persist live sessions so a container restart does not sign everyone out."""
     rows = {
-        token: json.dumps(info)
-        for token, info in list(SESSIONS.items())
+        key: json.dumps(info)
+        for key, info in list(SESSIONS.items())
         if isinstance(info, dict)
     }
     try:
@@ -1196,7 +1221,7 @@ def load_sessions() -> None:
     current = time.time()
     restored = 0
     with SESSIONS_LOCK:
-        for token, payload in DB.items("sessions"):
+        for key, payload in DB.items("sessions"):
             try:
                 info = json.loads(payload)
             except json.JSONDecodeError:
@@ -1204,10 +1229,16 @@ def load_sessions() -> None:
             if not isinstance(info, dict):
                 continue
             if info.get("expires", 0) > current:
-                SESSIONS[token] = info
+                # Rows written before sessions were hashed are keyed by the raw
+                # token. Re-key them in memory and drop the raw copy, so the
+                # table never keeps a usable credential.
+                digest = key if re.fullmatch(r"[0-9a-f]{64}", key) else session_key(key)
+                SESSIONS[digest] = info
                 restored += 1
+                if digest != key:
+                    DB.delete("sessions", key)
             else:
-                DB.delete("sessions", token)
+                DB.delete("sessions", key)
     if restored:
         print(f"control: restored {restored} live session(s)", flush=True)
 
@@ -1220,7 +1251,7 @@ def new_session(
 ) -> str:
     token = secrets.token_urlsafe(32)
     with SESSIONS_LOCK:
-        SESSIONS[token] = {
+        SESSIONS[session_key(token)] = {
             "expires": time.time() + SESSION_SECONDS,
             "user": username,
             "account": account,
@@ -1234,7 +1265,7 @@ def new_session(
 
 def session_info(token: str) -> dict | None:
     with SESSIONS_LOCK:
-        info = SESSIONS.get(token)
+        info = SESSIONS.get(session_key(token))
         if info is None:
             return None
         if info["expires"] < time.time():
@@ -1261,12 +1292,24 @@ def session_ok(token: str) -> bool:
 def purge_sessions(account_id: str) -> None:
     """Drop every session bound to an account (used when it is disabled)."""
     with SESSIONS_LOCK:
-        for token in [
-            token
-            for token, info in SESSIONS.items()
+        for key in [
+            key
+            for key, info in SESSIONS.items()
             if info.get("account") == account_id
         ]:
-            SESSIONS.pop(token, None)
+            SESSIONS.pop(key, None)
+        save_sessions()
+
+
+def purge_user_sessions(account_id: str, username: str) -> None:
+    """Drop one principal's sessions (used when its password is reset)."""
+    with SESSIONS_LOCK:
+        for key in [
+            key
+            for key, info in SESSIONS.items()
+            if info.get("account") == account_id and info.get("user") == username
+        ]:
+            SESSIONS.pop(key, None)
         save_sessions()
 
 
@@ -1795,7 +1838,7 @@ def mask(value: str) -> str:
 
 AUTH_STYLE = """
   :root {
-    --bg: #f7f8f8; --panel: #ffffff; --fg: #16191f; --muted: #5f6b7a;
+    --bg: #f2f3f3; --panel: #ffffff; --fg: #16191f; --muted: #5f6b7a;
     --border: #d5dbdb; --input: #ffffff; --primary: #ff9900;
     --primary-hover: #ec7211; --link: #0972d3;
     --error-bg: #fdf3f3; --error-border: #e07979; --error-fg: #8b1a1a;
@@ -1816,7 +1859,7 @@ AUTH_STYLE = """
          font: 15px/1.5 "Open Sans", system-ui, -apple-system, sans-serif; }
   .auth-card { width: 100%; max-width: 25rem; padding: 2.25rem 2rem;
                background: var(--panel); border: 1px solid var(--border);
-               border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.08);
+               border-radius: 8px;
                position: relative; }
   .theme { position: absolute; top: .75rem; right: .75rem; display: inline-flex;
            align-items: center; margin: 0; background: transparent; }
@@ -1837,9 +1880,9 @@ AUTH_STYLE = """
   .field { margin-bottom: 1rem; }
   label { display: block; font-size: .85rem; margin: 0 0 .35rem; }
   label .opt { color: var(--muted); font-weight: normal; }
-  input { width: 100%; padding: .62rem .7rem; border-radius: 6px;
+  input { width: 100%; padding: .3rem .55rem; border-radius: 6px;
           border: 1px solid var(--border); background: var(--input);
-          color: var(--fg); font: inherit; }
+          color: var(--fg); font: inherit; font-size: .875rem; }
   input:focus { outline: 2px solid var(--primary); outline-offset: 0;
                 border-color: transparent; }
   input::placeholder { color: var(--muted); opacity: .8; }
@@ -1857,6 +1900,19 @@ AUTH_STYLE = """
                       background: #d91515; color: #fff; font-size: .7rem;
                       font-weight: 700; display: inline-flex; align-items: center;
                       justify-content: center; }
+  /* The reveal control lives inside the field, the way the console's sign-in
+     pages show it, so the eye lines up with the input it acts on. */
+  .pwd { position: relative; }
+  .pwd input { padding-inline-end: 2.1rem; }
+  .reveal { position: absolute; top: 50%; inset-inline-end: .3rem;
+            transform: translateY(-50%); width: 1.75rem; height: 1.75rem;
+            margin: 0; padding: 0; border: 0; border-radius: 6px;
+            background: transparent; color: var(--muted); cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; }
+  .reveal:hover { background: transparent; color: var(--fg); }
+  .reveal .eye-shut { display: none; }
+  .reveal[aria-pressed="true"] .eye-open { display: none; }
+  .reveal[aria-pressed="true"] .eye-shut { display: inline-flex; }
   .actions { display: flex; align-items: center; gap: .6rem; margin-top: 1.25rem; }
   .actions > button { flex: 1.5 1 0; margin-top: 0; }
   .actions > a { flex: 1 1 0; margin-top: 0; }
@@ -1881,6 +1937,10 @@ AUTH_STYLE = """
            color: var(--muted); }
   .links a { color: var(--link); text-decoration: none; }
   .links a:hover { text-decoration: underline; }
+  pre.code { margin: .55rem 0 0; padding: .55rem .7rem; border-radius: 6px;
+             background: rgba(0, 0, 0, .06); font-size: .8rem;
+             overflow-x: auto; }
+  [data-theme="dark"] pre.code { background: rgba(255, 255, 255, .07); }
 """
 
 
@@ -1912,6 +1972,27 @@ AUTH_THEME_SCRIPT = """
     var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     try { localStorage.setItem(authKey, next); } catch (e) {}
     apply(next);
+  });
+})();
+"""
+
+
+AUTH_REVEAL_SCRIPT = """
+(function () {
+  // The in-field eye: flip the input between password and text. Nothing else on
+  // the page is touched, so a page with no reveal control costs one query.
+  var buttons = document.querySelectorAll('.reveal[data-target]');
+  Array.prototype.forEach.call(buttons, function (button) {
+    var input = document.getElementById(button.dataset.target);
+    if (!input) { return; }
+    button.addEventListener('click', function () {
+      var shown = input.type === 'text';
+      input.type = shown ? 'password' : 'text';
+      button.setAttribute('aria-pressed', String(!shown));
+      var label = shown ? 'Show password' : 'Hide password';
+      button.setAttribute('aria-label', label);
+      button.setAttribute('title', label);
+    });
   });
 })();
 """
@@ -2465,7 +2546,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         token = self._session_token()
         if token:
             with SESSIONS_LOCK:
-                SESSIONS.pop(token, None)
+                SESSIONS.pop(session_key(token), None)
                 save_sessions()
         self.send_response(302)
         self.send_header("Location", "/login")
@@ -2643,7 +2724,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     </span>
   </button>
 </div>
-{body}</main><script>{AUTH_THEME_SCRIPT}</script></body></html>"""
+{body}</main><script>{AUTH_THEME_SCRIPT}</script><script>{AUTH_REVEAL_SCRIPT}</script></body></html>"""
 
     def _signup_page(
         self,
@@ -2663,6 +2744,27 @@ class ControlHandler(BaseHTTPRequestHandler):
                 f"{html.escape(message)}</p>"
             )
 
+        def reveal(field: str) -> str:
+            """The in-field reveal control; the script flips the input's type."""
+            return (
+                f'<button type="button" class="reveal" data-target="{field}"'
+                ' aria-pressed="false" aria-label="Show password"'
+                ' title="Show password">'
+                '<svg class="eye-open" width="16" height="16" viewBox="0 0 24 24"'
+                ' fill="none" stroke="currentColor" stroke-width="2"'
+                ' stroke-linecap="round" stroke-linejoin="round"'
+                ' aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7'
+                '-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
+                '<svg class="eye-shut" width="16" height="16" viewBox="0 0 24 24"'
+                ' fill="none" stroke="currentColor" stroke-width="2"'
+                ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                '<path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a18 18 0 0'
+                ' 1-2.2 3.1M6.6 6.6A18 18 0 0 0 2 12s3.6 7 10 7a10.7 10.7 0 0 0'
+                ' 4.1-.8"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>'
+                '<path d="M2 2l20 20"></path></svg>'
+                '</button>'
+            )
+
         notice = errors.get("form", "")
         notice_html = f'<div class="error">{html.escape(notice)}</div>' if notice else ""
         return self._auth_layout(
@@ -2673,16 +2775,13 @@ class ControlHandler(BaseHTTPRequestHandler):
     <form method="post" action="/signup">
       <div class="field">
         <label for="email">Email address</label>
-        <p class="hint">Your sign-in identity and where account recovery would reach
-          you.</p>
         <input id="email" name="email" type="email" value="{html.escape(email)}"
                placeholder="username@example.com" autocomplete="email" required autofocus>
         {problem("email")}
       </div>
       <div class="field">
         <label for="username">Account name</label>
-        <p class="hint">Choose a name for your account. It becomes the account
-          alias, and you can change it later in Settings.</p>
+        <p class="hint">Choose a name for your account.</p>
         <input id="username" name="username" value="{html.escape(username)}"
                placeholder="username" autocomplete="username" required>
         {problem("username")}
@@ -2690,15 +2789,21 @@ class ControlHandler(BaseHTTPRequestHandler):
       <div class="field">
         <label for="password">Password</label>
         <p class="hint">At least 8 characters.</p>
-        <input id="password" name="password" type="password"
-               autocomplete="new-password" required>
+        <div class="pwd">
+          <input id="password" name="password" type="password"
+                 autocomplete="new-password" required>
+          {reveal("password")}
+        </div>
         {problem("password")}
       </div>
       <div class="field">
         <label for="confirm">Confirm password</label>
         <p class="hint">The same password again.</p>
-        <input id="confirm" name="confirm" type="password"
-               autocomplete="new-password" required>
+        <div class="pwd">
+          <input id="confirm" name="confirm" type="password"
+                 autocomplete="new-password" required>
+          {reveal("confirm")}
+        </div>
         {problem("confirm")}
       </div>
       <div class="actions">
@@ -2707,6 +2812,34 @@ class ControlHandler(BaseHTTPRequestHandler):
         <a class="secondary" href="/login">Sign in</a>
       </div>
     </form>
+""",
+        )
+
+    def _forgot_page(self) -> str:
+        """What a locked-out principal can do here, given there is no mail."""
+        return self._auth_layout(
+            "Reset password",
+            """
+    <h1 class="auth-title">Reset your password</h1>
+    <p class="hint">This server has no mail transport, so a reset cannot be
+      confirmed by email. Two local paths replace it.</p>
+    <div class="field">
+      <label>If you can still sign in</label>
+      <p class="hint">Change the password yourself under Settings &rarr; Account.
+        It asks for the current password first.</p>
+    </div>
+    <div class="field">
+      <label>If you are locked out</label>
+      <p class="hint">A platform administrator sets a new password, which also
+        signs that account out everywhere. The platform owner can do it from the
+        host, in the service directory:</p>
+      <pre class="code">./scripts/password.sh &lt;username&gt;</pre>
+    </div>
+    <p class="hint">An administrator with the API bearer token can do the same:
+      <code>POST /api/users/&lt;username&gt;/password</code>.</p>
+    <div class="actions">
+      <a class="secondary" href="/login">Back to sign in</a>
+    </div>
 """,
         )
 
@@ -2735,6 +2868,8 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(200, {"status": "ok"})
         if path == "/signup":
             return self._page(self._signup_page())
+        if path == "/forgot":
+            return self._page(self._forgot_page())
         if path in PUBLIC_SPA_ROUTES:
             return self._spa()
         if path in SPA_ROUTES or path.startswith("/resources/"):
@@ -3055,6 +3190,38 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._redirect("/resources/s3")
         self._json(404, {"error": "not found"})
 
+    def _reset_user_password(self, username: str) -> None:
+        """Set a new password for a principal who cannot sign in.
+
+        There is no mail transport on this server, so recovery is a local act: a
+        platform administrator (or the account's own root user) issues the new
+        password here, and every session that principal holds is dropped.
+        """
+        payload = self._body()
+        password = str(payload.get("password") or "")
+        if len(password) < 8:
+            return self._json(
+                400, {"error": "the new password must be at least 8 characters"}
+            )
+        record = USERS.get(username)
+        if record is None:
+            return self._json(404, {"error": "unknown user"})
+        account_id = record.get("account_id", "")
+        if not self._can_touch(self._caller(), account_id):
+            return self._json(
+                403, {"error": "this user belongs to a different account"}
+            )
+        USERS.set_password(record["username"], password)
+        purge_user_sessions(account_id, record["username"])
+        return self._json(
+            200,
+            {
+                "user": record["username"],
+                "account": account_id,
+                "sessions_revoked": True,
+            },
+        )
+
     def _update_me(self) -> None:
         """Let a signed-in principal change its own name, email and password."""
         info = session_info(self._session_token())
@@ -3117,6 +3284,9 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._update_me()
         if not self._require_admin():
             return
+        reset = re.fullmatch(r"/api/users/([^/]+)/password", path)
+        if reset:
+            return self._reset_user_password(unquote(reset.group(1)))
         if path == "/api/credentials":
             payload = self._body()
             info = session_info(self._session_token()) or {}
