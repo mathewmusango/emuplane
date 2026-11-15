@@ -31,9 +31,13 @@ control plane, the console and the AWS gateway.
    `X-Forwarded-Cell-Id` and `X-Elevated-Root`.
 3. **Cells** — the data plane. Each holds its own state and refuses any request
    that did not come through the router.
-4. **Bootstrap (Layer 0)** — idempotent, runs before the API serves: ensure the
-   tables exist, seed the substrate admin, register the cells. No circular
-   dependency on the API it is about to start.
+4. **Bootstrap (Layer 0)** — the substrate is *provisioned, not conjured*:
+   `bootstrap/template.yml` defines the control's ten DynamoDB tables as a
+   CloudFormation stack and `bootstrap/apply.py` applies it as a first-setup init
+   job before the control starts. Layer 0 only verifies the tables and refuses to
+   serve when one is missing, naming it. No account is seeded — the first sign-up
+   becomes the platform owner. No circular dependency on the API it is about to
+   start.
 5. **Console** — stateless Cloudscape SPA; every action is an API call, never a
    direct database read.
 
@@ -60,7 +64,9 @@ same SigV4 signer the gateway already uses.
 ### Tables
 
 One table per store keeps the access patterns obvious and the migration from
-`control.db` mechanical.
+`control.db` mechanical. The set is owned by `bootstrap/template.yml`: adding a
+store means adding a resource there *and* a name in `control/store.py`, which is
+the point — the schema is a reviewable artifact, not a side effect of startup.
 
 | Table | Key | Holds |
 | --- | --- | --- |
@@ -132,8 +138,10 @@ Ordered so each one is verifiable on its own.
 4. **Cells and the router** — cell records, account→cell assignment, the proxy
    with its forwarded headers, and per-account storage inside each cell.
 5. **Break-glass and root lifecycle** — the two destructive paths, both audited.
-6. **Bootstrap hardening** — Layer 0 ordering, idempotency, and a clear failure
-   when the emulator is unreachable.
+6. **Bootstrap hardening** — the provisioning half is done: the tables come from
+   the CloudFormation init job and Layer 0 fails loudly when one is absent. Left:
+   Layer 0 ordering for cells, and the same treatment for the SES identity and SNS
+   topic when slice 7 lands.
 7. **Email and events** — SES send for verification and reset, the console's
    Mailbox view over `/_ministack/ses/messages`, and the SNS topic for account
    and root-lifecycle events.

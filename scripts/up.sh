@@ -14,8 +14,10 @@ if [ ! -f .env ]; then
 fi
 chmod 600 .env
 
-# First-run secrets are seeded into .env itself, so they survive a data wipe and
-# the container never needs to write to the host. An existing value always wins.
+# One token is seeded into .env itself, so it survives a state wipe and the
+# container never needs to write to the host. An existing value always wins.
+# There is no seeded account: a fresh control only offers sign-up, and the first
+# account created is the platform owner.
 python3 - <<'PY'
 from pathlib import Path
 import secrets
@@ -33,7 +35,6 @@ def value_of(key):
 generated = []
 for key, factory in (
     ("MC_ADMIN_TOKEN", lambda: secrets.token_hex(24)),
-    ("MC_ADMIN_PASSWORD", lambda: secrets.token_urlsafe(18)),
 ):
     if not value_of(key):
         generated.append((key, factory()))
@@ -67,9 +68,6 @@ require() {
   fi
   printf '%s' "$value"
 }
-
-data_dir=$(require MC_DATA_DIR)
-install -d -m 0755 "$data_dir"
 
 # The emulator is a separate service. Its container name is a lab detail, so it
 # comes from .env (default: the compose service name).
@@ -110,6 +108,12 @@ network=$(sed -n 's/^MC_NETWORK=//p' .env)
 if [ -n "$network" ] && ! podman network exists "$network"; then
   podman network create "$network"
 fi
+
+# First setup, and every start after it: provision the control's own substrate.
+# The stack owns the ten DynamoDB tables the control stores itself in; the job is
+# idempotent and the control refuses to serve until the tables exist.
+echo "applying the control stack (bootstrap/apply.py)"
+"${compose[@]}" run --rm --no-deps bootstrap
 
 "${compose[@]}" up -d --force-recreate
 

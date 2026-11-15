@@ -83,7 +83,7 @@ same:
 | Runs | `ministack-control`: the console, the control API and the AWS gateway |
 | Depends on | the MiniStack emulator, a separate service on port `4566` |
 | Endpoints | `http://localhost:4570` (console/API) · `http://localhost:4571` (emulator gateway), loopback only |
-| Data | `${MC_DATA_DIR}` — one SQLite database: accounts, users, sessions, registry, ownership, settings |
+| Data | none on this host — state lives in the emulator's DynamoDB, provisioned as the `ministack-control` CloudFormation stack |
 | Restart | `"no"` — on demand, not in the always-on set |
 
 ## Versioning and the image
@@ -204,17 +204,21 @@ the container-internal paths and ports.
 | Credential | Where | What it protects |
 | --- | --- | --- |
 | `MC_ADMIN_TOKEN` | `.env` (optional) | Scripted API access (`Bearer`); writes refuse without a session or this token. Empty means `up.sh` seeds one into `.env` on first run; set it to pin your own. |
-| `MC_ADMIN_USER` / `MC_ADMIN_PASSWORD` / `MC_ADMIN_EMAIL` | `.env` | Bootstrap local admin, seeded **only when the user store is empty**. Leave the password empty and `up.sh` seeds one into `.env` on first run; the email is an optional attribute on the user record. |
+
+**There is no seeded account.** A fresh control has zero accounts and one way in:
+sign-up (`/signup`), exactly as a new AWS account is created by the person who
+wants it. The first sign-up becomes the platform owner — `global_admin` and
+`default_admin` — and every later account is created by that owner or by sign-up.
+Earlier versions seeded an `MC_ADMIN_USER`; those keys are retired and ignored.
 
 ### Settings (`.env`)
 
 The dotenv files carry no comments — this table is their documentation. The
-endpoints, node name, console/gateway addresses and database path are **required**:
-the control exits at startup naming whatever is missing.
+endpoints, node name and console/gateway addresses are **required**: the control
+exits at startup naming whatever is missing.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `MC_DATA_DIR` | `./data` | host directory mounted at `/var/lib/ministack/control`; no longer holds the database |
 | `MC_UI_PORT` | `4570` | loopback port for the console and control API |
 | `MC_GATEWAY_PORT` | `4571` | loopback port for the emulator gateway |
 | `MINISTACK_NODE_URL` | required | the emulator endpoint the control talks to |
@@ -226,19 +230,16 @@ the control exits at startup naming whatever is missing.
 | `CONTROL_PORT` | `8080` | console/API port inside the container |
 | `CONTROL_GATEWAY_PORT` | `4566` | emulator gateway port inside the container |
 | `MC_ADMIN_TOKEN` | generated | bearer token for scripted API access; empty means `up.sh` seeds one |
-| `MC_ADMIN_USER` | `admin` | username of the seeded bootstrap administrator |
-| `MC_ADMIN_PASSWORD` | generated | its password; empty means `up.sh` seeds one — change it after the first sign-in |
-| `MC_ADMIN_EMAIL` | empty | optional address, recorded on the user record only |
+| `MC_STACK_NAME` | `ministack-control` | name of the CloudFormation stack that owns the control's tables (init job only) |
+| `MC_TABLE_PREFIX` | `ministack-control-` | table prefix the stack applies; change it only for a smoke test |
 | `CONTROL_POLL_SECONDS` | `10` | seconds between emulator health polls |
 | `MC_SESSION_SECONDS` | `28800` | session lifetime (8h), extended on activity |
 | `MC_RECENT_LIMIT` | `5` | services shown under **Recently visited** |
 | `MC_CONSOLE_URL` | required | console address shown in the UI |
 | `MC_GATEWAY_URL` | required | emulator gateway address shown in the UI |
 
-On a fresh database `MC_ADMIN_USER` is seeded as the **default global admin**, with
-`MC_ADMIN_PASSWORD` if it is set or a generated one otherwise; every later account
-is created by that admin or by sign-up (when enabled). No other account comes from
-`.env`.
+Every account comes from sign-up or from the platform owner: nothing is seeded
+from `.env`, so there is no credential to rotate before the first sign-in.
 
 Generate them once (never commit `.env`):
 
@@ -255,10 +256,11 @@ There is no direct access to the backend stack. The emulator publishes no host
 port; the only ways in are the dashboard (`4570`) and the emulator gateway (`4571`),
 and the dashboard requires a session.
 
-- Sign in at <https://ministack-control.example.com/login> (or <http://127.0.0.1:4570/login>)
-  with the seeded `.env` admin or another local user. Sessions are server-side,
-  `HttpOnly` cookies, 8h by default, persisted across restarts and extended on
-  activity.
+- Sign up first at <https://ministack-control.example.com/signup> (or
+  <http://127.0.0.1:4570/signup>) — a fresh control has **no accounts**, so this is
+  the only way in and the account it creates owns the platform. Afterwards sign in
+  at `/login`. Sessions are server-side, `HttpOnly` cookies, 8h by default,
+  persisted across restarts and extended on activity.
 - Scripted API access uses `Authorization: Bearer <MC_ADMIN_TOKEN>`
   instead of a session. The gateway (`4571`) is SigV4 and needs no session.
 
@@ -266,13 +268,13 @@ and the dashboard requires a session.
 
 Everything the control persists lives in the emulator it fronts: one DynamoDB
 table per store — local users (PBKDF2-SHA256, 260k rounds), accounts and their
-principals, live sessions, resource ownership, settings and the bucket registry —
-created at Layer 0 by `control/store.py` before the API serves. There is no
-database file and nothing to back up on this host; the control plane is a tenant
-of the service it manages, and its state moves with that service. The pre-2026-11-11 side
-files (`accounts.json`, `sessions.json`, `ownership.json`, `settings.json`,
-`nodes.json`, `registry.json`, `users.db`) are imported once on startup and
-renamed to `*.imported`; nothing reads them afterwards, so they can be deleted.
+principals, live sessions, resource ownership, settings and the bucket registry.
+The tables are **provisioned, not conjured**: `bootstrap/template.yml` defines them
+as the CloudFormation stack `ministack-control`, `bootstrap/apply.py` applies it as
+an init job (run by `scripts/up.sh` before the control starts), and
+`control/store.py` refuses to serve when a table is missing, naming it. There is no
+database file, no host directory and nothing to back up on this host; the control
+plane is a tenant of the service it manages, and its state moves with that service.
 
 | Page | What it does |
 | --- | --- |
@@ -581,38 +583,42 @@ Prerequisite: the emulator is running. `up.sh` refuses to
 start the gateway without it.
 
 ```sh
-./scripts/up.sh           # .env, data dir, pull the image, start
+./scripts/up.sh           # .env, apply the control stack, pull the image, start
 ```
 
-The first run creates `.env` from `.env.example` (mode `0600`) and the data
-directory if needed. If `MC_ADMIN_TOKEN` or `MC_ADMIN_PASSWORD` is empty, `up.sh`
-generates a value and **writes it into `.env` before the container starts** —
-nothing is printed, and the values survive a data wipe. Change the password after
-the first sign-in. Set them in `.env` yourself to pin your own values.
+The first run creates `.env` from `.env.example` (mode `0600`). If
+`MC_ADMIN_TOKEN` is empty, `up.sh` generates one and **writes it into `.env`
+before the container starts** — nothing is printed, and the value survives a state
+wipe. Set it yourself to pin your own.
 
-Starting the container directly (bypassing `up.sh`) is supported only with those
-keys already set: an empty `MC_ADMIN_TOKEN` leaves bearer access off, and an empty
-`MC_ADMIN_PASSWORD` stops the control with a message rather than seeding an admin
-nobody can sign in as.
+Before the console starts, `up.sh` runs the first-setup init job
+(`docker-compose.yml`'s `bootstrap` service → `bootstrap/apply.py`). It applies
+`bootstrap/template.yml` as the stack `ministack-control`, which owns the ten
+DynamoDB tables the control stores itself in. The job is idempotent — an existing
+stack is left alone — and the control refuses to serve when a table is missing,
+naming it and this command. Tables that predate the stack are reported, not
+adopted (CloudFormation cannot adopt one); drop them on a fresh setup and re-run
+to bring them under it.
+
+Starting the container directly (bypassing `up.sh`) works only once that stack is
+in place: with no tables the control exits at Layer 0 with the missing names. An
+empty `MC_ADMIN_TOKEN` merely leaves bearer access off.
 
 `up.sh` pulls the image that `MC_IMAGE` names — `docker-compose.yml` defaults it to the
 published GHCR tag — and starts the container. The emulator is a separate image
 and a separate repository.
 
-The data directory (`MC_DATA_DIR`, `./data` unless `.env` says otherwise) is still
-created by `up.sh` (mode `0755`), but the database is no longer there: state lives
-in the emulator's DynamoDB, so restarting the control loses nothing and a wiped
-data directory loses nothing either.
+Nothing is mounted from the host: the console is stateless and the control's state
+lives in the emulator's DynamoDB, so restarting the control loses nothing and there
+is no data directory to create or back up.
 
 `MC_ADMIN_TOKEN` is optional: it is a bearer token for scripted API access, not a
-password. Leave it empty and `up.sh` seeds one into `.env` on first run and the
-control logs it once (`podman logs core-ministack-control | grep seeded`) (`podman logs
-ministack-control | grep generated`). Set it to pin your own, e.g.
+password. Leave it empty and `up.sh` seeds one into `.env` on first run (nothing is
+printed); set it to pin your own, e.g.
 `python3 -c "import secrets; print(secrets.token_hex(24))"`. Either way the
 console session is unaffected.
 
-Nothing here needs `sudo`: the data directory is bind-mounted and created by
-your own user.
+Nothing here needs `sudo`: no host directory is involved any more.
 
 ## Terraform rehearsal (my-portfolio prod)
 
@@ -690,7 +696,12 @@ that clears its registry entries and starts the next scan clean.
 - [`web/`](web/) — the React + Cloudscape console (its own README), including the
   five sign-in screens in `web/src/pages/SignIn.jsx`.
 - [`scripts/qa_check.py`](scripts/qa_check.py) — QA gate: secrets, Python compile, and the signed-off markers from a **local** `qa/tasks.json` (gitignored).
-- [`scripts/up.sh`](scripts/up.sh) — seed `.env`, build + start the control plane, readiness.
+- [`scripts/up.sh`](scripts/up.sh) — seed `.env`, apply the control stack, pull the
+  image, start the control plane, readiness.
+- [`bootstrap/template.yml`](bootstrap/template.yml) and
+  [`bootstrap/apply.py`](bootstrap/apply.py) — the CloudFormation stack that owns
+  the control's ten DynamoDB tables, and the init job that applies it on first
+  setup (run by `up.sh`; idempotent).
 - [`.env.example`](.env.example) — settings template; `.env` is generated (gitignored).
 - The emulator lives in [`../ministack`](../ministack).
 

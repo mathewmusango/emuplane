@@ -42,6 +42,9 @@ WORKDIR /app
 # editing `control/` only rewrites the small layer after it.
 COPY --from=web /src/dist /app/static
 COPY control/app.py control/console.py control/dynamo.py control/store.py /app/
+# The first-setup init job and the stack it applies (`docker-compose.yml` runs
+# it as the `bootstrap` service, before the control starts).
+COPY bootstrap /app/bootstrap
 
 # The control API, and the AWS gateway that fronts the emulator.
 EXPOSE 8080 4566

@@ -29,6 +29,19 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **The control's own substrate is provisioned by CloudFormation.**
+  `bootstrap/template.yml` defines its ten DynamoDB tables as the stack
+  `ministack-control`; `bootstrap/apply.py` applies it as a first-setup init job
+  (`docker-compose.yml`'s `bootstrap` service, run by `scripts/up.sh` before the
+  console starts) and is idempotent. `control/store.py` no longer creates tables —
+  it verifies them and refuses to serve, naming any that are missing. Tables that
+  predate the stack are reported rather than adopted.
+- **A fresh control has no accounts at all.** The seeded bootstrap administrator
+  (`MC_ADMIN_USER` / `_EMAIL` / `_PASSWORD`) is retired: the only way in is
+  sign-up, and the first account created becomes the platform owner, as AWS does
+  it. Nothing is seeded from `.env` any more except the optional API bearer token.
+- **The deployment is stateless.** `MC_DATA_DIR` and the `/var/lib/ministack/control`
+  bind mount are gone; the running container mounts nothing from the host.
 - The compose files were renamed: the generic definition is `docker-compose.yml`,
   and the untracked deployment overlay is `compose.yml` — `scripts/up.sh` layers
   it by default, or whatever `MC_OVERLAY` names.

@@ -47,7 +47,7 @@ from urllib.parse import parse_qs, quote, urlencode, urlsplit
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
 from dynamo import DynamoError  # noqa: E402
-from store import Store  # noqa: E402
+from store import Store, StoreNotProvisioned  # noqa: E402
 
 # No database file: every control-plane document lives in the emulator's
 # DynamoDB (control/store.py) — the service this plane manages. Layer 0 creates
@@ -98,10 +98,9 @@ REGION_CHOICES = [
     "me-south-1", "me-central-1", "af-south-1", "il-central-1",
 ]
 
-# Optional bootstrap administrator. Only seeded into an empty user store.
-ADMIN_USER = os.environ.get("MC_ADMIN_USER", "").strip()
-ADMIN_EMAIL = os.environ.get("MC_ADMIN_EMAIL", "").strip()
-ADMIN_PASSWORD = os.environ.get("MC_ADMIN_PASSWORD", "").strip()
+# No bootstrap administrator is seeded: a fresh control has **no accounts**, just
+# sign-up, the way AWS leaves a new account to the person creating it. The first
+# sign-up becomes the platform owner (global + default admin).
 
 # The React console. Built by `npm run build` in `web/` and mounted here; the
 # server-rendered pages stay available under /classic.
@@ -753,9 +752,12 @@ class Owners:
 
 DB = Store()
 try:
-    DB.ensure_tables()
+    DB.verify_tables()
 except (OSError, DynamoError) as exc:
     print(f"control: cannot reach the store at {DB.dynamo.endpoint}: {exc}", flush=True)
+    raise SystemExit(1)
+except StoreNotProvisioned as exc:
+    print(f"control: {exc}", flush=True)
     raise SystemExit(1)
 
 ACCOUNTS = Accounts(DB)
@@ -765,34 +767,16 @@ OWNERS = Owners(DB)
 
 
 def seed_local_admin() -> None:
-    """Seed the bootstrap administrator into an empty user store.
+    """Retired: a fresh control starts with no accounts, only sign-up.
 
-    `MC_ADMIN_USER` names it and `MC_ADMIN_PASSWORD` holds its password —
-    `scripts/up.sh` fills both into `.env` on first run. Only the hash is stored,
-    and everything is a no-op once any user exists.
+    Kept as a named tombstone so the next reader does not go looking for the
+    bootstrap user in `app.py` again — `ensure_local()` already makes the first
+    sign-up the platform owner (global and default admin). Removed 2026-11-15
+    with the `MC_ADMIN_USER`/`_EMAIL`/`_PASSWORD` settings.
     """
-    if not ADMIN_USER:
-        return
-    if USERS.count():
-        if ADMIN_EMAIL:
-            USERS.set_email(ADMIN_USER, ADMIN_EMAIL)
-        return
-    if not ADMIN_PASSWORD:
-        sys.exit(
-            "control: MC_ADMIN_PASSWORD is empty; run ./scripts/up.sh "
-            "(it seeds one into .env) or set it in .env"
-        )
-    account, _principal = ACCOUNTS.ensure_local(ADMIN_USER)
-    account["global_admin"] = True
-    account["default_admin"] = True
-    ACCOUNTS._save()
-    USERS.create(
-        ADMIN_USER, ADMIN_EMAIL, ADMIN_PASSWORD, account["account_id"], "root"
-    )
-    print("control: seeded the bootstrap administrator", flush=True)
 
 
-seed_local_admin()
+# No seed call on purpose: the database may be empty and that is the design.
 
 
 # --------------------------------------------------------------------------

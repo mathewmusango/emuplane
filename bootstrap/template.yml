@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  The substrate the MiniStack control plane stores itself in: one DynamoDB table
+  per store, each key -> JSON document, partition key `pk`. Applied as a stack by
+  bootstrap/apply.py as the first-setup init job. The control never creates a
+  table of its own - it refuses to serve when this stack has not run.
+
+Parameters:
+  TablePrefix:
+    Type: String
+    Default: ministack-control-
+    Description: >-
+      Prefix for every table name. Change it only for a smoke test of this
+      template; the control reads the same value from its own store module.
+
+Resources:
+  AccountsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}accounts"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}users"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}sessions"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  OwnersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}owners"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  SettingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}settings"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  BucketsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}buckets"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  BucketNodesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}bucket_nodes"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  CellsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}cells"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  PrincipalsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}principals"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  AuditTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}audit"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+Outputs:
+  TablePrefix:
+    Description: Prefix every control table shares.
+    Value: !Ref TablePrefix
+  TableCount:
+    Description: How many tables this stack owns.
+    Value: "10"

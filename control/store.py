@@ -6,11 +6,13 @@ through to one table of key -> JSON document. That shape is what makes the swap
 from the old SQLite file mechanical: the callers ask for "everything in this
 table" at boot and put/delete individual keys after that.
 
-Tables are created at Layer 0 by `ensure_tables()`, before the API serves, so a
-cold start needs no migration step and no operator action. A failure to reach the
-emulator is raised with the endpoint named — the control plane depends on the
-service it fronts, and that dependency must fail loudly, not silently fall back
-to a local file.
+**The tables are provisioned, not conjured.** `bootstrap/template.yml` defines
+them as a CloudFormation stack and `bootstrap/apply.py` applies it as the
+first-setup init job; this module only *verifies* they exist before the API
+serves. A failure to reach the emulator, or a stack that has not run, is raised
+with the endpoint and the missing tables named — the control plane depends on the
+service it fronts, and that dependency must fail loudly, not fall back to a
+local file or create its own schema at boot.
 """
 
 from __future__ import annotations
@@ -36,10 +38,15 @@ TABLES = (
 )
 
 PREFIX = "ministack-control-"
+STACK_NAME = "ministack-control"
 
 
 def table_name(store: str) -> str:
     return f"{PREFIX}{store}"
+
+
+class StoreNotProvisioned(RuntimeError):
+    """The bootstrap stack has not created the tables this control needs."""
 
 
 class Store:
@@ -49,16 +56,26 @@ class Store:
 
     # -- layer 0 -----------------------------------------------------------
 
-    def ensure_tables(self) -> list[str]:
-        """Create every table that is missing. Idempotent, and safe to race."""
-        created = []
-        for store in TABLES:
-            name = table_name(store)
-            if not self.dynamo.table_exists(name):
-                self.dynamo.ensure_table(name)
-                created.append(store)
+    def verify_tables(self) -> None:
+        """Refuse to serve unless the bootstrap stack has provisioned every table.
+
+        Creating them here would make the application the source of its own
+        schema, which is what `bootstrap/template.yml` and its init job exist to
+        prevent. The message names the tables and the command that fixes it.
+        """
+        missing = [
+            table_name(store)
+            for store in TABLES
+            if not self.dynamo.table_exists(table_name(store))
+        ]
+        if missing:
+            raise StoreNotProvisioned(
+                "the control store is not provisioned: missing "
+                + ", ".join(missing)
+                + ". Run ./scripts/up.sh (it applies bootstrap/template.yml as the "
+                f"{STACK_NAME} stack) or python bootstrap/apply.py."
+            )
         self.ready = True
-        return created
 
     # -- reads -------------------------------------------------------------
 

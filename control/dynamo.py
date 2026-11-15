@@ -102,30 +102,6 @@ class Dynamo:
                 return False
             raise
 
-    def ensure_table(self, name: str) -> None:
-        """Create `<name>` with a single string partition key `pk`, if absent.
-
-        One key is all the control needs: every store is key -> JSON document,
-        and the reads are "all of them" at boot. Payload-on-demand projections
-        would add an attribute map for no gain.
-        """
-        if self.table_exists(name):
-            return
-        try:
-            self.call(
-                "CreateTable",
-                {
-                    "TableName": name,
-                    "AttributeDefinitions": [{"AttributeName": "pk", "AttributeType": "S"}],
-                    "KeySchema": [{"AttributeName": "pk", "KeyType": "HASH"}],
-                    "BillingMode": "PAY_PER_REQUEST",
-                },
-            )
-        except DynamoError as exc:
-            # Two controls starting at once: the loser of the race is fine.
-            if exc.code != "ResourceInUseException":
-                raise
-
     # -- items -------------------------------------------------------------
 
     def put(self, table: str, key: str, payload: str) -> None:
