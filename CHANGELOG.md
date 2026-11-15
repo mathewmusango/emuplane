@@ -29,6 +29,15 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **Sign-up is email-verified.** Email + account name first; the control mails a
+  six-digit one-time password through the backend's SES (verifying its own sender
+  identity once), keeps only the code's digest in the settings store with a
+  15-minute expiry and five attempts, and creates the account after the code and
+  password arrive. `/mailbox?token=…` renders the message it just sent, scoped to
+  that pending sign-up, so the flow works without a mail client; the backend's SES
+  mailbox still holds the authoritative copy.
+- **Both auth pages put their two actions on one line with OR between them.**
+
 - **The sign-in page carries a theme switch.** It follows the system by default
   (`system` is the stored preference), and a click pins light or dark under
   `emuplane:theme` — shared with the console's own toggle. `signin.css` colours the

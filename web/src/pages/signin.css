@@ -191,6 +191,16 @@ body.awsui-dark-mode {
   flex: 1 1 auto;
 }
 
+/* "OR" between the two actions on the user-type step. */
+.signin__or-inline {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--color-text-body-secondary, #5f6b7a);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
 /* The "OR" rule between a primary action and the alternative below it. */
 .signin__or {
   display: flex;

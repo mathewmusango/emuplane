@@ -328,6 +328,7 @@ export default function SignIn() {
                 <Button variant="primary" formAction="submit">
                   Next
                 </Button>
+                <span className="signin__or-inline">OR</span>
                 <Button formAction="none" onClick={signUp}>
                   Sign up
                 </Button>
