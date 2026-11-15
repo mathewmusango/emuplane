@@ -1847,14 +1847,25 @@ AUTH_STYLE = """
            border-radius: 8px; background: var(--primary); color: #16191f;
            font: inherit; font-weight: 700; cursor: pointer; }
   button:hover { background: var(--primary-hover); }
+  .auth-title { text-align: left; font-size: 1.75rem; line-height: 1.25;
+                margin: 0 0 1.6rem; font-weight: 700; }
+  .hint { color: var(--muted); font-size: .85rem; margin: -.05rem 0 .5rem; }
+  .field-error { display: flex; gap: .4rem; align-items: flex-start;
+                 margin: .4rem 0 0; color: #d91515; font-size: .85rem; }
+  [data-theme="dark"] .field-error { color: #ff8f8f; }
+  .field-error .dot { flex: 0 0 auto; width: 1rem; height: 1rem; border-radius: 50%;
+                      background: #d91515; color: #fff; font-size: .7rem;
+                      font-weight: 700; display: inline-flex; align-items: center;
+                      justify-content: center; }
+  .secondary { display: flex; align-items: center; justify-content: center;
+               width: 100%; padding: .6rem; border: 1px solid var(--link);
+               border-radius: 999px; color: var(--link); text-decoration: none;
+               font-weight: 600; }
+  .secondary:hover { background: rgba(9, 114, 211, .08); }
   .divider { display: flex; align-items: center; gap: .75rem; margin: 1.4rem 0;
              color: var(--muted); font-size: .8rem; }
   .divider::before, .divider::after { content: ""; flex: 1; height: 1px;
                                       background: var(--border); }
-  a.secondary { display: block; text-align: center; padding: .58rem;
-                border-radius: 6px; border: 1px solid var(--border);
-                color: var(--fg); text-decoration: none; }
-  a.secondary:hover { background: var(--bg); }
   .error { background: var(--error-bg); border: 1px solid var(--error-border);
            color: var(--error-fg); padding: .6rem .75rem; border-radius: 6px;
            font-size: .85rem; margin-bottom: 1rem; }
@@ -2555,7 +2566,9 @@ class ControlHandler(BaseHTTPRequestHandler):
 
     def _signup(self) -> None:
         if not SETTINGS.get("signup_enabled", True):
-            return self._page(self._signup_page("Sign-up is disabled on this lab."), 403)
+            return self._page(
+                self._signup_page({"form": "Sign-up is disabled on this lab."}), 403
+            )
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length).decode() if length else ""
         form = parse_qs(raw)
@@ -2563,23 +2576,25 @@ class ControlHandler(BaseHTTPRequestHandler):
         email = (form.get("email") or [""])[0].strip()
         password = (form.get("password") or [""])[0]
         confirm = (form.get("confirm") or [""])[0]
-        error = ""
+        errors: dict[str, str] = {}
         if not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", username):
-            error = (
-                "Username must be 3-32 characters: letters, digits, dot, dash "
-                "or underscore."
+            errors["username"] = (
+                "An account name is required: 3-32 characters, letters, digits, "
+                "dot, dash or underscore."
             )
-        elif email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
-            error = "That email address does not look right."
-        elif len(password) < 8:
-            error = "Password must be at least 8 characters."
-        elif password != confirm:
-            error = "The passwords do not match."
         elif USERS.exists(username):
-            error = "That username is already taken."
-        if error:
+            errors["username"] = "That account name is already taken."
+        if not email:
+            errors["email"] = "An email address is required."
+        elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            errors["email"] = "That email address does not look right."
+        if len(password) < 8:
+            errors["password"] = "Password must be at least 8 characters."
+        elif password != confirm:
+            errors["confirm"] = "The passwords do not match."
+        if errors:
             return self._page(
-                self._signup_page(error, username, email), status=400
+                self._signup_page(errors, username, email), status=400
             )
         account, principal = ACCOUNTS.ensure_local(username)
         USERS.create(
@@ -2627,32 +2642,64 @@ class ControlHandler(BaseHTTPRequestHandler):
 </div>
 {body}</main><script>{AUTH_THEME_SCRIPT}</script></body></html>"""
 
-    def _signup_page(self, error: str = "", username: str = "", email: str = "") -> str:
-        notice = f'<div class="error">{html.escape(error)}</div>' if error else ""
+    def _signup_page(
+        self,
+        errors: dict[str, str] | None = None,
+        username: str = "",
+        email: str = "",
+    ) -> str:
+        errors = errors or {}
+
+        def problem(field: str) -> str:
+            message = errors.get(field, "")
+            if not message:
+                return ""
+            return (
+                '<p class="field-error"><span class="dot" aria-hidden="true">!</span>'
+                f"{html.escape(message)}</p>"
+            )
+
+        notice = errors.get("form", "")
+        notice_html = f'<div class="error">{html.escape(notice)}</div>' if notice else ""
         return self._auth_layout(
             "Create account",
             f"""
-    <div class="brand"><img class="logo" src="/emuplane.svg"
-         alt="Emuplane"></div>
-    <h1>Create your account</h1>
-    <p class="sub">A new account gets its own ID and IAM credentials</p>
-    {notice}
+    <h1 class="auth-title">Create your account</h1>
+    {notice_html}
     <form method="post" action="/signup">
-      <div class="field"><label for="username">Username</label>
-        <input id="username" name="username" value="{html.escape(username)}"
-               autocomplete="username" required autofocus></div>
-      <div class="field"><label for="email">Email <span class="opt">(optional)</span></label>
+      <div class="field">
+        <label for="email">Email address</label>
+        <p class="hint">Used for account recovery and as your sign-in identity.</p>
         <input id="email" name="email" type="email" value="{html.escape(email)}"
-               autocomplete="email"></div>
-      <div class="field"><label for="password">Password</label>
+               autocomplete="email" required autofocus>
+        {problem("email")}
+      </div>
+      <div class="field">
+        <label for="username">Account name</label>
+        <p class="hint">Choose a name for your account. It becomes the account
+          alias, and you can change it later in Settings.</p>
+        <input id="username" name="username" value="{html.escape(username)}"
+               autocomplete="username" required>
+        {problem("username")}
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <p class="hint">At least 8 characters.</p>
         <input id="password" name="password" type="password"
-               autocomplete="new-password" required></div>
-      <div class="field"><label for="confirm">Confirm password</label>
+               autocomplete="new-password" required>
+        {problem("password")}
+      </div>
+      <div class="field">
+        <label for="confirm">Confirm password</label>
+        <p class="hint">The same password again.</p>
         <input id="confirm" name="confirm" type="password"
-               autocomplete="new-password" required></div>
+               autocomplete="new-password" required>
+        {problem("confirm")}
+      </div>
       <button type="submit">Create account</button>
+      <div class="divider">OR</div>
+      <a class="secondary" href="/login">Sign in to an existing account</a>
     </form>
-    <div class="links">Already have an account? <a href="/login">Sign in</a></div>
 """,
         )
 
