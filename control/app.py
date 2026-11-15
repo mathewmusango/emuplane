@@ -1796,16 +1796,16 @@ def mask(value: str) -> str:
 AUTH_STYLE = """
   :root {
     --bg: #f7f8f8; --panel: #ffffff; --fg: #16191f; --muted: #5f6b7a;
-    --border: #d5dbdb; --input: #ffffff; --primary: #0972d3;
-    --primary-hover: #085ea8; --link: #0972d3;
+    --border: #d5dbdb; --input: #ffffff; --primary: #ff9900;
+    --primary-hover: #ec7211; --link: #0972d3;
     --error-bg: #fdf3f3; --error-border: #e07979; --error-fg: #8b1a1a;
     --ok-bg: #f1f8f3; --ok-border: #7fb98a; --ok-fg: #1d5b2c;
     color-scheme: light;
   }
   [data-theme="dark"] {
     --bg: #0f141a; --panel: #161d26; --fg: #e9ecef; --muted: #9aa4b2;
-    --border: #2b3540; --input: #0f141a; --primary: #3d9bf0;
-    --primary-hover: #60b0f5; --link: #6cb6ff;
+    --border: #2b3540; --input: #0f141a; --primary: #ff9900;
+    --primary-hover: #ec7211; --link: #6cb6ff;
     --error-bg: #2a1215; --error-border: #6e2b2b; --error-fg: #ff8f8f;
     --ok-bg: #10241a; --ok-border: #2f6b45; --ok-fg: #7fe0a0;
     color-scheme: dark;
@@ -1814,7 +1814,7 @@ AUTH_STYLE = """
   body { margin: 0; min-height: 100vh; display: grid; place-items: center;
          background: var(--bg); color: var(--fg);
          font: 15px/1.5 "Open Sans", system-ui, -apple-system, sans-serif; }
-  .auth-card { width: 100%; max-width: 26rem; padding: 2.25rem 2rem;
+  .auth-card { width: 100%; max-width: 25rem; padding: 2.25rem 2rem;
                background: var(--panel); border: 1px solid var(--border);
                border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.08);
                position: relative; }
@@ -1844,8 +1844,8 @@ AUTH_STYLE = """
                 border-color: transparent; }
   input::placeholder { color: var(--muted); opacity: .8; }
   button { width: 100%; margin-top: 1rem; padding: .65rem; border: 0;
-           border-radius: 6px; background: var(--primary); color: #fff;
-           font: inherit; font-weight: 600; cursor: pointer; }
+           border-radius: 8px; background: var(--primary); color: #16191f;
+           font: inherit; font-weight: 700; cursor: pointer; }
   button:hover { background: var(--primary-hover); }
   .divider { display: flex; align-items: center; gap: .75rem; margin: 1.4rem 0;
              color: var(--muted); font-size: .8rem; }

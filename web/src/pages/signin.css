@@ -149,11 +149,12 @@ body.awsui-dark-mode {
 }
 
 .signin__actions button[class*="variant-primary"] {
-  /* Cloudscape paints its primary action blue with its own token rules; the
-     sign-in screens copy AWS's orange, so this one surface overrides it. */
+  /* Emuplane's accent, the colour of the mark's plane. Cloudscape paints its
+     primary action blue through its own token rules, so this surface overrides
+     it — and the sign-up page uses the same orange and radius. */
   background: #ff9900 !important;
   border-color: #ff9900 !important;
-  border-radius: 999px !important;
+  border-radius: 0.5rem !important;
   color: #16191f !important;
   font-weight: 700;
 }
@@ -161,23 +162,17 @@ body.awsui-dark-mode {
 .signin__actions button[class*="variant-primary"]:hover {
   background: #ec7211 !important;
   border-color: #ec7211 !important;
-  color: #ffffff !important;
+  color: #16191f !important;
 }
 
 .signin__actions button[class*="variant-primary"]:focus-visible {
   outline-color: #0972d3;
 }
 
+/* Secondary actions keep Cloudscape's neutral outline — no second accent. */
 .signin__actions button[class*="variant-normal"] {
-  background: transparent !important;
-  border: 1px solid var(--color-border-container-default, #0972d3) !important;
-  border-radius: 999px !important;
-  color: var(--color-text-link-default, #0972d3) !important;
+  border-radius: 0.5rem !important;
   font-weight: 600;
-}
-
-.signin__actions button[class*="variant-normal"]:hover {
-  background: #f1f8ff;
 }
 
 /* The "OR" rule between the primary action and sign-up. */
@@ -254,6 +249,4 @@ body.awsui-dark-mode {
   background: rgba(255, 153, 0, 0.14);
 }
 
-.awsui-dark-mode .signin__actions button[class*="variant-normal"]:hover {
-  background: rgba(9, 114, 211, 0.18) !important;
-}
+.awsui-dark-mode 
