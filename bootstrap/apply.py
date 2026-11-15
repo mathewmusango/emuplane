@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """First-setup init job: provision the control's own substrate as a stack.
 
-The control stores itself in the emulator it fronts — ten DynamoDB tables. Those
+The control stores itself in the emulator it fronts — one DynamoDB table per store. Those
 are **provisioned, not conjured**: this job applies `template.yml` as the stack
 `ministack-control`, and `control/store.py` only *verifies* the tables before the
 API serves. A fresh install therefore has an explicit, reviewable definition of
@@ -157,6 +157,34 @@ def drop_tables() -> int:
     return 0
 
 
+def stack_params() -> dict[str, str]:
+    """The request body shared by CreateStack and UpdateStack."""
+    return {
+        "StackName": STACK,
+        "TemplateBody": TEMPLATE.read_text(encoding="utf-8"),
+        "Parameters.member.1.ParameterKey": "TablePrefix",
+        "Parameters.member.1.ParameterValue": PREFIX,
+        "TimeoutInMinutes": "10",
+    }
+
+
+def apply_update() -> tuple[bool, str]:
+    """Bring an existing stack to the current template.
+
+    The template grows with the product — a new store is a new table — so a
+    healthy stack is not proof that it is current. `No updates are to be
+    performed` is a success: the stack already matches.
+    """
+    try:
+        call("UpdateStack", stack_params())
+    except StackError as exc:
+        message = str(exc).lower()
+        if "no update" in message or "no changes" in message:
+            return True, "already current"
+        return False, str(exc)
+    return wait_for_terminal_state() == "UPDATE_COMPLETE", ""
+
+
 def main() -> int:
     if "--drop-tables" in sys.argv[1:]:
         return drop_tables()
@@ -179,7 +207,12 @@ def main() -> int:
     state = status()
     if state:
         if state.endswith("COMPLETE") and "IN_PROGRESS" not in state and not state.startswith("ROLLBACK"):
-            pass  # the stack is ours and healthy; fall through to the table check
+            # The stack is ours and healthy; make sure it matches this template.
+            print(f"bootstrap: checking stack {STACK} against {TEMPLATE.name}", flush=True)
+            updated, problem = apply_update()
+            if not updated:
+                print(f"bootstrap: cannot update the stack: {problem}", flush=True)
+                return 1
         elif state.endswith("IN_PROGRESS"):
             print(f"bootstrap: stack {STACK} is {state}; waiting for it", flush=True)
             state = wait_for_terminal_state()
@@ -202,15 +235,8 @@ def main() -> int:
             )
         else:
             print(f"bootstrap: creating stack {STACK} from {TEMPLATE.name}", flush=True)
-            params = {
-                "StackName": STACK,
-                "TemplateBody": TEMPLATE.read_text(encoding="utf-8"),
-                "Parameters.member.1.ParameterKey": "TablePrefix",
-                "Parameters.member.1.ParameterValue": PREFIX,
-                "TimeoutInMinutes": "10",
-            }
             try:
-                call("CreateStack", params)
+                call("CreateStack", stack_params())
             except (OSError, StackError) as exc:
                 print(f"bootstrap: cannot create the stack at {endpoint()}: {exc}", flush=True)
                 return 1

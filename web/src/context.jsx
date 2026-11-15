@@ -1,13 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { api } from './api'
 
+import { useLocation } from 'react-router-dom'
+
 const SessionContext = createContext(null)
 const REGION_KEY = 'emuplane:region'
 const ACCOUNT_KEY = 'emuplane:account'
 
+// Routes that exist without a session. `/api/meta` can only answer 401 there, so
+// the console must not ask for it — and a fresh sign-in then loads it on the way
+// into the app, which is what makes the data current.
+const SIGNED_OUT_ROUTES = ['/login', '/signin', '/forgot', '/reset']
+
 export const useSession = () => useContext(SessionContext)
 
 export function SessionProvider({ children }) {
+  const location = useLocation()
+  const signedOut = SIGNED_OUT_ROUTES.includes(location.pathname)
   const [meta, setMeta] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -47,8 +56,12 @@ export function SessionProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    if (signedOut) {
+      setLoading(false)
+      return
+    }
     refresh()
-  }, [refresh])
+  }, [signedOut, location.pathname, refresh])
 
   const setRegion = useCallback((next) => {
     setRegionState(next)

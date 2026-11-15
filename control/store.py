@@ -35,6 +35,7 @@ TABLES = (
     "cells",
     "principals",
     "audit",
+    "resets",
 )
 
 PREFIX = "emuplane-"

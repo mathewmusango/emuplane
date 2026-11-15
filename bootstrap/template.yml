@@ -50,6 +50,18 @@ Resources:
         - AttributeName: pk
           KeyType: HASH
 
+  ResetsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${TablePrefix}resets"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
   OwnersTable:
     Type: AWS::DynamoDB::Table
     Properties:

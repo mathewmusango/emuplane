@@ -302,7 +302,8 @@ plane is a tenant of the service it manages, and its state moves with that servi
 | --- | --- |
 | `/login` | the console's five sign-in screens: user type → root email (or IAM account + username) → password → MFA. `POST /api/auth/login` mints the session |
 | `/signup` | one step: email, account name, password and confirmation → **Create Account**, which creates the account (fresh 12-digit ID, unique alias) and signs in. **The first one becomes the default global admin.** Link-free by design — reachable only when sign-up is enabled |
-| `/forgot` | password recovery: there is no mail transport, so the page explains the local reset — an administrator sets a new password, or the platform owner runs `./scripts/password.sh <username>`. A reset revokes that principal's sessions |
+| `/forgot` | what a locked-out user can do: this server has no mail transport, so a reset link cannot be emailed. It explains the two paths, Settings and an administrator-issued link |
+| `/reset?token=…` | where a reset link lands: the user chooses their own password. The token is single-use, stored only as a SHA-256, and expires after `EP_RESET_SECONDS` (30 min). Setting the password revokes that principal's sessions |
 
 ### The sign-in screens
 
@@ -745,11 +746,16 @@ that clears its registry entries and starts the next scan clean.
 - [`scripts/token.sh`](scripts/token.sh) — mint (`--rotate`) or inspect
   (`--status`) the API bearer token; the raw value is printed once, only its hash
   is stored. The minting itself is [`control/api_token.py`](control/api_token.py).
-- [`scripts/password.sh`](scripts/password.sh) — reset a principal's password from
-  the host (the local recovery path; it also revokes that principal's sessions).
+- [`scripts/reset-link.sh`](scripts/reset-link.sh) — mint a one-time `/reset` link
+  for a principal: the user sets their own password, so whoever issues it never
+  learns it. `scripts/password.sh` sets the password outright instead, for when
+  the person is not reachable. Both revoke that principal's sessions.
+- [`scripts/profile-login.sh`](scripts/profile-login.sh) — capture a real Firefox
+  (Gecko) profile of a page load into `docs/profile.json`, to open at
+  <https://profiler.firefox.com> with "Load a profile from file".
 - [`bootstrap/template.yml`](bootstrap/template.yml) and
   [`bootstrap/apply.py`](bootstrap/apply.py) — the CloudFormation stack that owns
-  the control's ten DynamoDB tables, and the init job that applies it on first
+  the control's DynamoDB tables, and the init job that applies it on first
   setup (run by `up.sh`; idempotent).
 - [`.env.example`](.env.example) — settings template; `.env` is generated (gitignored).
 - The emulator lives in [`../ministack`](../ministack).

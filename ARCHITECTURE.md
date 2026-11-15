@@ -32,7 +32,7 @@ control plane, the console and the AWS gateway.
 3. **Cells** — the data plane. Each holds its own state and refuses any request
    that did not come through the router.
 4. **Bootstrap (Layer 0)** — the substrate is *provisioned, not conjured*:
-   `bootstrap/template.yml` defines the control's ten DynamoDB tables as a
+   `bootstrap/template.yml` defines the control's DynamoDB tables as a
    CloudFormation stack and `bootstrap/apply.py` applies it as a first-setup init
    job before the control starts. Layer 0 only verifies the tables and refuses to
    serve when one is missing, naming it. No account is seeded — the first sign-up

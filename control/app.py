@@ -1336,6 +1336,70 @@ def purge_user_sessions(account_id: str, username: str) -> None:
 
 
 # --------------------------------------------------------------------------
+# password-reset links
+#
+# There is no mail transport here, so a reset link is minted by an administrator
+# and handed over out of band — the user still chooses their own password, which
+# is the point of a link rather than an admin-typed password. The token follows
+# the same contract as a session: only its SHA-256 is stored, the raw value
+# appears once in the link, it expires, and it is deleted when it is used.
+
+RESET_SECONDS = int(os.environ.get("EP_RESET_SECONDS", "1800"))
+
+
+def reset_key(token: str) -> str:
+    return hashlib.sha256((token or "").encode()).hexdigest()
+
+
+def mint_reset(username: str, account_id: str) -> str:
+    """Create a one-time reset token and return the raw value (shown once)."""
+    token = secrets.token_urlsafe(32)
+    DB.put(
+        "resets",
+        reset_key(token),
+        json.dumps(
+            {
+                "user": username,
+                "account": account_id,
+                "expires": time.time() + RESET_SECONDS,
+                "created": now(),
+            }
+        ),
+    )
+    return token
+
+
+def read_reset(token: str) -> dict | None:
+    """The live reset record for a token, or None when it is spent/expired."""
+    if not token:
+        return None
+    try:
+        raw = DB.get("resets", reset_key(token))
+    except (OSError, DynamoError):
+        return None
+    if not raw:
+        return None
+    try:
+        record = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(record, dict):
+        return None
+    if record.get("expires", 0) < time.time():
+        DB.delete("resets", reset_key(token))
+        return None
+    return record
+
+
+def consume_reset(token: str) -> dict | None:
+    """Read a reset record and burn it, so a link works exactly once."""
+    record = read_reset(token)
+    if record is not None:
+        DB.delete("resets", reset_key(token))
+    return record
+
+
+# --------------------------------------------------------------------------
 # node calls
 
 
@@ -1998,6 +2062,27 @@ AUTH_THEME_SCRIPT = """
 })();
 """
 
+
+def reveal_control(field: str) -> str:
+    """The in-field reveal button; AUTH_REVEAL_SCRIPT flips the input's type."""
+    return (
+        f'<button type="button" class="reveal" data-target="{field}"'
+        ' aria-pressed="false" aria-label="Show password"'
+        ' title="Show password">'
+        '<svg class="eye-open" width="16" height="16" viewBox="0 0 24 24"'
+        ' fill="none" stroke="currentColor" stroke-width="2"'
+        ' stroke-linecap="round" stroke-linejoin="round"'
+        ' aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7'
+        '-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
+        '<svg class="eye-shut" width="16" height="16" viewBox="0 0 24 24"'
+        ' fill="none" stroke="currentColor" stroke-width="2"'
+        ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        '<path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a18 18 0 0'
+        ' 1-2.2 3.1M6.6 6.6A18 18 0 0 0 2 12s3.6 7 10 7a10.7 10.7 0 0 0'
+        ' 4.1-.8"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>'
+        '<path d="M2 2l20 20"></path></svg>'
+        '</button>'
+    )
 
 AUTH_REVEAL_SCRIPT = """
 (function () {
@@ -2775,26 +2860,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 f"{html.escape(message)}</p>"
             )
 
-        def reveal(field: str) -> str:
-            """The in-field reveal control; the script flips the input's type."""
-            return (
-                f'<button type="button" class="reveal" data-target="{field}"'
-                ' aria-pressed="false" aria-label="Show password"'
-                ' title="Show password">'
-                '<svg class="eye-open" width="16" height="16" viewBox="0 0 24 24"'
-                ' fill="none" stroke="currentColor" stroke-width="2"'
-                ' stroke-linecap="round" stroke-linejoin="round"'
-                ' aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7'
-                '-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
-                '<svg class="eye-shut" width="16" height="16" viewBox="0 0 24 24"'
-                ' fill="none" stroke="currentColor" stroke-width="2"'
-                ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-                '<path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a18 18 0 0'
-                ' 1-2.2 3.1M6.6 6.6A18 18 0 0 0 2 12s3.6 7 10 7a10.7 10.7 0 0 0'
-                ' 4.1-.8"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>'
-                '<path d="M2 2l20 20"></path></svg>'
-                '</button>'
-            )
+        reveal = reveal_control
 
         notice = errors.get("form", "")
         notice_html = f'<div class="error">{html.escape(notice)}</div>' if notice else ""
@@ -2852,25 +2918,91 @@ class ControlHandler(BaseHTTPRequestHandler):
             "Reset password",
             """
     <h1 class="auth-title">Reset your password</h1>
-    <p class="hint">This server has no mail transport, so a reset cannot be
-      confirmed by email. Two local paths replace it.</p>
+    <p class="hint">This server has no mail transport, so a reset link cannot be
+      emailed. Ask an administrator for one: they mint a single-use link that
+      opens <code>/reset</code>, where you choose the password yourself. The link
+      expires after 30 minutes and stops working once used.</p>
     <div class="field">
       <label>If you can still sign in</label>
       <p class="hint">Change the password yourself under Settings &rarr; Account.
         It asks for the current password first.</p>
     </div>
     <div class="field">
-      <label>If you are locked out</label>
-      <p class="hint">A platform administrator sets a new password, which also
-        signs that account out everywhere. The platform owner can do it from the
-        host, in the service directory:</p>
-      <pre class="code">./scripts/password.sh &lt;username&gt;</pre>
+      <label>If you are the platform owner</label>
+      <p class="hint">Mint a link from the host, in the service directory:</p>
+      <pre class="code">./scripts/reset-link.sh &lt;username&gt;</pre>
+      <p class="hint">An administrator with the API bearer token can do the same:
+        <code>POST /api/users/&lt;username&gt;/reset-link</code>.</p>
     </div>
-    <p class="hint">An administrator with the API bearer token can do the same:
-      <code>POST /api/users/&lt;username&gt;/password</code>.</p>
     <div class="actions">
       <a class="secondary" href="/login">Back to sign in</a>
     </div>
+""",
+        )
+
+    def _reset_page(
+        self, token: str = "", errors: dict[str, str] | None = None
+    ) -> str:
+        """The page a reset link opens: choose a new password."""
+        errors = errors or {}
+        if not token:
+            token = (parse_qs(urlsplit(self.path).query).get("token") or [""])[0]
+        notice = errors.get("form", "")
+        notice_html = f'<div class="error">{html.escape(notice)}</div>' if notice else ""
+        record = read_reset(token) if token else None
+        if record is None:
+            return self._auth_layout(
+                "Reset password",
+                f"""
+    <h1 class="auth-title">Reset your password</h1>
+    {notice_html or '<div class="error">This reset link is not valid any more. Ask an administrator for a new one.</div>'}
+    <div class="actions">
+      <a class="secondary" href="/login">Back to sign in</a>
+    </div>
+""",
+            )
+
+        def problem(field: str) -> str:
+            message = errors.get(field, "")
+            if not message:
+                return ""
+            return (
+                '<p class="field-error"><span class="dot" aria-hidden="true">!</span>'
+                f"{html.escape(message)}</p>"
+            )
+
+        return self._auth_layout(
+            "Choose a password",
+            f"""
+    <h1 class="auth-title">Choose a password</h1>
+    <p class="hint">Setting a new password for
+      <strong>{html.escape(record.get("user", ""))}</strong>.</p>
+    {notice_html}
+    <form method="post" action="/reset">
+      <input type="hidden" name="token" value="{html.escape(token)}">
+      <div class="field">
+        <label for="password">New password</label>
+        <p class="hint">At least 8 characters.</p>
+        <div class="pwd">
+          <input id="password" name="password" type="password"
+                 autocomplete="new-password" required autofocus>
+          {reveal_control("password")}
+        </div>
+        {problem("password")}
+      </div>
+      <div class="field">
+        <label for="confirm">Confirm password</label>
+        <div class="pwd">
+          <input id="confirm" name="confirm" type="password"
+                 autocomplete="new-password" required>
+          {reveal_control("confirm")}
+        </div>
+        {problem("confirm")}
+      </div>
+      <div class="actions">
+        <button type="submit">Set password</button>
+      </div>
+    </form>
 """,
         )
 
@@ -2901,6 +3033,10 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._page(self._signup_page())
         if path == "/forgot":
             return self._page(self._forgot_page())
+        if path == "/reset":
+            token = (parse_qs(urlsplit(self.path).query).get("token") or [""])[0]
+            live = bool(token) and read_reset(token) is not None
+            return self._page(self._reset_page(), 200 if live else 400)
         if path in PUBLIC_SPA_ROUTES:
             return self._spa()
         if path in SPA_ROUTES or path.startswith("/resources/"):
@@ -3223,6 +3359,76 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._redirect("/resources/s3")
         self._json(404, {"error": "not found"})
 
+    def _reset_submit(self) -> None:
+        """Set the password a reset link was issued for, then burn the link."""
+        form = self._form()
+        token = (form.get("token") or "").strip()
+        password = form.get("password") or ""
+        confirm = form.get("confirm") or ""
+        if not token:
+            return self._page(
+                self._reset_page(errors={"form": "The link is incomplete."}), 400
+            )
+        if len(password) < 8:
+            return self._page(
+                self._reset_page(
+                    token,
+                    {"password": "Password must be at least 8 characters."},
+                ),
+                400,
+            )
+        if password != confirm:
+            return self._page(
+                self._reset_page(token, {"confirm": "The passwords do not match."}),
+                400,
+            )
+        record = consume_reset(token)
+        if record is None:
+            return self._page(
+                self._reset_page(
+                    errors={"form": "That reset link has expired or was already used."}
+                ),
+                400,
+            )
+        user = USERS.get(record.get("user", ""))
+        if user is None:
+            return self._page(
+                self._reset_page(errors={"form": "That account no longer exists."}),
+                400,
+            )
+        USERS.set_password(user["username"], password)
+        purge_user_sessions(record.get("account", ""), user["username"])
+        self.send_response(302)
+        self.send_header("Location", "/login?reset=1")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _issue_reset_link(self, username: str) -> None:
+        """Mint a one-time reset link for a principal (platform admin only).
+
+        The link is the whole credential, so the raw token is returned here and
+        nowhere else — the store keeps only its digest.
+        """
+        record = USERS.get(username)
+        if record is None:
+            return self._json(404, {"error": "unknown user"})
+        account_id = record.get("account_id", "")
+        if not self._can_touch(self._caller(), account_id):
+            return self._json(
+                403, {"error": "this user belongs to a different account"}
+            )
+        token = mint_reset(record["username"], account_id)
+        base = CONSOLE_URL or ""
+        return self._json(
+            200,
+            {
+                "user": record["username"],
+                "account": account_id,
+                "expires_in": RESET_SECONDS,
+                "link": f"{base}/reset?token={token}",
+            },
+        )
+
     def _reset_user_password(self, username: str) -> None:
         """Set a new password for a principal who cannot sign in.
 
@@ -3305,6 +3511,8 @@ class ControlHandler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == "/signup":
             return self._signup()
+        if path == "/reset":
+            return self._reset_submit()
         if path.startswith("/api"):
             path = self._api_path(path)
         if path == "/api/auth/login":
@@ -3320,6 +3528,9 @@ class ControlHandler(BaseHTTPRequestHandler):
         reset = re.fullmatch(r"/api/users/([^/]+)/password", path)
         if reset:
             return self._reset_user_password(unquote(reset.group(1)))
+        reset_link = re.fullmatch(r"/api/users/([^/]+)/reset-link", path)
+        if reset_link:
+            return self._issue_reset_link(unquote(reset_link.group(1)))
         if path == "/api/credentials":
             payload = self._body()
             info = session_info(self._session_token()) or {}

@@ -117,6 +117,7 @@ export default function SignIn() {
   const [params] = useSearchParams()
   const requested = params.get('next') || '/'
   const next = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/'
+  const justReset = params.get('reset') === '1'
 
   const [step, setStep] = useState('type')
   const [userType, setUserType] = useState('root')
@@ -237,6 +238,9 @@ export default function SignIn() {
   }
 
   const notice = error ? <Alert type="error">{error}</Alert> : null
+  const done = justReset ? (
+    <Alert type="success">Your password was changed. Sign in with the new one.</Alert>
+  ) : null
 
   const passwordField = (
     <SpaceBetween size="xs">
@@ -278,6 +282,7 @@ export default function SignIn() {
         <form onSubmit={chooseType}>
           <Form>
             <SpaceBetween size="l">
+              {done}
               {notice}
               <div className="signin__types">
                 <FormField

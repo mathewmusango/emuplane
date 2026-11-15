@@ -9,12 +9,12 @@ import { SessionProvider } from './context'
 import { applyTheme } from './prefs'
 import './styles.css'
 
-const storedTheme = localStorage.getItem('ministack:theme') || 'system'
+const storedTheme = localStorage.getItem('emuplane:theme') || 'system'
 applyTheme(storedTheme)
 window
   .matchMedia?.('(prefers-color-scheme: dark)')
   .addEventListener?.('change', () => {
-    const current = localStorage.getItem('ministack:theme') || 'system'
+    const current = localStorage.getItem('emuplane:theme') || 'system'
     if (current === 'system') applyTheme('system')
   })
 

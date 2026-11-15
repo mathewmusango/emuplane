@@ -2,16 +2,19 @@
 """Reset a principal's password from the host.
 
 There is no mail transport on this server, so account recovery is a local act
-rather than an emailed link: someone who can reach the deployment issues the new
-password. This is the platform owner's break-glass path; the same operation is
-available over the API (`POST /api/users/<username>/password`, bearer token or a
-signed-in administrator).
+rather than an emailed link. Two forms, and they are not the same thing:
 
-    python /app/password.py <username>                  # generate, print once
-    python /app/password.py <username> --password VALUE  # set a chosen one
+    python /app/password.py <username>                   # set it now
+    python /app/password.py <username> --password VALUE   # set a chosen one
+    python /app/password.py <username> --link             # one-time reset link
 
-Every session that principal holds is dropped, so a reset also ends whatever
-was still signed in. `scripts/password.sh` runs this inside the container.
+`--link` is the better one: it prints a single-use `/reset` URL, valid for
+EP_RESET_SECONDS (30 min), that lets the user choose their own password — so
+whoever runs this never learns it. The direct forms exist for when the person is
+not reachable at all.
+
+Every path revokes the sessions that principal holds. `scripts/password.sh` and
+`scripts/reset-link.sh` run this inside the container.
 """
 
 from __future__ import annotations
@@ -29,6 +32,20 @@ def main() -> int:
         return 2
     username = args[0]
     supplied = ""
+    if "--link" in args:
+        record = app.USERS.get(username)
+        if record is None:
+            print(f"no such user: {username}", file=sys.stderr)
+            return 1
+        token = app.mint_reset(record["username"], record.get("account_id", ""))
+        base = app.CONSOLE_URL or ""
+        print(f"{base}/reset?token={token}")
+        print(
+            f"one-time link for {record['username']}, valid "
+            f"{app.RESET_SECONDS // 60} min — it is not retrievable again",
+            file=sys.stderr,
+        )
+        return 0
     if "--password" in args:
         index = args.index("--password")
         supplied = args[index + 1] if index + 1 < len(args) else ""

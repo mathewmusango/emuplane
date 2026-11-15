@@ -39,6 +39,15 @@ the minor number is bumped by hand, patch releases are the bot's.
   `immutable`, so a new logo reaches a returning visitor.
 - **`scripts/build.sh`**, and `./scripts/up.sh --build` to rebuild and restart in
   one step.
+- **Password-reset links.** `POST /api/users/<username>/reset-link` (platform
+  admin or bearer token) and `./scripts/reset-link.sh <username>` mint a
+  single-use `/reset?token=…` URL, valid for `EP_RESET_SECONDS` (30 min). The
+  user chooses their own password there, so whoever issues the link never learns
+  it; setting it revokes that principal's sessions. Tokens live in the new
+  `emuplane-resets` table as SHA-256 digests and are deleted when used.
+- **`scripts/profile-login.sh`** captures a real Firefox (Gecko) profile of a page
+  load through `MOZ_PROFILER_STARTUP`/`MOZ_PROFILER_SHUTDOWN` and writes
+  `docs/profile.json`, which https://profiler.firefox.com opens directly.
 
 ### Changed
 
@@ -97,6 +106,19 @@ the minor number is bumped by hand, patch releases are the bot's.
   on `EP_PUBLISHED_GATEWAY_PORT=4571`, forwarding to the backend's `EP_BACKEND_PORT`.
 
 ### Fixed
+
+- **The sign-in pages no longer ask for `/api/meta`.** `SessionProvider` fetched it
+  on every route, so `/login` — which has no session by design — logged a 401 that
+  could only be a lie. It now skips the signed-out routes and refreshes on the way
+  into the app, which is also what makes a fresh sign-in load current data.
+- **`bootstrap/apply.py` updates an existing stack.** It only ever created one, so
+  a table added to `template.yml` (the `resets` store) was never provisioned: the
+  job created the stack once and then reported the missing table forever.
+  `UpdateStack` now runs against a healthy stack, and "no updates are to be
+  performed" counts as success.
+- **The console reads the right theme key on boot.** `main.jsx` still read
+  `ministack:theme` while `prefs.js` writes `emuplane:theme`, so a pinned theme was
+  ignored until the first toggle.
 
 - **A failed sign-in says why.** `web/src/api.ts` turned *every* 401 into “Your
   session expired. Sign in again.” — including the answer to a wrong password, so

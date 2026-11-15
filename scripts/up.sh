@@ -87,7 +87,7 @@ if [ -n "$network" ] && ! podman network exists "$network"; then
 fi
 
 # First setup, and every start after it: provision the control's own substrate.
-# The stack owns the ten DynamoDB tables the control stores itself in; the job is
+# The stack owns every DynamoDB table the control stores itself in; the job is
 # idempotent and the control refuses to serve until the tables exist.
 echo "applying the control stack (bootstrap/apply.py)"
 "${compose[@]}" run --rm --no-deps bootstrap
