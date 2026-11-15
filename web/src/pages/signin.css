@@ -41,6 +41,8 @@ body.awsui-dark-mode {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  /* A touch more air than Cloudscape's default, to match the sign-up card. */
+  padding: 0.75rem 0.5rem;
 }
 
 /* Emuplane owns the sign-in page; the console that follows wears the backend's
@@ -48,25 +50,39 @@ body.awsui-dark-mode {
    way the sign-up page shows it. */
 .signin__mark {
   display: block;
-  width: 2.5rem;
-  height: 2.5rem;
-  margin: 0 auto 1rem;
+  height: 3.6rem;
+  width: auto;
+  margin: 0 auto 1.75rem;
 }
 
 /* Title block: the heading carries its own bottom margin, the lead sits under it. */
-.signin__heading h1,
-.signin__heading .signin__title {
-  margin: 0 0 0.5rem;
-  font-size: 1.5rem;
+.signin__heading {
+  text-align: center;
+}
+
+.signin__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+  font-size: 1.45rem;
   line-height: 1.3;
-  font-weight: 700;
+  font-weight: 600;
+  text-align: center;
+}
+
+.signin__info {
+  display: inline-flex;
+  align-items: center;
 }
 
 .signin__lead {
   color: var(--color-text-body-secondary, #5f6b7a);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   line-height: 1.45;
-  margin-bottom: 1.25rem;
+  text-align: center;
+  margin-bottom: 1.6rem;
 }
 
 .signin__lead strong {
@@ -211,19 +227,19 @@ body.awsui-dark-mode {
 /* Theme switch: a quiet corner icon, no chrome of its own. */
 .signin__theme {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.75rem;
+  right: 0.75rem;
   z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.125rem;
+  height: 2.125rem;
   padding: 0;
   border: 0;
   background: transparent;
   color: inherit;
-  opacity: 0.7;
+  opacity: 0.85;
   cursor: pointer;
 }
 

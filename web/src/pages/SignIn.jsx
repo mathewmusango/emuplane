@@ -7,7 +7,6 @@ import Checkbox from '@cloudscape-design/components/checkbox'
 import Container from '@cloudscape-design/components/container'
 import Form from '@cloudscape-design/components/form'
 import FormField from '@cloudscape-design/components/form-field'
-import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
 import Link from '@cloudscape-design/components/link'
 import Popover from '@cloudscape-design/components/popover'
@@ -90,15 +89,19 @@ function Card({ title, description, info, children }) {
           aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
           title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-          {dark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          {dark ? <Sun size={21} aria-hidden="true" /> : <Moon size={21} aria-hidden="true" />}
         </button>
         <Container>
           <div className="signin__body">
             <img className="signin__mark" src="/emuplane.svg" alt="Emuplane" />
             <div className="signin__heading">
-              <Header variant="h1" info={info}>
+              {/* The title is rendered here rather than by Cloudscape's Header: its
+                  heading root is a flex row that will not centre, and the sign-up
+                  page centres its title. */}
+              <h1 className="signin__title">
                 {title}
-              </Header>
+                {info ? <span className="signin__info">{info}</span> : null}
+              </h1>
               {description ? <div className="signin__lead">{description}</div> : null}
             </div>
             {children}

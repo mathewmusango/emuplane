@@ -1821,9 +1821,9 @@ AUTH_STYLE = """
   .theme { position: absolute; top: .75rem; right: .75rem; display: inline-flex;
            align-items: center; margin: 0; background: transparent; }
   .theme button { display: inline-flex; align-items: center; justify-content: center;
-                  width: 24px; height: 24px; padding: 0; border: none;
-                  border-radius: 0; background: transparent; color: inherit;
-                  cursor: pointer; opacity: .8; }
+                  width: 34px; height: 34px; padding: 0; border: none;
+                  border-radius: 50%; background: transparent; color: inherit;
+                  cursor: pointer; opacity: .85; }
   .theme button:hover { opacity: 1; }
   .theme button span[hidden] { display: none !important; }
   .theme button span { display: inline-flex; align-items: center; }
@@ -2610,14 +2610,14 @@ class ControlHandler(BaseHTTPRequestHandler):
 <div class="theme" id="theme-toggle">
   <button type="button" aria-label="Toggle colour theme" title="Toggle colour theme">
     <span class="icon-sun">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <circle cx="12" cy="12" r="4"></circle>
         <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
       </svg>
     </span>
     <span class="icon-moon">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="2" stroke-linecap="round"
            stroke-linejoin="round">
         <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
