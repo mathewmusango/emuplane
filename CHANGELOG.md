@@ -29,6 +29,12 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **The sign-in screens are the login page.** `/login` is served by the console
+  (`PUBLIC_SPA_ROUTES`) and the server-rendered form is gone; `POST /api/auth/login`
+  verifies root (email or username) and IAM (account + username) credentials, checks
+  the account and root-credential flags, and sets the session cookie. `mfa_required`
+  comes from the answer, and `POST /api/auth/mfa` answers 501 until enrolment exists.
+  `web/src/authStub.js` is deleted — the screens call the real endpoint.
 - **Optional settings have defaults.** `MINISTACK_NODE_NAME` defaults to the
   emulator's compose service name, and `MC_STORE_ACCOUNT` / `MC_STORE_REGION` /
   `MC_STORE_URL` default inside the store client — a `.env` only has to name the

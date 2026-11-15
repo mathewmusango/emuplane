@@ -46,6 +46,15 @@ const ACTIONS = {
 
 const RESPONSES = {
   '/api/meta': META,
+  '/api/auth/login': {
+    ok: true,
+    mfa_required: false,
+    user: 'root@example.com',
+    account: '111111111111',
+    alias: 'mathewmusango',
+    role: 'root',
+  },
+  '/api/auth/mfa': { ok: true },
   '/api/services': { s3: { ministack: true } },
   '/api/actions': ACTIONS,
   '/api/users': [
@@ -219,8 +228,8 @@ describe('console', () => {
     expect(screen.queryByText('References')).toBeNull()
   })
 
-  it('signs a root user in without asking for a code when MFA is off', async () => {
-    renderAt(<App />, ['/signin'])
+  it('signs a root user in through the login page', async () => {
+    renderAt(<App />, ['/login'])
     expect(await screen.findByText('Access your AWS account by user type.')).toBeTruthy()
 
     fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
@@ -242,37 +251,43 @@ describe('console', () => {
     expect(screen.queryByText('Additional verification required')).toBeNull()
   })
 
-  it('asks for the code only when the principal has MFA, and checks it', async () => {
-    renderAt(<App />, ['/signin?mfa=1'])
-    expect(await screen.findByText('Access your AWS account by user type.')).toBeTruthy()
+  it('asks for a code when the server says MFA is required', async () => {
+    const original = RESPONSES['/api/auth/login']
+    RESPONSES['/api/auth/login'] = { ...original, mfa_required: true }
+    try {
+      renderAt(<App />, ['/login'])
+      expect(await screen.findByText('Access your AWS account by user type.')).toBeTruthy()
 
-    fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
-      target: { value: 'root@example.com' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Root user sign in')
-    fireEvent.change(screen.getByLabelText('Password'), {
-      target: { value: 'correct horse battery' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+      fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
+        target: { value: 'root@example.com' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+      await screen.findByText('Root user sign in')
+      fireEvent.change(screen.getByLabelText('Password'), {
+        target: { value: 'correct horse battery' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByText('Additional verification required')).toBeTruthy()
+      expect(await screen.findByText('Additional verification required')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('MFA code'), { target: { value: '12' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(
-      await screen.findByText('Enter the 6-digit code from your MFA device.'),
-    ).toBeTruthy()
+      fireEvent.change(screen.getByLabelText('MFA code'), { target: { value: '12' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+      expect(
+        await screen.findByText('Enter the 6-digit code from your MFA device.'),
+      ).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('MFA code'), { target: { value: '123456' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+      fireEvent.change(screen.getByLabelText('MFA code'), { target: { value: '123456' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByText('Services answering')).toBeTruthy()
+      expect(await screen.findByText('Services answering')).toBeTruthy()
+    } finally {
+      RESPONSES['/api/auth/login'] = original
+    }
   })
 
   it('checks the account reference before asking for IAM credentials', async () => {
     localStorage.removeItem('ministack:signin-account')
-    renderAt(<App />, ['/signin'])
+    renderAt(<App />, ['/login'])
 
     fireEvent.click(await screen.findByRole('radio', { name: /IAM user/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))

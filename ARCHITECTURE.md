@@ -133,8 +133,10 @@ Ordered so each one is verifiable on its own.
    `ensure_tables()` Layer-0 call. Verify: tables exist after a cold start.
 2. **Principals, accounts, sessions, audit** — the four document stores over the
    new backend, replacing the `control.db` write paths one store at a time.
-3. **Login screens** — the five screens above, wired to the new auth endpoints;
-   the console keeps its Cloudscape shell.
+3. **Login screens** — done for password auth: the console's five screens are
+   `/login`, and `POST /api/auth/login` mints the session. Left: MFA enrolment
+   (`mfa_required` is always false, `POST /api/auth/mfa` answers 501), and the
+   sign-up screen is still server-rendered.
 4. **Cells and the router** — cell records, account→cell assignment, the proxy
    with its forwarded headers, and per-account storage inside each cell.
 5. **Break-glass and root lifecycle** — the two destructive paths, both audited.

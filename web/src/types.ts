@@ -228,3 +228,14 @@ export interface SettingsResult {
   signup_enabled: boolean
   instance_regions: string[]
 }
+
+// The answer to POST /api/auth/login. `mfa_required` is what decides whether the
+// code screen appears; it is false for every account until enrolment exists.
+export interface SignInResult {
+  ok: boolean
+  mfa_required: boolean
+  user: string
+  account: string
+  alias: string
+  role: string
+}

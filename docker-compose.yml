@@ -14,6 +14,9 @@ services:
         required: false
     environment:
       TZ: "${TZ:-Africa/Nairobi}"
+      # Derived, not configured: the control reaches the emulator at the
+      # container it starts next to. Set MC_EMULATOR_CONTAINER to move it.
+      MINISTACK_NODE_URL: "http://${MC_EMULATOR_CONTAINER:-ministack}:${CONTROL_GATEWAY_PORT:-4566}"
     command: ["python", "/app/bootstrap/apply.py"]
 
   ministack-control:
@@ -23,10 +26,9 @@ services:
       - path: ./.env
         required: false
     environment:
-      # The zone the console renders timestamps in. A named zone beats mounting
-      # the host's /etc/localtime: it travels with the deployment, works on any
-      # host, and the image already ships zoneinfo (Alpine's tzdata).
       TZ: "${TZ:-Africa/Nairobi}"
+      # Same derivation as the init job: one place names the emulator container.
+      MINISTACK_NODE_URL: "http://${MC_EMULATOR_CONTAINER:-ministack}:${CONTROL_GATEWAY_PORT:-4566}"
     ports:
       - "127.0.0.1:${MC_UI_PORT:-4570}:8080"
       - "127.0.0.1:${MC_GATEWAY_PORT:-4571}:4566"

@@ -23,8 +23,9 @@ export default function App() {
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/about" element={<About />} />
-        {/* Not in the control plane's SPA_ROUTES yet, so it renders on the Vite
-            dev server only until the auth endpoints land (ARCHITECTURE.md slice 3). */}
+        {/* The sign-in screens are the login page: the control plane serves this
+            route without a session and POST /api/auth/login mints the cookie. */}
+        <Route path="/login" element={<SignIn />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -279,23 +279,24 @@ plane is a tenant of the service it manages, and its state moves with that servi
 
 | Page | What it does |
 | --- | --- |
-| `/login` | email-or-username + password |
+| `/login` | the console's five sign-in screens: user type → root email (or IAM account + username) → password → MFA. `POST /api/auth/login` mints the session |
 | `/signup` | creates an account (fresh 12-digit ID, unique alias) and signs in; **the first one becomes the default global admin**. Link-free by design — reachable only when sign-up is enabled |
 
 ### The sign-in screens
 
-The console carries the five AWS sign-in screens (user type → root email or IAM
-account + username → password → MFA) as `web/src/pages/SignIn.jsx`, in one
-`/signin` route with a small state machine. The control plane serves that route
-**without a session** (`PUBLIC_SPA_ROUTES`), and the classic login page links to
-it, so it is live in the running console — but `/login` remains the
-server-rendered form, because it is the only thing that mints a session.
-Submitting goes to `web/src/authStub.js` — the payload shapes the auth endpoints
-will take, no network, no password field in the call and no session minted. The
-MFA screen appears only when the principal has MFA enabled; with no endpoint to
-ask, `?mfa=1` (i.e. `/signin?mfa=1`) stands in for that flag and plain `/signin`
-signs straight through. So slice 3 of `ARCHITECTURE.md` is a swap of that module
-plus the `/login` handover, not a rewrite.
+`web/src/pages/SignIn.jsx` is the five screens of AWS's own flow, in one route and
+one state machine — user type → root email *or* IAM account + username → password →
+MFA code. It **is** the login page: the control plane serves `/login` without a
+session (`PUBLIC_SPA_ROUTES`), and the page signs in for real by calling
+`POST /api/auth/login`, which verifies the password against the user store, checks
+that the account is enabled and the root credential is not revoked, and sets the
+same `HttpOnly` session cookie every later request uses. There is no server-rendered
+login form any more; `/signin` remains as an alias for the same screens.
+
+The code screen appears **only when the server says the principal owes a code**
+(`mfa_required`). Enrolment does not exist yet, so that answer is false for every
+account and the third screen is not reached; `POST /api/auth/mfa` answers `501`
+until enrolment lands (ARCHITECTURE.md slice 3b).
 
 The control seeds **nothing** from `.env`. The first account created — by local
 sign-up — is the platform owner: `global_admin` and `default_admin` are set on
@@ -557,6 +558,8 @@ API responses carry `api_version` (`v1`); routes accept both `/api/...` and
 | POST | `/login` | credentials | start a session |
 | GET | `/logout` | session | end a session |
 | GET | `/api/meta` | session/token | product, API version, emulator version, enabled regions, visible accounts, session, uptime |
+| POST | `/api/auth/login` | **none** | sign in from the console's screens: `{mode: root\|iam, email \| account + username, password}` → session cookie + `mfa_required` |
+| POST | `/api/auth/mfa` | **none** | the code step; answers `501` until MFA enrolment exists |
 | GET | `/api/actions` | session/token | GUI action catalogue + service groups |
 | GET | `/api/counts` | session/token | per-service resource counts for one account/region |
 | POST | `/api/exec` | session/token | `{account, region, service, operation, params}` |

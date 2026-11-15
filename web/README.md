@@ -115,30 +115,24 @@ fetching and passes plain props down.
 route and one state machine — not five routes, because the flow is linear and
 the e-mail/account you typed has to survive the steps:
 
-| Step | Screen | Submits |
+| Step | Screen | Calls |
 | --- | --- | --- |
 | `type` | user-type cards (root / IAM), then email or account ID | nothing — client-side checks only |
-| `root-password` | "Root user sign in", password | `signIn({ userType: 'root', email })` |
-| `iam-password` | "IAM user sign in", account + username + password | `signIn({ userType: 'iam', account, username })` |
-| `mfa` | "Additional verification required" | `verifyMfa({ code })` |
+| `root-password` | "Root user sign in", password | `api.signIn({ mode: 'root', email, password })` |
+| `iam-password` | "IAM user sign in", account + username + password | `api.signIn({ mode: 'iam', account, username, password })` |
+| `mfa` | "Additional verification required" | `api.verifyMfa({ code })` |
 
-**The code screen only exists for a principal with MFA enabled.** The stub cannot
-know that, so it answers `mfaRequired: false` unless the preview passes
-`?mfa=1` — i.e. `/signin?mfa=1` walks the third screen, `/signin` signs straight
-through. The real endpoint reads the flag off the principal and the option goes
-away with the stub.
+**These screens are the login page.** The control plane serves `/login` without a
+session (`PUBLIC_SPA_ROUTES` in `control/app.py`) and `POST /api/auth/login`
+verifies the password, checks the account is enabled and the root credential is not
+revoked, then sets the same `HttpOnly` session cookie every later request uses. The
+old server-rendered form is gone; `/signin` stays as an alias, and `src/api.ts`
+does not bounce a 401 from either route (every other path still redirects to
+`/login`). `?next=` is honoured (path-only, never protocol-relative).
 
-The route is `/signin` and the control plane **serves it without a session**
-(`PUBLIC_SPA_ROUTES` in `control/app.py`), so it is reachable from the running
-console and the classic login page links to it. `/login` itself stays
-server-rendered, because only that form mints a session — the stub cannot, and
-wiring the screens in front of `/login` today would lock the console out. That
-swap is ARCHITECTURE.md slice 3, together with replacing `src/authStub.js` with
-real calls: the stub sends the payloads the endpoints will take, never touches
-the network, takes no password, and reports MFA only when the preview asks for
-it. Because the page is public, `src/api.ts` does **not** bounce
-a 401 from `/signin` to `/login` (every other path still does). `?next=` is
-honoured (path-only, never protocol-relative).
+**The code screen appears only when the server says so** (`mfa_required` in the
+answer). Enrolment does not exist yet, so it is false for every account and the
+third screen is not reached; `POST /api/auth/mfa` answers `501` until it does.
 
 "Remember this account" (IAM branch) keeps the account ID or alias in
 `localStorage` under `ministack:signin-account`; it is cleared on every other

@@ -14,6 +14,7 @@ import type {
   ProvisionResult,
   RegionResult,
   SettingsResult,
+  SignInResult,
   UpdateMeResult,
   UserAccount,
 } from './types'
@@ -24,10 +25,9 @@ interface RequestOptions {
   headers?: Record<string, string>
 }
 
-// A 401 means the session expired: the server-rendered login page is still what
-// mints a session, so bounce there. The one exception is the sign-in screens
-// themselves, which are served without a session — a 401 there is expected, and
-// bouncing would make the page unreachable.
+// A 401 means the session expired: bounce to the login screens. The two sign-in
+// routes are the exception — they are served without a session, and a 401 there
+// is the answer to a wrong password, not an expired session.
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(path, {
     credentials: 'same-origin',
@@ -40,7 +40,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   })
 
   if (response.status === 401) {
-    if (window.location.pathname !== '/signin') {
+    const here = window.location.pathname
+    if (here !== '/login' && here !== '/signin') {
       const next = encodeURIComponent(window.location.pathname + window.location.search)
       window.location.assign(`/login?next=${next}`)
     }
@@ -71,6 +72,15 @@ const query = (params: Record<string, string>): string =>
 
 export const api = {
   meta: () => request<Meta>('/api/meta'),
+  signIn: (payload: {
+    mode: 'root' | 'iam'
+    email?: string
+    account?: string
+    username?: string
+    password: string
+  }) => request<SignInResult>('/api/auth/login', { method: 'POST', body: payload }),
+  verifyMfa: (payload: { code: string }) =>
+    request<{ ok: boolean }>('/api/auth/mfa', { method: 'POST', body: payload }),
   actions: () => request<ActionCatalogue>('/api/actions'),
   services: () => request<Record<string, Record<string, unknown>>>('/api/services'),
   users: () => request<UserAccount[]>('/api/users'),

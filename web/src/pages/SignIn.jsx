@@ -12,8 +12,26 @@ import Link from '@cloudscape-design/components/link'
 import Popover from '@cloudscape-design/components/popover'
 import RadioGroup from '@cloudscape-design/components/radio-group'
 import SpaceBetween from '@cloudscape-design/components/space-between'
-import { accountProblem, emailProblem, mfaPreviewRequested, signIn, verifyMfa } from '../authStub'
+import { api } from '../api'
 import './signin.css'
+
+// '' when the value is usable, otherwise the sentence the field shows. The server
+// validates again — this only spares the first screen a round trip.
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+const ALIAS = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/
+
+const emailProblem = (value) =>
+  EMAIL.test(value.trim()) ? '' : 'That email address does not look right.'
+
+const accountProblem = (value) => {
+  const reference = value.trim()
+  if (/^\d+$/.test(reference)) {
+    return reference.length === 12 ? '' : 'An account ID is exactly 12 digits.'
+  }
+  return ALIAS.test(reference.toLowerCase())
+    ? ''
+    : 'Use the 12-digit account ID or the account alias.'
+}
 
 // Which account the visitor signed in with last, when they asked us to remember.
 const REMEMBER_KEY = 'ministack:signin-account'
@@ -59,9 +77,6 @@ export default function SignIn() {
   const [params] = useSearchParams()
   const requested = params.get('next') || '/'
   const next = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/'
-  // Only a principal with MFA enabled sees the code screen. Until the auth
-  // endpoints answer for a real principal, `?mfa=1` stands in for that flag.
-  const mfaEnabled = mfaPreviewRequested(params)
 
   const [step, setStep] = useState('type')
   const [userType, setUserType] = useState('root')
@@ -139,15 +154,17 @@ export default function SignIn() {
     }
     setBusy(true)
     try {
-      const result = await signIn({
-        userType,
+      // The server decides whether this principal still owes a code; the screen
+      // follows its answer rather than guessing.
+      const result = await api.signIn({
+        mode: userType,
         email: email.trim(),
         account: account.trim(),
         username: username.trim(),
-        mfa: mfaEnabled,
+        password,
       })
       setPassword('')
-      if (result.mfaRequired) {
+      if (result.mfa_required) {
         setStep('mfa')
         return
       }
@@ -168,7 +185,7 @@ export default function SignIn() {
     }
     setBusy(true)
     try {
-      await verifyMfa({ code: code.trim() })
+      await api.verifyMfa({ code: code.trim() })
       finish()
     } catch (err) {
       setError(err.message)

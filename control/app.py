@@ -109,11 +109,10 @@ STATIC_DIR = os.environ.get("MINISTACK_STATIC_DIR", "/app/static")
 PUBLIC_DIR = os.environ.get("MINISTACK_PUBLIC_DIR", "/app/public")
 SPA_ROUTES = {"/", "/resources", "/favorites", "/accounts", "/onboarding",
               "/settings", "/about"}
-# Served to anyone, signed in or not: the sign-in screens the console will use
-# once the auth endpoints land (ARCHITECTURE.md slice 3). Until then the page
-# submits to a stub, so it cannot mint a session — which is why /login stays
-# server-rendered and remains the only form that signs anyone in.
-PUBLIC_SPA_ROUTES = {"/signin"}
+# Served to anyone, signed in or not: the sign-in screens themselves. The
+# endpoint behind them (`POST /api/auth/login`) mints the session, so this route
+# *is* the login page — there is no server-rendered form any more.
+PUBLIC_SPA_ROUTES = {"/login", "/signin"}
 MIME = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -618,6 +617,20 @@ class UserStore:
 
     def exists(self, username: str) -> bool:
         return self._key(username) in self.users
+
+    def find_by_email(self, email: str) -> dict | None:
+        """The user record whose address matches, case-insensitively.
+
+        Root sign-in asks for an email, but the store is keyed by username and
+        the address is optional, so a user without one simply has no match.
+        """
+        wanted = (email or "").strip().lower()
+        if not wanted:
+            return None
+        for user in self.users.values():
+            if (user.get("email") or "").strip().lower() == wanted:
+                return user
+        return None
 
     def create(
         self,
@@ -2278,10 +2291,12 @@ class ControlHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         print(f"control: {fmt % args}", flush=True)
 
-    def _json(self, status: int, payload) -> None:
+    def _json(self, status: int, payload, cookie: str = "") -> None:
         body = json.dumps(payload, indent=2).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -2396,48 +2411,98 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def _login(self) -> None:
-        length = int(self.headers.get("Content-Length") or 0)
-        raw = self.rfile.read(length).decode() if length else ""
-        form = parse_qs(raw)
-        username = (form.get("username") or [""])[0]
-        password = (form.get("password") or [""])[0]
-        next_path = (form.get("next") or ["/"])[0]
-        if not next_path.startswith("/") or next_path.startswith("//"):
-            next_path = "/"
+    def _auth_login(self) -> None:
+        """JSON sign-in for the console's own screens.
+
+        Root takes an email (or username) and a password; IAM takes an account
+        reference, a username and a password. Success mints the same HttpOnly
+        session cookie the server-rendered form used to, so every later request
+        is unchanged. The answer says whether this principal still owes an MFA
+        code; enrolment does not exist yet (slice 3b), so it is false for every
+        account and the code screen is not reached.
+        """
+        payload = self._body()
+        mode = str(payload.get("mode") or "root").strip().lower()
+        password = str(payload.get("password") or "")
+        if mode not in {"root", "iam"}:
+            return self._json(400, {"error": "user type must be root or iam"})
+        if not password:
+            return self._json(400, {"error": "Enter your password."})
+
+        if mode == "root":
+            identifier = str(payload.get("email") or "").strip()
+            if not identifier:
+                return self._json(
+                    400, {"error": "Enter the email address for the account."}
+                )
+            user = USERS.find_by_email(identifier) or USERS.get(identifier)
+            if user is None:
+                time.sleep(0.4)
+                return self._json(
+                    401, {"error": "That email address and password do not match."}
+                )
+            username = user["username"]
+        else:
+            reference = str(payload.get("account") or "").strip()
+            username = str(payload.get("username") or "").strip()
+            if not reference or not username:
+                return self._json(
+                    400, {"error": "Enter the account and the IAM username."}
+                )
+            account = ACCOUNTS.by_ref(reference)
+            user = USERS.get(username)
+            if (
+                account is None
+                or user is None
+                or user.get("account_id") != account["account_id"]
+            ):
+                time.sleep(0.4)
+                return self._json(
+                    401, {"error": "That account, username and password do not match."}
+                )
+
         record = USERS.verify(username, password)
         if record is None:
             time.sleep(0.4)
-            return self._page(
-                self._login_page("Invalid username or password.", next_path),
-                status=401,
-            )
+            return self._json(401, {"error": "That password does not match."})
         account = ACCOUNTS.by_ref(record["account_id"])
-        principal = ((account or {}).get("users") or {}).get(record["username"])
+        principal = ((account or {}).get("users") or {}).get(username)
         if account is None or principal is None:
-            return self._page(
-                self._login_page("This user has no account record; sign up again."),
-                500,
+            return self._json(
+                500, {"error": "This user has no account record; sign up again."}
             )
         if account.get("disabled"):
-            return self._page(
-                self._login_page("This account is disabled.", next_path), 403
+            return self._json(403, {"error": "This account is disabled."})
+        if principal.get("role") == "root" and not account.get(
+            "root_credentials_enabled", True
+        ):
+            return self._json(
+                403, {"error": "Root credentials for this account are disabled."}
             )
+        if principal.get("mfa_enabled"):
+            # The contract is in place; the enrolment flow is not (slice 3b).
+            return self._json(
+                501, {"error": "MFA enrolment is not implemented yet."}
+            )
+
         token = new_session(
-            record["username"],
-            account["account_id"],
-            principal["role"],
-            account["alias"],
+            username, account["account_id"], principal["role"], account["alias"]
         )
-        self.send_response(302)
-        self.send_header("Location", next_path)
-        self.send_header(
-            "Set-Cookie",
-            f"ministack_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
-            "HttpOnly; SameSite=Lax",
+        self._json(
+            200,
+            {
+                "ok": True,
+                "mfa_required": False,
+                "user": username,
+                "account": account["account_id"],
+                "alias": account["alias"],
+                "role": principal["role"],
+            },
+            cookie=(
+                f"ministack_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
+                "HttpOnly; SameSite=Lax"
+            ),
         )
-        self.send_header("Content-Length", "0")
-        self.end_headers()
 
     def _signup(self) -> None:
         if not SETTINGS.get("signup_enabled", True):
@@ -2513,47 +2578,6 @@ class ControlHandler(BaseHTTPRequestHandler):
 </div>
 {body}</main><script>{AUTH_THEME_SCRIPT}</script></body></html>"""
 
-    def _login_page(
-        self, error: str = "", next_path: str = "/", message: str = ""
-    ) -> str:
-        notice = f'<div class="error">{html.escape(error)}</div>' if error else ""
-        if message:
-            notice += f'<div class="ok">{html.escape(message)}</div>'
-        if not USERS.count():
-            local = (
-                '<div class="error">No local users yet. A global admin can '
-                "provision the first one.</div>"
-            )
-        else:
-            local = f"""
-        <form method="post" action="/login">
-          <input type="hidden" name="next" value="{html.escape(next_path)}">
-          <div class="field"><label for="username">Email or username</label>
-            <input id="username" name="username" autocomplete="username"
-                   placeholder="email or username" required autofocus></div>
-          <div class="field"><label for="password">Password</label>
-            <input id="password" name="password" type="password"
-                   autocomplete="current-password" placeholder="password"
-                   required></div>
-          <button type="submit">Sign in</button>
-        </form>"""
-        preview = (
-            '<div class="links">The five new sign-in screens are in preview: '
-            '<a href="/signin">try them</a></div>'
-        )
-        return self._auth_layout(
-            "Sign in",
-            f"""
-    <div class="brand"><img class="logo" src="/ministack-logo.png"
-         alt="MiniStack"></div>
-    <h1>Welcome to MiniStack CP</h1>
-    <p class="sub">Sign in to your account</p>
-    {notice}
-    {local}
-    {preview}
-""",
-        )
-
     def _signup_page(self, error: str = "", username: str = "", email: str = "") -> str:
         notice = f'<div class="error">{html.escape(error)}</div>' if error else ""
         return self._auth_layout(
@@ -2606,8 +2630,6 @@ class ControlHandler(BaseHTTPRequestHandler):
             # Public and unauthenticated: liveness only. Counts, uptime, mode and
             # seen regions are in `/api/meta`, behind a session.
             return self._json(200, {"status": "ok"})
-        if path == "/login":
-            return self._page(self._login_page())
         if path == "/signup":
             return self._page(self._signup_page())
         if path in PUBLIC_SPA_ROUTES:
@@ -2973,12 +2995,16 @@ class ControlHandler(BaseHTTPRequestHandler):
 
     def _route_post(self):
         path = urlsplit(self.path).path
-        if path == "/login":
-            return self._login()
         if path == "/signup":
             return self._signup()
         if path.startswith("/api"):
             path = self._api_path(path)
+        if path == "/api/auth/login":
+            return self._auth_login()
+        if path == "/api/auth/mfa":
+            return self._json(
+                501, {"error": "MFA enrolment is not implemented yet."}
+            )
         if path == "/api/me":
             return self._update_me()
         if not self._require_admin():

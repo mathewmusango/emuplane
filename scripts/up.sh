@@ -117,8 +117,10 @@ echo "applying the control stack (bootstrap/apply.py)"
 
 "${compose[@]}" up -d --force-recreate
 
-ui_port=$(require MC_UI_PORT)
-gateway_port=$(require MC_GATEWAY_PORT)
+ui_port=$(sed -n 's/^MC_UI_PORT=//p' .env)
+ui_port=${ui_port:-4570}
+gateway_port=$(sed -n 's/^MC_GATEWAY_PORT=//p' .env)
+gateway_port=${gateway_port:-4571}
 
 for _ in $(seq 1 60); do
   if curl -fsS -m 2 -o /dev/null "http://127.0.0.1:${ui_port}/health"; then
