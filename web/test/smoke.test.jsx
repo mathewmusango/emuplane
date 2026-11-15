@@ -308,13 +308,11 @@ describe('console', () => {
     expect(screen.getByText('(2/2)')).toBeTruthy()
   })
 
-  it('lists resources across every region when the toggle is on', async () => {
+  it('lists resources across every region from the All AWS Regions tab', async () => {
     renderAt(<Resources />)
     await screen.findByText('S3 resources')
     expect(screen.queryByText('Region')).toBeNull()
-    fireEvent.click(
-      await screen.findByRole('switch', { name: /View from all regions/i }),
-    )
+    fireEvent.click(await screen.findByRole('tab', { name: 'All AWS Regions' }))
     expect(await screen.findByText('Region')).toBeTruthy()
     expect(screen.getByText(/created by mathewmusango/)).toBeTruthy()
     expect(screen.getByText('us-east-1, us-west-2', { exact: false })).toBeTruthy()

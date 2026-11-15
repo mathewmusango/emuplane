@@ -255,6 +255,12 @@ the minor number is bumped by hand, patch releases are the bot's.
   reuses the backend's port: `EP_GATEWAY_PORT=8081` inside the container, published
   on `EP_PUBLISHED_GATEWAY_PORT=4571`, forwarding to the backend's `EP_BACKEND_PORT`.
 
+### Changed
+
+- **The S3 page reads like the console's.** Breadcrumb `Amazon S3 / Buckets`
+  (the long service name comes from `serviceLongName`), the page heading is
+  `Buckets`, and the region toggle is now the console's two tabs — *General
+  purpose buckets* and *All AWS Regions* — driving the same all-regions fetch.
 ### Fixed
 
 - **The picker writes the region into the URL on the click itself** (`Shell`'s

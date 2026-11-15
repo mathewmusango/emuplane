@@ -84,3 +84,20 @@ export function serviceLabel(name) {
   if (name.length <= 3) return name.toUpperCase()
   return NAMES[name] || words(name)
 }
+
+// The name the console uses for a service in a breadcrumb or a nav heading —
+// "Amazon S3", where the short label is just "S3".
+const LONG_NAMES = {
+  s3: 'Amazon S3',
+  ses: 'Amazon SES',
+  sqs: 'Amazon SQS',
+  sns: 'Amazon SNS',
+  ec2: 'Amazon EC2',
+  rds: 'Amazon RDS',
+  iam: 'AWS IAM',
+  kms: 'AWS KMS',
+}
+
+export function serviceLongName(name) {
+  return LONG_NAMES[name] || serviceLabel(name)
+}

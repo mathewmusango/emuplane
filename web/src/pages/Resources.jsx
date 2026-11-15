@@ -20,6 +20,7 @@ import SideNavigation from '@cloudscape-design/components/side-navigation'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import StatusIndicator from '@cloudscape-design/components/status-indicator'
 import Table from '@cloudscape-design/components/table'
+import Tabs from '@cloudscape-design/components/tabs'
 
 import Textarea from '@cloudscape-design/components/textarea'
 import TextFilter from '@cloudscape-design/components/text-filter'
@@ -29,7 +30,7 @@ import { api } from '../api'
 import { useSession } from '../context'
 import { useRecent } from '../prefs'
 import { ServiceIcon } from '../serviceIcons'
-import { serviceLabel } from '../serviceLabels'
+import { serviceLabel, serviceLongName } from '../serviceLabels'
 import { Shell, loadCatalogue } from '../components/Shell'
 
 const FIELD_DEFAULTS = (fields) =>
@@ -447,8 +448,8 @@ export default function Resources() {
     <Shell
       activeHref="/resources"
       breadcrumbs={[
-        { text: 'All services', href: '/services' },
-        { text: serviceLabel(service), href: `/resources/${service}` },
+        { text: serviceLongName(service), href: `/${service}/home` },
+        { text: service === 's3' ? 'Buckets' : 'Resources' },
       ]}
     >
       <ContentLayout
@@ -465,7 +466,7 @@ export default function Resources() {
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <ServiceIcon name={service} size={22} />
-              {serviceLabel(service)}
+              {service === 's3' ? 'Buckets' : serviceLabel(service)}
             </span>
           </Header>
         }
@@ -488,13 +489,24 @@ export default function Resources() {
                 placeholder="Choose a service"
                 ariaLabel="Service"
               />
-              <Toggle
-                checked={allRegions}
-                onChange={({ detail }) => setAllRegions(detail.checked)}
-                description="List this service across every region this account has enabled. Actions and bucket contents still use the region selected in the header."
-              >
-                View from all regions
-              </Toggle>
+              {service === 's3' ? (
+                <Tabs
+                  activeTabId={allRegions ? 'all' : 'general'}
+                  onChange={({ detail }) => setAllRegions(detail.activeTabId === 'all')}
+                  tabs={[
+                    { id: 'general', label: 'General purpose buckets' },
+                    { id: 'all', label: 'All AWS Regions' },
+                  ]}
+                />
+              ) : (
+                <Toggle
+                  checked={allRegions}
+                  onChange={({ detail }) => setAllRegions(detail.checked)}
+                  description="List this service across every region this account has enabled. Actions and bucket contents still use the region selected in the header."
+                >
+                  View from all regions
+                </Toggle>
+              )}
               <Box color="text-body-secondary" fontSize="body-s">
                 Account <code>{account}</code> ·{' '}
                 {allRegions ? (

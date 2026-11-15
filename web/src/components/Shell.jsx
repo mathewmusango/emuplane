@@ -7,7 +7,7 @@ import { useSession } from '../context'
 import { api } from '../api'
 import { useThemeMode } from './themeToggle'
 import TopBar from './TopBar'
-import { serviceLabel } from '../serviceLabels'
+import { serviceLabel, serviceLongName } from '../serviceLabels'
 import ServicesMenu from './ServicesMenu'
 
 const navItems = () => [
