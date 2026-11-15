@@ -1,6 +1,6 @@
 # MiniStack console
 
-The React console served at `https://ministack-control.example.com/`. It is a Vite app built
+The React console served at `https://emuplane.example.com/`. It is a Vite app built
 with [Cloudscape](https://cloudscape.design/), the AWS console design system, and
 talks only to the control plane's `/api/*` routes.
 
@@ -135,7 +135,7 @@ answer). Enrolment does not exist yet, so it is false for every account and the
 third screen is not reached; `POST /api/auth/mfa` answers `501` until it does.
 
 "Remember this account" (IAM branch) keeps the account ID or alias in
-`localStorage` under `ministack:signin-account`; it is cleared on every other
+`localStorage` under `emuplane:signin-account`; it is cleared on every other
 successful sign-in. "Create a new AWS account" and "New to AWS? Sign up" open
 the server's `/signup` page, and the help links (info icon, "not sure?",
 "Forgot password?", "Having trouble?", "Don't have?") are popovers rather than

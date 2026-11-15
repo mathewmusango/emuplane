@@ -29,7 +29,24 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
-- **The API bearer token is a hashed record, not a setting.** `MC_ADMIN_TOKEN` is
+- **The project is Emuplane, and it is not tied to one backend.** Renamed from
+  MinStack Control: the image is `ghcr.io/mathewmusango/emuplane`, the stack and its
+  tables are `emuplane` / `emuplane-*`, the cookie is `emuplane_session`, browser keys
+  are `emuplane:*`, and every setting uses the `EP_` prefix (`EP_BACKEND_URL`,
+  `EP_CONSOLE_URL`, `EP_PORT`, `EP_GATEWAY_PORT`, `EP_PUBLISHED_GATEWAY_PORT`, …).
+- **A backend is a profile.** `control/backends.py` holds one row per backend —
+  `generic`, `ministack`, `floci`, `localstack`, `moto` — with its display name,
+  default port and logo. `EP_BACKEND` selects it and `EP_BACKEND_URL` is the
+  connection string; `/api/meta` reports `backend`, `backend_id` and `backend_logo`,
+  so the console wears the backend's own mark after sign-in while the sign-in pages
+  carry Emuplane's.
+- **The gateway listens on 8081, not 4566.** The control's own listener no longer
+  reuses the backend's port: `EP_GATEWAY_PORT=8081` inside the container, published
+  on `EP_PUBLISHED_GATEWAY_PORT=4571`, forwarding to the backend's `EP_BACKEND_PORT`.
+
+### Changed
+
+- **The API bearer token is a hashed record, not a setting.** `EP_ADMIN_TOKEN` is
   gone from `.env`: `./scripts/token.sh` mints a token, prints it once and stores
   only a SHA-256 digest in the settings store, the same contract as a session.
   Rotation invalidates the previous token immediately, and a running control
@@ -42,14 +59,14 @@ the minor number is bumped by hand, patch releases are the bot's.
   comes from the answer, and `POST /api/auth/mfa` answers 501 until enrolment exists.
   `web/src/authStub.js` is deleted — the screens call the real endpoint.
 - **Optional settings have defaults.** `MINISTACK_NODE_NAME` defaults to the
-  emulator's compose service name, and `MC_STORE_ACCOUNT` / `MC_STORE_REGION` /
-  `MC_STORE_URL` default inside the store client — a `.env` only has to name the
+  emulator's compose service name, and `EP_STORE_ACCOUNT` / `EP_STORE_REGION` /
+  `EP_STORE_URL` default inside the store client — a `.env` only has to name the
   emulator endpoint and the two public addresses users are shown. `bootstrap/apply.py`
   gained `--drop-tables`: the one-off that deletes the stack and every control table,
   which is the only way to return a pre-stack installation to a first setup.
 - **The control's own substrate is provisioned by CloudFormation.**
   `bootstrap/template.yml` defines its ten DynamoDB tables as the stack
-  `ministack-control`; `bootstrap/apply.py` applies it as a first-setup init job
+  `emuplane`; `bootstrap/apply.py` applies it as a first-setup init job
   (`docker-compose.yml`'s `bootstrap` service, run by `scripts/up.sh` before the
   console starts) and is idempotent. `control/store.py` no longer creates tables —
   it verifies them and refuses to serve, naming any that are missing. Tables that
@@ -62,7 +79,7 @@ the minor number is bumped by hand, patch releases are the bot's.
   bind mount are gone; the running container mounts nothing from the host.
 - The compose files were renamed: the generic definition is `docker-compose.yml`,
   and the untracked deployment overlay is `compose.yml` — `scripts/up.sh` layers
-  it by default, or whatever `MC_OVERLAY` names.
+  it by default, or whatever `EP_OVERLAY` names.
 - CI now calls the shared workflow leaves — `checks-*`, `tests-vitest`,
   `release-image-ghcr`, `release-github`, `security-dependency-review` and
   `security-npm-audit` — pinned at
@@ -71,7 +88,7 @@ the minor number is bumped by hand, patch releases are the bot's.
   guard stays local because a tag ruleset cannot express it.
 - `checks.yml` grants `pull-requests: read`: the leaves use `dorny/paths-filter`,
   and a called workflow can only downgrade the token it is given.
-- `docker-compose.yml` is generic: the image comes from `MC_IMAGE` (default: the
+- `docker-compose.yml` is generic: the image comes from `EP_IMAGE` (default: the
   published GHCR tag), ports and the data directory have defaults, `.env` is
   optional, and no container names, hostnames or routes are baked in. A private
   `compose.yml` (gitignored) layers the names, routes and mounts of a

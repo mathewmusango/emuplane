@@ -11,7 +11,10 @@ import Accounts from '../src/pages/Accounts'
 import About from '../src/pages/About'
 
 const META = {
-  product: 'MiniStack',
+  product: 'Emuplane',
+  backend: 'MiniStack',
+  backend_id: 'ministack',
+  backend_logo: '/backends/ministack.png',
   api_version: 'v1',
   emulator_version: '1.5.37',
   me: { user: 'mathewmusango', account: '111111111111', alias: 'mathewmusango', role: 'root' },
@@ -55,7 +58,7 @@ const RESPONSES = {
     role: 'root',
   },
   '/api/auth/mfa': { ok: true },
-  '/api/services': { s3: { ministack: true } },
+  '/api/services': { s3: { emuplane: true } },
   '/api/actions': ACTIONS,
   '/api/users': [
     {
@@ -201,13 +204,13 @@ describe('console', () => {
 
   it('scopes recently visited to the signed-in account', async () => {
     localStorage.clear()
-    localStorage.setItem('ministack:recent', JSON.stringify(['s3']))
+    localStorage.setItem('emuplane:recent', JSON.stringify(['s3']))
     const first = renderAt(<Dashboard />)
     expect(await screen.findByText('Services answering')).toBeTruthy()
     expect(screen.queryByText('Recently visited')).toBeNull()
     first.unmount()
 
-    localStorage.setItem('ministack:recent:111111111111', JSON.stringify(['s3']))
+    localStorage.setItem('emuplane:recent:111111111111', JSON.stringify(['s3']))
     renderAt(<Dashboard />)
     expect(await screen.findByText('Recently visited')).toBeTruthy()
     localStorage.clear()
@@ -286,7 +289,7 @@ describe('console', () => {
   })
 
   it('checks the account reference before asking for IAM credentials', async () => {
-    localStorage.removeItem('ministack:signin-account')
+    localStorage.removeItem('emuplane:signin-account')
     renderAt(<App />, ['/login'])
 
     fireEvent.click(await screen.findByRole('radio', { name: /IAM user/ }))

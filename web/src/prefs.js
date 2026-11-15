@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { applyMode, Mode } from '@cloudscape-design/global-styles'
 
-const FAV_PREFIX = 'ministack:favorites'
-const FAV_EVENT = 'ministack:favorites-changed'
+const FAV_PREFIX = 'emuplane:favorites'
+const FAV_EVENT = 'emuplane:favorites-changed'
 
 // Browser state is scoped to the signed-in account: a new account (or a wiped
 // database, which mints new IDs) starts with an empty list instead of replaying
@@ -55,8 +55,8 @@ export function applyTheme(theme) {
   applyMode(dark ? Mode.Dark : Mode.Light)
 }
 
-const RECENT_PREFIX = 'ministack:recent'
-const RECENT_EVENT = 'ministack:recent-changed'
+const RECENT_PREFIX = 'emuplane:recent'
+const RECENT_EVENT = 'emuplane:recent-changed'
 
 function readRecent(key) {
   try {
@@ -90,11 +90,11 @@ export function useRecent(scope) {
 
 export function useTheme() {
   const [theme, setThemeState] = useState(
-    () => localStorage.getItem('ministack:theme') || 'system',
+    () => localStorage.getItem('emuplane:theme') || 'system',
   )
 
   const setTheme = useCallback((next) => {
-    localStorage.setItem('ministack:theme', next)
+    localStorage.setItem('emuplane:theme', next)
     applyTheme(next)
     setThemeState(next)
   }, [])

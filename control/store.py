@@ -37,8 +37,8 @@ TABLES = (
     "audit",
 )
 
-PREFIX = "ministack-control-"
-STACK_NAME = "ministack-control"
+PREFIX = "emuplane-"
+STACK_NAME = "emuplane"
 
 
 def table_name(store: str) -> str:

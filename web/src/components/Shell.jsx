@@ -133,8 +133,14 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         id="top-nav"
         identity={{
           href: '/',
-          title: 'MiniStack',
-          logo: { src: '/ministack-logo.png', alt: 'MiniStack' },
+          // The console wears the backend's identity: the profile named by EP_BACKEND
+          // supplies the title and the mark, and Emuplane's own mark stands in when
+          // that profile has no logo.
+          title: meta?.backend || 'Emuplane',
+          logo: {
+            src: meta?.backend_logo || '/emuplane.svg',
+            alt: meta?.backend || 'Emuplane',
+          },
           onFollow: (event) => {
             event.preventDefault()
             go('/')

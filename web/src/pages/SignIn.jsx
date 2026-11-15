@@ -34,7 +34,7 @@ const accountProblem = (value) => {
 }
 
 // Which account the visitor signed in with last, when they asked us to remember.
-const REMEMBER_KEY = 'ministack:signin-account'
+const REMEMBER_KEY = 'emuplane:signin-account'
 
 const readRemembered = () => {
   try {
@@ -80,6 +80,7 @@ function Card({ title, description, info, children }) {
       <div className="signin__card">
         <Container>
           <div className="signin__body">
+            <img className="signin__mark" src="/emuplane.svg" alt="Emuplane" />
             <div className="signin__heading">
               <Header variant="h1" info={info}>
                 {title}

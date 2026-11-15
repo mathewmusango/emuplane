@@ -1,35 +1,33 @@
-<h1 align="center">Ministack Control</h1>
-<p align="center"><strong>The control plane for the MiniStack AWS emulator.</strong></p>
-<p align="center">Emulator gateway · Accounts, logins and access keys · Console and control API</p>
+<h1 align="center">Emuplane</h1>
+<p align="center"><strong>The control plane, console and gateway for AWS-compatible emulators.</strong></p>
+<p align="center">Backend gateway · Accounts, logins and access keys · Console and control API</p>
 
 <p align="center">
-  <a href="https://github.com/mathewmusango/ministack-control/actions/workflows/release.yml"><img src="https://github.com/mathewmusango/ministack-control/actions/workflows/release.yml/badge.svg" alt="Release"></a>
-  <a href="https://github.com/mathewmusango/ministack-control/actions/workflows/semgrep.yml"><img src="https://github.com/mathewmusango/ministack-control/actions/workflows/semgrep.yml/badge.svg" alt="Semgrep"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/release.yml"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml/badge.svg" alt="Semgrep"></a>
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
   <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python">
-  <a href="https://github.com/users/mathewmusango/packages/container/package/ministack-control"><img src="https://img.shields.io/badge/ghcr.io-ministack--control-blue?logo=github" alt="ghcr.io"></a>
+  <a href="https://github.com/users/mathewmusango/packages/container/package/emuplane"><img src="https://img.shields.io/badge/ghcr.io-emuplane-blue?logo=github" alt="ghcr.io"></a>
 </p>
-
-<!--
-  Badges to add later, with what each needs:
-  - GitHub release: a tag or release; the repo has neither yet.
-  - Docker pulls: GitHub Packages (ghcr.io) exposes **no pull counts**, so there is
-    no equivalent of Docker Hub's pulls badge. The ghcr.io badge above is a registry
-    label, not a statistic; it starts resolving when the package is published.
--->
 
 ---
 
-## Why Ministack Control?
+## Why Emuplane?
 
-Ministack Control is the control plane for the MiniStack emulator. Short version:
+Emuplane is not an emulator. It is what you put in front of one — MiniStack, Floci,
+LocalStack, Moto — so the thing is usable by more than one person:
 
 - It holds the accounts, and the logins inside them.
 - It issues the access keys clients sign with. The secret is shown once.
 - It is the endpoint AWS clients and Terraform point at.
 - It serves the console, the control API and the resource browser.
 
-The emulator it fronts is our fork of MiniStack,
+A backend is a **profile** in [`control/backends.py`](control/backends.py): a display
+name, a default port and the quirks worth knowing. `EP_BACKEND` selects the profile
+and `EP_BACKEND_URL` is the connection string, so changing backend is a `.env`
+change, not a fork of this repository.
+
+The first profile is our fork of MiniStack,
 [`mathewmusango/ministack-upstream`](https://github.com/mathewmusango/ministack-upstream),
 on `main` (the S3 patch lives there; the old feature branch is docs-only).
 It is upstream [`ministackorg/ministack`](https://github.com/ministackorg/ministack)
@@ -80,15 +78,15 @@ same:
 
 | Field | Value |
 | --- | --- |
-| Runs | `ministack-control`: the console, the control API and the AWS gateway |
+| Runs | `emuplane`: the console, the control API and the AWS gateway |
 | Depends on | the MiniStack emulator, a separate service on port `4566` |
 | Endpoints | `http://localhost:4570` (console/API) · `http://localhost:4571` (emulator gateway), loopback only |
-| Data | none on this host — state lives in the emulator's DynamoDB, provisioned as the `ministack-control` CloudFormation stack |
+| Data | none on this host — state lives in the emulator's DynamoDB, provisioned as the `emuplane` CloudFormation stack |
 | Restart | `"no"` — on demand, not in the always-on set |
 
 ## Versioning and the image
 
-The image is `ghcr.io/mathewmusango/ministack-control:<version>`, built and pushed
+The image is `ghcr.io/mathewmusango/emuplane:<version>`, built and pushed
 by [`.github/workflows/release.yml`](.github/workflows/release.yml) on every `v*`
 tag, together with the GitHub Release.
 
@@ -197,9 +195,9 @@ hanging.
 
 ## Tokens and authentication
 
-**Settings use the `MC_` prefix** (control plane); the emulator's own settings
-keep upstream's `MINISTACK_*` names in `../ministack/.env`. `CONTROL_*` stays for
-the container-internal paths and ports.
+**Settings use the `EP_` prefix** and nothing else: backend, addresses, ports and
+the store all share it, so a value's owner is obvious at a glance. The backend's
+own settings keep its names in its own `.env` — Emuplane never writes there.
 
 | Credential | Where | What it protects |
 | --- | --- | --- |
@@ -214,34 +212,34 @@ Earlier versions seeded an `MC_ADMIN_USER`; those keys are retired and ignored.
 ### Settings (`.env`)
 
 The dotenv files carry no comments — this table is their documentation. Only
-`MINISTACK_NODE_URL` (where the emulator is), `MC_CONSOLE_URL` and
-`MC_GATEWAY_URL` (the addresses users are shown) have to be set: everything else
+`MINISTACK_NODE_URL` (where the emulator is), `EP_CONSOLE_URL` and
+`EP_GATEWAY_URL` (the addresses users are shown) have to be set: everything else
 has a default, and the control exits at startup naming whatever is missing.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `MC_UI_PORT` | `4570` | loopback port for the console and control API |
-| `MC_GATEWAY_PORT` | `4571` | loopback port for the emulator gateway |
+| `EP_UI_PORT` | `4570` | loopback port for the console and control API |
+| `EP_PUBLISHED_GATEWAY_PORT` | `4571` | loopback port for the emulator gateway |
 | `MINISTACK_NODE_URL` | required | the emulator endpoint the control talks to |
 | `MINISTACK_NODE_NAME` | `ministack` | node label in the console; defaults to the emulator's compose service name |
-| `MC_STORE_ACCOUNT` | `111111111111` | account the control reads its own DynamoDB tables as |
-| `MC_STORE_REGION` | `us-east-1` | region those tables live in |
-| `MC_STORE_URL` | `MINISTACK_NODE_URL` | override the store's endpoint |
+| `EP_STORE_ACCOUNT` | `111111111111` | account the control reads its own DynamoDB tables as |
+| `EP_STORE_REGION` | `us-east-1` | region those tables live in |
+| `EP_STORE_URL` | `MINISTACK_NODE_URL` | override the store's endpoint |
 | `TZ` | `Africa/Nairobi` | zone the console renders timestamps in |
-| `CONTROL_PORT` | `8080` | console/API port inside the container |
-| `CONTROL_GATEWAY_PORT` | `4566` | emulator gateway port inside the container |
-| `MC_NODE_CONTAINER` | discovered | container that runs the node; the URL is derived from it |
-| `MC_NODE_LABEL` | empty | discover the node container by label instead of naming it |
-| `MC_NODE_PORT` | `4566` | port the node listens on inside its network |
-| `MC_NODE_URL` | derived | the endpoint itself; set it to bypass discovery |
-| `MC_CONTROL_CONTAINER` | discovered | container `scripts/token.sh` execs into |
-| `MC_STACK_NAME` | `ministack-control` | name of the CloudFormation stack that owns the control's tables (init job only) |
-| `MC_TABLE_PREFIX` | `ministack-control-` | table prefix the stack applies; change it only for a smoke test |
-| `CONTROL_POLL_SECONDS` | `10` | seconds between emulator health polls |
-| `MC_SESSION_SECONDS` | `28800` | session lifetime (8h), extended on activity |
-| `MC_RECENT_LIMIT` | `5` | services shown under **Recently visited** |
-| `MC_CONSOLE_URL` | required | console address shown in the UI |
-| `MC_GATEWAY_URL` | required | emulator gateway address shown in the UI |
+| `EP_PORT` | `8080` | console/API port inside the container |
+| `EP_GATEWAY_PORT` | `8081` | the gateway's port inside the container; it forwards to the backend's own port (`EP_BACKEND_PORT`, usually `4566`) |
+| `EP_BACKEND_CONTAINER` | discovered | container that runs the node; the URL is derived from it |
+| `EP_BACKEND_LABEL` | empty | discover the node container by label instead of naming it |
+| `EP_BACKEND_PORT` | `4566` | port the node listens on inside its network |
+| `EP_BACKEND_URL` | derived | the endpoint itself; set it to bypass discovery |
+| `EP_CONTROL_CONTAINER` | discovered | container `scripts/token.sh` execs into |
+| `EP_STACK_NAME` | `emuplane` | name of the CloudFormation stack that owns the control's tables (init job only) |
+| `EP_TABLE_PREFIX` | `emuplane-` | table prefix the stack applies; change it only for a smoke test |
+| `EP_POLL_SECONDS` | `10` | seconds between emulator health polls |
+| `EP_SESSION_SECONDS` | `28800` | session lifetime (8h), extended on activity |
+| `EP_RECENT_LIMIT` | `5` | services shown under **Recently visited** |
+| `EP_CONSOLE_URL` | required | console address shown in the UI |
+| `EP_GATEWAY_URL` | required | emulator gateway address shown in the UI |
 
 **Two kinds of setting, and that split is the porting contract.** The rows above
 are *container settings*: the control reads them at runtime, and
@@ -249,12 +247,12 @@ are *container settings*: the control reads them at runtime, and
 same names and the same values, and a deployment may supply only the ones it
 needs because every other key has a code default.
 
-The rest of `.env` is *deployment settings* — `MC_IMAGE`, `MC_NETWORK`,
-`MC_NODE_CONTAINER` / `MC_NODE_LABEL` / `MC_NODE_PORT`,
-`MC_UI_PORT` / `MC_GATEWAY_PORT`, `MC_CONTROL_CONTAINER`. `up.sh` and `token.sh`
+The rest of `.env` is *deployment settings* — `EP_IMAGE`, `EP_NETWORK`,
+`EP_BACKEND_CONTAINER` / `EP_BACKEND_LABEL` / `EP_BACKEND_PORT`,
+`EP_UI_PORT` / `EP_PUBLISHED_GATEWAY_PORT`, `EP_CONTROL_CONTAINER`. `up.sh` and `token.sh`
 use those to find containers and publish ports; they are never injected into the
 control. Kubernetes supplies the same facts as manifest fields — the image, a
-Service, an Endpoints/hostname for the node — and sets `MC_NODE_URL` to that
+Service, an Endpoints/hostname for the node — and sets `EP_BACKEND_URL` to that
 Service name instead of letting `up.sh` derive it.
 
 Every account comes from sign-up or from the platform owner: nothing is seeded
@@ -275,7 +273,7 @@ There is no direct access to the backend stack. The emulator publishes no host
 port; the only ways in are the dashboard (`4570`) and the emulator gateway (`4571`),
 and the dashboard requires a session.
 
-- Sign up first at <https://ministack-control.example.com/signup> (or
+- Sign up first at <https://emuplane.example.com/signup> (or
   <http://127.0.0.1:4570/signup>) — a fresh control has **no accounts**, so this is
   the only way in and the account it creates owns the platform. Afterwards sign in
   at `/login`. Sessions are server-side, `HttpOnly` cookies, 8h by default,
@@ -290,7 +288,7 @@ Everything the control persists lives in the emulator it fronts: one DynamoDB
 table per store — local users (PBKDF2-SHA256, 260k rounds), accounts and their
 principals, live sessions, resource ownership, settings and the bucket registry.
 The tables are **provisioned, not conjured**: `bootstrap/template.yml` defines them
-as the CloudFormation stack `ministack-control`, `bootstrap/apply.py` applies it as
+as the CloudFormation stack `emuplane`, `bootstrap/apply.py` applies it as
 an init job (run by `scripts/up.sh` before the control starts), and
 `control/store.py` refuses to serve when a table is missing, naming it. There is no
 database file, no host directory and nothing to back up on this host; the control
@@ -394,7 +392,7 @@ or have the platform administrator provision one and hand back the one-time key
 pair:
 
 ```sh
-curl -sS -X POST https://ministack-control.example.com/api/accounts \
+curl -sS -X POST https://emuplane.example.com/api/accounts \
   -H "Authorization: Bearer $MC_TOKEN" \   # the value ./scripts/token.sh printed
   -H 'Content-Type: application/json' \
   -d '{"username":"alice","email":"alice@example.test","password":"Correct-Horse-1","name":"Alice"}'
@@ -432,7 +430,7 @@ region is AWS's answer: `200` in us-east-1 with the ACLs reset, and
 
 ### Resource browser
 
-`https://ministack-control.example.com/resources` is our own browser, not an embed. It
+`https://emuplane.example.com/resources` is our own browser, not an embed. It
 signs each read as that account's 12-digit **root**
 (`Credential=<id>/<date>/<region>/<service>/aws4_request`, dummy signature), so
 the control holds no AWS secret and can list **every** account.
@@ -466,7 +464,7 @@ actions where the console declares them.
 > `STACKPORT_*` settings were removed with the `MC_` config cleanup. `/resources`
 > is the only browser.
 
-## Console and control API (`https://ministack-control.example.com`)
+## Console and control API (`https://emuplane.example.com`)
 
 The console is a **React SPA** built from `web/` (Cloudscape, the AWS-console
 design system). The control container serves it at
@@ -615,7 +613,7 @@ and stored as a hash, so `.env` carries no secret at all.
 
 Before the console starts, `up.sh` runs the first-setup init job
 (`docker-compose.yml`'s `bootstrap` service → `bootstrap/apply.py`). It applies
-`bootstrap/template.yml` as the stack `ministack-control`, which owns the ten
+`bootstrap/template.yml` as the stack `emuplane`, which owns the ten
 DynamoDB tables the control stores itself in. The job is idempotent — an existing
 stack is left alone — and the control refuses to serve when a table is missing,
 naming it and this command. Tables that predate the stack are reported, not
@@ -626,7 +624,7 @@ Starting the container directly (bypassing `up.sh`) works only once that stack i
 in place: with no tables the control exits at Layer 0 with the missing names. An
 with no bearer token set, scripted API access is simply off until you mint one.
 
-`up.sh` pulls the image that `MC_IMAGE` names — `docker-compose.yml` defaults it to the
+`up.sh` pulls the image that `EP_IMAGE` names — `docker-compose.yml` defaults it to the
 published GHCR tag — and starts the container. The emulator is a separate image
 and a separate repository.
 
@@ -721,7 +719,7 @@ that clears its registry entries and starts the next scan clean.
   stack, pull the image, start the control plane, readiness.
 - [`scripts/token.sh`](scripts/token.sh) — mint (`--rotate`) or inspect
   (`--status`) the API bearer token; the raw value is printed once, only its hash
-  is stored. The minting itself is [`control/token.py`](control/token.py).
+  is stored. The minting itself is [`control/api_token.py`](control/api_token.py).
 - [`bootstrap/template.yml`](bootstrap/template.yml) and
   [`bootstrap/apply.py`](bootstrap/apply.py) — the CloudFormation stack that owns
   the control's ten DynamoDB tables, and the init job that applies it on first

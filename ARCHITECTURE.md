@@ -115,7 +115,7 @@ exactly like any other control call.
   `GET /_ministack/ses/messages`, so the console gets a **Mailbox** view with no
   mail service, no relay and no deliverability to arrange.
 - **Events** — account created or closed, root credentials deleted, break-glass
-  assumed — publish to an SNS topic (`ministack-control-events`). Mail is for
+  assumed — publish to an SNS topic (`emuplane-events`). Mail is for
   people, a topic is for machines: local consumers subscribe over HTTP or SQS
   and nothing leaves the host.
 - **Tokens** — verification and reset tokens are single-use, hashed at rest and

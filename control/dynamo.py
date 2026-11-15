@@ -14,8 +14,8 @@ Errors are raised as `DynamoError` with the emulator's message and type, so a
 caller sees "ResourceNotFoundException: Requested resource not found" rather than
 a bare status code.
 
-Nothing here names a particular emulator: the endpoint comes from `MC_STORE_URL`,
-then `MC_NODE_URL`, then a neutral local default — MiniStack, Floci or any other
+Nothing here names a particular emulator: the endpoint comes from `EP_STORE_URL`,
+then `EP_BACKEND_URL`, then a neutral local default — MiniStack, Floci or any other
 AWS-compatible emulator serves the same DynamoDB wire protocol.
 """
 
@@ -59,12 +59,12 @@ class Dynamo:
     ) -> None:
         self.endpoint = (
             endpoint
-            or os.environ.get("MC_STORE_URL")
-            or os.environ.get("MC_NODE_URL")
+            or os.environ.get("EP_STORE_URL")
+            or os.environ.get("EP_BACKEND_URL")
             or "http://localhost:4566"
         ).rstrip("/")
-        self.account = account or os.environ.get("MC_STORE_ACCOUNT") or "111111111111"
-        self.region = region or os.environ.get("MC_STORE_REGION") or "us-east-1"
+        self.account = account or os.environ.get("EP_STORE_ACCOUNT") or "111111111111"
+        self.region = region or os.environ.get("EP_STORE_REGION") or "us-east-1"
         self.timeout = timeout
 
     # -- transport ---------------------------------------------------------

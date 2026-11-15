@@ -28,6 +28,14 @@
   gap: 0.25rem;
 }
 
+/* Emuplane owns the sign-in page; the console that follows wears the backend's
+   own mark instead (the shell reads it from /api/meta). */
+.signin__mark {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: 0.9rem;
+}
+
 /* Title block: the heading carries its own bottom margin, the lead sits under it. */
 .signin__heading h1,
 .signin__heading .signin__title {

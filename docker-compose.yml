@@ -1,58 +1,53 @@
-name: ministack-control
+name: emuplane
 
 # The container contract: exactly these variables, and only these, are what the
 # control reads at runtime. A Kubernetes deployment sets the same set (a ConfigMap
 # built from an env file works verbatim); every ${...} below falls back to the
 # value the code itself defaults to, so an orchestrator may supply only what it
-# needs. Deployment-side knobs (.env: image, network, node container, host ports)
-# never reach the container.
+# needs. Deployment-side knobs (the compose overlay: image, network, container
+# names, host ports) never reach the container.
 x-runtime: &runtime
   TZ: "${TZ:-Africa/Nairobi}"
-  # The node this control fronts. Required: up.sh derives it, Kubernetes names it
-  # (e.g. http://ministack.namespace.svc:4566).
-  MC_NODE_URL: "${MC_NODE_URL:?set MC_NODE_URL, or run scripts/up.sh which derives it}"
-  # Empty means "use the URL's host".
-  MC_NODE_NAME: "${MC_NODE_NAME:-}"
-  MC_CONSOLE_URL: "${MC_CONSOLE_URL:?set MC_CONSOLE_URL}"
-  MC_GATEWAY_URL: "${MC_GATEWAY_URL:?set MC_GATEWAY_URL}"
-  CONTROL_PORT: "${CONTROL_PORT:-8080}"
-  CONTROL_GATEWAY_PORT: "${CONTROL_GATEWAY_PORT:-4566}"
+  # Which backend family this is (profile name from control/backends.py) and the
+  # connection string to it. The URL is the only thing that has to be right.
+  EP_BACKEND: "${EP_BACKEND:-generic}"
+  EP_BACKEND_URL: "${EP_BACKEND_URL:?set EP_BACKEND_URL, or run scripts/up.sh which derives it}"
+  # Empty means "use the profile's name, else the URL's host".
+  EP_BACKEND_NAME: "${EP_BACKEND_NAME:-}"
+  EP_CONSOLE_URL: "${EP_CONSOLE_URL:?set EP_CONSOLE_URL}"
+  EP_GATEWAY_URL: "${EP_GATEWAY_URL:?set EP_GATEWAY_URL}"
+  EP_PORT: "${EP_PORT:-8080}"
+  EP_GATEWAY_PORT: "${EP_GATEWAY_PORT:-8081}"
+  EP_POLL_SECONDS: "${EP_POLL_SECONDS:-10}"
+  EP_SESSION_SECONDS: "${EP_SESSION_SECONDS:-28800}"
+  EP_RECENT_LIMIT: "${EP_RECENT_LIMIT:-5}"
+  EP_STORE_ACCOUNT: "${EP_STORE_ACCOUNT:-111111111111}"
+  EP_STORE_REGION: "${EP_STORE_REGION:-us-east-1}"
+  EP_STORE_URL: "${EP_STORE_URL:-}"
 
 services:
-  # First-setup init job: applies `bootstrap/template.yml` as the
-  # `ministack-control` stack, which owns the ten DynamoDB tables the control
-  # stores itself in. Not a long-running service — `scripts/up.sh` runs it to
-  # completion before the control starts, and the control refuses to serve when
-  # the tables are missing. Idempotent: an existing stack is left alone.
+  # First-setup init job: applies `bootstrap/template.yml` as the `emuplane`
+  # stack, which owns the DynamoDB tables the control stores itself in. Not a
+  # long-running service — `scripts/up.sh` runs it to completion before the
+  # control starts, and the control refuses to serve when the tables are missing.
+  # Idempotent: an existing stack is left alone.
   bootstrap:
-    image: "${MC_IMAGE:-ghcr.io/mathewmusango/ministack-control:latest}"
+    image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:latest}"
     restart: "no"
     environment:
       <<: *runtime
-      CONTROL_POLL_SECONDS: "${CONTROL_POLL_SECONDS:-10}"
-      MC_SESSION_SECONDS: "${MC_SESSION_SECONDS:-28800}"
-      MC_RECENT_LIMIT: "${MC_RECENT_LIMIT:-5}"
-      MC_STORE_ACCOUNT: "${MC_STORE_ACCOUNT:-111111111111}"
-      MC_STORE_REGION: "${MC_STORE_REGION:-us-east-1}"
-      MC_STORE_URL: "${MC_STORE_URL:-}"
     command: ["python", "/app/bootstrap/apply.py"]
 
-  ministack-control:
-    image: "${MC_IMAGE:-ghcr.io/mathewmusango/ministack-control:latest}"
+  emuplane:
+    image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:latest}"
     restart: "no"
     environment:
       <<: *runtime
-      CONTROL_POLL_SECONDS: "${CONTROL_POLL_SECONDS:-10}"
-      MC_SESSION_SECONDS: "${MC_SESSION_SECONDS:-28800}"
-      MC_RECENT_LIMIT: "${MC_RECENT_LIMIT:-5}"
-      MC_STORE_ACCOUNT: "${MC_STORE_ACCOUNT:-111111111111}"
-      MC_STORE_REGION: "${MC_STORE_REGION:-us-east-1}"
-      MC_STORE_URL: "${MC_STORE_URL:-}"
     ports:
-      - "127.0.0.1:${MC_UI_PORT:-4570}:${CONTROL_PORT:-8080}"
-      - "127.0.0.1:${MC_GATEWAY_PORT:-4571}:${CONTROL_GATEWAY_PORT:-4566}"
+      - "127.0.0.1:${EP_UI_PORT:-4570}:${EP_PORT:-8080}"
+      - "127.0.0.1:${EP_PUBLISHED_GATEWAY_PORT:-4571}:${EP_GATEWAY_PORT:-8081}"
     # No volumes: the console is stateless, and the control's state lives in the
-    # node's DynamoDB. Nothing here needs a host directory.
+    # backend's DynamoDB. Nothing here needs a host directory.
     healthcheck:
       test:
         - CMD-SHELL

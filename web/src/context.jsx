@@ -2,8 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { api } from './api'
 
 const SessionContext = createContext(null)
-const REGION_KEY = 'ministack:region'
-const ACCOUNT_KEY = 'ministack:account'
+const REGION_KEY = 'emuplane:region'
+const ACCOUNT_KEY = 'emuplane:account'
 
 export const useSession = () => useContext(SessionContext)
 

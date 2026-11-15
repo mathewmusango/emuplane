@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Control plane for the MiniStack emulator.
+"""Control plane for AWS-compatible emulators.
 
 One process, two listeners:
 
   :8080  admin API and HTML dashboard (published as 127.0.0.1:4570)
-  :4566  emulator gateway, the single entrypoint for every AWS client
+  :8081  the gateway, the single entrypoint for every AWS client
          (published as 127.0.0.1:4571)
 
 Design rules:
@@ -47,13 +47,14 @@ from urllib.parse import parse_qs, quote, urlencode, urlsplit
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
 from dynamo import DynamoError  # noqa: E402
+from backends import profile  # noqa: E402
 from store import Store, StoreNotProvisioned  # noqa: E402
 
 # No database file: every control-plane document lives in the emulator's
 # DynamoDB (control/store.py) — the service this plane manages. Layer 0 creates
 # the tables before the API serves.
-CONTROL_PORT = int(os.environ.get("CONTROL_PORT", "8080"))
-GATEWAY_PORT = int(os.environ.get("CONTROL_GATEWAY_PORT", "4566"))
+EP_PORT = int(os.environ.get("EP_PORT", "8080"))
+GATEWAY_PORT = int(os.environ.get("EP_GATEWAY_PORT", "8081"))
 # The API bearer token is *not* an env setting: a credential in `.env` is a
 # credential in every backup and paste. It lives in the settings store as a
 # SHA-256 hash (control/token.py mints it and prints the raw value once), so only
@@ -98,28 +99,30 @@ SEEN_REGIONS: set[str] = set()
 SEEN_LOCK = threading.Lock()
 # The endpoint this control fronts. Nothing here names a particular emulator:
 # MiniStack, Floci or anything else that answers the same APIs is equally valid,
-# and the label in the console comes from the URL unless MC_NODE_NAME says it.
-NODE_URL = os.environ.get("MC_NODE_URL", "").strip().rstrip("/")
+# and the label in the console comes from the URL unless EP_BACKEND_NAME says it.
+NODE_URL = os.environ.get("EP_BACKEND_URL", "").strip().rstrip("/")
+BACKEND = profile(os.environ.get("EP_BACKEND"))
 NODE_NAME = (
-    os.environ.get("MC_NODE_NAME", "").strip()
+    os.environ.get("EP_BACKEND_NAME", "").strip()
+    or BACKEND.title
     or (urlsplit(NODE_URL).hostname or "").strip()
     or "node"
 )
-POLL_SECONDS = int(os.environ.get("CONTROL_POLL_SECONDS", "10"))
+POLL_SECONDS = int(os.environ.get("EP_POLL_SECONDS", "10"))
 
 API_VERSION = "v1"
 STARTED_AT = time.time()
 # Canonical public addresses shown in the UI. A deployment publishes them (a
 # reverse proxy, a published port); the console displays whatever is set here.
-GATEWAY_URL = os.environ.get("MC_GATEWAY_URL", "").strip().rstrip("/")
-CONSOLE_URL = os.environ.get("MC_CONSOLE_URL", "").strip().rstrip("/")
+GATEWAY_URL = os.environ.get("EP_GATEWAY_URL", "").strip().rstrip("/")
+CONSOLE_URL = os.environ.get("EP_CONSOLE_URL", "").strip().rstrip("/")
 
 REQUIRED_SETTINGS = {
     # The node name falls back to the URL's host; only the endpoint the node is
     # reached at, and the two public addresses, have to be known.
-    "MC_NODE_URL": NODE_URL,
-    "MC_GATEWAY_URL": GATEWAY_URL,
-    "MC_CONSOLE_URL": CONSOLE_URL,
+    "EP_BACKEND_URL": NODE_URL,
+    "EP_GATEWAY_URL": GATEWAY_URL,
+    "EP_CONSOLE_URL": CONSOLE_URL,
 }
 MISSING_SETTINGS = [name for name, value in REQUIRED_SETTINGS.items() if not value]
 if MISSING_SETTINGS:
@@ -167,11 +170,11 @@ MIME = {
     ".woff2": "font/woff2",
     ".txt": "text/plain; charset=utf-8",
 }
-SESSION_SECONDS = int(os.environ.get("MC_SESSION_SECONDS", "28800"))
+SESSION_SECONDS = int(os.environ.get("EP_SESSION_SECONDS", "28800"))
 # AWS allows two access keys per IAM user; the console holds the same line per
 # account so a rotation can overlap (create the new key, then delete the old).
 MAX_ACCESS_KEYS = 2
-RECENT_LIMIT = int(os.environ.get("MC_RECENT_LIMIT", "5") or 5)
+RECENT_LIMIT = int(os.environ.get("EP_RECENT_LIMIT", "5") or 5)
 
 GLOBAL_SERVICES = {
     "iam",
@@ -1868,8 +1871,8 @@ AUTH_STYLE = """
 AUTH_THEME_SCRIPT = """
 (function () {
   // One button toggles light and dark; it shows the mode it will switch to.
-  var authKey = 'ministack:auth-theme';
-  var consoleKey = 'ministack:theme';
+  var authKey = 'emuplane:auth-theme';
+  var consoleKey = 'emuplane:theme';
   var toggle = document.querySelector('#theme-toggle button');
   var sun = toggle.querySelector('.icon-sun');
   var moon = toggle.querySelector('.icon-moon');
@@ -1999,7 +2002,11 @@ def signed_s3(
 
 def static_asset(url_path: str) -> tuple[bytes, str] | None:
     """One built asset from `web/dist`, or None. Traversal-safe."""
-    if not (url_path.startswith("/assets/") or url_path == "/ministack-logo.png"):
+    if not (
+        url_path.startswith("/assets/")
+        or url_path.startswith("/backends/")
+        or url_path == "/emuplane.svg"
+    ):
         return None
     # The logo also ships in `web/public`, so the sign-in pages keep their brand
     # mark before `web/dist` has ever been built.
@@ -2354,7 +2361,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         payload = spa_index()
         if payload is None:
             return self._page(
-                "<!doctype html><meta charset=utf-8><title>MiniStack</title>"
+                "<!doctype html><meta charset=utf-8><title>Emuplane</title>"
                 "<body style='font:15px system-ui;padding:2rem;background:#0f1b2d;color:#e6edf7'>"
                 "<h1>Console not built</h1><p>Run <code>npm install &amp;&amp; npm run build</code>"
                 " in <code>services/ministack-control/web</code>, then restart this container.</p>"
@@ -2391,7 +2398,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     def _session_token(self) -> str:
         for part in self.headers.get("Cookie", "").split(";"):
             key, _, value = part.strip().partition("=")
-            if key == "ministack_session":
+            if key == "emuplane_session":
                 return value
         return ""
 
@@ -2448,7 +2455,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.send_header("Location", "/login")
         self.send_header(
             "Set-Cookie",
-            "ministack_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+            "emuplane_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
         )
         self.send_header("Content-Length", "0")
         self.end_headers()
@@ -2541,7 +2548,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 "role": principal["role"],
             },
             cookie=(
-                f"ministack_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
+                f"emuplane_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
                 "HttpOnly; SameSite=Lax"
             ),
         )
@@ -2589,7 +2596,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.send_header("Location", "/")
         self.send_header(
             "Set-Cookie",
-            f"ministack_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
+            f"emuplane_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
             "HttpOnly; SameSite=Lax",
         )
         self.send_header("Content-Length", "0")
@@ -2598,7 +2605,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     def _auth_layout(self, title: str, body: str) -> str:
         return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(title)} · MiniStack</title><style>{AUTH_STYLE}</style>
+<title>{html.escape(title)} · Emuplane</title><style>{AUTH_STYLE}</style>
 </head><body><main class="auth-card">
 <div class="theme" id="theme-toggle">
   <button type="button" aria-label="Toggle colour theme" title="Toggle colour theme">
@@ -2625,8 +2632,8 @@ class ControlHandler(BaseHTTPRequestHandler):
         return self._auth_layout(
             "Create account",
             f"""
-    <div class="brand"><img class="logo" src="/ministack-logo.png"
-         alt="MiniStack"></div>
+    <div class="brand"><img class="logo" src="/emuplane.svg"
+         alt="Emuplane"></div>
     <h1>Create your account</h1>
     <p class="sub">A new account gets its own ID and IAM credentials</p>
     {notice}
@@ -2682,7 +2689,9 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._spa()
         if path.startswith("/assets/"):
             return self._asset(path)
-        if path == "/ministack-logo.png":
+        if path == "/emuplane.svg" or path.startswith("/backends/"):
+            # Public brand marks: the sign-in pages carry Emuplane's, the console
+            # carries the backend profile's.
             return self._asset(path)
         if path == "/logout":
             return self._logout()
@@ -2868,7 +2877,10 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(
                 200,
                 {
-                    "product": "MiniStack",
+                    "product": "Emuplane",
+                    "backend": BACKEND.title,
+                    "backend_id": BACKEND.id,
+                    "backend_logo": BACKEND.logo,
                     "api_version": API_VERSION,
                     "recent_limit": RECENT_LIMIT,
                     "emulator_version": version or "unknown",
@@ -3516,7 +3528,7 @@ document.getElementById('credrotate').onsubmit = async (event) => {{
   location.reload();
 }};
 </script>"""
-        return self._layout("MiniStack federation", body)
+        return self._layout("Emuplane federation", body)
 
     def _resources_page(self) -> str:
         params = parse_qs(urlsplit(self.path).query)
@@ -3712,7 +3724,7 @@ document.getElementById('refresh').onsubmit = async (event) => {{
 
 def main() -> None:
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
-    control = ThreadingHTTPServer(("0.0.0.0", CONTROL_PORT), ControlHandler)
+    control = ThreadingHTTPServer(("0.0.0.0", EP_PORT), ControlHandler)
     gateway = ThreadingHTTPServer(("0.0.0.0", GATEWAY_PORT), GatewayHandler)
     threading.Thread(target=gateway.serve_forever, daemon=True).start()
 
@@ -3727,7 +3739,7 @@ def main() -> None:
 
     threading.Thread(target=poller, daemon=True).start()
     print(
-        f"control on :{CONTROL_PORT}, gateway on :{GATEWAY_PORT}, "
+        f"control on :{EP_PORT}, gateway on :{GATEWAY_PORT}, "
         f"{len(NODES)} nodes, bearer token {'set' if stored_token_hash() else 'unset'}",
         flush=True,
     )

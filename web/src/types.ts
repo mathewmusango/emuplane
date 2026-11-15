@@ -46,6 +46,10 @@ export interface Meta {
   gateway: string
   console: string
   uptime_seconds: number
+  /** The backend profile the console fronts (control/backends.py). */
+  backend_id?: string
+  backend?: string
+  backend_logo?: string
 }
 
 export interface NodeHealth {

@@ -8,7 +8,7 @@ Description: >-
 Parameters:
   TablePrefix:
     Type: String
-    Default: ministack-control-
+    Default: emuplane-
     Description: >-
       Prefix for every table name. Change it only for a smoke test of this
       template; the control reads the same value from its own store module.

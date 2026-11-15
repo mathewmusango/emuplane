@@ -12,17 +12,17 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# The control container: MC_CONTROL_CONTAINER, else the container labelled
-# app=ministack-control (the overlay names it), else the compose default name.
-container=$(sed -n 's/^MC_CONTROL_CONTAINER=//p' .env)
+# The control container: EP_CONTROL_CONTAINER, else the container labelled
+# app=emuplane (the overlay names it), else the compose default name.
+container=$(sed -n 's/^EP_CONTROL_CONTAINER=//p' .env)
 if [ -z "$container" ]; then
-  container=$(podman ps -a --filter label=app=ministack-control --format '{{.Names}}' | head -n 1)
+  container=$(podman ps -a --filter label=app=emuplane --format '{{.Names}}' | head -n 1)
 fi
-container=${container:-ministack-control}
+container=${container:-emuplane}
 
 if ! podman container exists "$container"; then
   echo "the control container ($container) does not exist: ./scripts/up.sh first" >&2
   exit 1
 fi
 
-podman exec "$container" python /app/token.py "$@"
+podman exec "$container" python /app/api_token.py "$@"

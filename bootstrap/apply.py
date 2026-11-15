@@ -12,7 +12,7 @@ predate the stack are reported rather than adopted (CloudFormation cannot adopt
 a table, and deleting them is a decision for an operator on a fresh setup).
 
     python bootstrap/apply.py            # inside the image, or from the repo
-    MC_TABLE_PREFIX=smoke- python bootstrap/apply.py   # smoke test of the template
+    EP_TABLE_PREFIX=smoke- python bootstrap/apply.py   # smoke test of the template
 
 Exit status is 0 only when every table the control needs is present — that is
 what `scripts/up.sh` waits on before starting the console.
@@ -41,8 +41,8 @@ from dynamo import Dynamo, DynamoError  # noqa: E402
 from store import PREFIX as STORE_PREFIX, TABLES  # noqa: E402
 
 API_VERSION = "2010-05-15"
-STACK = os.environ.get("MC_STACK_NAME", "ministack-control")
-PREFIX = os.environ.get("MC_TABLE_PREFIX") or STORE_PREFIX
+STACK = os.environ.get("EP_STACK_NAME", "emuplane")
+PREFIX = os.environ.get("EP_TABLE_PREFIX") or STORE_PREFIX
 TEMPLATE = Path(os.environ.get("MC_TEMPLATE") or HERE / "template.yml")
 
 
@@ -52,8 +52,8 @@ class StackError(RuntimeError):
 
 def endpoint() -> str:
     return (
-        os.environ.get("MC_STORE_URL")
-        or os.environ.get("MC_NODE_URL")
+        os.environ.get("EP_STORE_URL")
+        or os.environ.get("EP_BACKEND_URL")
         or "http://localhost:4566"
     ).rstrip("/")
 
@@ -65,8 +65,8 @@ def call(action: str, params: dict[str, str]) -> ET.Element:
     emulator, so a credential *name* plus `Signature=local` is the whole contract.
     """
     url = urlsplit(endpoint())
-    account = os.environ.get("MC_STORE_ACCOUNT") or "111111111111"
-    region = os.environ.get("MC_STORE_REGION") or "us-east-1"
+    account = os.environ.get("EP_STORE_ACCOUNT") or "111111111111"
+    region = os.environ.get("EP_STORE_REGION") or "us-east-1"
     body = urlencode({"Action": action, "Version": API_VERSION, **params}).encode()
     now = datetime.now(timezone.utc)
     headers = {
