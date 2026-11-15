@@ -56,3 +56,18 @@ body.awsui-dark-mode {
   --color-border-item-focused: #6cb6ff;
   --color-background-item-selected: #17233d;
 }
+
+/* Console Home: a widget grid. Two columns on a normal window, one on a narrow
+   one — the widgets themselves decide their own internal layout. */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .home-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

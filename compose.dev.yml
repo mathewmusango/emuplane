@@ -1,0 +1,27 @@
+# Dev overlay: no image rebuild for a code change.
+#
+# The console is served from /app/static and the control reads each file per
+# request, so mounting the two source trees makes the loop
+#
+#   npm --prefix web run build     # ~1s, on the host
+#   ./scripts/dev.sh api           # ~2s restart, only after a Python change
+#
+# instead of a ~30s image build. The image is still what ships; this only
+# removes it from the inner loop. `./scripts/up.sh --dev` applies this file.
+#
+# Python files are mounted one by one because the image flattens `control/` into
+# `/app/`; that keeps imports (`import console`, `from store import …`) exactly
+# as the image has them.
+
+services:
+  emuplane:
+    volumes:
+      - ./web/dist:/app/static:ro,Z
+      - ./control/app.py:/app/app.py:ro,Z
+      - ./control/console.py:/app/console.py:ro,Z
+      - ./control/dynamo.py:/app/dynamo.py:ro,Z
+      - ./control/store.py:/app/store.py:ro,Z
+      - ./control/api_token.py:/app/api_token.py:ro,Z
+      - ./control/password.py:/app/password.py:ro,Z
+      - ./control/backends.py:/app/backends.py:ro,Z
+      - ./control/mail.py:/app/mail.py:ro,Z

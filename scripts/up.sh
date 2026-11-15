@@ -73,6 +73,18 @@ if [ -n "$overlay" ] && [ -f "$overlay" ]; then
   compose+=(-f "$overlay")
 fi
 
+# `--dev` (or EP_DEV=1) mounts the built console and the control source instead
+# of baking them: a code change then costs a host `vite build` (~1s) or a
+# container restart (~2s), never an image build. See scripts/dev.sh.
+if [ "${1:-}" = "--dev" ] || [ "${EP_DEV:-}" = "1" ]; then
+  if [ ! -f compose.dev.yml ]; then
+    echo "compose.dev.yml is missing; cannot apply the dev overlay" >&2
+    exit 1
+  fi
+  compose+=(-f compose.dev.yml)
+  echo "dev overlay: console and control source are mounted, not baked"
+fi
+
 # The overlay joins a network the backend is already on. It is declared there
 # (`networks:`), so the name is read from the overlay rather than configured twice;
 # EP_NETWORK still overrides, and up.sh creates the network when it is missing.

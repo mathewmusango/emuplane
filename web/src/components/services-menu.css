@@ -1,0 +1,159 @@
+/* The services menu: a category rail and the services themselves, in a panel
+   that hangs below the top bar the way the AWS console's does. */
+
+.services-menu__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(11, 27, 63, 0.16);
+}
+
+.services-menu {
+  position: fixed;
+  z-index: 901;
+  top: var(--services-menu-top, 3.25rem);
+  inset-inline-start: 0;
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  width: min(56rem, 100vw);
+  max-height: min(38rem, calc(100vh - 4rem));
+  background: #ffffff;
+  border: 1px solid #d7e0f5;
+  border-block-start: 0;
+  box-shadow: 0 18px 40px rgba(11, 27, 63, 0.18);
+  overflow: hidden;
+}
+
+.services-menu__nav {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0.75rem;
+  border-inline-end: 1px solid #e4e9f5;
+  overflow-y: auto;
+}
+
+.services-menu__link {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #0b1b3f;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.services-menu__link:hover {
+  background: #f3f6fc;
+}
+
+.services-menu__link.is-active {
+  color: #1b4fd8;
+  font-weight: 700;
+}
+
+.services-menu__rule {
+  width: 100%;
+  margin: 0.75rem 0;
+  border: 0;
+  border-block-start: 1px solid #e4e9f5;
+}
+
+.services-menu__list {
+  padding: 1rem 1.5rem 1.5rem;
+  overflow-y: auto;
+}
+
+.services-menu__title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0b1b3f;
+}
+
+.services-menu__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.services-menu__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.55rem 0;
+  border: 0;
+  background: none;
+  text-align: start;
+  cursor: pointer;
+}
+
+.services-menu__name {
+  color: #0b1b3f;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.services-menu__item:hover .services-menu__name {
+  color: #1b4fd8;
+  text-decoration: underline;
+}
+
+.services-menu__desc {
+  color: #5a6b8c;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.services-menu__empty {
+  margin: 0;
+  color: #5a6b8c;
+  font-size: 0.9rem;
+}
+
+body.awsui-dark-mode .services-menu {
+  background: #111c31;
+  border-color: #23324f;
+}
+
+body.awsui-dark-mode .services-menu__nav {
+  border-inline-end-color: #23324f;
+}
+
+body.awsui-dark-mode .services-menu__link,
+body.awsui-dark-mode .services-menu__name,
+body.awsui-dark-mode .services-menu__title {
+  color: #e8eefb;
+}
+
+body.awsui-dark-mode .services-menu__link:hover {
+  background: #17233d;
+}
+
+body.awsui-dark-mode .services-menu__desc,
+body.awsui-dark-mode .services-menu__empty {
+  color: #93a4c4;
+}
+
+@media (max-width: 720px) {
+  .services-menu {
+    grid-template-columns: 1fr;
+    width: 100vw;
+  }
+
+  .services-menu__nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    border-inline-end: 0;
+    border-block-end: 1px solid #e4e9f5;
+  }
+
+  .services-menu__rule {
+    display: none;
+  }
+}

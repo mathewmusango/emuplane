@@ -149,7 +149,7 @@ describe('console', () => {
   it('renders the dashboard shell with the account and region', async () => {
     renderAt(<App />)
     expect(await screen.findByText('Services answering')).toBeTruthy()
-    expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Console Home').length).toBeGreaterThan(0)
     expect(screen.getAllByText('111111111111', { exact: false }).length).toBeGreaterThan(0)
     expect(screen.getAllByText('us-east-1', { exact: false }).length).toBeGreaterThan(0)
   })
@@ -198,12 +198,15 @@ describe('console', () => {
     localStorage.setItem('emuplane:recent', JSON.stringify(['s3']))
     const first = renderAt(<Dashboard />)
     expect(await screen.findByText('Services answering')).toBeTruthy()
-    expect(screen.queryByText('Recently visited')).toBeNull()
+    // The widget is always present; with no history it says so.
+    expect(
+      await screen.findByText(/Nothing yet. Open a service/),
+    ).toBeTruthy()
     first.unmount()
 
     localStorage.setItem('emuplane:recent:111111111111', JSON.stringify(['s3']))
     renderAt(<Dashboard />)
-    expect(await screen.findByText('Recently visited')).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'S3' })).toBeTruthy()
     localStorage.clear()
   })
 

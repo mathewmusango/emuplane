@@ -9,11 +9,12 @@ import { useSession } from '../context'
 import { api } from '../api'
 import { useThemeToggle } from './themeToggle'
 import { serviceLabel } from '../serviceLabels'
+import ServicesMenu from './ServicesMenu'
 
 const navItems = () => [
-  { type: 'link', text: 'Dashboard', href: '/' },
+  { type: 'link', text: 'Console Home', href: '/' },
+  { type: 'link', text: 'All services', href: '/services' },
   { type: 'link', text: 'Favorites', href: '/favorites' },
-  { type: 'link', text: 'Services', href: '/services' },
   { type: 'divider' },
   {
     type: 'section',
@@ -82,6 +83,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
   const [navOpen, setNavOpen] = useState(true)
   const [search, setSearch] = useState('')
   const [catalogue, setCatalogue] = useState(null)
+  const [servicesOpen, setServicesOpen] = useState(false)
 
   useEffect(() => {
     loadCatalogue().then(setCatalogue).catch(() => setCatalogue(null))
@@ -159,6 +161,14 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         utilities={[
           themeToggle,
           {
+            type: 'button',
+            iconName: 'grid-view',
+            text: 'Services',
+            ariaLabel: 'All services',
+            ariaExpanded: servicesOpen,
+            onClick: () => setServicesOpen((open) => !open),
+          },
+          {
             type: 'menu-dropdown',
             text: region,
             iconName: 'globe',
@@ -194,6 +204,15 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
           },
         ]}
       />
+
+      {servicesOpen && (
+        <ServicesMenu
+          names={serviceNames}
+          account={account}
+          onClose={() => setServicesOpen(false)}
+          onPick={(name) => go(`/resources/${name}`)}
+        />
+      )}
 
       <AppLayout
         headerSelector="#top-nav"

@@ -39,6 +39,10 @@ the minor number is bumped by hand, patch releases are the bot's.
   `immutable`, so a new logo reaches a returning visitor.
 - **`scripts/build.sh`**, and `./scripts/up.sh --build` to rebuild and restart in
   one step.
+- **A dev loop that skips the image.** `compose.dev.yml` mounts `web/dist` at
+  `/app/static` and the control sources at their flattened `/app/` names, and
+  `scripts/dev.sh` drives it: `web` rebuilds the console on the host (~2s),
+  `api` restarts the container (~4s). `up.sh --build` stays the release path.
 - **Password-reset links.** `POST /api/users/<username>/reset-link` (platform
   admin or bearer token) and `./scripts/reset-link.sh <username>` mint a
   single-use `/reset?token=…` URL, valid for `EP_RESET_SECONDS` (30 min). The

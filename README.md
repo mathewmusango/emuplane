@@ -505,6 +505,29 @@ Vendor code is split into its own chunks (`vite.config.js`), so a page edit
 changes only `index-*.js`/`index-*.css` (~140 kB) instead of invalidating the
 whole ~2.6 MB bundle in every browser's cache.
 
+### The dev loop (no image build)
+
+An image build re-copies `web/`, runs Vite inside the container and commits
+layers. Vite on the host produces the same `dist` in a second or two, and the
+control reads `/app/static` **per request**, so the inner loop does not need the
+image at all:
+
+```sh
+./scripts/dev.sh up     # start once with the dev overlay (mounts the source)
+./scripts/dev.sh web    # rebuild the console on the host, then refresh
+./scripts/dev.sh api    # restart the control after a Python change
+```
+
+| Change | Path | Time |
+| --- | --- | --- |
+| Console (`web/src`) | `dev.sh web` + browser refresh | ~2s |
+| Control (`control/*.py`) | `dev.sh api` (restart) | ~4s |
+| Image | `scripts/build.sh` | ~6s unchanged · ~30s after a console change · ~65s cold |
+
+`compose.dev.yml` is what makes this work: it mounts `web/dist` at `/app/static`
+and each `control/*.py` at its flattened `/app/` name, so imports stay exactly as
+the image has them. `up.sh --build` stays the release path.
+
 Browser icons come from one source image: `./scripts/favicons.sh [image]` writes
 `favicon.ico`, the 32/192/512 PNGs and `apple-touch-icon.png` into `web/public`,
 where both the console and the server-rendered auth pages pick them up.
