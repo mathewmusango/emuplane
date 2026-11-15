@@ -219,7 +219,7 @@ describe('console', () => {
     expect(screen.queryByText('References')).toBeNull()
   })
 
-  it('walks the root sign-in screens through MFA', async () => {
+  it('signs a root user in without asking for a code when MFA is off', async () => {
     renderAt(<App />, ['/signin'])
     expect(await screen.findByText('Access your AWS account by user type.')).toBeTruthy()
 
@@ -237,12 +237,36 @@ describe('console', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
+    // No MFA on this principal: the code screen must not appear.
+    expect(await screen.findByText('Services answering')).toBeTruthy()
+    expect(screen.queryByText('Additional verification required')).toBeNull()
+  })
+
+  it('asks for the code only when the principal has MFA, and checks it', async () => {
+    renderAt(<App />, ['/signin?mfa=1'])
+    expect(await screen.findByText('Access your AWS account by user type.')).toBeTruthy()
+
+    fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
+      target: { value: 'root@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Root user sign in')
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'correct horse battery' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
     expect(await screen.findByText('Additional verification required')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('MFA code'), { target: { value: '12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(
+      await screen.findByText('Enter the 6-digit code from your MFA device.'),
+    ).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('MFA code'), { target: { value: '123456' } })
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    // A successful stub submit lands on the console, the way the real one will.
     expect(await screen.findByText('Services answering')).toBeTruthy()
   })
 

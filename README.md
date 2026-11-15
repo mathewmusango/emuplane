@@ -288,9 +288,11 @@ account + username → password → MFA) as `web/src/pages/SignIn.jsx`, in one
 it, so it is live in the running console — but `/login` remains the
 server-rendered form, because it is the only thing that mints a session.
 Submitting goes to `web/src/authStub.js` — the payload shapes the auth endpoints
-will take, no network, no password field in the call and no session minted — so
-slice 3 of `ARCHITECTURE.md` is a swap of that module plus the `/login`
-handover, not a rewrite.
+will take, no network, no password field in the call and no session minted. The
+MFA screen appears only when the principal has MFA enabled; with no endpoint to
+ask, `?mfa=1` (i.e. `/signin?mfa=1`) stands in for that flag and plain `/signin`
+signs straight through. So slice 3 of `ARCHITECTURE.md` is a swap of that module
+plus the `/login` handover, not a rewrite.
 
 The control seeds **nothing** from `.env`. The first account created — by local
 sign-up — is the platform owner: `global_admin` and `default_admin` are set on

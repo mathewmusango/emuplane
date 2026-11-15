@@ -122,6 +122,12 @@ the e-mail/account you typed has to survive the steps:
 | `iam-password` | "IAM user sign in", account + username + password | `signIn({ userType: 'iam', account, username })` |
 | `mfa` | "Additional verification required" | `verifyMfa({ code })` |
 
+**The code screen only exists for a principal with MFA enabled.** The stub cannot
+know that, so it answers `mfaRequired: false` unless the preview passes
+`?mfa=1` — i.e. `/signin?mfa=1` walks the third screen, `/signin` signs straight
+through. The real endpoint reads the flag off the principal and the option goes
+away with the stub.
+
 The route is `/signin` and the control plane **serves it without a session**
 (`PUBLIC_SPA_ROUTES` in `control/app.py`), so it is reachable from the running
 console and the classic login page links to it. `/login` itself stays
@@ -129,8 +135,8 @@ server-rendered, because only that form mints a session — the stub cannot, and
 wiring the screens in front of `/login` today would lock the console out. That
 swap is ARCHITECTURE.md slice 3, together with replacing `src/authStub.js` with
 real calls: the stub sends the payloads the endpoints will take, never touches
-the network, takes no password, and always asks for the MFA code so the third
-screen is reachable. Because the page is public, `src/api.ts` does **not** bounce
+the network, takes no password, and reports MFA only when the preview asks for
+it. Because the page is public, `src/api.ts` does **not** bounce
 a 401 from `/signin` to `/login` (every other path still does). `?next=` is
 honoured (path-only, never protocol-relative).
 

@@ -12,7 +12,7 @@ import Link from '@cloudscape-design/components/link'
 import Popover from '@cloudscape-design/components/popover'
 import RadioGroup from '@cloudscape-design/components/radio-group'
 import SpaceBetween from '@cloudscape-design/components/space-between'
-import { accountProblem, emailProblem, signIn, verifyMfa } from '../authStub'
+import { accountProblem, emailProblem, mfaPreviewRequested, signIn, verifyMfa } from '../authStub'
 import './signin.css'
 
 // Which account the visitor signed in with last, when they asked us to remember.
@@ -59,6 +59,9 @@ export default function SignIn() {
   const [params] = useSearchParams()
   const requested = params.get('next') || '/'
   const next = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/'
+  // Only a principal with MFA enabled sees the code screen. Until the auth
+  // endpoints answer for a real principal, `?mfa=1` stands in for that flag.
+  const mfaEnabled = mfaPreviewRequested(params)
 
   const [step, setStep] = useState('type')
   const [userType, setUserType] = useState('root')
@@ -110,6 +113,19 @@ export default function SignIn() {
     setStep('iam-password')
   }
 
+  const finish = () => {
+    try {
+      if (userType === 'iam' && remember) {
+        localStorage.setItem(REMEMBER_KEY, account.trim())
+      } else {
+        localStorage.removeItem(REMEMBER_KEY)
+      }
+    } catch {
+      // A browser with storage denied still signs in; it just forgets.
+    }
+    navigate(next, { replace: true })
+  }
+
   const submitCredentials = async (event) => {
     event.preventDefault()
     reset()
@@ -123,14 +139,19 @@ export default function SignIn() {
     }
     setBusy(true)
     try {
-      await signIn({
+      const result = await signIn({
         userType,
         email: email.trim(),
         account: account.trim(),
         username: username.trim(),
+        mfa: mfaEnabled,
       })
       setPassword('')
-      setStep('mfa')
+      if (result.mfaRequired) {
+        setStep('mfa')
+        return
+      }
+      finish()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -148,16 +169,7 @@ export default function SignIn() {
     setBusy(true)
     try {
       await verifyMfa({ code: code.trim() })
-      try {
-        if (userType === 'iam' && remember) {
-          localStorage.setItem(REMEMBER_KEY, account.trim())
-        } else {
-          localStorage.removeItem(REMEMBER_KEY)
-        }
-      } catch {
-        // A browser with storage denied still signs in; it just forgets.
-      }
-      navigate(next, { replace: true })
+      finish()
     } catch (err) {
       setError(err.message)
     } finally {
