@@ -89,7 +89,7 @@ function Card({ title, description, info, children }) {
           aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
           title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-          {dark ? <Sun size={21} aria-hidden="true" /> : <Moon size={21} aria-hidden="true" />}
+          {dark ? <Sun size={21} strokeWidth={2.2} aria-hidden="true" /> : <Moon size={21} strokeWidth={2.2} aria-hidden="true" />}
         </button>
         <Container>
           <div className="signin__body">

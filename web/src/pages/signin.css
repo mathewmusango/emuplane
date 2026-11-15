@@ -233,14 +233,20 @@ body.awsui-dark-mode {
   padding: 0;
   border: 0;
   background: transparent;
-  color: inherit;
-  opacity: 0.85;
+  /* Explicit ink per mode rather than `inherit`: the icon must never take its
+     colour from a surface that happens to match the card. */
+  color: #16191f;
+  opacity: 1;
   cursor: pointer;
+}
+
+.awsui-dark-mode .signin__theme {
+  color: #e9ebed;
 }
 
 .signin__theme:hover,
 .signin__theme:focus-visible {
-  opacity: 1;
+  opacity: 0.7;
 }
 
 /* Cloudscape marks dark mode with a body class, so the few literal colours here
