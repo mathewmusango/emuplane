@@ -170,6 +170,28 @@ MIME = {
     ".woff2": "font/woff2",
     ".txt": "text/plain; charset=utf-8",
 }
+
+# The icon set `scripts/favicons.sh` writes into `web/public`. They sit at fixed
+# names rather than hashed ones, so they must be servable from the root and must
+# not be cached as immutable — a new logo has to reach a returning visitor.
+ICON_ASSETS = {
+    "/favicon.ico",
+    "/favicon-32.png",
+    "/favicon-192.png",
+    "/favicon-512.png",
+    "/apple-touch-icon.png",
+}
+
+# The same icon declaration in both surfaces — the console's `index.html` and the
+# server-rendered auth pages. SVG first (crisp at every size), then the PNG set
+# `scripts/favicons.sh` writes, with the `.ico` left to the browser's fallback.
+ICON_LINKS = (
+    '<link rel="icon" type="image/svg+xml" href="/emuplane.svg">'
+    '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">'
+    '<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">'
+    '<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">'
+    '<meta name="theme-color" content="#0f141a">'
+)
 SESSION_SECONDS = int(os.environ.get("EP_SESSION_SECONDS", "28800"))
 # AWS allows two access keys per IAM user; the console holds the same line per
 # account so a rotation can overlap (create the new key, then delete the old).
@@ -2102,6 +2124,7 @@ def static_asset(url_path: str) -> tuple[bytes, str] | None:
     if not (
         url_path.startswith("/assets/")
         or url_path.startswith("/backends/")
+        or url_path in ICON_ASSETS
         or url_path == "/emuplane.svg"
     ):
         return None
@@ -2477,10 +2500,18 @@ class ControlHandler(BaseHTTPRequestHandler):
         if found is None:
             return self._json(404, {"error": "asset not found"})
         payload, content_type = found
+        # Hashed build output never changes under a name; the brand files (icons
+        # and the marks) keep their name across releases, so they revalidate.
+        brand = url_path in ICON_ASSETS or url_path.startswith("/backends/")
+        cache = (
+            "public, max-age=86400"
+            if brand or url_path == "/emuplane.svg"
+            else "public, max-age=31536000, immutable"
+        )
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        self.send_header("Cache-Control", cache)
         self.end_headers()
         self.wfile.write(payload)
 
@@ -2704,7 +2735,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     def _auth_layout(self, title: str, body: str) -> str:
         return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(title)} · Emuplane</title><style>{AUTH_STYLE}</style>
+<title>{html.escape(title)} · Emuplane</title>{ICON_LINKS}<style>{AUTH_STYLE}</style>
 </head><body><main class="auth-card">
 <div class="theme" id="theme-toggle">
   <button type="button" aria-label="Toggle colour theme" title="Toggle colour theme">
@@ -2881,6 +2912,8 @@ class ControlHandler(BaseHTTPRequestHandler):
         if path == "/emuplane.svg" or path.startswith("/backends/"):
             # Public brand marks: the sign-in pages carry Emuplane's, the console
             # carries the backend profile's.
+            return self._asset(path)
+        if path in ICON_ASSETS:
             return self._asset(path)
         if path == "/logout":
             return self._logout()

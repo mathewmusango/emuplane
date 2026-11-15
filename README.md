@@ -484,11 +484,26 @@ npm test                           # Vitest + Testing Library in jsdom
 The control image builds the console itself: `Dockerfile` has a Node stage that
 runs `npm ci && npm run build` and a Python stage that copies `dist` to
 `/app/static`, so the runtime container needs no host build and no bind mounts.
-Rebuild after changing `control/` or `web/`:
+Build and restart in one step:
 
 ```sh
-podman-compose build ministack-control && podman-compose up -d ministack-control
+./scripts/up.sh --build     # ./scripts/build.sh, then apply the stack and start
+./scripts/build.sh          # image only; --no-cache after a base-image bump
 ```
+
+The build is arranged so a rebuild is cheap: `npm ci` sits before `COPY web/`, so
+a source change never reinstalls; npm's package cache and Vite's transform cache
+are `--mount=type=cache`, so neither is re-downloaded or re-done and neither
+lands in a layer. Measured on this box: a no-change rebuild is ~6s, a console
+source change ~30s, a cold build ~65s.
+
+Vendor code is split into its own chunks (`vite.config.js`), so a page edit
+changes only `index-*.js`/`index-*.css` (~140 kB) instead of invalidating the
+whole ~2.6 MB bundle in every browser's cache.
+
+Browser icons come from one source image: `./scripts/favicons.sh [image]` writes
+`favicon.ico`, the 32/192/512 PNGs and `apple-touch-icon.png` into `web/public`,
+where both the console and the server-rendered auth pages pick them up.
 
 `web/dist` and `web/node_modules` stay gitignored — they are build output, not
 sources. The retired server-rendered pages remain reachable at `/classic`.
@@ -721,10 +736,17 @@ that clears its registry entries and starts the next scan clean.
   five sign-in screens in `web/src/pages/SignIn.jsx`.
 - [`scripts/qa_check.py`](scripts/qa_check.py) — QA gate: secrets, Python compile, and the signed-off markers from a **local** `qa/tasks.json` (gitignored).
 - [`scripts/up.sh`](scripts/up.sh) — `.env`, resolve the node, apply the control
-  stack, pull the image, start the control plane, readiness.
+  stack, pull the image, start the control plane, readiness. `--build` rebuilds
+  the image first.
+- [`scripts/build.sh`](scripts/build.sh) — build the image with every cache the
+  Dockerfile offers; `--no-cache` for a base-image bump.
+- [`scripts/favicons.sh`](scripts/favicons.sh) — regenerate the browser icon set
+  (`favicon.ico`, 32/192/512 PNG, `apple-touch-icon.png`) from one source image.
 - [`scripts/token.sh`](scripts/token.sh) — mint (`--rotate`) or inspect
   (`--status`) the API bearer token; the raw value is printed once, only its hash
   is stored. The minting itself is [`control/api_token.py`](control/api_token.py).
+- [`scripts/password.sh`](scripts/password.sh) — reset a principal's password from
+  the host (the local recovery path; it also revokes that principal's sessions).
 - [`bootstrap/template.yml`](bootstrap/template.yml) and
   [`bootstrap/apply.py`](bootstrap/apply.py) — the CloudFormation stack that owns
   the control's ten DynamoDB tables, and the init job that applies it on first

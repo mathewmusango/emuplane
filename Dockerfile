@@ -16,12 +16,18 @@ WORKDIR /src
 
 # Manifests first: a source-only change reuses this layer, and npm's own cache
 # is a build mount, so it speeds rebuilds without landing in an image layer.
+# `--prefer-offline` keeps a warm cache from waiting on the registry.
 COPY web/package.json web/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
-    npm ci --no-audit --no-fund
+    npm ci --no-audit --no-fund --prefer-offline
 
+# Vite keeps a transform cache under `node_modules/.vite`. Mounting it as a
+# build cache is what makes the second and later builds of changed source fast:
+# unchanged modules are not re-transformed. The output (`dist`) is a normal
+# layer, so nothing from the cache ships in the image.
 COPY web/ ./
-RUN npm run build
+RUN --mount=type=cache,target=/src/node_modules/.vite,sharing=locked \
+    npm run build
 
 
 FROM docker.io/library/python:3.13-alpine@sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8

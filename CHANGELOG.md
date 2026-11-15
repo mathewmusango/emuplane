@@ -31,6 +31,14 @@ the minor number is bumped by hand, patch releases are the bot's.
   does it from the host for someone locked out of everything. Both revoke that
   principal's sessions. `/forgot` is the public page that explains the path, since
   this deployment has no mail transport to send a reset link.
+- **One icon set for both surfaces.** `scripts/favicons.sh` renders
+  `favicon.ico` and the 32/192/512 PNGs plus `apple-touch-icon.png` from a single
+  source image into `web/public`; the console's `index.html` and the
+  server-rendered auth pages declare the same links, and the server serves those
+  paths (they were 404 before). Brand files revalidate instead of being cached
+  `immutable`, so a new logo reaches a returning visitor.
+- **`scripts/build.sh`**, and `./scripts/up.sh --build` to rebuild and restart in
+  one step.
 
 ### Changed
 
@@ -38,6 +46,16 @@ the minor number is bumped by hand, patch releases are the bot's.
   page were removed on request: `Create Account` takes email, account name and
   password, creates the account and signs in. The SES send path went with them;
   transactional mail stays a slice-7 design, not code.
+- **The image build is cached end to end.** `npm ci` keeps its package-cache
+  mount and now uses `--prefer-offline`; `npm run build` gets a cache mount for
+  Vite's transform cache; `.dockerignore` covers the remaining local build output.
+  Measured here: no-change rebuild ~6s, console source change ~30s, cold ~65s.
+- **Vendor code is split into its own chunks** in `vite.config.js` (rolldown's
+  function form of `manualChunks`), so a page edit invalidates only the ~140 kB
+  app chunks instead of the whole ~2.6 MB bundle in the browser cache.
+- **Brand images are optimised.** The backend mark drops from 1280×719 / 80 kB to
+  256×144 / 16 kB, and the icon PNGs are stripped, palettised and compressed
+  (the 512px file goes 309 kB → 81 kB).
 - **The sign-in pages were unified.** Both cards now use the same frame (8px
   radius, no shadow, `#f2f3f3` page), the same input size, and an OR rule between
   the primary action and the alternative. On `/login` the signup route is one box

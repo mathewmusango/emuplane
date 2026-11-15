@@ -8,6 +8,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# `up.sh --build` rebuilds the image first, so restarting after a source change
+# is one command. The build is cached (see scripts/build.sh); a no-change
+# rebuild costs a few seconds.
+if [ "${1:-}" = "--build" ]; then
+  shift
+  ./scripts/build.sh
+fi
+
 if [ ! -f .env ]; then
   cp .env.example .env
   echo "created .env from .env.example"
