@@ -130,6 +130,13 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **Favorites is a pane in the services menu**, directly under Recently visited:
   the starred services, alphabetical, in the same list as every other pane —
   rather than a page of its own.
+- **Breadcrumbs tell one story.** The root crumb still said "MiniStack" and pages
+  repeated "Home" beneath it. The bar now reads `Home / <page>`, with services as
+  `Home / All services` and a service as `Home / All services / S3` (its display
+  name, not its id).
+- **A service's page has no star and no Refresh.** Favourites are managed from
+  All services and the services menu; a per-service star and a refresh button in
+  the page header were two more places to keep in step.
 - **All services keeps the service artwork.** Each line is the service's icon
   beside its name (a neutral glyph where there is no artwork), so a column of
   links is still scannable by sight rather than by reading every word.

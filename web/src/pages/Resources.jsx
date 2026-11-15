@@ -27,7 +27,7 @@ import Toggle from '@cloudscape-design/components/toggle'
 import { useCollection } from '@cloudscape-design/collection-hooks'
 import { api } from '../api'
 import { useSession } from '../context'
-import { useFavorites, useRecent } from '../prefs'
+import { useRecent } from '../prefs'
 import { ServiceIcon } from '../serviceIcons'
 import { serviceLabel } from '../serviceLabels'
 import { Shell, loadCatalogue } from '../components/Shell'
@@ -48,7 +48,6 @@ export default function Resources() {
   const { service: routeService } = useParams()
   const navigate = useNavigate()
   const { account, region, meta } = useSession()
-  const { toggleFavorite, isFavorite } = useFavorites(meta?.me?.account)
   const { addRecent } = useRecent(meta?.me?.account)
 
   const service = routeService || 's3'
@@ -418,8 +417,8 @@ export default function Resources() {
     <Shell
       activeHref="/resources"
       breadcrumbs={[
-        { text: 'Resources', href: '/resources' },
-        { text: service, href: `/resources/${service}` },
+        { text: 'All services', href: '/services' },
+        { text: serviceLabel(service), href: `/resources/${service}` },
       ]}
     >
       <ContentLayout
@@ -432,19 +431,6 @@ export default function Resources() {
             }
             info={
               operations.length === 0 ? <Badge color="grey">Read-only</Badge> : undefined
-            }
-            actions={
-              <SpaceBetween direction="horizontal" size="xs">
-                <Button
-                  variant="icon"
-                  iconName={isFavorite(service) ? 'star-filled' : 'star'}
-                  ariaLabel={isFavorite(service) ? 'Unfavorite service' : 'Favorite service'}
-                  onClick={() => toggleFavorite(service)}
-                />
-                <Button iconName="refresh" onClick={load}>
-                  Refresh
-                </Button>
-              </SpaceBetween>
             }
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>

@@ -83,10 +83,7 @@ export default function Services() {
   return (
     <Shell
       activeHref="/services"
-      breadcrumbs={[
-        { text: 'Home', href: '/' },
-        { text: 'All services', href: '/services' },
-      ]}
+      breadcrumbs={[{ text: 'All services', href: '/services' }]}
     >
       <ContentLayout
         header={<Header variant="h1">All services</Header>}

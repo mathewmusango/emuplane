@@ -165,7 +165,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         }
         breadcrumbs={
           <BreadcrumbGroup
-            items={[{ text: 'MiniStack', href: '/' }, ...breadcrumbs]}
+            items={[{ text: 'Home', href: '/' }, ...breadcrumbs]}
             onFollow={({ detail }) => {
               if (detail.href.startsWith('http')) return
               go(detail.href)

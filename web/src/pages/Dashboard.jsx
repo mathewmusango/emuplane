@@ -174,7 +174,7 @@ export default function Dashboard() {
   const show = (id) => !hidden.includes(id)
 
   return (
-    <Shell activeHref="/" breadcrumbs={[{ text: 'Home', href: '/' }]}>
+    <Shell activeHref="/" breadcrumbs={[]}>
       <ContentLayout
         header={
           <Header
