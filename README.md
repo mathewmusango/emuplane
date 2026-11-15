@@ -243,6 +243,20 @@ has a default, and the control exits at startup naming whatever is missing.
 | `MC_CONSOLE_URL` | required | console address shown in the UI |
 | `MC_GATEWAY_URL` | required | emulator gateway address shown in the UI |
 
+**Two kinds of setting, and that split is the porting contract.** The rows above
+are *container settings*: the control reads them at runtime, and
+`docker-compose.yml` passes exactly this set — so a Kubernetes ConfigMap is the
+same names and the same values, and a deployment may supply only the ones it
+needs because every other key has a code default.
+
+The rest of `.env` is *deployment settings* — `MC_IMAGE`, `MC_NETWORK`,
+`MC_NODE_CONTAINER` / `MC_NODE_LABEL` / `MC_NODE_PORT`,
+`MC_UI_PORT` / `MC_GATEWAY_PORT`, `MC_CONTROL_CONTAINER`. `up.sh` and `token.sh`
+use those to find containers and publish ports; they are never injected into the
+control. Kubernetes supplies the same facts as manifest fields — the image, a
+Service, an Endpoints/hostname for the node — and sets `MC_NODE_URL` to that
+Service name instead of letting `up.sh` derive it.
+
 Every account comes from sign-up or from the platform owner: nothing is seeded
 from `.env`, so there is no credential to rotate before the first sign-in.
 

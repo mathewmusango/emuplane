@@ -1,5 +1,23 @@
 name: ministack-control
 
+# The container contract: exactly these variables, and only these, are what the
+# control reads at runtime. A Kubernetes deployment sets the same set (a ConfigMap
+# built from an env file works verbatim); every ${...} below falls back to the
+# value the code itself defaults to, so an orchestrator may supply only what it
+# needs. Deployment-side knobs (.env: image, network, node container, host ports)
+# never reach the container.
+x-runtime: &runtime
+  TZ: "${TZ:-Africa/Nairobi}"
+  # The node this control fronts. Required: up.sh derives it, Kubernetes names it
+  # (e.g. http://ministack.namespace.svc:4566).
+  MC_NODE_URL: "${MC_NODE_URL:?set MC_NODE_URL, or run scripts/up.sh which derives it}"
+  # Empty means "use the URL's host".
+  MC_NODE_NAME: "${MC_NODE_NAME:-}"
+  MC_CONSOLE_URL: "${MC_CONSOLE_URL:?set MC_CONSOLE_URL}"
+  MC_GATEWAY_URL: "${MC_GATEWAY_URL:?set MC_GATEWAY_URL}"
+  CONTROL_PORT: "${CONTROL_PORT:-8080}"
+  CONTROL_GATEWAY_PORT: "${CONTROL_GATEWAY_PORT:-4566}"
+
 services:
   # First-setup init job: applies `bootstrap/template.yml` as the
   # `ministack-control` stack, which owns the ten DynamoDB tables the control
@@ -9,30 +27,32 @@ services:
   bootstrap:
     image: "${MC_IMAGE:-ghcr.io/mathewmusango/ministack-control:latest}"
     restart: "no"
-    env_file:
-      - path: ./.env
-        required: false
     environment:
-      TZ: "${TZ:-Africa/Nairobi}"
-      # up.sh exports the resolved URL; a bare `podman-compose up` has to name one.
-      MC_NODE_URL: "${MC_NODE_URL:?set MC_NODE_URL, or run scripts/up.sh which derives it}"
+      <<: *runtime
+      CONTROL_POLL_SECONDS: "${CONTROL_POLL_SECONDS:-10}"
+      MC_SESSION_SECONDS: "${MC_SESSION_SECONDS:-28800}"
+      MC_RECENT_LIMIT: "${MC_RECENT_LIMIT:-5}"
+      MC_STORE_ACCOUNT: "${MC_STORE_ACCOUNT:-111111111111}"
+      MC_STORE_REGION: "${MC_STORE_REGION:-us-east-1}"
+      MC_STORE_URL: "${MC_STORE_URL:-}"
     command: ["python", "/app/bootstrap/apply.py"]
 
   ministack-control:
     image: "${MC_IMAGE:-ghcr.io/mathewmusango/ministack-control:latest}"
     restart: "no"
-    env_file:
-      - path: ./.env
-        required: false
     environment:
-      TZ: "${TZ:-Africa/Nairobi}"
-      # Same resolution as the init job: up.sh exports it, MC_NODE_URL overrides.
-      MC_NODE_URL: "${MC_NODE_URL:?set MC_NODE_URL, or run scripts/up.sh which derives it}"
+      <<: *runtime
+      CONTROL_POLL_SECONDS: "${CONTROL_POLL_SECONDS:-10}"
+      MC_SESSION_SECONDS: "${MC_SESSION_SECONDS:-28800}"
+      MC_RECENT_LIMIT: "${MC_RECENT_LIMIT:-5}"
+      MC_STORE_ACCOUNT: "${MC_STORE_ACCOUNT:-111111111111}"
+      MC_STORE_REGION: "${MC_STORE_REGION:-us-east-1}"
+      MC_STORE_URL: "${MC_STORE_URL:-}"
     ports:
-      - "127.0.0.1:${MC_UI_PORT:-4570}:8080"
-      - "127.0.0.1:${MC_GATEWAY_PORT:-4571}:4566"
+      - "127.0.0.1:${MC_UI_PORT:-4570}:${CONTROL_PORT:-8080}"
+      - "127.0.0.1:${MC_GATEWAY_PORT:-4571}:${CONTROL_GATEWAY_PORT:-4566}"
     # No volumes: the console is stateless, and the control's state lives in the
-    # emulator's DynamoDB. Nothing here needs a host directory.
+    # node's DynamoDB. Nothing here needs a host directory.
     healthcheck:
       test:
         - CMD-SHELL
