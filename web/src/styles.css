@@ -77,5 +77,5 @@ body.awsui-dark-mode {
    offset predictable — the selector measured the bar but the page title still
    slid underneath it. */
 .console-offset {
-  padding-block-start: 2.75rem;
+  padding-block-start: var(--topbar-h, 3.25rem);
 }

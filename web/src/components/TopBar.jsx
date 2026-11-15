@@ -234,11 +234,14 @@ export default function TopBar({
             aria-expanded={accountOpen}
             onClick={() => setAccountOpen((open) => !open)}
           >
-            {isRoot ? `Account (${account || '—'})` : me?.user || 'IAM user'}
+            {accountName || 'Account'}
+            {' ('}
+            {account || '—'}
+            {')'}
             <ChevronDown size={14} />
           </button>
           <span className="topbar__chip-label">
-            {isRoot ? accountName || 'Account' : 'IAM user'}
+            {isRoot ? accountName || 'Account' : me?.user || 'IAM user'}
           </span>
 
           {accountOpen && (
@@ -310,6 +313,14 @@ export default function TopBar({
                 Security credentials
               </button>
               <hr />
+              <button
+                type="button"
+                role="menuitem"
+                disabled
+                title="One identity per browser session in this build"
+              >
+                Turn on multi-session support
+              </button>
               <button
                 type="button"
                 role="menuitem"

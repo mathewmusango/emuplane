@@ -154,6 +154,29 @@ describe('console', () => {
     expect(screen.getAllByText('us-east-1', { exact: false }).length).toBeGreaterThan(0)
   })
 
+  it('names the account in the bar, and the identity beneath it', async () => {
+    renderAt(<App />)
+    // Root: the chip carries the account and its ID, the line under it the name.
+    const chip = await screen.findByRole('button', { name: /mathewmusango \(111111111111\)/ })
+    expect(chip).toBeTruthy()
+    expect(screen.getByText('mathewmusango', { selector: '.topbar__chip-label' })).toBeTruthy()
+
+    // IAM: same chip, but the line under it is the username, not the account.
+    const original = RESPONSES['/api/meta']
+    RESPONSES['/api/meta'] = {
+      ...original,
+      me: { ...original.me, user: 'test', role: 'iam' },
+    }
+    try {
+      renderAt(<App />)
+      expect(
+        await screen.findByText('test', { selector: '.topbar__chip-label' }),
+      ).toBeTruthy()
+    } finally {
+      RESPONSES['/api/meta'] = original
+    }
+  })
+
   it('renders the resource table and its action form', async () => {
     renderAt(<Resources />)
     expect(await screen.findByText('S3 resources')).toBeTruthy()

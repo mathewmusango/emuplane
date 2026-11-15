@@ -82,6 +82,13 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **The account chip names the account, and the line under it names the identity.**
+  Both identities show `<account> (<account ID>)` on the chip — in this lab
+  `management (124969375555)` — and the small line beneath carries the account
+  name for root and the username for an IAM user. The bar grows to 3.25rem to
+  hold the two lines (`--topbar-h`, which the content offset now reads too).
+  "Turn on multi-session support" is present in the menu and disabled: one
+  identity per browser session is what this build does.
 - **A console bar of its own.** `TopBar` replaces Cloudscape's TopNavigation so
   the services grid can sit immediately after the mark (icon only, no label), the
   way the console places it. The account chip opens a menu that differs by

@@ -1,5 +1,9 @@
-/* The console bar. Height and rhythm follow the console's own: a 44px bar, a
-   quiet icon cluster, one search field, and the account chip on the right. */
+/* The console bar. The account chip sits on two lines (the account on top, the
+   identity beneath), which is what sets the height — so the height is a token
+   the page offset can read too. */
+:root {
+  --topbar-h: 3.25rem;
+}
 
 .topbar {
   position: fixed;
@@ -9,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  height: 2.75rem;
+  height: var(--topbar-h, 3.25rem);
   padding: 0 0.5rem;
   background: #ffffff;
   border-block-end: 1px solid #d7e0f5;
@@ -116,9 +120,18 @@
   background: #eef3ff;
 }
 
-.topbar__region,
+.topbar__region {
+  position: relative;
+}
+
 .topbar__account {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1px;
+  padding-inline-start: 0.35rem;
 }
 
 .topbar__chip {
@@ -138,7 +151,18 @@
 }
 
 .topbar__chip-label {
-  display: none;
+  display: block;
+  max-width: 16rem;
+  overflow: hidden;
+  color: #5a6b8c;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.awsui-dark-mode .topbar__chip-label {
+  color: #93a4c4;
 }
 
 .topbar__menu {
@@ -177,6 +201,15 @@
 
 .topbar__menu button:hover {
   background: #eef3ff;
+}
+
+.topbar__menu button:disabled {
+  color: #9aa7bd;
+  cursor: not-allowed;
+}
+
+.topbar__menu button:disabled:hover {
+  background: none;
 }
 
 .topbar__menu--region button span {
