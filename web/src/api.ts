@@ -24,8 +24,10 @@ interface RequestOptions {
   headers?: Record<string, string>
 }
 
-// A 401 means the session expired: the server-rendered login page is still the
-// only login surface, so bounce there.
+// A 401 means the session expired: the server-rendered login page is still what
+// mints a session, so bounce there. The one exception is the sign-in screens
+// themselves, which are served without a session — a 401 there is expected, and
+// bouncing would make the page unreachable.
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(path, {
     credentials: 'same-origin',
@@ -38,8 +40,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   })
 
   if (response.status === 401) {
-    const next = encodeURIComponent(window.location.pathname + window.location.search)
-    window.location.assign(`/login?next=${next}`)
+    if (window.location.pathname !== '/signin') {
+      const next = encodeURIComponent(window.location.pathname + window.location.search)
+      window.location.assign(`/login?next=${next}`)
+    }
     throw new Error('Your session expired. Sign in again.')
   }
 

@@ -283,12 +283,14 @@ renamed to `*.imported`; nothing reads them afterwards, so they can be deleted.
 
 The console carries the five AWS sign-in screens (user type → root email or IAM
 account + username → password → MFA) as `web/src/pages/SignIn.jsx`, in one
-`/signin` route with a small state machine. They are **dev-server only** for
-now: the server still owns `/login` and `SPA_ROUTES` does not list the route, so
-run `npm run dev` in `web/` to walk them. Submitting goes to
-`web/src/authStub.js` — the payload shapes the auth endpoints will take, no
-network, no password field in the call and no session minted — so slice 3 of
-`ARCHITECTURE.md` is a swap of that module, not a rewrite.
+`/signin` route with a small state machine. The control plane serves that route
+**without a session** (`PUBLIC_SPA_ROUTES`), and the classic login page links to
+it, so it is live in the running console — but `/login` remains the
+server-rendered form, because it is the only thing that mints a session.
+Submitting goes to `web/src/authStub.js` — the payload shapes the auth endpoints
+will take, no network, no password field in the call and no session minted — so
+slice 3 of `ARCHITECTURE.md` is a swap of that module plus the `/login`
+handover, not a rewrite.
 
 The control seeds **nothing** from `.env`. The first account created — by local
 sign-up — is the platform owner: `global_admin` and `default_admin` are set on

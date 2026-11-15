@@ -109,6 +109,11 @@ STATIC_DIR = os.environ.get("MINISTACK_STATIC_DIR", "/app/static")
 PUBLIC_DIR = os.environ.get("MINISTACK_PUBLIC_DIR", "/app/public")
 SPA_ROUTES = {"/", "/resources", "/favorites", "/accounts", "/onboarding",
               "/settings", "/about"}
+# Served to anyone, signed in or not: the sign-in screens the console will use
+# once the auth endpoints land (ARCHITECTURE.md slice 3). Until then the page
+# submits to a stub, so it cannot mint a session — which is why /login stays
+# server-rendered and remains the only form that signs anyone in.
+PUBLIC_SPA_ROUTES = {"/signin"}
 MIME = {
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
@@ -214,7 +219,8 @@ NODES: list[dict] = [
 class Accounts:
     """Accounts are the tenancy boundary.
 
-    Stored as one row per account in `control.db`, each carrying this shape:
+    Stored as one row per account in the `accounts` store, each carrying this
+    shape:
 
         {"account_id": "111111111111", "alias": "mathewmusango",
          "root": "mathewmusango", "created_at": "...",
@@ -1126,7 +1132,7 @@ REGISTRY = Registry(DB)
 HEALTH: dict[str, dict] = {}
 HEALTH_LOCK = threading.Lock()
 
-# control-plane sessions (in memory, write-through to control.db)
+# control-plane sessions (in memory, write-through to the `sessions` store)
 SESSIONS: dict[str, dict] = {}
 SESSIONS_LOCK = threading.Lock()
 
@@ -2546,6 +2552,10 @@ class ControlHandler(BaseHTTPRequestHandler):
                    required></div>
           <button type="submit">Sign in</button>
         </form>"""
+        preview = (
+            '<div class="links">The five new sign-in screens are in preview: '
+            '<a href="/signin">try them</a></div>'
+        )
         return self._auth_layout(
             "Sign in",
             f"""
@@ -2555,6 +2565,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     <p class="sub">Sign in to your account</p>
     {notice}
     {local}
+    {preview}
 """,
         )
 
@@ -2614,6 +2625,8 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._page(self._login_page())
         if path == "/signup":
             return self._page(self._signup_page())
+        if path in PUBLIC_SPA_ROUTES:
+            return self._spa()
         if path in SPA_ROUTES or path.startswith("/resources/"):
             if not self._authenticated():
                 return self._redirect("/login?next=" + quote(path))

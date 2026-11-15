@@ -12,8 +12,10 @@ the minor number is bumped by hand, patch releases are the bot's.
 - Console: the five AWS sign-in screens — user type (root / IAM) → email or
   account ID → password → MFA code — as one `/signin` route in
   `web/src/pages/SignIn.jsx`, submitting to `web/src/authStub.js` until the
-  control plane's auth endpoints land (ARCHITECTURE.md slice 3). Dev-server
-  only for now: the server still owns `/login`.
+  control plane's auth endpoints land (ARCHITECTURE.md slice 3). The route is
+  served without a session (`PUBLIC_SPA_ROUTES`) and linked from the classic
+  login page; `/login` stays server-rendered, because it is the only form that
+  mints a session today.
 - CI: shared check leaves (python, js, shell, yaml, docker), a Vitest + `tsc`
   suite for `web/`, the security leaves (`dependency-review`, `pip-audit`,
   `npm-audit`), CodeQL and Semgrep.
