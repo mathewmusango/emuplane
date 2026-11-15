@@ -249,6 +249,10 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Fixed
 
+- **The picker writes the region into the URL on the click itself** (`Shell`'s
+  `changeRegion`), instead of relying on the page's effect to notice afterwards.
+  Both paths now exist — immediate write and effect sync — so the address bar
+  changes even if a render is deferred.
 - **Switching region updates the URL.** The page adopted `?region=` on every
   render where it differed, so the picker's choice was overwritten by the URL a
   moment later — switching looked like it did nothing. The URL now seeds the page

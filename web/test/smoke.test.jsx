@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { useLocation } from 'react-router-dom'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { BrowserRouter, useLocation } from 'react-router-dom'
 import { MemoryRouter } from 'react-router-dom'
 import { SessionProvider } from '../src/context'
 import App from '../src/App'
@@ -235,6 +235,27 @@ describe('console', () => {
     ).toBeTruthy()
     expect(localStorage.getItem('emuplane:favorites:111111111111')).toBeTruthy()
     localStorage.clear()
+  })
+
+  it('updates the real address bar when the picker changes region', async () => {
+    // Same journey as below, but through BrowserRouter and window.history, which
+    // is what the browser actually does.
+    window.history.replaceState({}, '', '/s3/home?region=us-east-1')
+    render(
+      <BrowserRouter>
+        <SessionProvider>
+          <App />
+        </SessionProvider>
+      </BrowserRouter>,
+    )
+    expect(await screen.findByText('S3 resources')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /N\. Virginia/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Oregon/ }))
+    await waitFor(() =>
+      expect(window.location.pathname + window.location.search).toBe(
+        '/s3/home?region=us-west-2',
+      ),
+    )
   })
 
   it('follows the region picker into the URL', async () => {

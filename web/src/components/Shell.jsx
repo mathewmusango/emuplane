@@ -103,6 +103,20 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
     navigate(href)
   }
 
+  // Write the region into the URL at the moment the picker is used. The page
+  // also syncs it from an effect, but doing it here means the address bar changes
+  // on the click itself — no render scheduling involved.
+  const changeRegion = (name) => {
+    setRegion(name)
+    const parts = location.pathname.split('/').filter(Boolean)
+    if (parts.length === 2 && parts[1] === 'home') {
+      navigate(
+        { pathname: location.pathname, search: `?region=${name}` },
+        { replace: true },
+      )
+    }
+  }
+
   const enabled = meta?.regions || []
   const missing = Math.max((meta?.all_regions || []).length - enabled.length, 0)
   const regionItems = [
@@ -130,7 +144,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
           || ''}
         regions={meta?.regions || []}
         region={region}
-        onRegion={setRegion}
+        onRegion={changeRegion}
         serviceNames={serviceNames}
         servicesOpen={servicesOpen}
         onToggleServices={() => setServicesOpen((open) => !open)}
