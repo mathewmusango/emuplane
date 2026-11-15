@@ -173,6 +173,11 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **The bar's right side is quieter**: notifications, help and settings icons are
   removed. Settings is still one click away in the account menu, and About is
   reachable from there too.
+- **The sidebar belongs to the service you are in.** On `/<service>/home` it
+  switches from the console nav to that service: `Buckets` (S3) or `Resources`,
+  a section listing the actions this console actually offers for it, and a link
+  back to All services. An action link carries `#<operation-id>`, which the page
+  reads and opens, so the nav and the page agree.
 - **A console bar of its own.** `TopBar` replaces Cloudscape's TopNavigation so
   the services grid can sit immediately after the mark (icon only, no label), the
   way the console places it. The account chip opens a menu that differs by

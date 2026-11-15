@@ -105,6 +105,16 @@ export default function Resources() {
   const spec = catalogue?.services?.[service]
   const operations = spec?.operations || []
 
+  // The sidebar links to `#<operation-id>`; opening one selects it, so the nav
+  // and the page agree about where you are.
+  useEffect(() => {
+    const id = window.location.hash.replace('#', '')
+    if (!id || !operations.length) return
+    const match = operations.find((item) => item.id === id)
+    if (match) setOperation(match)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [operations.length, service])
+
   useEffect(() => {
     setOperation(operations[0] || null)
     setParams(FIELD_DEFAULTS(operations[0]?.params))

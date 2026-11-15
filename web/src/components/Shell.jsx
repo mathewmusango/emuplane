@@ -103,6 +103,40 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
     navigate(href)
   }
 
+  // On `/<service>/home` the sidebar is the service's own: what it lists here is
+  // what this console can actually do with it.
+  const serviceHome = (() => {
+    const parts = location.pathname.split('/').filter(Boolean)
+    return parts.length === 2 && parts[1] === 'home' ? parts[0] : ''
+  })()
+
+  const serviceNav = () => {
+    const spec = catalogue?.services?.[serviceHome]
+    const operations = spec?.operations || []
+    return [
+      {
+        type: 'link',
+        text: serviceHome === 's3' ? 'Buckets' : 'Resources',
+        href: location.pathname,
+      },
+      ...(operations.length
+        ? [
+            {
+              type: 'section',
+              text: 'Actions',
+              items: operations.map((op) => ({
+                type: 'link',
+                text: op.label,
+                href: `${location.pathname}#${op.id}`,
+              })),
+            },
+          ]
+        : []),
+      { type: 'divider' },
+      { type: 'link', text: 'All services', href: '/services' },
+    ]
+  }
+
   // Write the region into the URL at the moment the picker is used. The page
   // also syncs it from an effect, but doing it here means the address bar changes
   // on the click itself — no render scheduling involved.
@@ -170,7 +204,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         navigation={
           <SideNavigation
             activeHref={activeHref || location.pathname}
-            items={navItems()}
+            items={serviceHome ? serviceNav() : navItems()}
             onFollow={({ detail }) => {
               if (detail.href.startsWith('http') || detail.href === '#') return
               go(detail.href)
