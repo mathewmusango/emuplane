@@ -698,33 +698,6 @@ class UserStore:
                 },
             )
 
-    def create_with_hash(
-        self,
-        username: str,
-        email: str,
-        password_hash: str,
-        account_id: str,
-        role: str = "root",
-    ) -> None:
-        """Create a user whose password was hashed earlier, never kept in clear.
-
-        The sign-up flow collects the password on the first screen and mails a
-        one-time password; the pending record carries this hash, not the password.
-        """
-        with self.lock:
-            self._save(
-                username,
-                {
-                    "username": username,
-                    "email": email,
-                    "password_hash": password_hash,
-                    "account_id": account_id,
-                    "role": role,
-                    "created_at": now(),
-                    "last_login": None,
-                },
-            )
-
     def verify(self, username: str, password: str) -> dict | None:
         user = self.get(username)
         if user is None or not self._matches(password, user["password_hash"]):
@@ -1889,12 +1862,6 @@ AUTH_STYLE = """
   .actions > a { flex: 1 1 0; margin-top: 0; }
   .actions .or { flex: 0 0 auto; color: var(--muted); font-size: .72rem;
                  font-weight: 600; letter-spacing: .06em; }
-  .mail { border: 1px solid var(--border); border-radius: 8px; padding: .85rem 1rem;
-          margin-bottom: .75rem; }
-  .mail h3 { margin: 0 0 .2rem; font-size: .95rem; text-align: left; }
-  .mail .meta { margin: 0 0 .5rem; color: var(--muted); font-size: .75rem;
-                text-align: left; }
-  .mail pre { margin: 0; white-space: pre-wrap; font: inherit; font-size: .85rem; }
   .secondary { display: flex; align-items: center; justify-content: center;
                width: 100%; padding: .6rem; border: 1px solid var(--link);
                border-radius: 999px; color: var(--link); text-decoration: none;
@@ -2007,121 +1974,6 @@ def aws_call(
         return 0, str(exc)
     finally:
         conn.close()
-
-
-STORE_ACCOUNT = os.environ.get("EP_STORE_ACCOUNT", "111111111111")
-STORE_REGION = os.environ.get("EP_STORE_REGION", "us-east-1")
-MAIL_SENDER = os.environ.get("EP_MAIL_SENDER", "no-reply@emuplane.local")
-SIGNUP_TTL_SECONDS = 900
-SIGNUP_MAX_ATTEMPTS = 5
-_SENDER_READY = False
-
-
-def ensure_sender() -> None:
-    """The backend rejects an unverified sender; verify ours once per process."""
-    global _SENDER_READY
-    if _SENDER_READY:
-        return
-    aws_call(
-        STORE_ACCOUNT,
-        STORE_REGION,
-        "ses",
-        "VerifyEmailIdentity",
-        params={"EmailAddress": MAIL_SENDER},
-        version="2010-12-01",
-    )
-    _SENDER_READY = True
-
-
-def send_mail(to_email: str, subject: str, text: str) -> tuple[bool, str]:
-    """One transactional mail through the backend's SES, as the store account.
-
-    Emuplane is a tenant of the backend it fronts, so it sends the way any other
-    client would. The backend keeps the message, which is what makes a local
-    mailbox possible (`GET /_ministack/ses/messages`).
-    """
-    ensure_sender()
-    status, body = aws_call(
-        STORE_ACCOUNT,
-        STORE_REGION,
-        "ses",
-        "SendEmail",
-        params={
-            "Source": MAIL_SENDER,
-            "Destination.ToAddresses.member.1": to_email,
-            "Message.Subject.Data": subject,
-            "Message.Body.Text.Data": text,
-        },
-        version="2010-12-01",
-    )
-    return status == 200, body
-
-
-# The copy of the message this sign-up just triggered, keyed by pending token.
-# The backend keeps the authoritative copy; this is what the flow's mailbox link
-# renders, so signing up needs no mail client and no second HTTP hop.
-_SENT_MAIL: dict[str, dict] = {}
-_SENT_MAIL_LOCK = threading.Lock()
-
-
-def remember_mail(token: str, to_email: str, subject: str, text: str) -> None:
-    with _SENT_MAIL_LOCK:
-        _SENT_MAIL[token] = {"to": to_email, "subject": subject, "text": text, "at": now()}
-        while len(_SENT_MAIL) > 20:
-            _SENT_MAIL.pop(next(iter(_SENT_MAIL)))
-
-
-def sent_mail(token: str) -> dict | None:
-    with _SENT_MAIL_LOCK:
-        return _SENT_MAIL.get(token)
-
-
-def signup_pending_new(
-    username: str, email: str, password_hash: str
-) -> tuple[str, str]:
-    """A pending sign-up: the code is mailed, only its digest is kept.
-
-    The password arrives on the first screen and travels as its hash, so the
-    plaintext never leaves that request.
-    """
-    token = secrets.token_urlsafe(24)
-    code = f"{secrets.randbelow(1_000_000):06d}"
-    record = {
-        "username": username,
-        "email": email,
-        "password_hash": password_hash,
-        "code_hash": hashlib.sha256(code.encode()).hexdigest(),
-        "expires": time.time() + SIGNUP_TTL_SECONDS,
-        "attempts": 0,
-    }
-    DB.put("settings", f"signup/{token}", json.dumps(record))
-    return token, code
-
-
-def signup_pending_get(token: str) -> dict | None:
-    if not token:
-        return None
-    try:
-        raw = DB.get("settings", f"signup/{token}")
-    except (OSError, DynamoError):
-        return None
-    if not raw:
-        return None
-    try:
-        return json.loads(raw)
-    except ValueError:
-        return None
-
-
-def signup_pending_put(token: str, record: dict) -> None:
-    DB.put("settings", f"signup/{token}", json.dumps(record))
-
-
-def signup_pending_drop(token: str) -> None:
-    try:
-        DB.delete("settings", f"signup/{token}")
-    except (OSError, DynamoError):
-        pass
 
 
 def signed_rest(
@@ -2718,7 +2570,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         )
 
     def _signup(self) -> None:
-        """Step one: the address the code goes to, and the account name."""
+        """Create an account and sign in; the first one becomes the platform owner."""
         if not SETTINGS.get("signup_enabled", True):
             return self._page(
                 self._signup_page({"form": "Sign-up is disabled on this lab."}), 403
@@ -2747,80 +2599,14 @@ class ControlHandler(BaseHTTPRequestHandler):
         if errors:
             return self._page(self._signup_page(errors, username, email), 400)
 
-        token, code = signup_pending_new(username, email, USERS._hash(password))
-        subject = "Your Emuplane verification code"
-        message = (
-            f"Your one-time password is {code}.\n\n"
-            f"It creates the account \"{username}\" and expires in 15 minutes.\n"
-            "If you did not ask for this, ignore the message.\n"
-        )
-        sent, detail = send_mail(email, subject, message)
-        if not sent:
-            signup_pending_drop(token)
-            print(f"control: could not send the sign-up code: {detail}", flush=True)
-            return self._page(
-                self._signup_page(
-                    {"form": "The code could not be sent; try again."}, username, email
-                ),
-                502,
-            )
-        remember_mail(token, email, subject, message)
-        return self._page(self._signup_verify_page(token, email))
-
-    def _signup_verify(self) -> None:
-        """Step two: the mailed code, then the password, then the account."""
-        form = self._form()
-        token = (form.get("token") or "").strip()
-        code = (form.get("code") or "").strip()
-        record = signup_pending_get(token)
-        if record is None or float(record.get("expires", 0)) < time.time():
-            signup_pending_drop(token)
-            return self._page(
-                self._signup_page(
-                    {"form": "That code has expired; start again with your address."}
-                ),
-                400,
-            )
-
-        errors: dict[str, str] = {}
-        presented = hashlib.sha256(code.encode()).hexdigest()
-        if not code:
-            errors["code"] = "Enter the one-time password from the email."
-        elif not secrets.compare_digest(presented, record["code_hash"]):
-            record["attempts"] = int(record.get("attempts", 0)) + 1
-            signup_pending_put(token, record)
-            if record["attempts"] >= SIGNUP_MAX_ATTEMPTS:
-                signup_pending_drop(token)
-                return self._page(
-                    self._signup_page(
-                        {"form": "Too many attempts; start again with your address."}
-                    ),
-                    400,
-                )
-            errors["code"] = "That code does not match the one we sent."
-        if errors:
-            return self._page(
-                self._signup_verify_page(token, record["email"], errors), 400
-            )
-
-        username = record["username"]
-        if USERS.exists(username):
-            signup_pending_drop(token)
-            return self._page(
-                self._signup_page(
-                    {"username": "That account name was taken while you verified."}
-                ),
-                409,
-            )
         account, principal = ACCOUNTS.ensure_local(username)
-        USERS.create_with_hash(
+        USERS.create(
             username,
-            record["email"],
-            record["password_hash"],
+            email,
+            password,
             account["account_id"],
             principal.get("role", "root"),
         )
-        signup_pending_drop(token)
         session = new_session(
             username, account["account_id"], principal["role"], account["alias"]
         )
@@ -2833,45 +2619,6 @@ class ControlHandler(BaseHTTPRequestHandler):
         )
         self.send_header("Content-Length", "0")
         self.end_headers()
-
-    def _mailbox(self, token: str) -> None:
-        """The message this sign-up just triggered, scoped by its pending token.
-
-        A code is a credential, so the page is token-scoped rather than a listing.
-        The backend holds the authoritative copy in its SES mailbox; this page
-        exists so the flow works without a mail client.
-        """
-        record = signup_pending_get(token)
-        if record is None:
-            return self._page(self._simple_page("That link has expired."), 404)
-        message = sent_mail(token)
-        if message is None:
-            body = (
-                '<p class="hint">The message was sent; open the backend mailbox at '
-                "<code>/_ministack/ses/messages</code> to read it.</p>"
-            )
-        else:
-            body = (
-                '<article class="mail"><h3>'
-                + html.escape(message["subject"])
-                + '</h3><p class="meta">to '
-                + html.escape(message["to"])
-                + " · "
-                + html.escape(message["at"])
-                + "</p><pre>"
-                + html.escape(message["text"])
-                + "</pre></article>"
-            )
-        page = (
-            '<h1 class="auth-title">Mailbox</h1>'
-            '<p class="hint">The message sent to '
-            + html.escape(str(record.get("email", "")))
-            + ".</p>"
-            + body
-            + '<div class="actions"><a class="secondary" href="/signup">'
-            "Back to sign-up</a></div>"
-        )
-        return self._page(self._auth_layout("Mailbox", page))
 
     def _auth_layout(self, title: str, body: str) -> str:
         return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -2926,8 +2673,8 @@ class ControlHandler(BaseHTTPRequestHandler):
     <form method="post" action="/signup">
       <div class="field">
         <label for="email">Email address</label>
-        <p class="hint">We send a one-time password here, and it is your sign-in
-          identity.</p>
+        <p class="hint">Your sign-in identity and where account recovery would reach
+          you.</p>
         <input id="email" name="email" type="email" value="{html.escape(email)}"
                placeholder="username@example.com" autocomplete="email" required autofocus>
         {problem("email")}
@@ -2963,65 +2710,6 @@ class ControlHandler(BaseHTTPRequestHandler):
 """,
         )
 
-    def _signup_verify_page(
-        self,
-        token: str,
-        email: str,
-        errors: dict[str, str] | None = None,
-    ) -> str:
-        """Step two: the code from the mailbox, then the password."""
-        errors = errors or {}
-
-        def problem(field: str) -> str:
-            message = errors.get(field, "")
-            if not message:
-                return ""
-            return (
-                '<p class="field-error"><span class="dot" aria-hidden="true">!</span>'
-                f"{html.escape(message)}</p>"
-            )
-
-        notice = errors.get("form", "")
-        notice_html = f'<div class="error">{html.escape(notice)}</div>' if notice else ""
-        mailbox = "/mailbox?token=" + html.escape(token)
-        return self._auth_layout(
-            "Check your email",
-            f"""
-    <h1 class="auth-title">Check your email</h1>
-    <p class="hint">We sent a one-time password to
-      <strong>{html.escape(email)}</strong>. It expires in 15 minutes.
-      <a href="{mailbox}">Open the mailbox</a></p>
-    {notice_html}
-    <form method="post" action="/signup/verify">
-      <input type="hidden" name="token" value="{html.escape(token)}">
-      <div class="field">
-        <label for="code">One-time password</label>
-        <p class="hint">Six digits, from the message we just sent.</p>
-        <input id="code" name="code" inputmode="numeric"
-               autocomplete="one-time-code" required autofocus>
-        {problem("code")}
-      </div>
-      <div class="actions">
-        <button type="submit">Create account</button>
-        <span class="or">OR</span>
-        <a class="secondary" href="/login">Sign in</a>
-      </div>
-    </form>
-""",
-        )
-
-    def _simple_page(self, message: str) -> str:
-        return self._auth_layout(
-            "Expired",
-            f"""
-    <h1 class="auth-title">Link expired</h1>
-    <p class="hint">{html.escape(message)}</p>
-    <div class="actions">
-      <a class="secondary" href="/signup">Start again</a>
-    </div>
-""",
-        )
-
     def _body(self) -> dict:
         length = int(self.headers.get("Content-Length") or 0)
         if not length:
@@ -3047,9 +2735,6 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(200, {"status": "ok"})
         if path == "/signup":
             return self._page(self._signup_page())
-        if path == "/mailbox":
-            token = (parse_qs(urlsplit(self.path).query).get("token") or [""])[0]
-            return self._mailbox(token)
         if path in PUBLIC_SPA_ROUTES:
             return self._spa()
         if path in SPA_ROUTES or path.startswith("/resources/"):
@@ -3420,8 +3105,6 @@ class ControlHandler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == "/signup":
             return self._signup()
-        if path == "/signup/verify":
-            return self._signup_verify()
         if path.startswith("/api"):
             path = self._api_path(path)
         if path == "/api/auth/login":

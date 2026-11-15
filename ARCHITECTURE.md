@@ -112,6 +112,10 @@ Rules:
 
 ## Email and events — SES and SNS, not SMTP
 
+> Nothing here is implemented yet. A first pass used SES for a sign-up one-time
+> password; that flow and its mailbox page were removed on request, so this
+> section is the design that remains for slice 7.
+
 The emulator implements SES (`ses.py`, `ses_v2.py`) and SNS (`sns.py`), so the
 control plane never speaks SMTP: it calls the same emulator it fronts, signed
 exactly like any other control call.

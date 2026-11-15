@@ -297,7 +297,7 @@ plane is a tenant of the service it manages, and its state moves with that servi
 | Page | What it does |
 | --- | --- |
 | `/login` | the console's five sign-in screens: user type → root email (or IAM account + username) → password → MFA. `POST /api/auth/login` mints the session |
-| `/signup` | two steps: email + account name + password → a one-time password mailed through the backend's SES → the code alone. Creates the account (fresh 12-digit ID, unique alias) and signs in; **the first one becomes the default global admin**. The password never leaves the first request in clear — the pending record carries its hash. `/mailbox?token=…` shows the message that was just sent, scoped to that sign-up |
+| `/signup` | one step: email, account name, password and confirmation → **Create Account**, which creates the account (fresh 12-digit ID, unique alias) and signs in. **The first one becomes the default global admin.** Link-free by design — reachable only when sign-up is enabled |
 
 ### The sign-in screens
 

@@ -29,15 +29,10 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
-- **Sign-up is email-verified.** Email + account name first; the control mails a
-  six-digit one-time password through the backend's SES (verifying its own sender
-  identity once), keeps only the code's digest in the settings store with a
-  15-minute expiry and five attempts, and creates the account once the code
-  arrives. The password is collected on the first screen and travels as its
-  PBKDF2 hash inside the pending record, so the second step asks for the code
-  alone and no plaintext password leaves that request. `/mailbox?token=…` renders the message it just sent, scoped to
-  that pending sign-up, so the flow works without a mail client; the backend's SES
-  mailbox still holds the authoritative copy.
+- **Sign-up is one step again.** The emailed one-time password and the `/mailbox`
+  page were removed on request: `Create Account` takes email, account name and
+  password, creates the account and signs in. The SES send path went with them;
+  transactional mail stays a slice-7 design, not code.
 - **Both auth pages put their two actions on one line with OR between them.**
 
 - **The sign-in page carries a theme switch.** It follows the system by default
