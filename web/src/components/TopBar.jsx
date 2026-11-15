@@ -80,6 +80,22 @@ export default function TopBar({
   const accountRef = useRef(null)
   const regionRef = useRef(null)
 
+  // A session added in another window is stored there; the opener only has to
+  // pick the list up again. The cookie is shared by the whole browser, so the
+  // window that added it is the one this tab is now signed in as — a reload is
+  // the honest way to show that.
+  useEffect(() => {
+    const onMessage = (event) => {
+      if (event.origin !== window.location.origin) return
+      if (event.data?.type !== 'emuplane:identity-added') return
+      setIdentities(readIdentities())
+      setMulti(multiSessionEnabled())
+      window.location.reload()
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
   useEffect(() => {
     const onClick = (event) => {
       if (accountRef.current && !accountRef.current.contains(event.target)) {
@@ -398,12 +414,20 @@ export default function TopBar({
                   <button
                     type="button"
                     className="topbar__box topbar__box--wide"
-                    // Signing in again adds an identity to the list rather than
-                    // replacing the current one: the cookie moves, the stored
-                    // token keeps this session switchable.
+                    // Signing in again adds an identity rather than replacing
+                    // this one: the cookie moves, and the token for the session
+                    // you are in now stays in the switch list.
                     onClick={() => {
                       setAccountOpen(false)
-                      onNavigate('/login?add=1')
+                      const opened = window.open(
+                        '/login?add=1&popup=1',
+                        'emuplane-add-session',
+                        'width=520,height=780',
+                      )
+                      if (!opened) {
+                        // Popup blocked: fall back to this tab.
+                        onNavigate('/login?add=1')
+                      }
                     }}
                   >
                     Add session

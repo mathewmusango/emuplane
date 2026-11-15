@@ -49,6 +49,7 @@ const RESPONSES = {
   '/api/meta': META,
   '/api/auth/login': {
     ok: true,
+    token: 'login-token',
     mfa_required: false,
     user: 'root@example.com',
     account: '111111111111',
@@ -291,6 +292,31 @@ describe('console', () => {
     // No MFA on this principal: the code screen must not appear.
     expect(await screen.findByText('Services answering')).toBeTruthy()
     expect(screen.queryByText('Additional verification required')).toBeNull()
+  })
+
+  it('stores the identity when multi-session is on at sign-in', async () => {
+    // This is the path that crashed: the identity store's `remember` used to be
+    // shadowed by the "remember this account" checkbox state, so signing in with
+    // multi-session on called a boolean.
+    localStorage.clear()
+    localStorage.setItem('emuplane:multi-session', 'on')
+    renderAt(<App />, ['/login'])
+    expect(await screen.findByText('Access your account by user type.')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Email address'), {
+      target: { value: 'root@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('Root user sign in')
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'correct horse battery' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByText('Services answering')).toBeTruthy()
+    const stored = JSON.parse(localStorage.getItem('emuplane:identities') || '[]')
+    expect(stored[0]?.token).toBe('login-token')
+    localStorage.clear()
   })
 
   it('asks for a code when the server says MFA is required', async () => {

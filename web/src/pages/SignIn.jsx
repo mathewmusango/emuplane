@@ -13,7 +13,7 @@ import Popover from '@cloudscape-design/components/popover'
 import RadioGroup from '@cloudscape-design/components/radio-group'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import { api } from '../api'
-import { multiSessionEnabled, remember } from '../identityStore'
+import { multiSessionEnabled, remember as rememberIdentity } from '../identityStore'
 import { useThemeMode } from '../components/themeToggle'
 import './signin.css'
 
@@ -120,6 +120,7 @@ export default function SignIn() {
   const next = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/'
   const justReset = params.get('reset') === '1'
   const adding = params.get('add') === '1'
+  const popup = params.get('popup') === '1'
 
   const [step, setStep] = useState('type')
   const [userType, setUserType] = useState('root')
@@ -149,6 +150,14 @@ export default function SignIn() {
 
   const signUp = () => window.location.assign('/signup')
 
+  const inPopup = () => {
+    try {
+      return Boolean(window.opener) && !window.opener.closed && popup
+    } catch {
+      return false
+    }
+  }
+
   const finish = () => {
     try {
       if (userType === 'iam' && remember) {
@@ -158,6 +167,19 @@ export default function SignIn() {
       }
     } catch {
       // A browser with storage denied still signs in; it just forgets.
+    }
+    if (inPopup()) {
+      // "Add session": the identity is stored; hand the opener the news and go.
+      try {
+        window.opener.postMessage(
+          { type: 'emuplane:identity-added' },
+          window.location.origin,
+        )
+      } catch {
+        // A closed opener is not an error here.
+      }
+      window.close()
+      return
     }
     navigate(next, { replace: true })
   }
@@ -211,7 +233,7 @@ export default function SignIn() {
         multi,
       })
       if (multi && result.token) {
-        remember({
+        rememberIdentity({
           token: result.token,
           user: result.user,
           alias: result.alias,

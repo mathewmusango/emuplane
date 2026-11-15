@@ -86,6 +86,16 @@ the minor number is bumped by hand, patch releases are the bot's.
   Switch role now share Sign out's shape — same height, radius and weight — with
   Sign out keeping the accent as the only control that ends the session. The
   bordered boxes looked unfinished beside it.
+- **Add session opens its own window.** `window.open('/login?add=1&popup=1')` —
+  signing in there stores the identity, posts `emuplane:identity-added` to the
+  opener and closes itself; the console reloads onto the identity the browser is
+  now signed in as (the cookie is shared), with the previous one in the switch
+  list. A blocked popup falls back to the same sign-in page in this tab.
+- **Fixed: signing in with multi-session on called a boolean.** The identity
+  store's `remember` was shadowed by the "remember this account" checkbox state
+  in `SignIn`, so the import resolved to that boolean — the console reported
+  `D is not a function` after a minified build. The import is aliased and a test
+  now signs in with the feature on and asserts the token is stored.
 - **"Add session" appears under the toggle** once multi-session is on: it opens
   the sign-in page in add mode (`/login?add=1`), which says what it is doing and
   stores the new identity alongside the current one instead of replacing it.
