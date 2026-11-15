@@ -80,23 +80,18 @@ function Card({ title, description, info, children }) {
   const { dark, toggle } = useThemeMode()
   return (
     <div className="signin">
-      <div className="signin__frame">
-        <div className="signin__topbar">
-          <button
-            type="button"
-            className="signin__theme"
-            onClick={toggle}
-            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {dark ? (
-              <Sun size={18} aria-hidden="true" />
-            ) : (
-              <Moon size={18} aria-hidden="true" />
-            )}
-          </button>
-        </div>
-        <div className="signin__card">
+      <div className="signin__card">
+        {/* Corner utility, the way the sign-up page places its own: inside the
+            card, inset from the top-right edge. */}
+        <button
+          type="button"
+          className="signin__theme"
+          onClick={toggle}
+          aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {dark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+        </button>
         <Container>
           <div className="signin__body">
             <img className="signin__mark" src="/emuplane.svg" alt="Emuplane" />
@@ -109,7 +104,6 @@ function Card({ title, description, info, children }) {
             {children}
           </div>
         </Container>
-        </div>
       </div>
     </div>
   )

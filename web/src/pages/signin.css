@@ -27,24 +27,14 @@ body.awsui-dark-mode {
   padding: 44px 16px 64px;
 }
 
+/* The card plus the row inside it: the mark on the left, the theme switch on the
+   right — both inside the box, so nothing floats outside the card. */
+/* The card is the positioning context for the theme switch, which sits in the
+   top-right corner inside the box — the same placement the sign-up page uses. */
 .signin__card {
+  position: relative;
   width: 100%;
   max-width: 25rem;
-}
-
-/* The card plus the row above it (the theme switch), so the switch can never sit
-   underneath the card. */
-.signin__frame {
-  width: 100%;
-  max-width: 25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.signin__topbar {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .signin__body {
@@ -54,11 +44,13 @@ body.awsui-dark-mode {
 }
 
 /* Emuplane owns the sign-in page; the console that follows wears the backend's
-   own mark instead (the shell reads it from /api/meta). */
+   own mark instead (the shell reads it from /api/meta). Centred at the top, the
+   way the sign-up page shows it. */
 .signin__mark {
+  display: block;
   width: 2.5rem;
   height: 2.5rem;
-  margin-bottom: 0.9rem;
+  margin: 0 auto 1rem;
 }
 
 /* Title block: the heading carries its own bottom margin, the lead sits under it. */
@@ -216,25 +208,28 @@ body.awsui-dark-mode {
   }
 }
 
-/* Theme switch, top-right. It shows the mode a click takes you to, follows the
-   system until someone clicks, and remembers the explicit choice — the same
-   contract as the top navigation's toggle. */
+/* Theme switch: a quiet corner icon, no chrome of its own. */
 .signin__theme {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
-  border: 1px solid var(--color-border-container-divider, #c6c6cd);
-  border-radius: 999px;
-  background: var(--color-background-container-content, #ffffff);
-  color: var(--color-text-body-default, #16191f);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
   cursor: pointer;
 }
 
-.signin__theme:hover {
-  border-color: var(--color-border-container-default, #0972d3);
+.signin__theme:hover,
+.signin__theme:focus-visible {
+  opacity: 1;
 }
 
 /* Cloudscape marks dark mode with a body class, so the few literal colours here
