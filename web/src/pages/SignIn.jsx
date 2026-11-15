@@ -13,6 +13,7 @@ import Popover from '@cloudscape-design/components/popover'
 import RadioGroup from '@cloudscape-design/components/radio-group'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import { api } from '../api'
+import { multiSessionEnabled, remember } from '../identityStore'
 import { useThemeMode } from '../components/themeToggle'
 import './signin.css'
 
@@ -199,13 +200,24 @@ export default function SignIn() {
     try {
       // The server decides whether this principal still owes a code; the screen
       // follows its answer rather than guessing.
+      const multi = multiSessionEnabled()
       const result = await api.signIn({
         mode: userType,
         email: email.trim(),
         account: account.trim(),
         username: username.trim(),
         password,
+        multi,
       })
+      if (multi && result.token) {
+        remember({
+          token: result.token,
+          user: result.user,
+          alias: result.alias,
+          account: result.account,
+          role: result.role,
+        })
+      }
       setPassword('')
       if (result.mfa_required) {
         setStep('mfa')

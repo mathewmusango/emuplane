@@ -79,7 +79,11 @@ export const api = {
     account?: string
     username?: string
     password: string
+    multi?: boolean
   }) => request<SignInResult>('/api/auth/login', { method: 'POST', body: payload }),
+  remember: () => request<SignInResult>('/api/auth/remember', { method: 'POST' }),
+  switchIdentity: (token: string) =>
+    request<SignInResult>('/api/auth/switch', { method: 'POST', body: { token } }),
   verifyMfa: (payload: { code: string }) =>
     request<{ ok: boolean }>('/api/auth/mfa', { method: 'POST', body: payload }),
   actions: () => request<ActionCatalogue>('/api/actions'),

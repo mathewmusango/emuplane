@@ -82,6 +82,16 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **Multi-session support is real, and opt-in.** Turning it on in the account
+  menu hands the browser this session's token (`POST /api/auth/remember`), and
+  each later sign-in stores its own; the menu then lists the identities and
+  switching re-mints the cookie through `POST /api/auth/switch` for a token that
+  is still live (a dead one is refused and dropped from the list). Because the
+  token sits in `localStorage`, the feature is off by default and turning it off
+  deletes every stored token.
+- **The menu footer is boxes.** Divider, then "Turn on multi-session support" and
+  — for an IAM user — "Switch role" as bordered boxes, with Sign out as the only
+  filled control.
 - **The account chip names the account, and the line under it names the identity.**
   Both identities show `<account> (<account ID>)` on the chip — in this lab
   `management (124969375555)` — and the small line beneath carries the account

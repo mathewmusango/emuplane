@@ -2798,15 +2798,48 @@ class ControlHandler(BaseHTTPRequestHandler):
         token = new_session(
             username, account["account_id"], principal["role"], account["alias"]
         )
+        answer = {
+            "ok": True,
+            "mfa_required": False,
+            "user": username,
+            "account": account["account_id"],
+            "alias": account["alias"],
+            "role": principal["role"],
+        }
+        if payload.get("multi"):
+            # Opt-in: the browser keeps this to switch back without a password.
+            # It is a session token, so it is only ever returned on request.
+            answer["token"] = token
         self._json(
+            200,
+            answer,
+            cookie=(
+                f"emuplane_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
+                "HttpOnly; SameSite=Lax"
+            ),
+        )
+
+    def _auth_switch(self) -> None:
+        """Adopt an identity the browser already holds a session token for.
+
+        Multi-session is opt-in and client-side: the token sits in
+        `localStorage` only after the account menu turned it on. The server
+        merely re-mints the cookie for a token that is still live — a dead one
+        is refused, so signing out everywhere also ends the switch list.
+        """
+        payload = self._body()
+        token = str(payload.get("token") or "").strip()
+        info = session_info(token) if token else None
+        if info is None:
+            return self._json(401, {"error": "that identity is no longer signed in"})
+        return self._json(
             200,
             {
                 "ok": True,
-                "mfa_required": False,
-                "user": username,
-                "account": account["account_id"],
-                "alias": account["alias"],
-                "role": principal["role"],
+                "user": info.get("user"),
+                "account": info.get("account"),
+                "alias": info.get("alias"),
+                "role": info.get("role"),
             },
             cookie=(
                 f"emuplane_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
@@ -3689,9 +3722,29 @@ class ControlHandler(BaseHTTPRequestHandler):
             path = self._api_path(path)
         if path == "/api/auth/login":
             return self._auth_login()
+        if path == "/api/auth/switch":
+            return self._auth_switch()
         if path == "/api/auth/mfa":
             return self._json(
                 501, {"error": "MFA enrolment is not implemented yet."}
+            )
+        if path == "/api/auth/remember":
+            # Multi-session opt-in: hand this session's own token to its holder so
+            # the browser can switch back to it later. The cookie is the same
+            # token; nothing else is disclosed.
+            token = self._session_token()
+            info = session_info(token) if token else None
+            if info is None:
+                return self._json(401, {"error": "sign in first"})
+            return self._json(
+                200,
+                {
+                    "token": token,
+                    "user": info.get("user"),
+                    "alias": info.get("alias"),
+                    "account": info.get("account"),
+                    "role": info.get("role"),
+                },
             )
         if path == "/api/me":
             return self._update_me()

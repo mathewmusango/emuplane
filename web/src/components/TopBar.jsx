@@ -11,7 +11,15 @@ import {
   Star,
   Sun,
 } from 'lucide-react'
+import { api } from '../api'
 import { serviceLabel } from '../serviceLabels'
+import {
+  enableMultiSession,
+  forgetIdentity,
+  multiSessionEnabled,
+  readIdentities,
+  remember,
+} from '../identityStore'
 import './topbar.css'
 
 // The console bar: mark, favourites, the services grid, search, then the
@@ -66,6 +74,9 @@ export default function TopBar({
   const [accountOpen, setAccountOpen] = useState(false)
   const [regionOpen, setRegionOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [multi, setMulti] = useState(() => multiSessionEnabled())
+  const [identities, setIdentities] = useState(() => readIdentities())
+  const [busy, setBusy] = useState(false)
   const accountRef = useRef(null)
   const regionRef = useRef(null)
 
@@ -232,7 +243,11 @@ export default function TopBar({
             type="button"
             className="topbar__chip"
             aria-expanded={accountOpen}
-            onClick={() => setAccountOpen((open) => !open)}
+            onClick={() => {
+              setIdentities(readIdentities())
+              setMulti(multiSessionEnabled())
+              setAccountOpen((open) => !open)
+            }}
           >
             {accountName || 'Account'}
             {' ('}
@@ -312,34 +327,90 @@ export default function TopBar({
               <button type="button" role="menuitem" onClick={() => onNavigate('/settings')}>
                 Security credentials
               </button>
+              {multi && identities.length > 0 && (
+                <>
+                  <hr />
+                  <div className="topbar__field">
+                    <span>Switch identity</span>
+                  </div>
+                  {identities.map((item) => (
+                    <button
+                      key={`${item.account}:${item.user}`}
+                      type="button"
+                      role="menuitem"
+                      className="topbar__identity"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true)
+                        try {
+                          await api.switchIdentity(item.token)
+                          window.location.assign('/')
+                        } catch {
+                          // The token died (signed out elsewhere): forget it.
+                          forgetIdentity(item.user, item.account)
+                          setIdentities(readIdentities())
+                          setBusy(false)
+                        }
+                      }}
+                    >
+                      {item.user}
+                      <span>
+                        {item.role} · {item.alias || item.account}
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+
               <hr />
-              <button
-                type="button"
-                role="menuitem"
-                disabled
-                title="One identity per browser session in this build"
-              >
-                Turn on multi-session support
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  // The closest real equivalent of "Switch role": end this
-                  // identity and sign in as another.
-                  window.location.assign('/logout')
-                }}
-              >
-                Sign in as a different user
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="topbar__signout"
-                onClick={() => window.location.assign('/logout')}
-              >
-                Sign out
-              </button>
+              <div className="topbar__footer">
+                <button
+                  type="button"
+                  className="topbar__box"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true)
+                    if (multi) {
+                      enableMultiSession(false)
+                      setMulti(false)
+                      setIdentities([])
+                      setBusy(false)
+                      return
+                    }
+                    // Turning it on stores this session, so switching works
+                    // straight away rather than from the next sign-in.
+                    try {
+                      const current = await api.remember()
+                      enableMultiSession(true)
+                      if (current?.token) remember(current)
+                      setMulti(true)
+                      setIdentities(readIdentities())
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                >
+                  {multi
+                    ? 'Turn off multi-session support'
+                    : 'Turn on multi-session support'}
+                </button>
+                {!isRoot && (
+                  <button
+                    type="button"
+                    className="topbar__box"
+                    onClick={() => window.location.assign('/logout')}
+                  >
+                    Switch role
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="topbar__signout"
+                  onClick={() => window.location.assign('/logout')}
+                >
+                  Sign out
+                </button>
+              </div>
             </div>
           )}
         </div>

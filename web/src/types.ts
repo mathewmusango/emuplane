@@ -242,4 +242,6 @@ export interface SignInResult {
   account: string
   alias: string
   role: string
+  /** Present only when the caller asked for multi-session. */
+  token?: string
 }

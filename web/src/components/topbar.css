@@ -375,3 +375,65 @@ body.awsui-dark-mode .topbar__copy code {
     display: none;
   }
 }
+
+/* The menu's footer: the two account actions sit in bordered boxes and Sign out
+   is the only filled control, the way the console draws them. */
+.topbar__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.35rem 0.9rem 0.15rem;
+}
+
+.topbar__box {
+  width: auto !important;
+  padding: 0.4rem 0.75rem !important;
+  border: 1px solid #c9d3e6 !important;
+  border-radius: 6px;
+  background: #ffffff !important;
+  color: #0b1b3f !important;
+  font-size: 0.8rem !important;
+  text-align: center !important;
+}
+
+.topbar__box:hover {
+  background: #eef3ff !important;
+  border-color: #1b4fd8 !important;
+}
+
+.topbar__signout {
+  width: auto !important;
+  padding: 0.4rem 0.9rem !important;
+  border-radius: 6px;
+  background: #0b1b3f !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  text-align: center !important;
+}
+
+.topbar__signout:hover {
+  background: #16305e !important;
+}
+
+.topbar__identity {
+  display: flex !important;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.topbar__identity span {
+  color: #5a6b8c;
+  font-size: 0.75rem;
+}
+
+body.awsui-dark-mode .topbar__box {
+  background: #0a1220 !important;
+  border-color: #23324f !important;
+  color: #e8eefb !important;
+}
+
+body.awsui-dark-mode .topbar__signout {
+  background: #6cb6ff !important;
+  color: #0b1b3f !important;
+}
