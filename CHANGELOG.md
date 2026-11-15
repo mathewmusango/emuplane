@@ -78,6 +78,15 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **The Identity section is gone.** With no global administrators there is no
+  account list to browse: the console's `Accounts` and `Onboarding` pages, their
+  routes and their nav section are removed, and `/accounts` / `/onboarding`
+  redirect to Settings so old bookmarks still land somewhere sensible.
+- **A reset cannot reuse the current password.** `/reset` (and
+  `POST /api/users/<name>/password`) compares the new password against the stored
+  hash with a side-effect-free `UserStore.matches()` and refuses it — and the
+  link is no longer spent by a rejected attempt, because the token is consumed
+  only after every check passes.
 - **No global administrators, the AWS way.** Root owns its own account and its IAM
   users; no login can read another tenancy. `_platform()` is now true only for the
   bearer token — a deployment credential — so `/api/meta`, `/api/users` and

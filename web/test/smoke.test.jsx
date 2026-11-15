@@ -4,10 +4,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { SessionProvider } from '../src/context'
 import App from '../src/App'
 import Dashboard from '../src/pages/Dashboard'
-import Onboarding from '../src/pages/Onboarding'
 import Resources from '../src/pages/Resources'
 import Settings from '../src/pages/Settings'
-import Accounts from '../src/pages/Accounts'
 import About from '../src/pages/About'
 
 const META = {
@@ -156,13 +154,6 @@ describe('console', () => {
     expect(screen.getAllByText('us-east-1', { exact: false }).length).toBeGreaterThan(0)
   })
 
-  it('renders the onboarding form', async () => {
-    renderAt(<Onboarding />)
-    expect(await screen.findByText('Onboard an account')).toBeTruthy()
-    expect(screen.getByText('New account')).toBeTruthy()
-    expect(screen.getByText('Provision account')).toBeTruthy()
-  })
-
   it('renders the resource table and its action form', async () => {
     renderAt(<Resources />)
     expect(await screen.findByText('S3 resources')).toBeTruthy()
@@ -214,12 +205,6 @@ describe('console', () => {
     renderAt(<Dashboard />)
     expect(await screen.findByText('Recently visited')).toBeTruthy()
     localStorage.clear()
-  })
-
-  it('shows the stored account name next to the alias', async () => {
-    renderAt(<Accounts />)
-    expect(await screen.findByText('Mathew Musango')).toBeTruthy()
-    expect(screen.getAllByText('mathewmusango').length).toBeGreaterThan(0)
   })
 
   it('renders the endpoints without the mode, login or references rows', async () => {

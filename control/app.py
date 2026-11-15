@@ -152,7 +152,7 @@ REGION_CHOICES = [
 # server-rendered pages stay available under /classic.
 STATIC_DIR = os.environ.get("MC_STATIC_DIR", "/app/static")
 PUBLIC_DIR = os.environ.get("MC_PUBLIC_DIR", "/app/public")
-SPA_ROUTES = {"/", "/resources", "/favorites", "/accounts", "/onboarding",
+SPA_ROUTES = {"/", "/resources", "/favorites",
               "/settings", "/about"}
 # Served to anyone, signed in or not: the sign-in screens themselves. The
 # endpoint behind them (`POST /api/auth/login`) mints the session, so this route
@@ -403,10 +403,23 @@ class Accounts:
         return alias
 
     def by_ref(self, ref: str) -> dict | None:
-        """Account by ID or alias (case-insensitive on the alias)."""
+        """Account by ID or alias (case-insensitive on the alias).
+
+        A miss re-reads the table once before answering: the control is the only
+        writer in normal operation, but an operator tool (or a probe) can create
+        an account out of process, and "no such account" must not be a lie about
+        a row that exists.
+        """
         ref = (ref or "").strip()
         if not ref:
             return None
+        found = self._by_ref(ref)
+        if found is not None:
+            return found
+        self._load()
+        return self._by_ref(ref)
+
+    def _by_ref(self, ref: str) -> dict | None:
         if ref in self.accounts:
             return self.accounts[ref]
         for account in self.accounts.values():
@@ -717,6 +730,11 @@ class UserStore:
             user["last_login"] = now()
             self._save(username, user)
         return user
+
+    def matches(self, username: str, password: str) -> bool:
+        """Is this already the password on file? Unlike verify, no side effects."""
+        user = self.get(username)
+        return bool(user and self._matches(password, user.get("password_hash", "")))
 
     def delete_account(self, account_id: str) -> None:
         with self.lock:
@@ -3151,6 +3169,10 @@ class ControlHandler(BaseHTTPRequestHandler):
             token = (parse_qs(urlsplit(self.path).query).get("token") or [""])[0]
             live = bool(token) and read_reset(token) is not None
             return self._page(self._reset_page(), 200 if live else 400)
+        if path in ("/accounts", "/onboarding"):
+            # The console no longer lists accounts: root owns its own tenancy, so
+            # the account view is Settings. Old links land there instead of a 404.
+            return self._redirect("/settings")
         if path in PUBLIC_SPA_ROUTES:
             return self._spa()
         if path in SPA_ROUTES or path.startswith("/resources/"):
@@ -3494,7 +3516,8 @@ class ControlHandler(BaseHTTPRequestHandler):
                 self._reset_page(token, {"confirm": "The passwords do not match."}),
                 400,
             )
-        record = consume_reset(token)
+        # Read, validate, then burn: a rejected attempt must not spend the link.
+        record = read_reset(token)
         if record is None:
             return self._page(
                 self._reset_page(
@@ -3508,6 +3531,18 @@ class ControlHandler(BaseHTTPRequestHandler):
                 self._reset_page(errors={"form": "That account no longer exists."}),
                 400,
             )
+        if USERS.matches(user["username"], password):
+            return self._page(
+                self._reset_page(
+                    token,
+                    {
+                        "password": "That is already the password on this account. "
+                        "Choose a different one."
+                    },
+                ),
+                400,
+            )
+        consume_reset(token)
         USERS.set_password(user["username"], password)
         purge_user_sessions(record.get("account", ""), user["username"])
         self.send_response(302)
@@ -3561,6 +3596,10 @@ class ControlHandler(BaseHTTPRequestHandler):
         if not self._can_touch(self._caller(), account_id):
             return self._json(
                 403, {"error": "this user belongs to a different account"}
+            )
+        if USERS.matches(record["username"], password):
+            return self._json(
+                400, {"error": "that is already the password on this account"}
             )
         USERS.set_password(record["username"], password)
         purge_user_sessions(account_id, record["username"])

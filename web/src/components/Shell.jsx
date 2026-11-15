@@ -10,19 +10,11 @@ import { api } from '../api'
 import { useThemeToggle } from './themeToggle'
 import { serviceLabel } from '../serviceLabels'
 
-const navItems = (platform) => [
+const navItems = () => [
   { type: 'link', text: 'Dashboard', href: '/' },
   { type: 'link', text: 'Favorites', href: '/favorites' },
   { type: 'link', text: 'Services', href: '/services' },
   { type: 'divider' },
-  {
-    type: 'section',
-    text: 'Identity',
-    items: [
-      { type: 'link', text: 'Accounts', href: '/accounts' },
-      ...(platform ? [{ type: 'link', text: 'Onboarding', href: '/onboarding' }] : []),
-    ],
-  },
   {
     type: 'section',
     text: 'System',
@@ -210,7 +202,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         navigation={
           <SideNavigation
             activeHref={activeHref || location.pathname}
-            items={navItems(meta?.platform_admin)}
+            items={navItems()}
             onFollow={({ detail }) => {
               if (detail.href.startsWith('http') || detail.href === '#') return
               go(detail.href)
