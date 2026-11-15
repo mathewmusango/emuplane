@@ -37,7 +37,6 @@ export default function Dashboard() {
   const [catalogue, setCatalogue] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [bannerBusy, setBannerBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -75,18 +74,6 @@ export default function Dashboard() {
   const actionServices = Object.keys(catalogue?.services || {}).length
   const emulator = nodes[0]?.health || {}
   const go = (name) => navigate(`/resources/${name}`)
-
-  const disableDefault = async () => {
-    setBannerBusy(true)
-    try {
-      await api.setAccountDisabled(account, true)
-      window.location.assign('/logout')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBannerBusy(false)
-    }
-  }
 
   const shortcuts = (names) => (
     <SpaceBetween direction="horizontal" size="xs">
@@ -132,35 +119,6 @@ export default function Dashboard() {
             <Alert type="error" header="Could not reach the control plane">
               {error}
             </Alert>
-          )}
-
-          {meta?.default_admin && (
-            <Container
-              header={
-                <Header variant="h2">
-                  Action required: retire the default administrator
-                </Header>
-              }
-            >
-              <SpaceBetween size="m">
-                <Alert type="warning" header="This is the default administrator account">
-                  {meta.other_global_admins > 0
-                    ? `You now have ${meta.other_global_admins} other global admin account(s). Disable or delete this default account so the bootstrap login stops existing.`
-                    : 'Create a second global admin from Accounts, then disable or delete this default account.'}
-                </Alert>
-                <SpaceBetween direction="horizontal" size="xs">
-                  <Button
-                    variant="primary"
-                    loading={bannerBusy}
-                    disabled={!meta.other_global_admins}
-                    onClick={disableDefault}
-                  >
-                    Disable this account
-                  </Button>
-                  <Button onClick={() => navigate('/accounts')}>Manage accounts</Button>
-                </SpaceBetween>
-              </SpaceBetween>
-            </Container>
           )}
 
           <Container>

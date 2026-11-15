@@ -78,6 +78,12 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **No global administrators, the AWS way.** Root owns its own account and its IAM
+  users; no login can read another tenancy. `_platform()` is now true only for the
+  bearer token — a deployment credential — so `/api/meta`, `/api/users` and
+  `/api/exec` scope every session to its own account. `POST /api/accounts/<id>/admin`
+  is gone, `global_admin`/`default_admin` are cleared on load, and the console's
+  admin tab, toggle and "retire the default administrator" banner are removed.
 - **The product owns the chrome.** The console's top navigation is Emuplane's mark
   and title, not the backend's: `web/public/backends/ministack.png` is deleted and
   the profiles no longer carry a logo. Which backend is being fronted is operator
@@ -122,6 +128,12 @@ the minor number is bumped by hand, patch releases are the bot's.
   on `EP_PUBLISHED_GATEWAY_PORT=4571`, forwarding to the backend's `EP_BACKEND_PORT`.
 
 ### Fixed
+
+- **A deleted account could come back, and a concurrent writer could be clobbered.**
+  The accounts store cached the table in memory and `_save()` replaced the whole
+  table, so any process holding a stale copy rewrote rows it had not seen and
+  recreated rows someone else had deleted. Writes are per row now (`_put`), and
+  deletion is explicit (`db.delete`) — the same rule the session store follows.
 
 - **The reveal eye is a control, not a hint.** It was drawn in the faint
   secondary ink at 16px, which read as decoration. It is now 18px, in the body

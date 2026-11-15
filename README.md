@@ -205,9 +205,11 @@ own settings keep its names in its own `.env` — Emuplane never writes there.
 
 **There is no seeded account.** A fresh control has zero accounts and one way in:
 sign-up (`/signup`), exactly as a new AWS account is created by the person who
-wants it. The first sign-up becomes the platform owner — `global_admin` and
-`default_admin` — and every later account is created by that owner or by sign-up.
-Earlier versions seeded an `MC_ADMIN_USER`; those keys are retired and ignored.
+wants it. **No account is a global administrator**: root owns its own account and
+its IAM users, exactly as in AWS, and one account never sees another. The only
+principal that may cross tenancies is the bearer token, which is a deployment
+credential, not a login. Earlier versions seeded an `MC_ADMIN_USER` and granted
+`global_admin`; those keys are retired, and the flag is cleared on load.
 
 ### Settings (`.env`)
 
@@ -307,7 +309,7 @@ plane is a tenant of the service it manages, and its state moves with that servi
 | Page | What it does |
 | --- | --- |
 | `/login` | the console's five sign-in screens: user type → root email (or IAM account + username) → password → MFA. `POST /api/auth/login` mints the session |
-| `/signup` | one step: email, account name, password and confirmation → **Create Account**, which creates the account (fresh 12-digit ID, unique alias) and signs in. **The first one becomes the default global admin.** Link-free by design — reachable only when sign-up is enabled |
+| `/signup` | one step: email, account name, password and confirmation → **Create Account**, which creates the account (fresh 12-digit ID, unique alias) and signs in. There is no global admin; the account is the root of its own tenancy. Link-free by design — reachable only when sign-up is enabled |
 | `/forgot` | asks for the address and emails a single-use reset link when `EP_MAIL_HOST` is set; with no relay it explains the two local paths (Settings, or an administrator-issued link). The answer is the same whether or not the address exists |
 | `/reset?token=…` | where a reset link lands: the user chooses their own password. The token is single-use, stored only as a SHA-256, and expires after `EP_RESET_SECONDS` (30 min). Setting the password revokes that principal's sessions |
 
@@ -327,19 +329,14 @@ The code screen appears **only when the server says the principal owes a code**
 account and the third screen is not reached; `POST /api/auth/mfa` answers `501`
 until enrolment lands (ARCHITECTURE.md slice 3b).
 
-The control seeds **nothing** from `.env`. The first account created — by local
-sign-up — is the platform owner: `global_admin` and `default_admin` are set on
-it, and it can promote other accounts to global admin from **Accounts**. From
-then on the emulator's DynamoDB is the source of truth; there is no env-var password to
-change. SQLite is deliberate for one control replica: swap the connection for
-Postgres when a second one runs.
+The control seeds **nothing** from `.env`. Every account is created by sign-up,
+and each one is the root of its own tenancy — there is no account above another.
+From then on the emulator's DynamoDB is the source of truth; there is no env-var
+password to change.
 
-**Retiring the default admin.** The default admin is meant to be temporary. Once
-a second enabled global admin exists, the Dashboard shows a banner to disable or
-delete it. `POST /api/accounts/{id}/disabled` disables an account; disabling the
-last enabled global admin is refused, and disabling an account also drops its
-sessions and blocks sign-in. Sign-up itself can be turned on or off
-in **Settings** (`/api/settings`, `signup_enabled`).
+**Disabling an account** is an operator action: `POST /api/accounts/{id}/disabled`
+drops its sessions and blocks sign-in. Sign-up itself can be turned on or off in
+**Settings** (`/api/settings`, `signup_enabled`).
 
 ### Accounts and identities
 
@@ -537,10 +534,10 @@ Pages: **Dashboard** (`/`), **Resources** (`/resources/:service`), **Favorites**
 - **Accounts span regions** — a 12-digit account ID is global, exactly like AWS:
   the account selector and the region selector are independent, and one account
   works in every region it enables.
-- **Default administrator** — the first account is the platform owner and is
-  marked *default*. Once another global admin exists the Dashboard shows a banner
-  to disable or delete it; disabling drops its sessions and blocks sign-in, and
-  the last enabled global admin cannot be disabled.
+- **No global administrator** — root owns its account, IAM users live inside it,
+  and no login can read another tenancy. Cross-tenant calls belong to the bearer
+  token alone (provisioning, disabling, deleting), because that is a deployment
+  credential rather than somebody's account.
 - **Actions are CLI calls in a form** — `control/console.py` declares each
   operation, its parameters and the AWS call it maps to. `POST /api/exec` runs it
   signed as the account root, with a confirmation modal for destructive ones.

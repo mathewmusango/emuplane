@@ -25,7 +25,6 @@ export default function Accounts() {
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(null)
   const [deleting, setDeleting] = useState(false)
-  const [savingAdmin, setSavingAdmin] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -54,20 +53,6 @@ export default function Accounts() {
     }
   }
 
-  const toggleAdmin = async (item, enabled) => {
-    setSavingAdmin(item.account_id)
-    setError('')
-    try {
-      await api.setGlobalAdmin(item.account_id, enabled)
-      await load()
-      refresh()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSavingAdmin('')
-    }
-  }
-
   const toggleDisabled = async (item, disabled) => {
     setSavingAdmin(item.account_id)
     setError('')
@@ -82,7 +67,6 @@ export default function Accounts() {
     }
   }
 
-  const admins = accounts.filter((item) => item.global_admin)
 
   useEffect(() => {
     load()
@@ -118,20 +102,9 @@ export default function Accounts() {
           cell: (item) => item.name || <Box color="text-body-secondary">—</Box>,
         },
         {
-          id: 'admin',
-          header: 'Global admin',
-          cell: (item) => (item.global_admin ? 'Yes' : 'No'),
-          width: 130,
-        },
-        {
           id: 'state',
           header: 'Status',
-          cell: (item) =>
-            item.disabled
-              ? 'Disabled'
-              : item.default_admin
-                ? 'Enabled · default'
-                : 'Enabled',
+          cell: (item) => (item.disabled ? 'Disabled' : 'Enabled'),
           width: 160,
         },
         {
@@ -174,16 +147,6 @@ export default function Accounts() {
                 {meta?.platform_admin && (
                   <Button
                     variant="inline-link"
-                    loading={savingAdmin === item.account_id}
-                    onClick={() => toggleAdmin(item, !item.global_admin)}
-                  >
-                    {item.global_admin ? 'Remove global admin' : 'Make global admin'}
-                  </Button>
-                )}
-                {meta?.platform_admin && (
-                  <Button
-                    variant="inline-link"
-                    loading={savingAdmin === item.account_id}
                     onClick={() => toggleDisabled(item, !item.disabled)}
                   >
                     {item.disabled ? 'Enable account' : 'Disable account'}
@@ -204,65 +167,6 @@ export default function Accounts() {
       ]}
       header={<Header counter={`(${accounts.length})`}>Root accounts</Header>}
       empty={<Box textAlign="center">No accounts yet.</Box>}
-    />
-  )
-
-  const adminsTable = (
-    <Table
-      items={admins}
-      loading={loading}
-      trackBy="account_id"
-      columnDefinitions={[
-        {
-          id: 'account',
-          header: 'Account ID',
-          cell: (item) => (
-            <CopyToClipboard
-              variant="inline"
-              textToCopy={item.account_id}
-              textToDisplay={<span className="mono">{item.account_id}</span>}
-              copyButtonAriaLabel={`Copy account ${item.account_id}`}
-              copySuccessText="Account ID copied"
-              copyErrorText="Could not copy the account ID"
-              wrapText={false}
-            />
-          ),
-          width: 170,
-        },
-        { id: 'alias', header: 'Alias', cell: (item) => item.alias },
-        {
-          id: 'name',
-          header: 'Name',
-          cell: (item) => item.name || <Box color="text-body-secondary">—</Box>,
-        },
-        {
-          id: 'users',
-          header: 'Users',
-          cell: (item) =>
-            (item.users || []).map((user) => user.username).join(', '),
-        },
-        {
-          id: 'regions',
-          header: 'Regions',
-          cell: (item) => (
-            <Link
-              href="/settings"
-              onFollow={(event) => {
-                event.preventDefault()
-                navigate('/settings')
-              }}
-            >
-              Manage regions ({(item.regions || []).length} enabled)
-            </Link>
-          ),
-        },
-      ]}
-      header={
-        <Header counter={`(${admins.length})`} description="Global admins see every account and can create root accounts.">
-          Global admins
-        </Header>
-      }
-      empty={<Box textAlign="center">No global admins.</Box>}
     />
   )
 
@@ -302,15 +206,6 @@ export default function Accounts() {
                 label: `Root accounts (${accounts.length})`,
                 content: accountsTable,
               },
-              ...(meta?.platform_admin
-                ? [
-                    {
-                      id: 'admins',
-                      label: `Global admins (${admins.length})`,
-                      content: adminsTable,
-                    },
-                  ]
-                : []),
             ]}
           />
 

@@ -119,11 +119,6 @@ export const api = {
       method: 'POST',
       body: { account, region, enabled },
     }),
-  setGlobalAdmin: (accountId: string, enabled: boolean) =>
-    request<{ account: string; global_admin: boolean }>(
-      `/api/accounts/${accountId}/admin`,
-      { method: 'POST', body: { enabled } },
-    ),
   setAccountDisabled: (accountId: string, disabled: boolean) =>
     request<{ account: string; disabled: boolean }>(
       `/api/accounts/${accountId}/disabled`,

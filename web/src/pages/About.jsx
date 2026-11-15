@@ -51,13 +51,6 @@ export default function About() {
                     {meta?.total_accounts ?? (meta?.accounts || []).length}
                   </Box>
                 )}
-                {meta?.platform_admin && (
-                  <Box>
-                    <Box variant="awsui-key-label">Global admins</Box>
-                    {meta?.global_admins ??
-                      (meta?.accounts || []).filter((item) => item.global_admin).length}
-                  </Box>
-                )}
                 <Box>
                   <Box variant="awsui-key-label">Regions enabled</Box>
                   {(meta?.regions || []).join(', ') || 'none'}

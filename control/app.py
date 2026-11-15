@@ -321,6 +321,13 @@ class Accounts:
                 if "default_admin" not in account:
                     account["default_admin"] = False
                     changed = True
+                # Tenancy is AWS-shaped: no account is a global administrator.
+                # The flags stay in the document for shape stability, and an old
+                # one that granted cross-tenant access is cleared here.
+                if account.get("global_admin") or account.get("default_admin"):
+                    account["global_admin"] = False
+                    account["default_admin"] = False
+                    changed = True
                 # Regions are opt-in. Accounts created before that rule carry
                 # the whole list; treat it as "untouched" and keep just the
                 # home region, so the picker starts from one like AWS.
@@ -345,30 +352,6 @@ class Accounts:
                             }
                         )
                     changed = True
-            if self.accounts and not any(
-                account.get("global_admin") for account in self.accounts.values()
-            ):
-                oldest = min(
-                    self.accounts.values(),
-                    key=lambda account: account.get("created_at", ""),
-                )
-                oldest["global_admin"] = True
-                changed = True
-            if self.accounts and not any(
-                account.get("default_admin") for account in self.accounts.values()
-            ):
-                oldest_admin = min(
-                    (
-                        account
-                        for account in self.accounts.values()
-                        if account.get("global_admin")
-                    ),
-                    key=lambda account: account.get("created_at", ""),
-                    default=None,
-                )
-                if oldest_admin is not None:
-                    oldest_admin["default_admin"] = True
-                    changed = True
             if changed:
                 self._save()
 
@@ -391,13 +374,20 @@ class Accounts:
         }
 
     def _save(self) -> None:
-        self.db.replace_all(
-            "accounts",
-            {
-                account_id: json.dumps(account)
-                for account_id, account in self.accounts.items()
-            },
-        )
+        """Persist the accounts this process holds — but never delete by omission.
+
+        This used to replace the whole table, which made an in-memory copy the
+        authority: a second writer (a CLI, the bootstrap job, another process)
+        could be clobbered back, and a row someone else had just created was
+        deleted simply because this process had not loaded it. Writes are
+        per-row now; removal is explicit in `delete()`.
+        """
+        for account_id, account in self.accounts.items():
+            self.db.put("accounts", account_id, json.dumps(account))
+
+    def _put(self, account: dict) -> None:
+        """Write one account row. Callers change one account, so they save one."""
+        self.db.put("accounts", account["account_id"], json.dumps(account))
 
     @staticmethod
     def _slug(value: str) -> str:
@@ -435,13 +425,13 @@ class Accounts:
     def create(self, username: str) -> tuple[dict, dict]:
         account_id = self._new_id()
         account = self._blank(account_id, self.unique_alias(username))
-        # The first account owns the platform; it can promote the next ones.
-        account["global_admin"] = not self.accounts
-        account["default_admin"] = account["global_admin"]
+        # No account is a global administrator: root owns its own tenancy.
+        account["global_admin"] = False
+        account["default_admin"] = False
         user = {"username": username, "role": "root"}
         account["users"][username] = user
         self.accounts[account_id] = account
-        self._save()
+        self._put(account)
         return account, user
 
     def set_name(self, account_id: str, name: str) -> dict | None:
@@ -450,7 +440,7 @@ class Accounts:
         if account is None:
             return None
         account["name"] = name
-        self._save()
+        self._put(account)
         return account
 
     def ensure_local(self, username: str) -> tuple[dict, dict]:
@@ -461,11 +451,11 @@ class Accounts:
                 if user is not None:
                     return account, user
             account = self._blank(self._new_id(), self.unique_alias(username))
-            account["global_admin"] = not self.accounts
+            account["global_admin"] = False
             user = {"username": username, "role": "root"}
             account["users"][username] = user
             self.accounts[account["account_id"]] = account
-            self._save()
+            self._put(account)
             return account, user
 
     @staticmethod
@@ -527,7 +517,7 @@ class Accounts:
             user.setdefault("access_keys", []).append(entry)
             user["iam_user"] = username
             self._mirror_primary(user)
-            self._save()
+            self._put(account)
             return entry, ""
 
     def remove_access_key(
@@ -550,7 +540,7 @@ class Accounts:
             keys.remove(entry)
             user["access_keys"] = keys
             self._mirror_primary(user)
-            self._save()
+            self._put(account)
             return entry, ""
 
     def regions_of(self, account: dict) -> list[str]:
@@ -569,7 +559,7 @@ class Accounts:
                 account["auto_regions"] = [
                     name for name in account["auto_regions"] if name in account["regions"]
                 ]
-            self._save()
+            self._put(account)
             return account
 
     def enable_region(self, account_id: str, region: str) -> dict | None:
@@ -587,16 +577,7 @@ class Accounts:
             account["regions"] = sorted({DEFAULT_REGION, *account["regions"], region})
             auto = sorted({*(account.get("auto_regions") or []), region})
             account["auto_regions"] = auto
-            self._save()
-            return account
-
-    def set_global_admin(self, account_id: str, enabled: bool) -> dict | None:
-        with self.lock:
-            account = self.accounts.get(account_id)
-            if account is None:
-                return None
-            account["global_admin"] = bool(enabled)
-            self._save()
+            self._put(account)
             return account
 
     def set_disabled(self, account_id: str, disabled: bool) -> tuple[dict | None, str]:
@@ -605,16 +586,8 @@ class Accounts:
             account = self.accounts.get(account_id)
             if account is None:
                 return None, "unknown account"
-            if disabled:
-                admins = [
-                    item
-                    for item in self.accounts.values()
-                    if item.get("global_admin") and not item.get("disabled")
-                ]
-                if account.get("global_admin") and len(admins) <= 1:
-                    return None, "cannot disable the last enabled global admin"
             account["disabled"] = bool(disabled)
-            self._save()
+            self._put(account)
             return account, ""
 
     def delete(self, account_id: str) -> dict | None:
@@ -622,7 +595,7 @@ class Accounts:
             account = self.accounts.pop(account_id, None)
             if account is None:
                 return None
-            self._save()
+            self.db.delete("accounts", account_id)
             return account
 
 
@@ -2640,11 +2613,14 @@ class ControlHandler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _platform(info: dict) -> bool:
-        """Bearer clients and global-admin accounts may cross tenants."""
-        if not info:
-            return True
-        account = ACCOUNTS.by_ref(info.get("account", ""))
-        return bool(account and account.get("global_admin"))
+        """Cross-tenant access belongs to the deployment, never to a login.
+
+        The AWS model has no global administrator: a root user owns its account
+        and nothing else, and IAM users live inside that boundary. The only
+        principal that may cross tenancies is the bearer token — a deployment
+        credential held by the operator, not somebody's login.
+        """
+        return not info
 
     def _can_touch(self, info: dict, account: str) -> bool:
         return self._platform(info) or account == info.get("account")
@@ -3293,9 +3269,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         if path == "/api/meta":
             info = self._caller()
             platform = self._platform(info)
-            operator = next(
-                (a for a in ACCOUNTS.accounts.values() if a.get("global_admin")), {}
-            )
+            operator = next(iter(ACCOUNTS.accounts.values()), {})
             # Token clients have no session; present them as the operator.
             display = info or {
                 "user": "token",
@@ -3786,141 +3760,6 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(
                 200,
                 {"account": account["account_id"], "disabled": disabled},
-            )
-        match = re.fullmatch(r"/api/accounts/([0-9]{12})/admin", path)
-        if match:
-            payload = self._body()
-            info = self._caller()
-            if not self._platform(info):
-                return self._json(
-                    403, {"error": "only a global admin can change global admins"}
-                )
-            account = ACCOUNTS.by_ref(match.group(1))
-            if account is None:
-                return self._json(404, {"error": "unknown account"})
-            enabled = bool(payload.get("enabled", True))
-            if (
-                not enabled
-                and info
-                and account["account_id"] == info.get("account")
-            ):
-                return self._json(
-                    400, {"error": "you cannot remove your own global admin role"}
-                )
-            ACCOUNTS.set_global_admin(account["account_id"], enabled)
-            return self._json(
-                200,
-                {
-                    "account": account["account_id"],
-                    "global_admin": enabled,
-                },
-            )
-        if path == "/api/settings":
-            payload = self._body()
-            info = self._caller()
-            if not self._platform(info):
-                return self._json(
-                    403, {"error": "only a global admin can change settings"}
-                )
-            if "signup_enabled" in payload:
-                enabled = bool(payload.get("signup_enabled"))
-                SETTINGS.set("signup_enabled", enabled)
-            return self._json(
-                200,
-                {
-                    "signup_enabled": bool(SETTINGS.get("signup_enabled", True)),
-                    "instance_regions": list(REGION_CHOICES),
-                },
-            )
-        if path == "/api/regions":
-            payload = self._body()
-            info = self._caller()
-            target = ACCOUNTS.by_ref(
-                str(payload.get("account") or info.get("account") or "").strip()
-            )
-            if target is None:
-                return self._json(404, {"error": "unknown account"})
-            if not self._can_touch(info, target["account_id"]):
-                return self._json(
-                    403, {"error": "this account is not signed in to that tenancy"}
-                )
-            region = str(payload.get("region", "")).strip()
-            if region not in REGION_CHOICES:
-                return self._json(400, {"error": "unknown region"})
-            enabled = bool(payload.get("enabled", True))
-            current = set(ACCOUNTS.regions_of(target))
-            if enabled:
-                current.add(region)
-            elif region != DEFAULT_REGION:
-                current.discard(region)
-            account = ACCOUNTS.set_regions(target["account_id"], sorted(current))
-            return self._json(
-                200,
-                {
-                    "account": account["account_id"],
-                    "regions": ACCOUNTS.regions_of(account),
-                },
-            )
-        if path == "/api/refresh":
-            self._body()
-            return self._json(200, refresh_registry())
-        if path == "/api/reserve":
-            payload = self._body()
-            name = str(payload.get("name", "")).strip()
-            region = str(payload.get("region", DEFAULT_REGION)).strip()
-            if not name:
-                return self._json(400, {"error": "name required"})
-            ok, message, code = reserve_across(name, region)
-            if not ok:
-                return self._json(code, {"error": message})
-            return self._json(201, {"bucket": name, "region": region})
-        match = re.fullmatch(r"/api/nodes/([^/]+)/reset", path)
-        if match:
-            node = node_by_name(match.group(1))
-            if not node:
-                return self._json(404, {"error": "unknown node"})
-            status, _ = node_request(node, "POST", "/_ministack/reset", timeout=30)
-            with REGISTRY.lock:
-                for bucket in [
-                    name
-                    for name, entry in REGISTRY.buckets.items()
-                    if entry["node"] == node["name"]
-                ]:
-                    REGISTRY.buckets.pop(bucket, None)
-                cached = REGISTRY.nodes.get(node["name"], {})
-                if cached:
-                    cached["buckets"] = []
-                REGISTRY.save()
-            return self._json(
-                200 if status == 200 else 502, {"node": node["name"], "upstream": status}
-            )
-        self._json(404, {"error": "not found"})
-
-    def _route_delete(self):
-        if not self._require_admin():
-            return
-        path = urlsplit(self.path).path
-        if path.startswith("/api"):
-            path = self._api_path(path)
-        match = re.fullmatch(r"/api/accounts/([0-9]{12})", path)
-        if match:
-            info = self._caller()
-            if not self._platform(info):
-                return self._json(
-                    403,
-                    {"error": "only the platform administrator can delete accounts"},
-                )
-            account = ACCOUNTS.by_ref(match.group(1))
-            if account is None:
-                return self._json(404, {"error": "unknown account"})
-            if info and account["account_id"] == info.get("account"):
-                return self._json(
-                    400, {"error": "you cannot delete the account you are signed in to"}
-                )
-            delete_account(account)
-            return self._json(
-                200,
-                {"deleted": account["account_id"], "alias": account["alias"]},
             )
         match = re.fullmatch(r"/api/buckets/([^/]+)", path)
         if match:
