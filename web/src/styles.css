@@ -71,3 +71,11 @@ body.awsui-dark-mode {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The console bar is fixed, so the layout is pushed down by exactly its height.
+   Doing this here rather than through AppLayout's `headerSelector` keeps the
+   offset predictable — the selector measured the bar but the page title still
+   slid underneath it. */
+.console-offset {
+  padding-block-start: 2.75rem;
+}

@@ -149,8 +149,8 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         />
       )}
 
+      <div className="console-offset">
       <AppLayout
-        headerSelector="#topbar"
         navigationOpen={navOpen}
         onNavigationChange={({ detail }) => setNavOpen(detail.open)}
         navigation={
@@ -175,6 +175,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         content={children}
         toolsHide
       />
+      </div>
     </>
   )
 }

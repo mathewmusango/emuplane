@@ -161,6 +161,13 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Fixed
 
+- **The page title no longer hides under the console bar.** `AppLayout`'s
+  `headerSelector` measured the fixed bar but the content still slid 44px up, so
+  Console Home's heading sat behind it. The offset is explicit now
+  (`.console-offset`, `padding-block-start: 2.75rem`).
+- **The IAM account menu shows the account ID** as well as the alias and the
+  username — an IAM user needs the ID for the CLI, not just for root.
+
 - **A deleted account could come back, and a concurrent writer could be clobbered.**
   The accounts store cached the table in memory and `_save()` replaced the whole
   table, so any process holding a stale copy rewrote rows it had not seen and

@@ -282,6 +282,20 @@ export default function TopBar({
                     <span>IAM user</span>
                     <strong>{me?.user || '—'}</strong>
                   </div>
+                  <div className="topbar__field">
+                    <span>Account ID</span>
+                    <div className="topbar__copy">
+                      <code>{groupId(account)}</code>
+                      <button
+                        type="button"
+                        aria-label="Copy account ID"
+                        title={copied ? 'Copied' : 'Copy account ID'}
+                        onClick={copyId}
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
 
