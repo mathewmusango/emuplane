@@ -125,7 +125,8 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
       <TopBar
         me={me}
         account={account}
-        accountName={meta?.accounts?.find((item) => item.account_id === account)?.alias
+        accountName={meta?.accounts?.find((item) => item.account_id === account)?.name || ''}
+        accountAlias={meta?.accounts?.find((item) => item.account_id === account)?.alias
           || meta?.me?.alias
           || ''}
         regions={meta?.regions || []}

@@ -60,6 +60,7 @@ export default function TopBar({
   me,
   account,
   accountName,
+  accountAlias,
   regions,
   region,
   onRegion,
@@ -270,82 +271,60 @@ export default function TopBar({
               setAccountOpen((open) => !open)
             }}
           >
-            {accountName || 'Account'}
+            {accountName || accountAlias || 'Account'}
             {' ('}
             {account || '—'}
             {')'}
             <ChevronDown size={14} />
           </button>
           <span className="topbar__chip-label">
-            {isRoot ? accountName || 'Account' : me?.user || 'IAM user'}
+            {isRoot
+              ? accountName || accountAlias || 'Account'
+              : me?.user || 'IAM user'}
           </span>
 
           {accountOpen && (
             <div className="topbar__menu topbar__menu--account" role="menu">
-              {/* Root sees the account's identity; an IAM user sees the alias and
-                  its own username — the console draws the same distinction. */}
-              {isRoot ? (
-                <>
-                  <div className="topbar__field">
-                    <span>Account ID</span>
-                    <div className="topbar__copy">
-                      <code>{groupId(account)}</code>
-                      <button
-                        type="button"
-                        aria-label={copied ? 'Copied' : 'Copy account ID'}
-                        title={copied ? 'Copied' : 'Copy account ID'}
-                        onClick={copyId}
-                      >
-                        {copied ? <Check size={14} /> : <Copy size={14} />}
-                      </button>
-                      {copied && (
-                        <span className="topbar__copied" role="status">
-                          Copied
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="topbar__field">
-                    <span>Account name</span>
-                    <strong>{accountName || account || '—'}</strong>
-                  </div>
-                  <div className="topbar__field">
-                    <span>Account colour</span>
-                    <strong className="topbar__colour">
-                      <i aria-hidden="true" /> Orange
-                    </strong>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="topbar__field">
-                    <span>Account alias</span>
-                    <strong>{accountName || account || '—'}</strong>
-                  </div>
-                  <div className="topbar__field">
-                    <span>IAM user</span>
-                    <strong>{me?.user || '—'}</strong>
-                  </div>
-                  <div className="topbar__field">
-                    <span>Account ID</span>
-                    <div className="topbar__copy">
-                      <code>{groupId(account)}</code>
-                      <button
-                        type="button"
-                        aria-label={copied ? 'Copied' : 'Copy account ID'}
-                        title={copied ? 'Copied' : 'Copy account ID'}
-                        onClick={copyId}
-                      >
-                        {copied ? <Check size={14} /> : <Copy size={14} />}
-                      </button>
-                      {copied && (
-                        <span className="topbar__copied" role="status">
-                          Copied
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </>
+              {/* Both identities lead with the account's identity; an IAM user
+                  adds its own name underneath. */}
+              <div className="topbar__field">
+                <span>Account ID</span>
+                <div className="topbar__copy">
+                  <code>{groupId(account)}</code>
+                  <button
+                    type="button"
+                    aria-label={copied ? 'Copied' : 'Copy account ID'}
+                    title={copied ? 'Copied' : 'Copy account ID'}
+                    onClick={copyId}
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
+                  {copied && (
+                    <span className="topbar__copied" role="status">
+                      Copied
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="topbar__field">
+                <span>Account name</span>
+                <strong>{accountName || accountAlias || account || '—'}</strong>
+              </div>
+              <div className="topbar__field">
+                <span>Account colour</span>
+                <strong className="topbar__colour">
+                  <i aria-hidden="true" /> Orange
+                </strong>
+              </div>
+              <div className="topbar__field">
+                <span>Account alias</span>
+                <strong>{accountAlias || account || '—'}</strong>
+              </div>
+              {!isRoot && (
+                <div className="topbar__field">
+                  <span>IAM user</span>
+                  <strong>{me?.user || '—'}</strong>
+                </div>
               )}
 
               <hr />
@@ -353,7 +332,13 @@ export default function TopBar({
                 Account
               </button>
               <button type="button" role="menuitem" onClick={() => onNavigate('/about')}>
+                Organization
+              </button>
+              <button type="button" role="menuitem" onClick={() => onNavigate('/about')}>
                 Service quotas
+              </button>
+              <button type="button" role="menuitem" onClick={() => onNavigate('/about')}>
+                Billing and Cost Management
               </button>
               <button type="button" role="menuitem" onClick={() => onNavigate('/settings')}>
                 Security credentials

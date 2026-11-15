@@ -3436,6 +3436,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                         {
                             "account_id": account["account_id"],
                             "alias": account["alias"],
+                            "name": account.get("name") or "",
                             "users": len(account["users"]),
                             "regions": ACCOUNTS.regions_of(account),
                             "global_admin": bool(account.get("global_admin")),

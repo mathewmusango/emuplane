@@ -112,6 +112,11 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **The menu footer is boxes.** Divider, then "Turn on multi-session support" and
   — for an IAM user — "Switch role" as bordered boxes, with Sign out as the only
   filled control.
+- **The account menu leads with the account's identity** — Account ID (grouped,
+  copyable), Account name, Account colour, Account alias, and for an IAM user its
+  own username — then the links: Account, Organization, Service quotas, Billing
+  and Cost Management, Security credentials. `/api/meta` now carries each
+  account's `name` so the menu can show the label apart from the alias.
 - **The account chip names the account, and the line under it names the identity.**
   Both identities show `<account> (<account ID>)` on the chip — in this lab
   `management (124969375555)` — and the small line beneath carries the account
