@@ -45,6 +45,11 @@ the minor number is bumped by hand, patch releases are the bot's.
   user chooses their own password there, so whoever issues the link never learns
   it; setting it revokes that principal's sessions. Tokens live in the new
   `emuplane-resets` table as SHA-256 digests and are deleted when used.
+- **Password-reset mail over a real relay.** `control/mail.py` sends through
+  SMTP (`EP_MAIL_*`, standard library only, credentials never logged) and
+  `/forgot` is now a form: the address is looked up, a single-use link is mailed,
+  and the answer is identical whether or not the account exists. With no relay
+  configured the page keeps the admin-issued path.
 - **`scripts/profile-login.sh`** captures a real Firefox (Gecko) profile of a page
   load through `MOZ_PROFILER_STARTUP`/`MOZ_PROFILER_SHUTDOWN` and writes
   `docs/profile.json`, which https://profiler.firefox.com opens directly.
@@ -117,6 +122,14 @@ the minor number is bumped by hand, patch releases are the bot's.
   on `EP_PUBLISHED_GATEWAY_PORT=4571`, forwarding to the backend's `EP_BACKEND_PORT`.
 
 ### Fixed
+
+- **The reveal eye is a control, not a hint.** It was drawn in the faint
+  secondary ink at 16px, which read as decoration. It is now 18px, in the body
+  ink at 75% opacity (full on hover/focus), a 2rem target, and `z-index: 2` so
+  Cloudscape's positioned input wrapper cannot sit over it.
+- **Server-rendered pages send `Cache-Control: no-store`.** `/signup`, `/forgot`
+  and `/reset` sent no cache header at all, so a browser could keep showing the
+  previous build's form after a redesign.
 
 - **The sign-in pages no longer ask for `/api/meta`.** `SessionProvider` fetched it
   on every route, so `/login` — which has no session by design — logged a 401 that

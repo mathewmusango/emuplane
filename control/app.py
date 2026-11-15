@@ -46,6 +46,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
+import mail  # noqa: E402  (local module: the one outbound message)
 from dynamo import DynamoError  # noqa: E402
 from backends import profile  # noqa: E402
 from store import Store, StoreNotProvisioned  # noqa: E402
@@ -2559,6 +2560,9 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
+        # These pages carry a form and change with every build; a cached copy is
+        # how a reworked screen looks "unchanged" to a returning browser.
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -2912,15 +2916,33 @@ class ControlHandler(BaseHTTPRequestHandler):
 """,
         )
 
-    def _forgot_page(self) -> str:
-        """What a locked-out principal can do here, given there is no mail."""
-        return self._auth_layout(
-            "Reset password",
-            """
+    def _forgot_page(self, sent: bool = False, problem: str = "") -> str:
+        """Ask for the address: we send the link when a relay is configured."""
+        minutes = RESET_SECONDS // 60
+        notice = f'<div class="error">{html.escape(problem)}</div>' if problem else ""
+        if sent:
+            return self._auth_layout(
+                "Reset password",
+                f"""
+    <h1 class="auth-title">Check your mail</h1>
+    <div class="ok">If that address belongs to an account, a reset link is on its
+      way. It expires in {minutes} minutes and works once.</div>
+    <p class="hint">Nothing arrived? An administrator can mint a link instead
+      with <code>./scripts/reset-link.sh &lt;username&gt;</code>.</p>
+    <div class="actions">
+      <a class="secondary" href="/login">Back to sign in</a>
+    </div>
+""",
+            )
+
+        if not mail.configured():
+            return self._auth_layout(
+                "Reset password",
+                """
     <h1 class="auth-title">Reset your password</h1>
-    <p class="hint">This server has no mail transport, so a reset link cannot be
-      emailed. Ask an administrator for one: they mint a single-use link that
-      opens <code>/reset</code>, where you choose the password yourself. The link
+    <p class="hint">This server has no mail relay configured, so a reset link
+      cannot be emailed. Ask an administrator: they mint a single-use link that
+      opens <code>/reset</code>, where you choose the password yourself. It
       expires after 30 minutes and stops working once used.</p>
     <div class="field">
       <label>If you can still sign in</label>
@@ -2931,14 +2953,79 @@ class ControlHandler(BaseHTTPRequestHandler):
       <label>If you are the platform owner</label>
       <p class="hint">Mint a link from the host, in the service directory:</p>
       <pre class="code">./scripts/reset-link.sh &lt;username&gt;</pre>
-      <p class="hint">An administrator with the API bearer token can do the same:
-        <code>POST /api/users/&lt;username&gt;/reset-link</code>.</p>
     </div>
     <div class="actions">
       <a class="secondary" href="/login">Back to sign in</a>
     </div>
 """,
+            )
+
+        return self._auth_layout(
+            "Reset password",
+            f"""
+    <h1 class="auth-title">Reset your password</h1>
+    <p class="hint">Enter the address on the account and we will email a link.
+      It expires in {minutes} minutes and can be used once.</p>
+    {notice}
+    <form method="post" action="/forgot">
+      <div class="field">
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email"
+               placeholder="username@example.com" autocomplete="email"
+               required autofocus>
+      </div>
+      <div class="actions">
+        <button type="submit">Send reset link</button>
+        <a class="secondary" href="/login">Sign in</a>
+      </div>
+    </form>
+""",
         )
+
+    def _forgot_submit(self) -> None:
+        """Mail a reset link. The answer is identical whether or not it exists."""
+        form = self._form()
+        email = (form.get("email") or "").strip()
+        if not mail.configured():
+            return self._page(
+                self._forgot_page(
+                    problem="No mail relay is configured on this server."
+                ),
+                400,
+            )
+        if not email:
+            return self._page(
+                self._forgot_page(problem="An email address is required."), 400
+            )
+        user = USERS.find_by_email(email)
+        if user is not None:
+            token = mint_reset(user["username"], user.get("account_id", ""))
+            link = f"{CONSOLE_URL}/reset?token={token}"
+            body = (
+                f"A password reset was requested for {user['username']} "
+                f"at {CONSOLE_URL}.\n\n"
+                "Open this link to choose a new password. It is single use and "
+                f"expires in {RESET_SECONDS // 60} minutes:\n\n"
+                f"{link}\n\n"
+                "If you did not ask for this, ignore this message - your "
+                "password has not changed.\n"
+            )
+            try:
+                mail.send(
+                    user.get("email") or email,
+                    "Reset your Emuplane password",
+                    body,
+                )
+            except mail.MailError as exc:
+                print(f"control: could not send a reset mail: {exc}", flush=True)
+                return self._page(
+                    self._forgot_page(
+                        problem="The mail relay refused the message. Ask an "
+                        "administrator for a reset link."
+                    ),
+                    502,
+                )
+        return self._page(self._forgot_page(sent=True))
 
     def _reset_page(
         self, token: str = "", errors: dict[str, str] | None = None
@@ -3511,6 +3598,8 @@ class ControlHandler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == "/signup":
             return self._signup()
+        if path == "/forgot":
+            return self._forgot_submit()
         if path == "/reset":
             return self._reset_submit()
         if path.startswith("/api"):

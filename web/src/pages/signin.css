@@ -253,19 +253,28 @@ body.awsui-dark-mode {
 .signin__eye {
   position: absolute;
   top: 50%;
-  inset-inline-end: 0.375rem;
+  inset-inline-end: 0.25rem;
+  /* Above the input's own wrapper, which Cloudscape positions as well. */
+  z-index: 2;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
   border: 0;
   border-radius: 0.375rem;
   background: transparent;
-  color: var(--color-text-body-secondary, #5f6b7a);
+  /* Deliberately not the faint secondary ink: this is a control, not a hint. */
+  color: var(--color-text-body-default, #0b1b3f);
+  opacity: 0.75;
   cursor: pointer;
+}
+
+.signin__eye:hover,
+.signin__eye:focus-visible {
+  opacity: 1;
 }
 
 .signin__eye:hover,

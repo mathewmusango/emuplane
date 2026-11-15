@@ -122,9 +122,11 @@ Rules:
 
 ## Email and events — SES and SNS, not SMTP
 
-> Nothing here is implemented yet. A first pass used SES for a sign-up one-time
-> password; that flow and its mailbox page were removed on request, so this
-> section is the design that remains for slice 7.
+> **Partly implemented (2026-11-15).** Password-reset mail is real, but over
+> **SMTP** (`control/mail.py`, `EP_MAIL_*`), not SES: the control sends through a
+> relay the deployment supplies, because only a real relay can deliver to a real
+> inbox. Everything else here — verification mail, notifications, the console
+> Mailbox view — is still the design for slice 7.
 
 The emulator implements SES (`ses.py`, `ses_v2.py`) and SNS (`sns.py`), so the
 control plane never speaks SMTP: it calls the same emulator it fronts, signed

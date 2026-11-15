@@ -263,9 +263,9 @@ export default function SignIn() {
             title={showPassword ? 'Hide password' : 'Show password'}
           >
             {showPassword ? (
-              <EyeOff size={16} strokeWidth={2} aria-hidden="true" />
+              <EyeOff size={18} strokeWidth={2} aria-hidden="true" />
             ) : (
-              <Eye size={16} strokeWidth={2} aria-hidden="true" />
+              <Eye size={18} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
         </div>

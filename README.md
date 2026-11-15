@@ -240,6 +240,12 @@ has a default, and the control exits at startup naming whatever is missing.
 | `EP_RECENT_LIMIT` | `5` | services shown under **Recently visited** |
 | `EP_CONSOLE_URL` | required | console address shown in the UI |
 | `EP_GATEWAY_URL` | required | emulator gateway address shown in the UI |
+| `EP_MAIL_HOST` | empty | SMTP relay for the password-reset mail; **empty means mail is off** and `/forgot` falls back to an administrator-issued link |
+| `EP_MAIL_PORT` | `587` | relay port (`465` with `EP_MAIL_SECURITY=ssl`) |
+| `EP_MAIL_SECURITY` | `starttls` | `starttls`, `ssl`, or `none` for a local relay |
+| `EP_MAIL_USER` / `EP_MAIL_PASSWORD` | empty | relay credentials; `EP_MAIL_PASSWORD` is a secret and belongs in `.env` only |
+| `EP_MAIL_FROM` | empty | From header, e.g. `Emuplane <you@example.com>` — most relays require the authenticated user |
+| `EP_RESET_SECONDS` | `1800` | how long a reset link stays valid |
 
 **Two kinds of setting, and that split is the porting contract.** The rows above
 are *container settings*: the control reads them at runtime, and
@@ -302,7 +308,7 @@ plane is a tenant of the service it manages, and its state moves with that servi
 | --- | --- |
 | `/login` | the console's five sign-in screens: user type → root email (or IAM account + username) → password → MFA. `POST /api/auth/login` mints the session |
 | `/signup` | one step: email, account name, password and confirmation → **Create Account**, which creates the account (fresh 12-digit ID, unique alias) and signs in. **The first one becomes the default global admin.** Link-free by design — reachable only when sign-up is enabled |
-| `/forgot` | what a locked-out user can do: this server has no mail transport, so a reset link cannot be emailed. It explains the two paths, Settings and an administrator-issued link |
+| `/forgot` | asks for the address and emails a single-use reset link when `EP_MAIL_HOST` is set; with no relay it explains the two local paths (Settings, or an administrator-issued link). The answer is the same whether or not the address exists |
 | `/reset?token=…` | where a reset link lands: the user chooses their own password. The token is single-use, stored only as a SHA-256, and expires after `EP_RESET_SECONDS` (30 min). Setting the password revokes that principal's sessions |
 
 ### The sign-in screens
@@ -750,6 +756,8 @@ that clears its registry entries and starts the next scan clean.
   for a principal: the user sets their own password, so whoever issues it never
   learns it. `scripts/password.sh` sets the password outright instead, for when
   the person is not reachable. Both revoke that principal's sessions.
+- [`control/mail.py`](control/mail.py) — the one outbound message (a reset link),
+  standard-library SMTP only; it reads `EP_MAIL_*` and never logs a credential.
 - [`scripts/profile-login.sh`](scripts/profile-login.sh) — capture a real Firefox
   (Gecko) profile of a page load into `docs/profile.json`, to open at
   <https://profiler.firefox.com> with "Load a profile from file".
