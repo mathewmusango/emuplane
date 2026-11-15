@@ -330,7 +330,7 @@ export default function SignIn() {
                 </Button>
                 <span className="signin__or-inline">OR</span>
                 <Button formAction="none" onClick={signUp}>
-                  Sign up
+                  New Account? Signup
                 </Button>
               </div>
             </SpaceBetween>

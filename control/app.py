@@ -698,6 +698,33 @@ class UserStore:
                 },
             )
 
+    def create_with_hash(
+        self,
+        username: str,
+        email: str,
+        password_hash: str,
+        account_id: str,
+        role: str = "root",
+    ) -> None:
+        """Create a user whose password was hashed earlier, never kept in clear.
+
+        The sign-up flow collects the password on the first screen and mails a
+        one-time password; the pending record carries this hash, not the password.
+        """
+        with self.lock:
+            self._save(
+                username,
+                {
+                    "username": username,
+                    "email": email,
+                    "password_hash": password_hash,
+                    "account_id": account_id,
+                    "role": role,
+                    "created_at": now(),
+                    "last_login": None,
+                },
+            )
+
     def verify(self, username: str, password: str) -> dict | None:
         user = self.get(username)
         if user is None or not self._matches(password, user["password_hash"]):
@@ -2049,13 +2076,20 @@ def sent_mail(token: str) -> dict | None:
         return _SENT_MAIL.get(token)
 
 
-def signup_pending_new(username: str, email: str) -> tuple[str, str]:
-    """A pending sign-up: the code is mailed, only its digest is kept."""
+def signup_pending_new(
+    username: str, email: str, password_hash: str
+) -> tuple[str, str]:
+    """A pending sign-up: the code is mailed, only its digest is kept.
+
+    The password arrives on the first screen and travels as its hash, so the
+    plaintext never leaves that request.
+    """
     token = secrets.token_urlsafe(24)
     code = f"{secrets.randbelow(1_000_000):06d}"
     record = {
         "username": username,
         "email": email,
+        "password_hash": password_hash,
         "code_hash": hashlib.sha256(code.encode()).hexdigest(),
         "expires": time.time() + SIGNUP_TTL_SECONDS,
         "attempts": 0,
@@ -2692,6 +2726,8 @@ class ControlHandler(BaseHTTPRequestHandler):
         form = self._form()
         username = (form.get("username") or "").strip()
         email = (form.get("email") or "").strip()
+        password = form.get("password") or ""
+        confirm = form.get("confirm") or ""
         errors: dict[str, str] = {}
         if not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", username):
             errors["username"] = (
@@ -2704,10 +2740,14 @@ class ControlHandler(BaseHTTPRequestHandler):
             errors["email"] = "An email address is required."
         elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
             errors["email"] = "That email address does not look right."
+        if len(password) < 8:
+            errors["password"] = "Password must be at least 8 characters."
+        elif password != confirm:
+            errors["confirm"] = "The passwords do not match."
         if errors:
             return self._page(self._signup_page(errors, username, email), 400)
 
-        token, code = signup_pending_new(username, email)
+        token, code = signup_pending_new(username, email, USERS._hash(password))
         subject = "Your Emuplane verification code"
         message = (
             f"Your one-time password is {code}.\n\n"
@@ -2732,8 +2772,6 @@ class ControlHandler(BaseHTTPRequestHandler):
         form = self._form()
         token = (form.get("token") or "").strip()
         code = (form.get("code") or "").strip()
-        password = form.get("password") or ""
-        confirm = form.get("confirm") or ""
         record = signup_pending_get(token)
         if record is None or float(record.get("expires", 0)) < time.time():
             signup_pending_drop(token)
@@ -2745,10 +2783,6 @@ class ControlHandler(BaseHTTPRequestHandler):
             )
 
         errors: dict[str, str] = {}
-        if len(password) < 8:
-            errors["password"] = "Password must be at least 8 characters."
-        elif password != confirm:
-            errors["confirm"] = "The passwords do not match."
         presented = hashlib.sha256(code.encode()).hexdigest()
         if not code:
             errors["code"] = "Enter the one-time password from the email."
@@ -2779,10 +2813,10 @@ class ControlHandler(BaseHTTPRequestHandler):
                 409,
             )
         account, principal = ACCOUNTS.ensure_local(username)
-        USERS.create(
+        USERS.create_with_hash(
             username,
             record["email"],
-            password,
+            record["password_hash"],
             account["account_id"],
             principal.get("role", "root"),
         )
@@ -2895,7 +2929,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         <p class="hint">We send a one-time password here, and it is your sign-in
           identity.</p>
         <input id="email" name="email" type="email" value="{html.escape(email)}"
-               autocomplete="email" required autofocus>
+               placeholder="username@example.com" autocomplete="email" required autofocus>
         {problem("email")}
       </div>
       <div class="field">
@@ -2903,11 +2937,25 @@ class ControlHandler(BaseHTTPRequestHandler):
         <p class="hint">Choose a name for your account. It becomes the account
           alias, and you can change it later in Settings.</p>
         <input id="username" name="username" value="{html.escape(username)}"
-               autocomplete="username" required>
+               placeholder="username" autocomplete="username" required>
         {problem("username")}
       </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <p class="hint">At least 8 characters.</p>
+        <input id="password" name="password" type="password"
+               autocomplete="new-password" required>
+        {problem("password")}
+      </div>
+      <div class="field">
+        <label for="confirm">Confirm password</label>
+        <p class="hint">The same password again.</p>
+        <input id="confirm" name="confirm" type="password"
+               autocomplete="new-password" required>
+        {problem("confirm")}
+      </div>
       <div class="actions">
-        <button type="submit">Verify email address</button>
+        <button type="submit">Create Account</button>
         <span class="or">OR</span>
         <a class="secondary" href="/login">Sign in</a>
       </div>
@@ -2952,20 +3000,6 @@ class ControlHandler(BaseHTTPRequestHandler):
         <input id="code" name="code" inputmode="numeric"
                autocomplete="one-time-code" required autofocus>
         {problem("code")}
-      </div>
-      <div class="field">
-        <label for="password">Password</label>
-        <p class="hint">At least 8 characters.</p>
-        <input id="password" name="password" type="password"
-               autocomplete="new-password" required>
-        {problem("password")}
-      </div>
-      <div class="field">
-        <label for="confirm">Confirm password</label>
-        <p class="hint">The same password again.</p>
-        <input id="confirm" name="confirm" type="password"
-               autocomplete="new-password" required>
-        {problem("confirm")}
       </div>
       <div class="actions">
         <button type="submit">Create account</button>
