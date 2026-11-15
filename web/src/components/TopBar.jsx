@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Bell,
   Check,
   ChevronDown,
   Copy,
   LayoutGrid,
-  HelpCircle,
   Moon,
   Search,
-  Settings,
   Sun,
 } from 'lucide-react'
 import { api } from '../api'
@@ -170,33 +167,6 @@ export default function TopBar({
       </form>
 
       <div className="topbar__right">
-        <button
-          type="button"
-          className="topbar__icon"
-          title="Notifications"
-          aria-label="Notifications"
-          onClick={() => onNavigate('/about')}
-        >
-          <Bell size={18} />
-        </button>
-        <button
-          type="button"
-          className="topbar__icon"
-          title="Help"
-          aria-label="Help"
-          onClick={() => onNavigate('/about')}
-        >
-          <HelpCircle size={18} />
-        </button>
-        <button
-          type="button"
-          className="topbar__icon"
-          title="Settings"
-          aria-label="Settings"
-          onClick={() => onNavigate('/settings')}
-        >
-          <Settings size={18} />
-        </button>
         <button
           type="button"
           className="topbar__icon"

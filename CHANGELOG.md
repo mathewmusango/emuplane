@@ -170,6 +170,9 @@ the minor number is bumped by hand, patch releases are the bot's.
   hold the two lines (`--topbar-h`, which the content offset now reads too).
   "Turn on multi-session support" is present in the menu and disabled: one
   identity per browser session is what this build does.
+- **The bar's right side is quieter**: notifications, help and settings icons are
+  removed. Settings is still one click away in the account menu, and About is
+  reachable from there too.
 - **A console bar of its own.** `TopBar` replaces Cloudscape's TopNavigation so
   the services grid can sit immediately after the mark (icon only, no label), the
   way the console places it. The account chip opens a menu that differs by
