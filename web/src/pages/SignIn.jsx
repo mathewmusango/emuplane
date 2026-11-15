@@ -324,13 +324,12 @@ export default function SignIn() {
                 </FormField>
               )}
 
-              <div className="signin__actions">
+              <div className="signin__actions signin__actions--row">
                 <Button variant="primary" formAction="submit">
                   Next
                 </Button>
-                <div className="signin__or">OR</div>
                 <Button formAction="none" onClick={signUp}>
-                  New here? Sign up
+                  Sign up
                 </Button>
               </div>
             </SpaceBetween>
