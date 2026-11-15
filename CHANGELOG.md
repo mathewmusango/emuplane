@@ -56,6 +56,16 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **Brand images are optimised.** The backend mark drops from 1280×719 / 80 kB to
   256×144 / 16 kB, and the icon PNGs are stripped, palettised and compressed
   (the 512px file goes 309 kB → 81 kB).
+- **The product mark is the app icon, not a drawing.** `web/public/emuplane.png`
+  (512², corners flood-filled transparent, so the rounded square sits on any
+  background) replaces the hand-drawn `emuplane.svg`; the sign-in card, the
+  console's fallback identity and every favicon derive from it. The SVG is gone,
+  and the icon links are PNG-only.
+- **The user-type step puts Next and the signup route on one row** (`Next | OR |
+  Create account`), and the password step's "Sign in to a different account" is
+  set on two lines so both actions in that row are the same height. The sign-up
+  page's alternative reads "Sign in to an existing account" on a rounded box
+  rather than a pill, because it wraps.
 - **The sign-in pages were unified.** Both cards now use the same frame (8px
   radius, no shadow, `#f2f3f3` page), the same input size, and an OR rule between
   the primary action and the alternative. On `/login` the signup route is one box

@@ -186,9 +186,9 @@ ICON_ASSETS = {
 # server-rendered auth pages. SVG first (crisp at every size), then the PNG set
 # `scripts/favicons.sh` writes, with the `.ico` left to the browser's fallback.
 ICON_LINKS = (
-    '<link rel="icon" type="image/svg+xml" href="/emuplane.svg">'
-    '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">'
+    '<link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">'
     '<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">'
+    '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">'
     '<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">'
     '<meta name="theme-color" content="#0f141a">'
 )
@@ -1936,14 +1936,14 @@ AUTH_STYLE = """
   .reveal[aria-pressed="true"] .eye-open { display: none; }
   .reveal[aria-pressed="true"] .eye-shut { display: inline-flex; }
   .actions { display: flex; align-items: center; gap: .6rem; margin-top: 1.25rem; }
-  .actions > button { flex: 1.5 1 0; margin-top: 0; }
+  .actions > button { flex: 1 1 0; margin-top: 0; }
   .actions > a { flex: 1 1 0; margin-top: 0; }
   .actions .or { flex: 0 0 auto; color: var(--muted); font-size: .72rem;
                  font-weight: 600; letter-spacing: .06em; }
   .secondary { display: flex; align-items: center; justify-content: center;
-               width: 100%; padding: .6rem; border: 1px solid var(--link);
-               border-radius: 999px; color: var(--link); text-decoration: none;
-               font-weight: 600; }
+               width: 100%; padding: .6rem .75rem; border: 1px solid var(--link);
+               border-radius: 8px; color: var(--link); text-decoration: none;
+               font-weight: 600; text-align: center; line-height: 1.25; }
   .secondary:hover { background: rgba(9, 114, 211, .08); }
   .divider { display: flex; align-items: center; gap: .75rem; margin: 1.4rem 0;
              color: var(--muted); font-size: .8rem; }
@@ -2125,7 +2125,7 @@ def static_asset(url_path: str) -> tuple[bytes, str] | None:
         url_path.startswith("/assets/")
         or url_path.startswith("/backends/")
         or url_path in ICON_ASSETS
-        or url_path == "/emuplane.svg"
+        or url_path == "/emuplane.png"
     ):
         return None
     # The logo also ships in `web/public`, so the sign-in pages keep their brand
@@ -2505,7 +2505,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         brand = url_path in ICON_ASSETS or url_path.startswith("/backends/")
         cache = (
             "public, max-age=86400"
-            if brand or url_path == "/emuplane.svg"
+            if brand or url_path == "/emuplane.png"
             else "public, max-age=31536000, immutable"
         )
         self.send_response(200)
@@ -2840,7 +2840,7 @@ class ControlHandler(BaseHTTPRequestHandler):
       <div class="actions">
         <button type="submit">Create Account</button>
         <span class="or">OR</span>
-        <a class="secondary" href="/login">Sign in</a>
+        <a class="secondary" href="/login">Sign in to an existing account</a>
       </div>
     </form>
 """,
@@ -2909,7 +2909,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._spa()
         if path.startswith("/assets/"):
             return self._asset(path)
-        if path == "/emuplane.svg" or path.startswith("/backends/"):
+        if path == "/emuplane.png" or path.startswith("/backends/"):
             # Public brand marks: the sign-in pages carry Emuplane's, the console
             # carries the backend profile's.
             return self._asset(path)

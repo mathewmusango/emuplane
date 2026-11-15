@@ -138,7 +138,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
           // that profile has no logo.
           title: meta?.backend || 'Emuplane',
           logo: {
-            src: meta?.backend_logo || '/emuplane.svg',
+            src: meta?.backend_logo || '/emuplane.png',
             alt: meta?.backend || 'Emuplane',
           },
           onFollow: (event) => {

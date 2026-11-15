@@ -93,7 +93,7 @@ function Card({ title, description, info, children }) {
         </button>
         <Container>
           <div className="signin__body">
-            <img className="signin__mark" src="/emuplane.svg" alt="Emuplane" />
+            <img className="signin__mark" src="/emuplane.png" alt="Emuplane" />
             <div className="signin__heading">
               {/* The title is rendered here rather than by Cloudscape's Header: its
                   heading root is a flex row that will not centre, and the sign-up
@@ -332,21 +332,14 @@ export default function SignIn() {
                 </FormField>
               )}
 
-              <div className="signin__actions">
+              <div className="signin__actions signin__actions--row">
                 <Button variant="primary" formAction="submit">
                   Next
                 </Button>
-              </div>
-
-              <div className="signin__or">OR</div>
-
-              {/* "New Account?" and the signup action are one box: the caption
-                  labels it, the action sits directly under the caption. */}
-              <div className="signin__new">
-                <span className="signin__new-caption">New Account?</span>
-                <button type="button" className="signin__new-action" onClick={signUp}>
-                  Signup
-                </button>
+                <span className="signin__or-inline">OR</span>
+                <Button formAction="none" onClick={signUp}>
+                  Create account
+                </Button>
               </div>
             </SpaceBetween>
           </Form>
@@ -394,7 +387,11 @@ export default function SignIn() {
                   Sign in
                 </Button>
                 <Button formAction="none" onClick={back}>
-                  Sign in to a different account
+                  <span className="signin__twoline">
+                    Sign in to a different
+                    <br />
+                    account
+                  </span>
                 </Button>
               </div>
             </SpaceBetween>

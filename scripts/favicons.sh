@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerate the browser icons from one source image.
 #
-#   ./scripts/favicons.sh                 # the shipped mark: web/public/emuplane.svg
+#   ./scripts/favicons.sh                 # the shipped mark: web/public/emuplane.png
 #   ./scripts/favicons.sh path/to/logo.png
 #
 # The source is the product mark, whatever its format (SVG, PNG, JPEG). Outputs
@@ -20,7 +20,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-source=${1:-web/public/emuplane.svg}
+source=${1:-web/public/emuplane.png}
 out=web/public
 
 if [ ! -f "$source" ]; then

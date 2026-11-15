@@ -189,23 +189,14 @@ body.awsui-dark-mode {
   flex: 1 1 8rem;
 }
 
-/* The "OR" rule between a primary action and the alternative below it. */
-.signin__or {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 0.9rem 0;
+/* "OR" between the two actions that share a row. */
+.signin__or-inline {
+  flex: 0 0 auto;
+  align-self: center;
   color: var(--color-text-body-secondary, #5f6b7a);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.06em;
-}
-
-.signin__or::before,
-.signin__or::after {
-  content: '';
-  flex: 1;
-  border-block-start: 1px solid var(--color-border-divider-default, #c6c6cd);
 }
 
 /* A checkbox on the left, its "forgot / having trouble?" link on the right. */
@@ -217,41 +208,12 @@ body.awsui-dark-mode {
   flex-wrap: wrap;
 }
 
-/* The sign-up route on the user-type step: one box, the caption naming it and the
-   action directly beneath — no rule or gap between the two. */
-.signin__new {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
-  border: 1px solid var(--color-border-container-divider, #c6c6cd);
-  border-radius: 0.75rem;
-  padding: 0.7rem 1rem;
-  text-align: center;
-}
-
-.signin__new-caption {
-  color: var(--color-text-body-secondary, #5f6b7a);
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.signin__new-action {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-text-link-default, #0972d3);
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.4;
-  cursor: pointer;
-}
-
-.signin__new-action:hover,
-.signin__new-action:focus-visible {
-  text-decoration: underline;
+/* The sign-up route on the user-type step shares the row with Next — see
+   `.signin__actions--row`. "Sign in to a different account" is set on two lines
+   so the two password-step actions stay the same height beside each other. */
+.signin__twoline {
+  display: inline-block;
+  line-height: 1.25;
 }
 
 /* "Forgot password?" sits at the trailing edge, under the password field. */
