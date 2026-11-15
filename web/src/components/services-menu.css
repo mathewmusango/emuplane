@@ -163,7 +163,7 @@ body.awsui-dark-mode .services-menu__empty {
 .services-menu__row {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .services-menu__row .services-menu__item {
@@ -175,9 +175,10 @@ body.awsui-dark-mode .services-menu__empty {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.6rem;
-  height: 1.6rem;
-  margin-top: 0.3rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  /* Aligned with the name's cap height rather than the row's top edge. */
+  margin-top: 0.2rem;
   padding: 0;
   border: 0;
   border-radius: 4px;

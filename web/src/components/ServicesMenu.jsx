@@ -131,17 +131,8 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
             <ul className="services-menu__items">
               {list().map((name) => (
                 <li key={name} className="services-menu__row">
-                  <button
-                    type="button"
-                    className="services-menu__item"
-                    onClick={() => choose(name)}
-                  >
-                    <span className="services-menu__name">{serviceLabel(name)}</span>
-                    <span className="services-menu__desc">{describeService(name)}</span>
-                  </button>
-                  {/* The star appears on hover, the way All services shows it —
-                      but a starred service keeps it visible so the pane reads at
-                      a glance. */}
+                  {/* The star sits against the name, not at the far edge of the
+                      row: it belongs to the service, and the eye finds it there. */}
                   <button
                     type="button"
                     className={`services-menu__star${isFavorite(name) ? ' is-favorite' : ''}`}
@@ -162,6 +153,14 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
                       size={15}
                       fill={isFavorite(name) ? 'currentColor' : 'none'}
                     />
+                  </button>
+                  <button
+                    type="button"
+                    className="services-menu__item"
+                    onClick={() => choose(name)}
+                  >
+                    <span className="services-menu__name">{serviceLabel(name)}</span>
+                    <span className="services-menu__desc">{describeService(name)}</span>
                   </button>
                 </li>
               ))}
