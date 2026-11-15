@@ -130,6 +130,12 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **Favorites is a pane in the services menu**, directly under Recently visited:
   the starred services, alphabetical, in the same list as every other pane —
   rather than a page of its own.
+- **All services is one page, three columns.** `Services by category` in a single
+  card: a category heading with an icon, then a plain alphabetical run of links,
+  flowing down column one into two and three (`columns: 3`, two at ≤1100px, one
+  at ≤700px). The All services / Services by category and Grid / List switchers
+  and Refresh are gone — there is one way to read the page. A hover-only star
+  still favourites a service.
 - **Home is tidier.** The grid's cards share a height per row (`align-items:
   stretch`) instead of each hugging its own content, and service shortcuts are a
   two-column list of links with their icons rather than a strip of buttons that

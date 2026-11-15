@@ -1,320 +1,150 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Box from '@cloudscape-design/components/box'
-import Button from '@cloudscape-design/components/button'
-import Cards from '@cloudscape-design/components/cards'
+import Container from '@cloudscape-design/components/container'
 import ContentLayout from '@cloudscape-design/components/content-layout'
 import Header from '@cloudscape-design/components/header'
 import Link from '@cloudscape-design/components/link'
-import SegmentedControl from '@cloudscape-design/components/segmented-control'
-import SpaceBetween from '@cloudscape-design/components/space-between'
-import StatusIndicator from '@cloudscape-design/components/status-indicator'
-import Table from '@cloudscape-design/components/table'
-import TextFilter from '@cloudscape-design/components/text-filter'
-import { api } from '../api'
+import {
+  BarChart3,
+  Box as BoxIcon,
+  Brain,
+  Briefcase,
+  Cpu,
+  Database,
+  Film,
+  Globe,
+  Layout,
+  Server,
+  Settings,
+  Share2,
+  ShieldCheck,
+  Star,
+  Store,
+  Truck,
+  Wrench,
+} from 'lucide-react'
 import { useSession } from '../context'
 import { useFavorites } from '../prefs'
-import { ServiceIcon } from '../serviceIcons'
 import { serviceLabel } from '../serviceLabels'
+import { groupByCategory } from '../serviceCatalogue'
 import { Shell, loadCatalogue } from '../components/Shell'
-import { CATEGORY_ORDER, categoryOf } from '../serviceCatalogue'
+import './services.css'
+
+// All services: one card, three flowing columns, one block per category and a
+// plain alphabetical run of links inside it — the shape the console's own
+// Services page takes. No view switcher: there is one way to read this page.
+
+const CATEGORY_ICON = {
+  Analytics: BarChart3,
+  'Application Integration': Share2,
+  'Business Applications': Briefcase,
+  'Compute': Server,
+  'Containers': BoxIcon,
+  'Database': Database,
+  'Developer Tools': Wrench,
+  'Front-end Web & Mobile': Layout,
+  'Internet of Things': Cpu,
+  'Machine Learning': Brain,
+  'Management & Governance': Settings,
+  'Media Services': Film,
+  'Migration & Transfer': Truck,
+  'Networking & Content Delivery': Globe,
+  'Security, Identity & Compliance': ShieldCheck,
+  'Storage': Store,
+  'Other': BoxIcon,
+}
 
 export default function Services() {
   const navigate = useNavigate()
-  const { account, region, meta } = useSession()
+  const { meta } = useSession()
   const { toggleFavorite, isFavorite } = useFavorites(meta?.me?.account)
-  const [services, setServices] = useState({})
-  const [counts, setCounts] = useState({})
   const [catalogue, setCatalogue] = useState(null)
-  const [filter, setFilter] = useState('')
-  const [view, setView] = useState('grid')
-  const [organise, setOrganise] = useState('all')
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [states, cat, countData] = await Promise.all([
-        api.services(),
-        loadCatalogue(),
-        account && region ? api.counts(account, region) : Promise.resolve({ counts: {} }),
-      ])
-      setServices(states || {})
-      setCatalogue(cat)
-      setCounts(countData?.counts || {})
-      setError('')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }, [account, region])
-
   useEffect(() => {
-    load()
-  }, [load])
+    loadCatalogue()
+      .then(setCatalogue)
+      .catch((err) => setError(err.message))
+  }, [])
 
-  const groupOf = useMemo(() => {
-    const map = {}
-    for (const group of catalogue?.groups || []) {
-      for (const name of group.services) map[name] = group.label
-    }
-    return map
-  }, [catalogue])
-
-  const items = useMemo(() => {
-    const names = new Set()
+  const groups = useMemo(() => {
+    const names = new Set(Object.keys(catalogue?.services || {}))
     for (const group of catalogue?.groups || []) {
       for (const name of group.services) names.add(name)
     }
-    for (const name of Object.keys(catalogue?.services || {})) names.add(name)
-    return [...names]
-      .map((name) => ({
-        name,
-        label: serviceLabel(name),
-        group: groupOf[name] || 'Other',
-        operations: catalogue?.services?.[name]?.operations?.length || 0,
-        resources: counts[name] ?? null,
-        available: Object.values(services[name] || {}).some(Boolean),
-        favorite: isFavorite(name),
-      }))
-      .filter((item) =>
-        `${item.name} ${item.label}`.toLowerCase().includes(filter.toLowerCase()),
-      )
-      .sort(
-        (a, b) =>
-          Number(b.favorite) - Number(a.favorite) ||
-          Number(b.available) - Number(a.available) ||
-          a.label.localeCompare(b.label),
-      )
-  }, [catalogue, services, counts, filter, isFavorite, groupOf])
+    return groupByCategory(names)
+  }, [catalogue])
+
+  const open = (name) => navigate(`/resources/${name}`)
 
   return (
-    <Shell activeHref="/services" breadcrumbs={[{ text: 'Services', href: '/services' }]}>
+    <Shell
+      activeHref="/services"
+      breadcrumbs={[
+        { text: 'Home', href: '/' },
+        { text: 'All services', href: '/services' },
+      ]}
+    >
       <ContentLayout
-        header={
-          <Header
-            variant="h1"
-            description="Every service the emulator answers, with favorites pinned first."
-            actions={
-              <SpaceBetween direction="horizontal" size="xs">
-                <SegmentedControl
-                  selectedId={organise}
-                  onChange={({ detail }) => setOrganise(detail.selectedId)}
-                  options={[
-                    { id: 'all', text: 'All services' },
-                    { id: 'category', text: 'Services by category' },
-                  ]}
-                />
-                <SegmentedControl
-                  selectedId={view}
-                  onChange={({ detail }) => setView(detail.selectedId)}
-                  options={[
-                    { id: 'grid', text: 'Grid' },
-                    { id: 'list', text: 'List' },
-                  ]}
-                />
-                <Button iconName="refresh" onClick={load}>
-                  Refresh
-                </Button>
-              </SpaceBetween>
-            }
-          >
-            Services
-          </Header>
-        }
+        header={<Header variant="h1">All services</Header>}
       >
         {error && <Alert type="error">{error}</Alert>}
-        {organise === 'category' ? (
-          <SpaceBetween size="l">
-            {CATEGORY_ORDER.map((category) => {
-              const members = items.filter((item) => categoryOf(item.name) === category)
-              if (!members.length) return null
+        <Container header={<Header variant="h2">Services by category</Header>}>
+          <div className="services-columns">
+            {groups.map(({ category, services }) => {
+              const Icon = CATEGORY_ICON[category] || BoxIcon
               return (
-                <Table
-                  key={category}
-                  items={members}
-                  trackBy="name"
-                  columnDefinitions={[
-                    {
-                      id: 'name',
-                      header: 'Service',
-                      cell: (item) => (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <ServiceIcon name={item.name} />
-                          <Link
-                            href={`/resources/${item.name}`}
-                            onFollow={(event) => {
-                              event.preventDefault()
-                              navigate(`/resources/${item.name}`)
-                            }}
-                          >
-                            {item.label}
-                          </Link>
-                        </span>
-                      ),
-                    },
-                    {
-                      id: 'status',
-                      header: 'Status',
-                      cell: (item) => (
-                        <StatusIndicator type={item.available ? 'success' : 'stopped'}>
-                          {item.available ? 'available' : 'not seen'}
-                        </StatusIndicator>
-                      ),
-                    },
-                    {
-                      id: 'resources',
-                      header: 'Resources',
-                      cell: (item) =>
-                        item.resources === null
-                          ? '\u2014'
-                          : `${item.resources} resource${item.resources === 1 ? '' : 's'}`,
-                    },
-                  ]}
-                  header={
-                    <Header variant="h2" counter={`(${members.length})`}>
-                      {category}
-                    </Header>
-                  }
-                  variant="embedded"
-                />
+                <section key={category} className="services-group">
+                  <h3 className="services-group__title">
+                    <Icon size={17} aria-hidden="true" />
+                    {category}
+                  </h3>
+                  <ul className="services-group__list">
+                    {services.map((name) => (
+                      <li key={name}>
+                        <button
+                          type="button"
+                          className={`services-star${isFavorite(name) ? ' is-favorite' : ''}`}
+                          aria-pressed={isFavorite(name)}
+                          aria-label={
+                            isFavorite(name)
+                              ? `Remove ${serviceLabel(name)} from favorites`
+                              : `Add ${serviceLabel(name)} to favorites`
+                          }
+                          title={
+                            isFavorite(name)
+                              ? 'Remove from favorites'
+                              : 'Add to favorites'
+                          }
+                          onClick={() => toggleFavorite(name)}
+                        >
+                          <Star
+                            size={13}
+                            fill={isFavorite(name) ? 'currentColor' : 'none'}
+                          />
+                        </button>
+                        <Link
+                          href={`/resources/${name}`}
+                          onFollow={(event) => {
+                            event.preventDefault()
+                            open(name)
+                          }}
+                        >
+                          {serviceLabel(name)}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               )
             })}
-          </SpaceBetween>
-        ) : view === 'grid' ? (
-        <Cards
-          items={items}
-          loading={loading}
-          loadingText="Reading services"
-          trackBy="name"
-          cardDefinition={{
-            header: (item) => (
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <ServiceIcon name={item.name} />
-                  <Link
-                    fontSize="heading-m"
-                    href={`/resources/${item.name}`}
-                    onFollow={(event) => {
-                      event.preventDefault()
-                      navigate(`/resources/${item.name}`)
-                    }}
-                  >
-                    {item.label}
-                  </Link>
-                </span>
-                <Button
-                  variant="icon"
-                  iconName={item.favorite ? 'star-filled' : 'star'}
-                  ariaLabel={item.favorite ? `Unfavorite ${item.name}` : `Favorite ${item.name}`}
-                  onClick={() => toggleFavorite(item.name)}
-                />
-              </div>
-            ),
-            sections: [
-              {
-                id: 'group',
-                content: (item) => <Box color="text-body-secondary">{item.group}</Box>,
-              },
-              {
-                id: 'status',
-                content: (item) => (
-                  <StatusIndicator type={item.available ? 'success' : 'stopped'}>
-                    {item.available ? 'available' : 'not seen'}
-                  </StatusIndicator>
-                ),
-              },
-              {
-                id: 'resources',
-                content: (item) => (
-                  <Box color="text-body-secondary" fontSize="body-s">
-                    {item.resources === null
-                      ? '—'
-                      : `${item.resources} resource${item.resources === 1 ? '' : 's'}`}
-                  </Box>
-                ),
-              },
-            ],
-          }}
-          header={<Header counter={`(${items.length})`}>Services</Header>}
-          filter={
-            <TextFilter
-              filteringText={filter}
-              filteringPlaceholder="Find a service"
-              onChange={({ detail }) => setFilter(detail.filteringText)}
-            />
-          }
-          empty={<Box textAlign="center">No service matches this filter.</Box>}
-        />
-        ) : (
-          <Table
-            items={items}
-            trackBy="name"
-            columnDefinitions={[
-              {
-                id: 'name',
-                header: 'Service',
-                cell: (item) => (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <ServiceIcon name={item.name} />
-                    <Link
-                      href={`/resources/${item.name}`}
-                      onFollow={(event) => {
-                        event.preventDefault()
-                        navigate(`/resources/${item.name}`)
-                      }}
-                    >
-                      {item.label}
-                    </Link>
-                  </span>
-                ),
-              },
-              { id: 'group', header: 'Group', cell: (item) => item.group },
-              {
-                id: 'status',
-                header: 'Status',
-                cell: (item) => (
-                  <StatusIndicator type={item.available ? 'success' : 'stopped'}>
-                    {item.available ? 'available' : 'not seen'}
-                  </StatusIndicator>
-                ),
-              },
-              {
-                id: 'resources',
-                header: 'Resources',
-                cell: (item) =>
-                  item.resources === null
-                    ? '—'
-                    : `${item.resources} resource${item.resources === 1 ? '' : 's'}`,
-              },
-              {
-                id: 'star',
-                header: '',
-                cell: (item) => (
-                  <Button
-                    variant="icon"
-                    iconName={item.favorite ? 'star-filled' : 'star'}
-                    ariaLabel={item.favorite ? `Unfavorite ${item.name}` : `Favorite ${item.name}`}
-                    onClick={() => toggleFavorite(item.name)}
-                  />
-                ),
-                width: 60,
-              },
-            ]}
-            header={<Header counter={`(${items.length})`}>Services</Header>}
-            filter={
-              <TextFilter
-                filteringText={filter}
-                filteringPlaceholder="Find a service"
-                onChange={({ detail }) => setFilter(detail.filteringText)}
-              />
-            }
-            empty={<Box textAlign="center">No service matches this filter.</Box>}
-          />
-        )}
+            {groups.length === 0 && (
+              <Box color="text-body-secondary">Reading the service catalogue…</Box>
+            )}
+          </div>
+        </Container>
       </ContentLayout>
     </Shell>
   )
