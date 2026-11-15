@@ -84,6 +84,13 @@ the minor number is bumped by hand, patch releases are the bot's.
   `/api/exec` scope every session to its own account. `POST /api/accounts/<id>/admin`
   is gone, `global_admin`/`default_admin` are cleared on load, and the console's
   admin tab, toggle and "retire the default administrator" banner are removed.
+- **The reset mail and page carry the mark.** The message is now
+  `multipart/alternative` — the existing plain text plus an inline-styled HTML
+  part — with `web/public/email-logo.png` attached as `multipart/related` and
+  referenced by `cid:`, so the mark renders without the reader allowing remote
+  content (a linked image is blocked by most clients and would point at a host
+  the recipient cannot reach). `/reset`, the one auth page a link lands on, shows
+  the same mark at 4.5rem.
 - **The product owns the chrome.** The console's top navigation is Emuplane's mark
   and title, not the backend's: `web/public/backends/ministack.png` is deleted and
   the profiles no longer carry a logo. Which backend is being fronted is operator

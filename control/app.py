@@ -1950,6 +1950,8 @@ AUTH_STYLE = """
            border-radius: 8px; background: var(--primary); color: #0b1b3f;
            font: inherit; font-weight: 700; cursor: pointer; }
   button:hover { background: var(--primary-hover); }
+  .brand-mark { display: block; height: 4.5rem; width: auto;
+                margin: 0 auto 1.25rem; }
   .auth-title { text-align: left; font-size: 1.75rem; line-height: 1.25;
                 margin: 0 0 1.6rem; font-weight: 700; }
   .hint { color: var(--muted); font-size: .85rem; margin: -.05rem 0 .5rem; }
@@ -2035,6 +2037,35 @@ AUTH_THEME_SCRIPT = """
   });
 })();
 """
+
+
+def brand_logo_path() -> str:
+    """The small mark embedded in mail, from the built assets or the source."""
+    for candidate in (
+        os.path.join(STATIC_DIR, "email-logo.png"),
+        os.path.join(PUBLIC_DIR, "email-logo.png"),
+    ):
+        if os.path.isfile(candidate):
+            return candidate
+    return ""
+
+
+def reset_email_html(link: str, username: str, minutes: int) -> str:
+    """The HTML alternative: inline styles only, because mail clients ignore
+    stylesheets. The mark is referenced by `cid:`, which `mail.py` attaches."""
+    safe_link = html.escape(link, quote=True)
+    safe_user = html.escape(username)
+    return f"""<!doctype html><html><body style="margin:0;padding:24px;background:#f3f6fc;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0b1b3f">
+<div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #d7e0f5;border-radius:8px;padding:28px">
+  <img src="cid:emuplane-logo" width="72" height="72" alt="Emuplane" style="display:block;margin:0 0 20px;border:0">
+  <h1 style="font-size:20px;line-height:1.3;margin:0 0 12px">Reset your password</h1>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 20px">Someone asked to reset the password for <strong>{safe_user}</strong>. Choose a new one here:</p>
+  <p style="margin:0 0 20px"><a href="{safe_link}" style="display:inline-block;background:#ff8a1f;color:#0b1b3f;font-weight:700;text-decoration:none;padding:12px 22px;border-radius:8px">Choose a new password</a></p>
+  <p style="font-size:13px;line-height:1.5;color:#5a6b8c;margin:0 0 8px">The link works once and expires in {minutes} minutes.</p>
+  <p style="font-size:13px;line-height:1.5;color:#5a6b8c;margin:0;word-break:break-all">Or paste this address: {safe_link}</p>
+  <p style="font-size:13px;line-height:1.5;color:#5a6b8c;margin:16px 0 0">If you did not ask for this, ignore the message &mdash; your password has not changed.</p>
+</div>
+</body></html>"""
 
 
 def reveal_control(field: str) -> str:
@@ -2797,7 +2828,22 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def _auth_layout(self, title: str, body: str) -> str:
+    def _auth_layout(
+        self, title: str, body: str, logo: bool | None = None
+    ) -> str:
+        """The shell every server-rendered auth page sits in.
+
+        `logo` defaults to on for /reset — the one auth page a link lands on, so
+        it has to look like the product that sent the mail.
+        """
+        if logo is None:
+            logo = urlsplit(self.path).path == "/reset"
+        mark = (
+            '<img class="brand-mark" src="/emuplane.png" alt="Emuplane" '
+            'width="72" height="72">'
+            if logo
+            else ""
+        )
         return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)} · Emuplane</title>{ICON_LINKS}<style>{AUTH_STYLE}</style>
@@ -2820,6 +2866,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     </span>
   </button>
 </div>
+{mark}
 {body}</main><script>{AUTH_THEME_SCRIPT}</script><script>{AUTH_REVEAL_SCRIPT}</script></body></html>"""
 
     def _signup_page(
@@ -2991,6 +3038,10 @@ class ControlHandler(BaseHTTPRequestHandler):
                     user.get("email") or email,
                     "Reset your Emuplane password",
                     body,
+                    html_body=reset_email_html(
+                        link, user["username"], RESET_SECONDS // 60
+                    ),
+                    logo=brand_logo_path(),
                 )
             except mail.MailError as exc:
                 print(f"control: could not send a reset mail: {exc}", flush=True)

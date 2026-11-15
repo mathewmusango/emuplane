@@ -2,11 +2,16 @@
 """Outbound mail, for the one message this control has to send.
 
 Standard library only — `smtplib` plus `email.message` — because the runtime
-image carries no third-party packages and this is one text/plain message.
+image carries no third-party packages and this is one short message.
 
 Settings are `EP_MAIL_*` (see `.env.example`); `EP_MAIL_HOST` empty means mail is
 off. Credentials are read from the environment and never logged: a failure is
-reported by its class and the SMTP status code, not by echoing the exchange.
+reported by its stage and the SMTP status code, not by echoing the exchange.
+
+The message is `multipart/alternative` (plain text plus a branded HTML part) and
+the product mark is embedded as `multipart/related` with a `cid:` — a remote
+`<img>` would be blocked by most clients and would point at a host the recipient
+cannot reach.
 """
 
 from __future__ import annotations
@@ -46,21 +51,40 @@ def security() -> str:
     return (_env("EP_MAIL_SECURITY", "starttls") or "starttls").lower()
 
 
-def send(to: str, subject: str, body: str) -> None:
-    """Send one plain-text message, or raise MailError.
-
-    The caller decides what a failure means; nothing here writes to stdout with
-    credentials in it.
-    """
-    if not configured():
-        raise MailError("no relay is configured")
-    sender = _env("EP_MAIL_FROM")
+def build(
+    to: str,
+    subject: str,
+    body: str,
+    html_body: str = "",
+    logo: str = "",
+) -> EmailMessage:
+    """Assemble the message without sending it (the tests inspect this)."""
     message = EmailMessage()
-    message["From"] = sender
+    message["From"] = _env("EP_MAIL_FROM")
     message["To"] = to
     message["Subject"] = subject
     message.set_content(body)
+    if not html_body:
+        return message
+    message.add_alternative(html_body, subtype="html")
+    if logo and os.path.isfile(logo):
+        try:
+            with open(logo, "rb") as handle:
+                data = handle.read()
+            message.get_payload()[-1].add_related(
+                data,
+                maintype="image",
+                subtype="png",
+                cid="<emuplane-logo>",
+                filename="emuplane.png",
+            )
+        except (OSError, ValueError):
+            pass  # a missing logo must never stop the mail
+    return message
 
+
+def deliver(message: EmailMessage) -> None:
+    """Hand a built message to the relay, or raise MailError."""
     mode = security()
     user = _env("EP_MAIL_USER")
     password = _env("EP_MAIL_PASSWORD")
@@ -93,3 +117,16 @@ def send(to: str, subject: str, body: str) -> None:
             client.quit()
         except (OSError, smtplib.SMTPException):
             pass
+
+
+def send(
+    to: str,
+    subject: str,
+    body: str,
+    html_body: str = "",
+    logo: str = "",
+) -> None:
+    """Build and deliver one message, or raise MailError."""
+    if not configured():
+        raise MailError("no relay is configured")
+    deliver(build(to, subject, body, html_body, logo))
