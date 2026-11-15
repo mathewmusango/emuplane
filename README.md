@@ -213,19 +213,20 @@ Earlier versions seeded an `MC_ADMIN_USER`; those keys are retired and ignored.
 
 ### Settings (`.env`)
 
-The dotenv files carry no comments — this table is their documentation. The
-endpoints, node name and console/gateway addresses are **required**: the control
-exits at startup naming whatever is missing.
+The dotenv files carry no comments — this table is their documentation. Only
+`MINISTACK_NODE_URL` (where the emulator is), `MC_CONSOLE_URL` and
+`MC_GATEWAY_URL` (the addresses users are shown) have to be set: everything else
+has a default, and the control exits at startup naming whatever is missing.
 
 | Key | Default | What it does |
 | --- | --- | --- |
 | `MC_UI_PORT` | `4570` | loopback port for the console and control API |
 | `MC_GATEWAY_PORT` | `4571` | loopback port for the emulator gateway |
 | `MINISTACK_NODE_URL` | required | the emulator endpoint the control talks to |
-| `MINISTACK_NODE_NAME` | required | node name shown in the console |
+| `MINISTACK_NODE_NAME` | `ministack` | node label in the console; defaults to the emulator's compose service name |
 | `MC_STORE_ACCOUNT` | `111111111111` | account the control reads its own DynamoDB tables as |
 | `MC_STORE_REGION` | `us-east-1` | region those tables live in |
-| `MC_STORE_URL` | `$MINISTACK_NODE_URL` | override the store's endpoint |
+| `MC_STORE_URL` | `MINISTACK_NODE_URL` | override the store's endpoint |
 | `TZ` | `Africa/Nairobi` | zone the console renders timestamps in |
 | `CONTROL_PORT` | `8080` | console/API port inside the container |
 | `CONTROL_GATEWAY_PORT` | `4566` | emulator gateway port inside the container |

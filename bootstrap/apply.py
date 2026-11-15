@@ -131,7 +131,36 @@ def wait_for_terminal_state() -> str:
     return status()
 
 
+def drop_tables() -> int:
+    """Delete the stack (if any) and then every control table.
+
+    The one-off for a fresh start: CloudFormation cannot adopt tables it did not
+    create, so a pre-stack installation is migrated by dropping them and letting
+    the init job build the stack. Destructive by design — it is the only way to
+    return to a first setup with no accounts.
+    """
+    if status():
+        call("DeleteStack", {"StackName": STACK})
+        wait_for_terminal_state()
+        print(f"bootstrap: stack {STACK} deleted", flush=True)
+    dynamo = Dynamo()
+    dropped = 0
+    for store in TABLES:
+        name = PREFIX + store
+        try:
+            dynamo.call("DeleteTable", {"TableName": name})
+            dropped += 1
+        except DynamoError as exc:
+            if exc.code != "ResourceNotFoundException":
+                raise
+    print(f"bootstrap: dropped {dropped} table(s) under `{PREFIX}`", flush=True)
+    return 0
+
+
 def main() -> int:
+    if "--drop-tables" in sys.argv[1:]:
+        return drop_tables()
+
     if "--delete" in sys.argv[1:]:
         # For smoke runs of the template, and for a deliberate teardown.
         try:

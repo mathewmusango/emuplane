@@ -29,6 +29,12 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **Optional settings have defaults.** `MINISTACK_NODE_NAME` defaults to the
+  emulator's compose service name, and `MC_STORE_ACCOUNT` / `MC_STORE_REGION` /
+  `MC_STORE_URL` default inside the store client — a `.env` only has to name the
+  emulator endpoint and the two public addresses users are shown. `bootstrap/apply.py`
+  gained `--drop-tables`: the one-off that deletes the stack and every control table,
+  which is the only way to return a pre-stack installation to a first setup.
 - **The control's own substrate is provisioned by CloudFormation.**
   `bootstrap/template.yml` defines its ten DynamoDB tables as the stack
   `ministack-control`; `bootstrap/apply.py` applies it as a first-setup init job

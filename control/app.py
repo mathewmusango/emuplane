@@ -62,7 +62,7 @@ ADMIN_TOKEN = os.environ.get("MC_ADMIN_TOKEN", "").strip()
 DEFAULT_REGION = "us-east-1"
 SEEN_REGIONS: set[str] = set()
 SEEN_LOCK = threading.Lock()
-NODE_NAME = os.environ.get("MINISTACK_NODE_NAME", "").strip()
+NODE_NAME = os.environ.get("MINISTACK_NODE_NAME", "").strip() or "ministack"
 NODE_URL = os.environ.get("MINISTACK_NODE_URL", "").strip().rstrip("/")
 POLL_SECONDS = int(os.environ.get("CONTROL_POLL_SECONDS", "10"))
 
@@ -74,7 +74,8 @@ GATEWAY_URL = os.environ.get("MC_GATEWAY_URL", "").strip().rstrip("/")
 CONSOLE_URL = os.environ.get("MC_CONSOLE_URL", "").strip().rstrip("/")
 
 REQUIRED_SETTINGS = {
-    "MINISTACK_NODE_NAME": NODE_NAME,
+    # The node name defaults to the emulator's compose service name; only the
+    # endpoint it is reached at, and the two public addresses, have to be known.
     "MINISTACK_NODE_URL": NODE_URL,
     "MC_GATEWAY_URL": GATEWAY_URL,
     "MC_CONSOLE_URL": CONSOLE_URL,
