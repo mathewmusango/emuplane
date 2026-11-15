@@ -72,6 +72,28 @@ const RESET_HELP =
 const ACCOUNT_HELP =
   'The account ID is the 12 digits on the onboarding receipt. The alias is the short name the account was created with; either one identifies the tenancy.'
 
+// The card every screen sits in: one narrow panel on the page background, the way
+// AWS lays out its own sign-in pages.
+function Card({ title, description, info, children }) {
+  return (
+    <div className="signin">
+      <div className="signin__card">
+        <Container>
+          <div className="signin__body">
+            <div className="signin__heading">
+              <Header variant="h1" info={info}>
+                {title}
+              </Header>
+              {description ? <div className="signin__lead">{description}</div> : null}
+            </div>
+            {children}
+          </div>
+        </Container>
+      </div>
+    </div>
+  )
+}
+
 export default function SignIn() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -104,6 +126,21 @@ export default function SignIn() {
     setShowPassword(false)
   }
 
+  const signUp = () => window.location.assign('/signup')
+
+  const finish = () => {
+    try {
+      if (userType === 'iam' && remember) {
+        localStorage.setItem(REMEMBER_KEY, account.trim())
+      } else {
+        localStorage.removeItem(REMEMBER_KEY)
+      }
+    } catch {
+      // A browser with storage denied still signs in; it just forgets.
+    }
+    navigate(next, { replace: true })
+  }
+
   const chooseType = (event) => {
     event.preventDefault()
     reset()
@@ -126,19 +163,6 @@ export default function SignIn() {
       return
     }
     setStep('iam-password')
-  }
-
-  const finish = () => {
-    try {
-      if (userType === 'iam' && remember) {
-        localStorage.setItem(REMEMBER_KEY, account.trim())
-      } else {
-        localStorage.removeItem(REMEMBER_KEY)
-      }
-    } catch {
-      // A browser with storage denied still signs in; it just forgets.
-    }
-    navigate(next, { replace: true })
   }
 
   const submitCredentials = async (event) => {
@@ -194,62 +218,70 @@ export default function SignIn() {
     }
   }
 
-  const page = (content) => (
-    <div className="signin">
-      <div className="signin__card">{content}</div>
-    </div>
-  )
-
   const notice = error ? <Alert type="error">{error}</Alert> : null
 
+  const passwordField = (
+    <SpaceBetween size="xs">
+      <FormField label="Password" errorText={errors.password}>
+        <Input
+          type={showPassword ? 'text' : 'password'}
+          autoComplete="current-password"
+          value={password}
+          onChange={({ detail }) => setPassword(detail.value)}
+        />
+      </FormField>
+      <div className="signin__row">
+        <Checkbox
+          checked={showPassword}
+          onChange={({ detail }) => setShowPassword(detail.checked)}
+        >
+          Show password
+        </Checkbox>
+        <Popover
+          header="Password reset"
+          content={RESET_HELP}
+          dismissButton
+          size="medium"
+        >
+          {userType === 'iam' ? 'Having trouble?' : 'Forgot password?'}
+        </Popover>
+      </div>
+    </SpaceBetween>
+  )
+
   if (step === 'type') {
-    return page(
-      <Container
-        header={
-          <Header variant="h1" description="Access your AWS account by user type.">
-            Sign In
-          </Header>
-        }
-      >
+    return (
+      <Card title="Sign In" description="Access your AWS account by user type.">
         <form onSubmit={chooseType}>
-          <Form
-            actions={
-              <SpaceBetween size="s">
-                <Button variant="primary" formAction="submit" fullWidth>
-                  Next
-                </Button>
-                <div className="signin__or">OR</div>
-                <Button
-                  fullWidth
-                  formAction="none"
-                  onClick={() => window.location.assign('/signup')}
-                >
-                  New to AWS? Sign up
-                </Button>
-              </SpaceBetween>
-            }
-          >
-            <SpaceBetween size="m">
+          <Form>
+            <SpaceBetween size="l">
               {notice}
-              <FormField
-                label={
-                  <>
-                    User type{' '}
-                    <Popover content={USER_TYPE_HELP} header="User type" dismissButton size="medium">
-                      (not sure?)
-                    </Popover>
-                  </>
-                }
-              >
-                <RadioGroup
-                  value={userType}
-                  onChange={({ detail }) => {
-                    reset()
-                    setUserType(detail.value)
-                  }}
-                  items={USER_TYPES}
-                />
-              </FormField>
+              <div className="signin__types">
+                <FormField
+                  label={
+                    <>
+                      User type{' '}
+                      <Popover
+                        content={USER_TYPE_HELP}
+                        header="User type"
+                        dismissButton
+                        size="medium"
+                      >
+                        (not sure?)
+                      </Popover>
+                    </>
+                  }
+                >
+                  <RadioGroup
+                    value={userType}
+                    onChange={({ detail }) => {
+                      reset()
+                      setUserType(detail.value)
+                    }}
+                    items={USER_TYPES}
+                  />
+                </FormField>
+              </div>
 
               {userType === 'root' ? (
                 <FormField label="Email address" errorText={errors.email}>
@@ -273,150 +305,94 @@ export default function SignIn() {
                   />
                 </FormField>
               )}
+
+              <div className="signin__actions">
+                <Button variant="primary" formAction="submit">
+                  Next
+                </Button>
+                <div className="signin__or">OR</div>
+                <Button formAction="none" onClick={signUp}>
+                  New to AWS? Sign up
+                </Button>
+              </div>
             </SpaceBetween>
           </Form>
         </form>
-      </Container>,
+      </Card>
     )
   }
 
   if (step === 'root-password') {
-    return page(
-      <Container
-        header={
-          <Header
-            variant="h1"
-            info={
-              <Popover
-                triggerType="custom"
-                header="Root user"
-                content={ROOT_HELP}
-                dismissButton
-                size="medium"
-              >
-                <Link variant="info">Info</Link>
-              </Popover>
-            }
-            description={
-              <>
-                Enter the password for <strong>{email.trim()}</strong> (
-                <Button variant="link" formAction="none" onClick={back}>
-                  not you?
-                </Button>
-                )
-              </>
-            }
+    return (
+      <Card
+        title="Root user sign in"
+        info={
+          <Popover
+            triggerType="custom"
+            header="Root user"
+            content={ROOT_HELP}
+            dismissButton
+            size="medium"
           >
-            Root user sign in
-          </Header>
+            <Link variant="info">Info</Link>
+          </Popover>
+        }
+        description={
+          <>
+            Enter the password for <strong>{email.trim()}</strong>{' '}
+            <Button
+              variant="link"
+              formAction="none"
+              onClick={back}
+              ariaLabel="use a different email address"
+            >
+              (not you?)
+            </Button>
+          </>
         }
       >
         <form onSubmit={submitCredentials}>
-          <Form
-            actions={
-              <SpaceBetween size="s">
-                <Button variant="primary" formAction="submit" fullWidth loading={busy}>
+          <Form>
+            <SpaceBetween size="l">
+              {notice}
+              {passwordField}
+              <div className="signin__actions">
+                <Button variant="primary" formAction="submit" loading={busy}>
                   Sign in
                 </Button>
-                <Button fullWidth formAction="none" onClick={back}>
+                <Button formAction="none" onClick={back}>
                   Sign in to a different account
                 </Button>
-                <Button
-                  variant="link"
-                  formAction="none"
-                  onClick={() => window.location.assign('/signup')}
-                >
+                <button type="button" className="signin__textlink" onClick={signUp}>
                   Create a new AWS account
-                </Button>
-              </SpaceBetween>
-            }
-          >
-            <SpaceBetween size="m">
-              {notice}
-              <SpaceBetween size="xs">
-                <FormField label="Password" errorText={errors.password}>
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={({ detail }) => setPassword(detail.value)}
-                  />
-                </FormField>
-                <div className="signin__row">
-                  <Checkbox
-                    checked={showPassword}
-                    onChange={({ detail }) => setShowPassword(detail.checked)}
-                  >
-                    Show password
-                  </Checkbox>
-                  <Popover
-                    header="Password reset"
-                    content={RESET_HELP}
-                    dismissButton
-                    size="medium"
-                  >
-                    Forgot password?
-                  </Popover>
-                </div>
-              </SpaceBetween>
+                </button>
+              </div>
             </SpaceBetween>
           </Form>
         </form>
-      </Container>,
+      </Card>
     )
   }
 
   if (step === 'iam-password') {
-    return page(
-      <Container
-        header={
-          <Header
-            variant="h1"
-            info={
-              <Popover
-                triggerType="custom"
-                header="IAM user"
-                content={IAM_HELP}
-                dismissButton
-                size="medium"
-              >
-                <Link variant="info">Info</Link>
-              </Popover>
-            }
+    return (
+      <Card
+        title="IAM user sign in"
+        info={
+          <Popover
+            triggerType="custom"
+            header="IAM user"
+            content={IAM_HELP}
+            dismissButton
+            size="medium"
           >
-            IAM user sign in
-          </Header>
+            <Link variant="info">Info</Link>
+          </Popover>
         }
       >
         <form onSubmit={submitCredentials}>
-          <Form
-            actions={
-              <SpaceBetween size="s">
-                <Button variant="primary" formAction="submit" fullWidth loading={busy}>
-                  Sign in
-                </Button>
-                <Button
-                  fullWidth
-                  formAction="none"
-                  onClick={() => {
-                    reset()
-                    setUserType('root')
-                    setStep('type')
-                  }}
-                >
-                  Sign in using root user email
-                </Button>
-                <Button
-                  variant="link"
-                  formAction="none"
-                  onClick={() => window.location.assign('/signup')}
-                >
-                  Create a new AWS account
-                </Button>
-              </SpaceBetween>
-            }
-          >
-            <SpaceBetween size="m">
+          <Form>
+            <SpaceBetween size="l">
               {notice}
               <SpaceBetween size="xs">
                 <FormField
@@ -456,64 +432,42 @@ export default function SignIn() {
                   placeholder="iam"
                 />
               </FormField>
-              <FormField label="Password" errorText={errors.password}>
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={({ detail }) => setPassword(detail.value)}
-                />
-              </FormField>
-              <div className="signin__row">
-                <Checkbox
-                  checked={showPassword}
-                  onChange={({ detail }) => setShowPassword(detail.checked)}
+              {passwordField}
+              <div className="signin__actions">
+                <Button variant="primary" formAction="submit" loading={busy}>
+                  Sign in
+                </Button>
+                <Button
+                  formAction="none"
+                  onClick={() => {
+                    reset()
+                    setUserType('root')
+                    setStep('type')
+                  }}
                 >
-                  Show password
-                </Checkbox>
-                <Popover
-                  header="Password reset"
-                  content={RESET_HELP}
-                  dismissButton
-                  size="medium"
-                >
-                  Having trouble?
-                </Popover>
+                  Sign in using root user email
+                </Button>
+                <button type="button" className="signin__textlink" onClick={signUp}>
+                  Create a new AWS account
+                </button>
               </div>
             </SpaceBetween>
           </Form>
         </form>
-      </Container>,
+      </Card>
     )
   }
 
-  return page(
-    <Container
-      header={
-        <Header variant="h1" description="Your account is protected with multi-factor authentication (MFA).">
-          Additional verification required
-        </Header>
-      }
+  return (
+    <Card
+      title="Additional verification required"
+      description="Your account is protected with multi-factor authentication (MFA)."
     >
       <form onSubmit={submitCode}>
-        <Form
-          actions={
-            <SpaceBetween size="s">
-              <Button variant="primary" formAction="submit" fullWidth loading={busy}>
-                Sign in
-              </Button>
-              <Button fullWidth formAction="none" onClick={back}>
-                Sign in to a different account
-              </Button>
-              <Popover header="Trouble signing in" content={RESET_HELP} dismissButton size="medium">
-                Trouble signing in?
-              </Popover>
-            </SpaceBetween>
-          }
-        >
-          <SpaceBetween size="m">
+        <Form>
+          <SpaceBetween size="l">
             {notice}
-            <div>
+            <div className="signin__lead">
               To finish signing in, enter the code from your MFA device below.
             </div>
             <FormField label="MFA code" errorText={errors.code}>
@@ -525,9 +479,25 @@ export default function SignIn() {
                 inputMode="numeric"
               />
             </FormField>
+            <div className="signin__actions">
+              <Button variant="primary" formAction="submit" loading={busy}>
+                Sign in
+              </Button>
+              <Button formAction="none" onClick={back}>
+                Sign in to a different account
+              </Button>
+              <Popover
+                header="Trouble signing in"
+                content={RESET_HELP}
+                dismissButton
+                size="medium"
+              >
+                Trouble signing in?
+              </Popover>
+            </div>
           </SpaceBetween>
         </Form>
       </form>
-    </Container>,
+    </Card>
   )
 }

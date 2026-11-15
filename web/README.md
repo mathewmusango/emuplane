@@ -141,6 +141,15 @@ the server's `/signup` page, and the help links (info icon, "not sure?",
 "Forgot password?", "Having trouble?", "Don't have?") are popovers rather than
 dead anchors.
 
+**Presentation.** `signin.css` is the one place the console departs from stock
+Cloudscape, because these screens copy AWS's own: one narrow card on the page
+background, the user-type options drawn as bordered tiles that tint when selected
+(`:has(input:checked)`), full-width pill buttons and the orange `#ff9900` primary
+action. The selectors are scoped to `.signin__*` and rely on structure
+(`form`, `[role="radiogroup"] > *`) or Cloudscape's semantic class prefix
+(`[class*="variant-primary"]`), never on the hashed names — so a Cloudscape
+upgrade cannot silently restyle the page back to blue.
+
 ## Service icons
 
 The coloured service icons in `src/assets/aws/` are vendored from the MIT
