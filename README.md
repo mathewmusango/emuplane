@@ -203,7 +203,7 @@ the container-internal paths and ports.
 
 | Credential | Where | What it protects |
 | --- | --- | --- |
-| `MC_ADMIN_TOKEN` | `.env` (optional) | Scripted API access (`Bearer`); writes refuse without a session or this token. Empty means `up.sh` seeds one into `.env` on first run; set it to pin your own. |
+| API bearer token | **nowhere in `.env`** | Scripted API access (`Bearer`); writes refuse without a session or this token. `./scripts/token.sh` mints one, prints it once and stores only a SHA-256 hash in the settings store — the same contract as a session, and no credential in a file that gets copied or pasted. |
 
 **There is no seeded account.** A fresh control has zero accounts and one way in:
 sign-up (`/signup`), exactly as a new AWS account is created by the person who
@@ -230,7 +230,11 @@ has a default, and the control exits at startup naming whatever is missing.
 | `TZ` | `Africa/Nairobi` | zone the console renders timestamps in |
 | `CONTROL_PORT` | `8080` | console/API port inside the container |
 | `CONTROL_GATEWAY_PORT` | `4566` | emulator gateway port inside the container |
-| `MC_ADMIN_TOKEN` | generated | bearer token for scripted API access; empty means `up.sh` seeds one |
+| `MC_NODE_CONTAINER` | discovered | container that runs the node; the URL is derived from it |
+| `MC_NODE_LABEL` | empty | discover the node container by label instead of naming it |
+| `MC_NODE_PORT` | `4566` | port the node listens on inside its network |
+| `MC_NODE_URL` | derived | the endpoint itself; set it to bypass discovery |
+| `MC_CONTROL_CONTAINER` | discovered | container `scripts/token.sh` execs into |
 | `MC_STACK_NAME` | `ministack-control` | name of the CloudFormation stack that owns the control's tables (init job only) |
 | `MC_TABLE_PREFIX` | `ministack-control-` | table prefix the stack applies; change it only for a smoke test |
 | `CONTROL_POLL_SECONDS` | `10` | seconds between emulator health polls |
@@ -262,8 +266,9 @@ and the dashboard requires a session.
   the only way in and the account it creates owns the platform. Afterwards sign in
   at `/login`. Sessions are server-side, `HttpOnly` cookies, 8h by default,
   persisted across restarts and extended on activity.
-- Scripted API access uses `Authorization: Bearer <MC_ADMIN_TOKEN>`
-  instead of a session. The gateway (`4571`) is SigV4 and needs no session.
+- Scripted API access uses `Authorization: Bearer <token>` instead of a session.
+  Mint one with `./scripts/token.sh` (printed once, stored hashed); the gateway
+  (`4571`) is SigV4 and needs no session.
 
 ### Storage (the emulator's DynamoDB)
 
@@ -376,7 +381,7 @@ pair:
 
 ```sh
 curl -sS -X POST https://ministack-control.example.com/api/accounts \
-  -H "Authorization: Bearer $MC_ADMIN_TOKEN" \
+  -H "Authorization: Bearer $MC_TOKEN" \   # the value ./scripts/token.sh printed
   -H 'Content-Type: application/json' \
   -d '{"username":"alice","email":"alice@example.test","password":"Correct-Horse-1","name":"Alice"}'
 # → account_id, alias, iam_user, aws_access_key_id, aws_secret_access_key, regions
@@ -590,10 +595,9 @@ start the gateway without it.
 ./scripts/up.sh           # .env, apply the control stack, pull the image, start
 ```
 
-The first run creates `.env` from `.env.example` (mode `0600`). If
-`MC_ADMIN_TOKEN` is empty, `up.sh` generates one and **writes it into `.env`
-before the container starts** — nothing is printed, and the value survives a state
-wipe. Set it yourself to pin your own.
+The first run creates `.env` from `.env.example` (mode `0600`). No credential is
+seeded any more: the API bearer token is minted on demand by `./scripts/token.sh`
+and stored as a hash, so `.env` carries no secret at all.
 
 Before the console starts, `up.sh` runs the first-setup init job
 (`docker-compose.yml`'s `bootstrap` service → `bootstrap/apply.py`). It applies
@@ -606,7 +610,7 @@ to bring them under it.
 
 Starting the container directly (bypassing `up.sh`) works only once that stack is
 in place: with no tables the control exits at Layer 0 with the missing names. An
-empty `MC_ADMIN_TOKEN` merely leaves bearer access off.
+with no bearer token set, scripted API access is simply off until you mint one.
 
 `up.sh` pulls the image that `MC_IMAGE` names — `docker-compose.yml` defaults it to the
 published GHCR tag — and starts the container. The emulator is a separate image
@@ -616,11 +620,10 @@ Nothing is mounted from the host: the console is stateless and the control's sta
 lives in the emulator's DynamoDB, so restarting the control loses nothing and there
 is no data directory to create or back up.
 
-`MC_ADMIN_TOKEN` is optional: it is a bearer token for scripted API access, not a
-password. Leave it empty and `up.sh` seeds one into `.env` on first run (nothing is
-printed); set it to pin your own, e.g.
-`python3 -c "import secrets; print(secrets.token_hex(24))"`. Either way the
-console session is unaffected.
+The bearer token is optional and lives only in the settings store, as a SHA-256
+hash: `./scripts/token.sh` rotates and prints the new value once, `--status` says
+whether one exists. Rotating invalidates the previous token immediately — that is
+what makes it a rotation and not a second key. The console session is unaffected.
 
 Nothing here needs `sudo`: no host directory is involved any more.
 
@@ -700,8 +703,11 @@ that clears its registry entries and starts the next scan clean.
 - [`web/`](web/) — the React + Cloudscape console (its own README), including the
   five sign-in screens in `web/src/pages/SignIn.jsx`.
 - [`scripts/qa_check.py`](scripts/qa_check.py) — QA gate: secrets, Python compile, and the signed-off markers from a **local** `qa/tasks.json` (gitignored).
-- [`scripts/up.sh`](scripts/up.sh) — seed `.env`, apply the control stack, pull the
-  image, start the control plane, readiness.
+- [`scripts/up.sh`](scripts/up.sh) — `.env`, resolve the node, apply the control
+  stack, pull the image, start the control plane, readiness.
+- [`scripts/token.sh`](scripts/token.sh) — mint (`--rotate`) or inspect
+  (`--status`) the API bearer token; the raw value is printed once, only its hash
+  is stored. The minting itself is [`control/token.py`](control/token.py).
 - [`bootstrap/template.yml`](bootstrap/template.yml) and
   [`bootstrap/apply.py`](bootstrap/apply.py) — the CloudFormation stack that owns
   the control's ten DynamoDB tables, and the init job that applies it on first

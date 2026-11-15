@@ -29,6 +29,12 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **The API bearer token is a hashed record, not a setting.** `MC_ADMIN_TOKEN` is
+  gone from `.env`: `./scripts/token.sh` mints a token, prints it once and stores
+  only a SHA-256 digest in the settings store, the same contract as a session.
+  Rotation invalidates the previous token immediately, and a running control
+  re-reads the digest per request so a rotation takes effect without a restart.
+  A fresh install therefore carries **no credential in any file**.
 - **The sign-in screens are the login page.** `/login` is served by the console
   (`PUBLIC_SPA_ROUTES`) and the server-rendered form is gone; `POST /api/auth/login`
   verifies root (email or username) and IAM (account + username) credentials, checks

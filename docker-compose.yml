@@ -14,9 +14,8 @@ services:
         required: false
     environment:
       TZ: "${TZ:-Africa/Nairobi}"
-      # Derived, not configured: the control reaches the emulator at the
-      # container it starts next to. Set MC_EMULATOR_CONTAINER to move it.
-      MINISTACK_NODE_URL: "http://${MC_EMULATOR_CONTAINER:-ministack}:${CONTROL_GATEWAY_PORT:-4566}"
+      # up.sh exports the resolved URL; a bare `podman-compose up` has to name one.
+      MC_NODE_URL: "${MC_NODE_URL:?set MC_NODE_URL, or run scripts/up.sh which derives it}"
     command: ["python", "/app/bootstrap/apply.py"]
 
   ministack-control:
@@ -27,8 +26,8 @@ services:
         required: false
     environment:
       TZ: "${TZ:-Africa/Nairobi}"
-      # Same derivation as the init job: one place names the emulator container.
-      MINISTACK_NODE_URL: "http://${MC_EMULATOR_CONTAINER:-ministack}:${CONTROL_GATEWAY_PORT:-4566}"
+      # Same resolution as the init job: up.sh exports it, MC_NODE_URL overrides.
+      MC_NODE_URL: "${MC_NODE_URL:?set MC_NODE_URL, or run scripts/up.sh which derives it}"
     ports:
       - "127.0.0.1:${MC_UI_PORT:-4570}:8080"
       - "127.0.0.1:${MC_GATEWAY_PORT:-4571}:4566"

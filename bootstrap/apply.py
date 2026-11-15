@@ -53,8 +53,8 @@ class StackError(RuntimeError):
 def endpoint() -> str:
     return (
         os.environ.get("MC_STORE_URL")
-        or os.environ.get("MINISTACK_NODE_URL")
-        or "http://ministack:4566"
+        or os.environ.get("MC_NODE_URL")
+        or "http://localhost:4566"
     ).rstrip("/")
 
 

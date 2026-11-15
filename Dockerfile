@@ -41,7 +41,7 @@ WORKDIR /app
 # above, so `web/public` is already part of `dist`. `dist` comes first so that
 # editing `control/` only rewrites the small layer after it.
 COPY --from=web /src/dist /app/static
-COPY control/app.py control/console.py control/dynamo.py control/store.py /app/
+COPY control/app.py control/console.py control/dynamo.py control/store.py control/token.py /app/
 # The first-setup init job and the stack it applies (`docker-compose.yml` runs
 # it as the `bootstrap` service, before the control starts).
 COPY bootstrap /app/bootstrap

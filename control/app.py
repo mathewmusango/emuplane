@@ -54,7 +54,41 @@ from store import Store, StoreNotProvisioned  # noqa: E402
 # the tables before the API serves.
 CONTROL_PORT = int(os.environ.get("CONTROL_PORT", "8080"))
 GATEWAY_PORT = int(os.environ.get("CONTROL_GATEWAY_PORT", "4566"))
-ADMIN_TOKEN = os.environ.get("MC_ADMIN_TOKEN", "").strip()
+# The API bearer token is *not* an env setting: a credential in `.env` is a
+# credential in every backup and paste. It lives in the settings store as a
+# SHA-256 hash (control/token.py mints it and prints the raw value once), so only
+# a digest ever reaches the database.
+TOKEN_KEY = "admin_token"
+
+
+def stored_token_hash() -> str:
+    """The digest in the settings store, read fresh so a rotation takes effect.
+
+    `control/token.py` rotates the token from another process, so this cannot be
+    a boot-time copy held in memory.
+    """
+    try:
+        raw = DB.get("settings", TOKEN_KEY)
+    except (OSError, DynamoError):
+        return ""
+    if not raw:
+        return ""
+    try:
+        return str(json.loads(raw).get("hash") or "")
+    except ValueError:
+        return ""
+
+
+def bearer_ok(presented: str) -> bool:
+    """True when the presented bearer token matches the stored digest."""
+    if not presented:
+        return False
+    expected = stored_token_hash()
+    if not expected:
+        return False
+    return secrets.compare_digest(
+        hashlib.sha256(presented.encode()).hexdigest(), expected
+    )
 # One emulator, many regions and accounts: these are data, not containers.
 # MiniStack's own fallback region for unsigned callers. There is no configured
 # region list: every region exists, and the one a request uses comes from its
@@ -62,8 +96,15 @@ ADMIN_TOKEN = os.environ.get("MC_ADMIN_TOKEN", "").strip()
 DEFAULT_REGION = "us-east-1"
 SEEN_REGIONS: set[str] = set()
 SEEN_LOCK = threading.Lock()
-NODE_NAME = os.environ.get("MINISTACK_NODE_NAME", "").strip() or "ministack"
-NODE_URL = os.environ.get("MINISTACK_NODE_URL", "").strip().rstrip("/")
+# The endpoint this control fronts. Nothing here names a particular emulator:
+# MiniStack, Floci or anything else that answers the same APIs is equally valid,
+# and the label in the console comes from the URL unless MC_NODE_NAME says it.
+NODE_URL = os.environ.get("MC_NODE_URL", "").strip().rstrip("/")
+NODE_NAME = (
+    os.environ.get("MC_NODE_NAME", "").strip()
+    or (urlsplit(NODE_URL).hostname or "").strip()
+    or "node"
+)
 POLL_SECONDS = int(os.environ.get("CONTROL_POLL_SECONDS", "10"))
 
 API_VERSION = "v1"
@@ -74,9 +115,9 @@ GATEWAY_URL = os.environ.get("MC_GATEWAY_URL", "").strip().rstrip("/")
 CONSOLE_URL = os.environ.get("MC_CONSOLE_URL", "").strip().rstrip("/")
 
 REQUIRED_SETTINGS = {
-    # The node name defaults to the emulator's compose service name; only the
-    # endpoint it is reached at, and the two public addresses, have to be known.
-    "MINISTACK_NODE_URL": NODE_URL,
+    # The node name falls back to the URL's host; only the endpoint the node is
+    # reached at, and the two public addresses, have to be known.
+    "MC_NODE_URL": NODE_URL,
     "MC_GATEWAY_URL": GATEWAY_URL,
     "MC_CONSOLE_URL": CONSOLE_URL,
 }
@@ -105,8 +146,8 @@ REGION_CHOICES = [
 
 # The React console. Built by `npm run build` in `web/` and mounted here; the
 # server-rendered pages stay available under /classic.
-STATIC_DIR = os.environ.get("MINISTACK_STATIC_DIR", "/app/static")
-PUBLIC_DIR = os.environ.get("MINISTACK_PUBLIC_DIR", "/app/public")
+STATIC_DIR = os.environ.get("MC_STATIC_DIR", "/app/static")
+PUBLIC_DIR = os.environ.get("MC_PUBLIC_DIR", "/app/public")
 SPA_ROUTES = {"/", "/resources", "/favorites", "/accounts", "/onboarding",
               "/settings", "/about"}
 # Served to anyone, signed in or not: the sign-in screens themselves. The
@@ -2358,9 +2399,10 @@ class ControlHandler(BaseHTTPRequestHandler):
         token = self._session_token()
         if token and session_ok(token):
             return True
-        return bool(ADMIN_TOKEN) and self.headers.get(
-            "Authorization", ""
-        ) == f"Bearer {ADMIN_TOKEN}"
+        header = self.headers.get("Authorization", "")
+        if not header.lower().startswith("bearer "):
+            return False
+        return bearer_ok(header[7:].strip())
 
     def _require_admin(self) -> bool:
         if self._authenticated():
@@ -3686,7 +3728,7 @@ def main() -> None:
     threading.Thread(target=poller, daemon=True).start()
     print(
         f"control on :{CONTROL_PORT}, gateway on :{GATEWAY_PORT}, "
-        f"{len(NODES)} nodes, auth {'on' if ADMIN_TOKEN else 'off'}",
+        f"{len(NODES)} nodes, bearer token {'set' if stored_token_hash() else 'unset'}",
         flush=True,
     )
     control.serve_forever()

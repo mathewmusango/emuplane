@@ -5,7 +5,7 @@ The control keeps no database file: its documents live in the emulator's
 DynamoDB, which is the same service it fronts. That is the point of the
 architecture — the control plane is a tenant of the thing it manages.
 
-No boto3: the image is stdlib-only, and the emulator treats a 12-digit access
+No boto3: the image is stdlib-only, and an emulator treats a 12-digit access
 key as an account root with no verified signature (the same trick `aws_call`
 already uses to read other accounts), so a request needs a credential *name*, not
 a secret. `Signature=local` is deliberate, not a placeholder someone forgot.
@@ -13,6 +13,10 @@ a secret. `Signature=local` is deliberate, not a placeholder someone forgot.
 Errors are raised as `DynamoError` with the emulator's message and type, so a
 caller sees "ResourceNotFoundException: Requested resource not found" rather than
 a bare status code.
+
+Nothing here names a particular emulator: the endpoint comes from `MC_STORE_URL`,
+then `MC_NODE_URL`, then a neutral local default — MiniStack, Floci or any other
+AWS-compatible emulator serves the same DynamoDB wire protocol.
 """
 
 from __future__ import annotations
@@ -54,8 +58,10 @@ class Dynamo:
         timeout: float = 10.0,
     ) -> None:
         self.endpoint = (
-            endpoint or os.environ.get("MC_STORE_URL") or
-            os.environ.get("MINISTACK_NODE_URL") or "http://ministack:4566"
+            endpoint
+            or os.environ.get("MC_STORE_URL")
+            or os.environ.get("MC_NODE_URL")
+            or "http://localhost:4566"
         ).rstrip("/")
         self.account = account or os.environ.get("MC_STORE_ACCOUNT") or "111111111111"
         self.region = region or os.environ.get("MC_STORE_REGION") or "us-east-1"
@@ -103,6 +109,20 @@ class Dynamo:
             raise
 
     # -- items -------------------------------------------------------------
+
+    def get(self, table: str, key: str) -> str | None:
+        """One item's payload, or None. A missing item is not an error."""
+        try:
+            answer = self.call(
+                "GetItem",
+                {"TableName": table, "Key": {"pk": {"S": key}}},
+            )
+        except DynamoError as exc:
+            if exc.code == "ResourceNotFoundException":
+                return None
+            raise
+        item = answer.get("Item") or {}
+        return (item.get("payload") or {}).get("S")
 
     def put(self, table: str, key: str, payload: str) -> None:
         self.call(

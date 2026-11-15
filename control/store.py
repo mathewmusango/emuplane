@@ -79,6 +79,9 @@ class Store:
 
     # -- reads -------------------------------------------------------------
 
+    def get(self, store: str, key: str) -> str | None:
+        return self.dynamo.get(table_name(store), key)
+
     def items(self, store: str) -> list[tuple[str, str]]:
         return self.dynamo.scan(table_name(store))
 
