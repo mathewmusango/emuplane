@@ -3958,7 +3958,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             info = self._caller()
             if not self._platform(info):
                 return self._json(
-                    403, {"error": "only a global admin can disable accounts"}
+                    403, {"error": "only the platform administrator can disable accounts"}
                 )
             account = ACCOUNTS.by_ref(match.group(1))
             if account is None:
@@ -3972,6 +3972,96 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(
                 200,
                 {"account": account["account_id"], "disabled": disabled},
+            )
+        if path == "/api/regions":
+            payload = self._body()
+            info = self._caller()
+            target = ACCOUNTS.by_ref(
+                str(payload.get("account") or info.get("account") or "").strip()
+            )
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            region = str(payload.get("region", "")).strip()
+            if region not in REGION_CHOICES:
+                return self._json(400, {"error": "unknown region"})
+            enabled = bool(payload.get("enabled", True))
+            current = set(ACCOUNTS.regions_of(target))
+            if enabled:
+                current.add(region)
+            elif region != DEFAULT_REGION:
+                current.discard(region)
+            account = ACCOUNTS.set_regions(target["account_id"], sorted(current))
+            return self._json(
+                200,
+                {
+                    "account": account["account_id"],
+                    "regions": ACCOUNTS.regions_of(account),
+                },
+            )
+        if path == "/api/refresh":
+            self._body()
+            return self._json(200, refresh_registry())
+        if path == "/api/reserve":
+            payload = self._body()
+            name = str(payload.get("name", "")).strip()
+            region = str(payload.get("region", DEFAULT_REGION)).strip()
+            if not name:
+                return self._json(400, {"error": "name required"})
+            ok, message, code = reserve_across(name, region)
+            if not ok:
+                return self._json(code, {"error": message})
+            return self._json(201, {"bucket": name, "region": region})
+        match = re.fullmatch(r"/api/nodes/([^/]+)/reset", path)
+        if match:
+            node = node_by_name(match.group(1))
+            if not node:
+                return self._json(404, {"error": "unknown node"})
+            status, _ = node_request(node, "POST", "/_ministack/reset", timeout=30)
+            with REGISTRY.lock:
+                for bucket in [
+                    name
+                    for name, entry in REGISTRY.buckets.items()
+                    if entry["node"] == node["name"]
+                ]:
+                    REGISTRY.buckets.pop(bucket, None)
+                cached = REGISTRY.nodes.get(node["name"], {})
+                if cached:
+                    cached["buckets"] = []
+                REGISTRY.save()
+            return self._json(
+                200 if status == 200 else 502, {"node": node["name"], "upstream": status}
+            )
+        self._json(404, {"error": "not found"})
+
+    def _route_delete(self):
+        if not self._require_admin():
+            return
+        path = urlsplit(self.path).path
+        if path.startswith("/api"):
+            path = self._api_path(path)
+        match = re.fullmatch(r"/api/accounts/([0-9]{12})", path)
+        if match:
+            info = self._caller()
+            if not self._platform(info):
+                return self._json(
+                    403,
+                    {"error": "only the platform administrator can delete accounts"},
+                )
+            account = ACCOUNTS.by_ref(match.group(1))
+            if account is None:
+                return self._json(404, {"error": "unknown account"})
+            if info and account["account_id"] == info.get("account"):
+                return self._json(
+                    400, {"error": "you cannot delete the account you are signed in to"}
+                )
+            delete_account(account)
+            return self._json(
+                200,
+                {"deleted": account["account_id"], "alias": account["alias"]},
             )
         match = re.fullmatch(r"/api/buckets/([^/]+)", path)
         if match:

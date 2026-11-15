@@ -249,6 +249,13 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Fixed
 
+- **Enabling a region works again.** Removing the global-admin endpoint in
+  `4f6464a` sliced from that route to the next occurrence of the buckets regex,
+  which took `/api/regions`, `/api/refresh`, `/api/reserve`,
+  `/api/nodes/<name>/reset` and the whole of `_route_delete` with it — Settings
+  answered "not found" and `DELETE` would have thrown. All five are restored, and
+  a QA row now pins their markers so the same slice cannot pass the gate.
+
 - **The page title no longer hides under the console bar.** `AppLayout`'s
   `headerSelector` measured the fixed bar but the content still slid 44px up, so
   Console Home's heading sat behind it. The offset is explicit now
