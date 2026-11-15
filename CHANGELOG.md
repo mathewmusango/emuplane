@@ -82,6 +82,18 @@ the minor number is bumped by hand, patch releases are the bot's.
   `alpha 0,0 floodfill`, which silently leaves the white opaque, and a global
   `-transparent white` would punch out the white browser panel inside the mark.
   The sign-in card shows it at 5rem, so no white box appears in dark mode.
+- **A console bar of its own.** `TopBar` replaces Cloudscape's TopNavigation so
+  the services grid can sit immediately after the mark (icon only, no label), the
+  way the console places it. The account chip opens a menu that differs by
+  identity: root shows the account ID (grouped, copyable), account name and
+  colour; an IAM user shows the account alias and its own username. "Switch role"
+  is not a concept here, so the menu offers the honest equivalent — sign in as a
+  different user — beside Sign out.
+- **IAM users exist as a real thing.** `POST /api/users` adds a principal to the
+  caller's own account (`Accounts.add_principal`), so an account can hold more
+  than its root. Sign-in already distinguished them; now one can be created.
+- **All services / Services by category** on `/services`: the flat list, or one
+  table per category in the console's own category order.
 - **The Identity section is gone.** With no global administrators there is no
   account list to browse: the console's `Accounts` and `Onboarding` pages, their
   routes and their nav section are removed, and `/accounts` / `/onboarding`

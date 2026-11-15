@@ -18,6 +18,7 @@ import { useFavorites } from '../prefs'
 import { ServiceIcon } from '../serviceIcons'
 import { serviceLabel } from '../serviceLabels'
 import { Shell, loadCatalogue } from '../components/Shell'
+import { CATEGORY_ORDER, categoryOf } from '../serviceCatalogue'
 
 export default function Services() {
   const navigate = useNavigate()
@@ -28,6 +29,7 @@ export default function Services() {
   const [catalogue, setCatalogue] = useState(null)
   const [filter, setFilter] = useState('')
   const [view, setView] = useState('grid')
+  const [organise, setOrganise] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -99,6 +101,14 @@ export default function Services() {
             actions={
               <SpaceBetween direction="horizontal" size="xs">
                 <SegmentedControl
+                  selectedId={organise}
+                  onChange={({ detail }) => setOrganise(detail.selectedId)}
+                  options={[
+                    { id: 'all', text: 'All services' },
+                    { id: 'category', text: 'Services by category' },
+                  ]}
+                />
+                <SegmentedControl
                   selectedId={view}
                   onChange={({ detail }) => setView(detail.selectedId)}
                   options={[
@@ -117,7 +127,64 @@ export default function Services() {
         }
       >
         {error && <Alert type="error">{error}</Alert>}
-        {view === 'grid' ? (
+        {organise === 'category' ? (
+          <SpaceBetween size="l">
+            {CATEGORY_ORDER.map((category) => {
+              const members = items.filter((item) => categoryOf(item.name) === category)
+              if (!members.length) return null
+              return (
+                <Table
+                  key={category}
+                  items={members}
+                  trackBy="name"
+                  columnDefinitions={[
+                    {
+                      id: 'name',
+                      header: 'Service',
+                      cell: (item) => (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <ServiceIcon name={item.name} />
+                          <Link
+                            href={`/resources/${item.name}`}
+                            onFollow={(event) => {
+                              event.preventDefault()
+                              navigate(`/resources/${item.name}`)
+                            }}
+                          >
+                            {item.label}
+                          </Link>
+                        </span>
+                      ),
+                    },
+                    {
+                      id: 'status',
+                      header: 'Status',
+                      cell: (item) => (
+                        <StatusIndicator type={item.available ? 'success' : 'stopped'}>
+                          {item.available ? 'available' : 'not seen'}
+                        </StatusIndicator>
+                      ),
+                    },
+                    {
+                      id: 'resources',
+                      header: 'Resources',
+                      cell: (item) =>
+                        item.resources === null
+                          ? '\u2014'
+                          : `${item.resources} resource${item.resources === 1 ? '' : 's'}`,
+                    },
+                  ]}
+                  header={
+                    <Header variant="h2" counter={`(${members.length})`}>
+                      {category}
+                    </Header>
+                  }
+                  variant="embedded"
+                />
+              )
+            })}
+          </SpaceBetween>
+        ) : view === 'grid' ? (
         <Cards
           items={items}
           loading={loading}

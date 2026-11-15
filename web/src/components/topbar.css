@@ -1,0 +1,344 @@
+/* The console bar. Height and rhythm follow the console's own: a 44px bar, a
+   quiet icon cluster, one search field, and the account chip on the right. */
+
+.topbar {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 2.75rem;
+  padding: 0 0.5rem;
+  background: #ffffff;
+  border-block-end: 1px solid #d7e0f5;
+}
+
+.topbar__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.topbar__logo img {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: block;
+}
+
+.topbar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #0b1b3f;
+  cursor: pointer;
+}
+
+.topbar__icon:hover,
+.topbar__icon.is-active {
+  background: #eef3ff;
+}
+
+.topbar__search {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 auto;
+  max-width: 26rem;
+  margin-inline-start: 0.5rem;
+  padding: 0 0.55rem;
+  height: 1.85rem;
+  border: 1px solid #c9d3e6;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #5a6b8c;
+}
+
+.topbar__search:focus-within {
+  border-color: #1b4fd8;
+  box-shadow: 0 0 0 1px #1b4fd8;
+}
+
+.topbar__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: #0b1b3f;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.topbar__search kbd {
+  flex: 0 0 auto;
+  color: #7b8aa6;
+  font-size: 0.7rem;
+  font-family: inherit;
+}
+
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-inline-start: auto;
+}
+
+.topbar__text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #0b1b3f;
+  font: inherit;
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+.topbar__text:hover {
+  background: #eef3ff;
+}
+
+.topbar__region,
+.topbar__account {
+  position: relative;
+}
+
+.topbar__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 2rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: 4px;
+  background: #ff8a1f;
+  color: #0b1b3f;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.topbar__chip-label {
+  display: none;
+}
+
+.topbar__menu {
+  position: absolute;
+  inset-block-start: calc(100% + 0.35rem);
+  inset-inline-end: 0;
+  z-index: 960;
+  min-width: 16rem;
+  margin: 0;
+  padding: 0.4rem 0;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid #d7e0f5;
+  border-radius: 8px;
+  box-shadow: 0 14px 30px rgba(11, 27, 63, 0.18);
+}
+
+.topbar__menu--account {
+  min-width: 20rem;
+  padding: 0.75rem 0;
+}
+
+.topbar__menu button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.45rem 0.9rem;
+  border: 0;
+  background: none;
+  color: #0b1b3f;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.topbar__menu button:hover {
+  background: #eef3ff;
+}
+
+.topbar__menu--region button span {
+  color: #7b8aa6;
+  margin-inline-start: 0.35rem;
+}
+
+.topbar__menu--region button.is-current {
+  font-weight: 700;
+  color: #1b4fd8;
+}
+
+.topbar__menu hr {
+  margin: 0.5rem 0;
+  border: 0;
+  border-block-start: 1px solid #e4e9f5;
+}
+
+.topbar__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.3rem 1rem 0.6rem;
+}
+
+.topbar__field > span {
+  color: #5a6b8c;
+  font-size: 0.78rem;
+}
+
+.topbar__field strong {
+  color: #0b1b3f;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.topbar__copy {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.topbar__copy code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+.topbar__copy button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #5a6b8c;
+  cursor: pointer;
+}
+
+.topbar__copy button:hover {
+  background: #eef3ff;
+  color: #1b4fd8;
+}
+
+.topbar__colour {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.topbar__colour i {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: #ff8a1f;
+}
+
+.topbar__signout {
+  font-weight: 700;
+}
+
+.topbar__suggestions {
+  position: absolute;
+  inset-block-start: calc(100% + 0.3rem);
+  inset-inline-start: 8.5rem;
+  z-index: 960;
+  min-width: 16rem;
+  margin: 0;
+  padding: 0.3rem 0;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid #d7e0f5;
+  border-radius: 8px;
+  box-shadow: 0 14px 30px rgba(11, 27, 63, 0.18);
+}
+
+.topbar__suggestions button {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  background: none;
+  color: #0b1b3f;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.topbar__suggestions button:hover {
+  background: #eef3ff;
+}
+
+body.awsui-dark-mode .topbar {
+  background: #111c31;
+  border-block-end-color: #23324f;
+}
+
+body.awsui-dark-mode .topbar__icon,
+body.awsui-dark-mode .topbar__text,
+body.awsui-dark-mode .topbar__menu button,
+body.awsui-dark-mode .topbar__suggestions button {
+  color: #e8eefb;
+}
+
+body.awsui-dark-mode .topbar__icon:hover,
+body.awsui-dark-mode .topbar__icon.is-active,
+body.awsui-dark-mode .topbar__text:hover,
+body.awsui-dark-mode .topbar__menu button:hover,
+body.awsui-dark-mode .topbar__suggestions button:hover {
+  background: #17233d;
+}
+
+body.awsui-dark-mode .topbar__search {
+  background: #0a1220;
+  border-color: #23324f;
+}
+
+body.awsui-dark-mode .topbar__search input {
+  color: #e8eefb;
+}
+
+body.awsui-dark-mode .topbar__menu,
+body.awsui-dark-mode .topbar__suggestions {
+  background: #111c31;
+  border-color: #23324f;
+}
+
+body.awsui-dark-mode .topbar__field strong,
+body.awsui-dark-mode .topbar__copy code {
+  color: #e8eefb;
+}
+
+@media (max-width: 860px) {
+  .topbar__search {
+    max-width: none;
+  }
+
+  .topbar__region {
+    display: none;
+  }
+}

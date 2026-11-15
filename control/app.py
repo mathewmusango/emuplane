@@ -447,6 +447,19 @@ class Accounts:
         self._put(account)
         return account, user
 
+    def add_principal(
+        self, account_id: str, username: str, role: str = "iam"
+    ) -> dict | None:
+        """Add an IAM principal to an existing account, or None if it is taken."""
+        with self.lock:
+            account = self.accounts.get(account_id)
+            if account is None or username in account["users"]:
+                return None
+            principal = {"username": username, "role": role}
+            account["users"][username] = principal
+            self._put(account)
+            return principal
+
     def set_name(self, account_id: str, name: str) -> dict | None:
         """Record the human-readable account name shown in the console."""
         account = self.accounts.get(account_id)
@@ -2758,6 +2771,12 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(401, {"error": "That password does not match."})
         account = ACCOUNTS.by_ref(record["account_id"])
         principal = ((account or {}).get("users") or {}).get(username)
+        if account is not None and principal is None:
+            # The account was cached before this principal existed (an operator
+            # tool added it out of process). Read the table once more.
+            ACCOUNTS._load()
+            account = ACCOUNTS.by_ref(record["account_id"])
+            principal = ((account or {}).get("users") or {}).get(username)
         if account is None or principal is None:
             return self._json(
                 500, {"error": "This user has no account record; sign up again."}
@@ -3678,6 +3697,47 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._update_me()
         if not self._require_admin():
             return
+        if path == "/api/users":
+            payload = self._body()
+            info = self._caller()
+            username = str(payload.get("username") or "").strip()
+            password = str(payload.get("password") or "")
+            role = str(payload.get("role") or "iam").strip().lower()
+            email = str(payload.get("email") or "").strip()
+            target = ACCOUNTS.by_ref(str(payload.get("account") or info.get("account") or ""))
+            if role not in {"root", "iam"}:
+                return self._json(400, {"error": "role must be root or iam"})
+            if not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", username):
+                return self._json(
+                    400,
+                    {
+                        "error": "a username is required: 3-32 letters, digits, "
+                        "dot, dash or underscore"
+                    },
+                )
+            if len(password) < 8:
+                return self._json(
+                    400, {"error": "the password must be at least 8 characters"}
+                )
+            if target is None or not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "you can only add users to your own account"}
+                )
+            if USERS.exists(username):
+                return self._json(409, {"error": "that username is already taken"})
+            principal = ACCOUNTS.add_principal(target["account_id"], username, role)
+            if principal is None:
+                return self._json(409, {"error": "that username is already taken"})
+            USERS.create(username, email, password, target["account_id"], role)
+            return self._json(
+                200,
+                {
+                    "user": username,
+                    "role": role,
+                    "account": target["account_id"],
+                    "alias": target["alias"],
+                },
+            )
         reset = re.fullmatch(r"/api/users/([^/]+)/password", path)
         if reset:
             return self._reset_user_password(unquote(reset.group(1)))

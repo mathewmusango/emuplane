@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AppLayout from '@cloudscape-design/components/app-layout'
-import Autosuggest from '@cloudscape-design/components/autosuggest'
 import BreadcrumbGroup from '@cloudscape-design/components/breadcrumb-group'
 import SideNavigation from '@cloudscape-design/components/side-navigation'
-import TopNavigation from '@cloudscape-design/components/top-navigation'
 import { useSession } from '../context'
 import { api } from '../api'
-import { useThemeToggle } from './themeToggle'
+import { useThemeMode } from './themeToggle'
+import TopBar from './TopBar'
 import { serviceLabel } from '../serviceLabels'
 import ServicesMenu from './ServicesMenu'
 
@@ -79,7 +78,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { meta, me, account, region, setRegion } = useSession()
-  const themeToggle = useThemeToggle()
+  const { dark, toggle: toggleTheme } = useThemeMode()
   const [navOpen, setNavOpen] = useState(true)
   const [search, setSearch] = useState('')
   const [catalogue, setCatalogue] = useState(null)
@@ -123,86 +122,22 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
 
   return (
     <>
-      <TopNavigation
-        id="top-nav"
-        identity={{
-          href: '/',
-          // The product owns the chrome: the mark is Emuplane's and the title is
-          // the product name. Which backend is being fronted is operator
-          // context, not branding — it lives in About and in `/api/meta`.
-          title: 'Emuplane',
-          logo: {
-            src: '/emuplane.png',
-            alt: 'Emuplane',
-          },
-          onFollow: (event) => {
-            event.preventDefault()
-            go('/')
-          },
-        }}
-        search={
-          <Autosuggest
-            value={search}
-            onChange={({ detail }) => setSearch(detail.value)}
-            onSelect={({ detail }) => {
-              if (!detail.value) return
-              setSearch('')
-              go(`/resources/${detail.value}`)
-            }}
-            options={serviceNames
-              .filter((name) => name.includes(search.toLowerCase()))
-              .slice(0, 12)
-              .map((name) => ({ value: name, label: serviceLabel(name) }))}
-            placeholder="Find a service"
-            ariaLabel="Find a service"
-            empty="No service matches"
-          />
-        }
-        utilities={[
-          themeToggle,
-          {
-            type: 'button',
-            iconName: 'grid-view',
-            text: 'Services',
-            ariaLabel: 'All services',
-            ariaExpanded: servicesOpen,
-            onClick: () => setServicesOpen((open) => !open),
-          },
-          {
-            type: 'menu-dropdown',
-            text: region,
-            iconName: 'globe',
-            ariaLabel: 'Region',
-            items: regionItems,
-            onItemClick: ({ detail }) => {
-              if (detail.id === 'manage') {
-                go('/settings')
-                return
-              }
-              if (detail.id === 'divider' || detail.id === 'missing') return
-              setRegion(detail.id)
-            },
-          },
-          {
-            type: 'menu-dropdown',
-            text: me?.user || 'Signed in',
-            iconName: 'user-profile',
-            ariaLabel: 'Your session',
-            items: [
-              { id: 'account', text: `Account ${account || '—'}`, disabled: true },
-              { id: 'settings', text: 'Settings' },
-              { id: 'about', text: 'About' },
-              { id: 'logout', text: 'Sign out' },
-            ],
-            onItemClick: ({ detail }) => {
-              if (detail.id === 'logout') {
-                window.location.assign('/logout')
-                return
-              }
-              go(`/${detail.id}`)
-            },
-          },
-        ]}
+      <TopBar
+        me={me}
+        account={account}
+        accountName={meta?.accounts?.find((item) => item.account_id === account)?.alias
+          || meta?.me?.alias
+          || ''}
+        regions={meta?.regions || []}
+        region={region}
+        onRegion={setRegion}
+        serviceNames={serviceNames}
+        servicesOpen={servicesOpen}
+        onToggleServices={() => setServicesOpen((open) => !open)}
+        onPickService={(name) => go(`/resources/${name}`)}
+        onNavigate={go}
+        dark={dark}
+        onToggleTheme={toggleTheme}
       />
 
       {servicesOpen && (
@@ -215,7 +150,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
       )}
 
       <AppLayout
-        headerSelector="#top-nav"
+        headerSelector="#topbar"
         navigationOpen={navOpen}
         onNavigationChange={({ detail }) => setNavOpen(detail.open)}
         navigation={
