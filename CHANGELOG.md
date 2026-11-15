@@ -130,6 +130,9 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **Favorites is a pane in the services menu**, directly under Recently visited:
   the starred services, alphabetical, in the same list as every other pane —
   rather than a page of its own.
+- **All services keeps the service artwork.** Each line is the service's icon
+  beside its name (a neutral glyph where there is no artwork), so a column of
+  links is still scannable by sight rather than by reading every word.
 - **All services is one page, three columns.** `Services by category` in a single
   card: a category heading with an icon, then a plain alphabetical run of links,
   flowing down column one into two and three (`columns: 3`, two at ≤1100px, one

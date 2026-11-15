@@ -28,6 +28,7 @@ import {
 import { useSession } from '../context'
 import { useFavorites } from '../prefs'
 import { serviceLabel } from '../serviceLabels'
+import { ServiceIcon } from '../serviceIcons'
 import { groupByCategory } from '../serviceCatalogue'
 import { Shell, loadCatalogue } from '../components/Shell'
 import './services.css'
@@ -125,6 +126,11 @@ export default function Services() {
                             fill={isFavorite(name) ? 'currentColor' : 'none'}
                           />
                         </button>
+                        <ServiceIcon
+                          name={name}
+                          size={16}
+                          className="services-group__icon"
+                        />
                         <Link
                           href={`/resources/${name}`}
                           onFollow={(event) => {

@@ -35,6 +35,14 @@
   line-height: 1.75;
 }
 
+/* The service's own artwork, kept beside its name: it is how a service is
+   recognised faster than by reading. */
+.services-group__icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+}
+
 /* The star belongs to the service, so it leads the line and only shows on
    hover — the list stays a plain column of links. */
 .services-star {
