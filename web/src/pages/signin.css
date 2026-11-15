@@ -1,0 +1,43 @@
+/* The sign-in route sits outside the console shell: one narrow card on the page
+   background, the way the AWS screens it copies are laid out. Everything else
+   inside the card is Cloudscape, so only the frame and the two inline rows are
+   declared here. */
+.signin {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 16px 64px;
+  background: var(--color-background-layout-main, #f2f3f3);
+}
+
+.signin__card {
+  width: 100%;
+  max-width: 26rem;
+}
+
+/* A checkbox on the left, its "forgot/having trouble?" link on the right. */
+.signin__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* The "OR" rule between the primary action and "New to AWS? Sign up". */
+.signin__or {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-text-body-secondary, #5f6b7a);
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+}
+
+.signin__or::before,
+.signin__or::after {
+  content: '';
+  flex: 1;
+  border-block-start: 1px solid var(--color-border-divider-default, #c6c6cd);
+}

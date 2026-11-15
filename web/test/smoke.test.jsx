@@ -128,9 +128,9 @@ beforeEach(() => {
   )
 })
 
-const renderAt = (element) =>
+const renderAt = (element, entries = ['/']) =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={entries}>
       <SessionProvider>{element}</SessionProvider>
     </MemoryRouter>,
   )
@@ -217,5 +217,60 @@ describe('console', () => {
     expect(screen.queryByText('Mode')).toBeNull()
     expect(screen.queryByText('Login')).toBeNull()
     expect(screen.queryByText('References')).toBeNull()
+  })
+
+  it('walks the root sign-in screens through MFA', async () => {
+    renderAt(<App />, ['/signin'])
+    expect(await screen.findByText('Access your AWS account by user type.')).toBeTruthy()
+
+    fireEvent.change(screen.getByPlaceholderText('username@example.com'), {
+      target: { value: 'root@example.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(await screen.findByText('Root user sign in')).toBeTruthy()
+    expect(screen.getByText('root@example.com')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Show password/ }))
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'correct horse battery' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByText('Additional verification required')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('MFA code'), { target: { value: '123456' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    // A successful stub submit lands on the console, the way the real one will.
+    expect(await screen.findByText('Services answering')).toBeTruthy()
+  })
+
+  it('checks the account reference before asking for IAM credentials', async () => {
+    localStorage.removeItem('ministack:signin-account')
+    renderAt(<App />, ['/signin'])
+
+    fireEvent.click(await screen.findByRole('radio', { name: /IAM user/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(await screen.findByText('Enter the account ID or alias.')).toBeTruthy()
+
+    const alias = '111'
+    fireEvent.change(screen.getByLabelText('Account ID (12 digits) or account alias'), {
+      target: { value: alias },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(await screen.findByText('An account ID is exactly 12 digits.')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Account ID (12 digits) or account alias'), {
+      target: { value: '111111111111' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(await screen.findByText('IAM user sign in')).toBeTruthy()
+    expect(screen.getByText('Remember this account')).toBeTruthy()
+    expect(screen.getByLabelText('IAM username')).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Sign in using root user email' }),
+    ).toBeTruthy()
   })
 })

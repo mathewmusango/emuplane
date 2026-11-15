@@ -9,6 +9,11 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- Console: the five AWS sign-in screens — user type (root / IAM) → email or
+  account ID → password → MFA code — as one `/signin` route in
+  `web/src/pages/SignIn.jsx`, submitting to `web/src/authStub.js` until the
+  control plane's auth endpoints land (ARCHITECTURE.md slice 3). Dev-server
+  only for now: the server still owns `/login`.
 - CI: shared check leaves (python, js, shell, yaml, docker), a Vitest + `tsc`
   suite for `web/`, the security leaves (`dependency-review`, `pip-audit`,
   `npm-audit`), CodeQL and Semgrep.

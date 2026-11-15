@@ -8,6 +8,7 @@ import Accounts from './pages/Accounts'
 import Onboarding from './pages/Onboarding'
 import Settings from './pages/Settings'
 import About from './pages/About'
+import SignIn from './pages/SignIn'
 
 export default function App() {
   return (
@@ -22,6 +23,9 @@ export default function App() {
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/about" element={<About />} />
+        {/* Not in the control plane's SPA_ROUTES yet, so it renders on the Vite
+            dev server only until the auth endpoints land (ARCHITECTURE.md slice 3). */}
+        <Route path="/signin" element={<SignIn />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ErrorBoundary>

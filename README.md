@@ -279,6 +279,17 @@ renamed to `*.imported`; nothing reads them afterwards, so they can be deleted.
 | `/login` | email-or-username + password |
 | `/signup` | creates an account (fresh 12-digit ID, unique alias) and signs in; **the first one becomes the default global admin**. Link-free by design — reachable only when sign-up is enabled |
 
+### The sign-in screens
+
+The console carries the five AWS sign-in screens (user type → root email or IAM
+account + username → password → MFA) as `web/src/pages/SignIn.jsx`, in one
+`/signin` route with a small state machine. They are **dev-server only** for
+now: the server still owns `/login` and `SPA_ROUTES` does not list the route, so
+run `npm run dev` in `web/` to walk them. Submitting goes to
+`web/src/authStub.js` — the payload shapes the auth endpoints will take, no
+network, no password field in the call and no session minted — so slice 3 of
+`ARCHITECTURE.md` is a swap of that module, not a rewrite.
+
 The control seeds **nothing** from `.env`. The first account created — by local
 sign-up — is the platform owner: `global_admin` and `default_admin` are set on
 it, and it can promote other accounts to global admin from **Accounts**. From
@@ -672,7 +683,8 @@ that clears its registry entries and starts the next scan clean.
 - [`control/console.py`](control/console.py) — the GUI action catalogue and the
   AWS calls each operation maps to.
 - `docs/` — **my notes, not committed** (gitignored): product positioning, the deferred-feature roadmap, and the generated coverage report from `scripts/upstream_services.py`.
-- [`web/`](web/) — the React + Cloudscape console (its own README).
+- [`web/`](web/) — the React + Cloudscape console (its own README), including the
+  five sign-in screens in `web/src/pages/SignIn.jsx`.
 - [`scripts/qa_check.py`](scripts/qa_check.py) — QA gate: secrets, Python compile, and the signed-off markers from a **local** `qa/tasks.json` (gitignored).
 - [`scripts/up.sh`](scripts/up.sh) — seed `.env`, build + start the control plane, readiness.
 - [`.env.example`](.env.example) — settings template; `.env` is generated (gitignored).

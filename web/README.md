@@ -101,12 +101,41 @@ repository is private, so replying needs a public write-up or demo repo first.
 | `src/context.jsx` | `/api/meta` session state: account, region, principal |
 | `src/prefs.js` | favorites, recent services and theme (localStorage, event-synced) |
 | `src/components/Shell.jsx` | top navigation, side navigation, app layout |
-| `src/pages/` | Dashboard, AllResources, Resources, Favorites, Accounts, Onboarding, Settings, About |
+| `src/pages/` | Dashboard, AllResources, Resources, Favorites, Accounts, Onboarding, Settings, About, SignIn |
+| `src/authStub.js` | the sign-in stub: validation helpers and the two calls the auth endpoints will take |
 | `test/` | Vitest setup and smoke tests |
 
 The pages are the "organisms"; Cloudscape components are the atoms and
 molecules, so no hand-rolled primitives are added. Each page owns its data
 fetching and passes plain props down.
+
+## Sign-in screens
+
+`src/pages/SignIn.jsx` is the five screens of AWS's own sign-in flow, in one
+route and one state machine — not five routes, because the flow is linear and
+the e-mail/account you typed has to survive the steps:
+
+| Step | Screen | Submits |
+| --- | --- | --- |
+| `type` | user-type cards (root / IAM), then email or account ID | nothing — client-side checks only |
+| `root-password` | "Root user sign in", password | `signIn({ userType: 'root', email })` |
+| `iam-password` | "IAM user sign in", account + username + password | `signIn({ userType: 'iam', account, username })` |
+| `mfa` | "Additional verification required" | `verifyMfa({ code })` |
+
+The route is `/signin` and it is **dev-server only for now**: the control plane
+serves `/login` itself and `SPA_ROUTES` in `control/app.py` does not list this
+page, so `npm run dev` is where it renders until the auth endpoints land
+(ARCHITECTURE.md slice 3). That step also swaps `src/authStub.js` for real calls —
+the stub sends the payloads the endpoints will take, never touches the network,
+takes no password, and always asks for the MFA code so the third screen is
+reachable. `?next=` is honoured (path-only, never protocol-relative).
+
+"Remember this account" (IAM branch) keeps the account ID or alias in
+`localStorage` under `ministack:signin-account`; it is cleared on every other
+successful sign-in. "Create a new AWS account" and "New to AWS? Sign up" open
+the server's `/signup` page, and the help links (info icon, "not sure?",
+"Forgot password?", "Having trouble?", "Don't have?") are popovers rather than
+dead anchors.
 
 ## Service icons
 
