@@ -123,6 +123,10 @@ the minor number is bumped by hand, patch releases are the bot's.
   service with no mapped artwork, so the shortcut list drew a broken `<img>` for
   every such service. It renders `ServiceIcon`, which falls back to a neutral
   glyph.
+- **The services menu stars a service on hover.** Each row in the menu carries a
+  star that appears on hover or keyboard focus and stays lit for a favourite, so
+  a service can be kept without leaving the menu — the same gesture as All
+  services, and the pane updates in place.
 - **Favorites is a pane in the services menu**, directly under Recently visited:
   the starred services, alphabetical, in the same list as every other pane —
   rather than a page of its own.

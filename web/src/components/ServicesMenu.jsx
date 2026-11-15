@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Star } from 'lucide-react'
 import { serviceLabel } from '../serviceLabels'
 import { describeService, groupByCategory } from '../serviceCatalogue'
 import { useFavorites } from '../prefs'
@@ -32,7 +33,7 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
   const [pane, setPane] = useState('recent')
   const panel = useRef(null)
 
-  const { favorites } = useFavorites(account)
+  const { favorites, toggleFavorite, isFavorite } = useFavorites(account)
   const grouped = useMemo(() => groupByCategory(names), [names])
   const categories = grouped.map((group) => group.category)
   const recent = useMemo(() => readRecent(account), [account])
@@ -129,7 +130,7 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
           ) : (
             <ul className="services-menu__items">
               {list().map((name) => (
-                <li key={name}>
+                <li key={name} className="services-menu__row">
                   <button
                     type="button"
                     className="services-menu__item"
@@ -137,6 +138,30 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
                   >
                     <span className="services-menu__name">{serviceLabel(name)}</span>
                     <span className="services-menu__desc">{describeService(name)}</span>
+                  </button>
+                  {/* The star appears on hover, the way All services shows it —
+                      but a starred service keeps it visible so the pane reads at
+                      a glance. */}
+                  <button
+                    type="button"
+                    className={`services-menu__star${isFavorite(name) ? ' is-favorite' : ''}`}
+                    aria-pressed={isFavorite(name)}
+                    aria-label={
+                      isFavorite(name)
+                        ? `Remove ${serviceLabel(name)} from favorites`
+                        : `Add ${serviceLabel(name)} to favorites`
+                    }
+                    title={
+                      isFavorite(name)
+                        ? 'Remove from favorites'
+                        : 'Add to favorites'
+                    }
+                    onClick={() => toggleFavorite(name)}
+                  >
+                    <Star
+                      size={15}
+                      fill={isFavorite(name) ? 'currentColor' : 'none'}
+                    />
                   </button>
                 </li>
               ))}

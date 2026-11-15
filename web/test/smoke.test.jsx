@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SessionProvider } from '../src/context'
 import App from '../src/App'
@@ -216,6 +216,24 @@ describe('console', () => {
     } finally {
       RESPONSES['/api/meta'] = original
     }
+  })
+
+  it('stars a service from the services menu', async () => {
+    localStorage.clear()
+    renderAt(<App />)
+    // Open the services grid, then star the first service in All services.
+    fireEvent.click(await screen.findByRole('button', { name: 'Services' }))
+    const menu = await screen.findByRole('dialog', { name: 'Services' })
+    fireEvent.click(within(menu).getByRole('button', { name: 'All services' }))
+    const stars = await within(menu).findAllByRole('button', {
+      name: /Add .* to favorites/,
+    })
+    fireEvent.click(stars[0])
+    expect(
+      await within(menu).findByRole('button', { name: /Remove .* from favorites/ }),
+    ).toBeTruthy()
+    expect(localStorage.getItem('emuplane:favorites:111111111111')).toBeTruthy()
+    localStorage.clear()
   })
 
   it('renders the resource table and its action form', async () => {

@@ -157,3 +157,53 @@ body.awsui-dark-mode .services-menu__empty {
     display: none;
   }
 }
+
+/* A row is the service and its star: the star is quiet until the row is hovered
+   or focused, and stays lit once the service is a favorite. */
+.services-menu__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.services-menu__row .services-menu__item {
+  flex: 1 1 auto;
+}
+
+.services-menu__star {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-top: 0.3rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #7b8aa6;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+
+.services-menu__row:hover .services-menu__star,
+.services-menu__star:focus-visible,
+.services-menu__star.is-favorite {
+  opacity: 1;
+}
+
+.services-menu__star:hover,
+.services-menu__star.is-favorite {
+  color: #ff8a1f;
+}
+
+body.awsui-dark-mode .services-menu__star {
+  color: #93a4c4;
+}
+
+body.awsui-dark-mode .services-menu__star.is-favorite,
+body.awsui-dark-mode .services-menu__star:hover {
+  color: #ff8a1f;
+}
