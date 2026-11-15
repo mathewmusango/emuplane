@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""DynamoDB, as the emulator serves it — enough client for the control's store.
+
+The control keeps no database file: its documents live in the emulator's
+DynamoDB, which is the same service it fronts. That is the point of the
+architecture — the control plane is a tenant of the thing it manages.
+
+No boto3: the image is stdlib-only, and the emulator treats a 12-digit access
+key as an account root with no verified signature (the same trick `aws_call`
+already uses to read other accounts), so a request needs a credential *name*, not
+a secret. `Signature=local` is deliberate, not a placeholder someone forgot.
+
+Errors are raised as `DynamoError` with the emulator's message and type, so a
+caller sees "ResourceNotFoundException: Requested resource not found" rather than
+a bare status code.
+"""
+
+from __future__ import annotations
+
+import http.client
+import json
+import os
+from datetime import datetime, timezone
+from urllib.parse import urlsplit
+
+
+class DynamoError(RuntimeError):
+    def __init__(self, status: int, code: str, message: str) -> None:
+        super().__init__(f"{code}: {message}" if code else f"HTTP {status}: {message}")
+        self.status = status
+        self.code = code
+
+
+def _error(body: str) -> tuple[str, str]:
+    try:
+        data = json.loads(body)
+    except ValueError:
+        return "", body.strip()[:200]
+    # both the JSON 1.0 and 1.1 error shapes
+    code = data.get("__type") or data.get("code") or ""
+    if "#" in code:  # "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException"
+        code = code.rsplit("#", 1)[1]
+    return code, data.get("message") or data.get("Message") or ""
+
+
+class Dynamo:
+    """The control's view of one endpoint and one account."""
+
+    def __init__(
+        self,
+        endpoint: str | None = None,
+        account: str | None = None,
+        region: str | None = None,
+        timeout: float = 10.0,
+    ) -> None:
+        self.endpoint = (
+            endpoint or os.environ.get("MC_STORE_URL") or
+            os.environ.get("MINISTACK_NODE_URL") or "http://ministack:4566"
+        ).rstrip("/")
+        self.account = account or os.environ.get("MC_STORE_ACCOUNT") or "111111111111"
+        self.region = region or os.environ.get("MC_STORE_REGION") or "us-east-1"
+        self.timeout = timeout
+
+    # -- transport ---------------------------------------------------------
+
+    def call(self, operation: str, payload: dict) -> dict:
+        url = urlsplit(self.endpoint)
+        body = json.dumps(payload).encode()
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        headers = {
+            "Host": f"{url.hostname}:{url.port or 80}",
+            "Authorization": (
+                f"AWS4-HMAC-SHA256 Credential={self.account}/{stamp}/{self.region}"
+                "/dynamodb/aws4_request, SignedHeaders=host, Signature=local"
+            ),
+            "x-amz-date": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+            "X-Amz-Target": f"DynamoDB_20120810.{operation}",
+            "Content-Type": "application/x-amz-json-1.0",
+            "Content-Length": str(len(body)),
+        }
+        conn = http.client.HTTPConnection(
+            url.hostname, url.port or 80, timeout=self.timeout
+        )
+        try:
+            conn.request("POST", url.path or "/", body=body, headers=headers)
+            response = conn.getresponse()
+            text = response.read().decode(errors="replace")
+            if response.status >= 400:
+                raise DynamoError(response.status, *_error(text))
+            return json.loads(text) if text else {}
+        finally:
+            conn.close()
+
+    # -- tables ------------------------------------------------------------
+
+    def table_exists(self, name: str) -> bool:
+        try:
+            self.call("DescribeTable", {"TableName": name})
+            return True
+        except DynamoError as exc:
+            if exc.code == "ResourceNotFoundException":
+                return False
+            raise
+
+    def ensure_table(self, name: str) -> None:
+        """Create `<name>` with a single string partition key `pk`, if absent.
+
+        One key is all the control needs: every store is key -> JSON document,
+        and the reads are "all of them" at boot. Payload-on-demand projections
+        would add an attribute map for no gain.
+        """
+        if self.table_exists(name):
+            return
+        try:
+            self.call(
+                "CreateTable",
+                {
+                    "TableName": name,
+                    "AttributeDefinitions": [{"AttributeName": "pk", "AttributeType": "S"}],
+                    "KeySchema": [{"AttributeName": "pk", "KeyType": "HASH"}],
+                    "BillingMode": "PAY_PER_REQUEST",
+                },
+            )
+        except DynamoError as exc:
+            # Two controls starting at once: the loser of the race is fine.
+            if exc.code != "ResourceInUseException":
+                raise
+
+    # -- items -------------------------------------------------------------
+
+    def put(self, table: str, key: str, payload: str) -> None:
+        self.call(
+            "PutItem",
+            {"TableName": table, "Item": {"pk": {"S": key}, "payload": {"S": payload}}},
+        )
+
+    def delete(self, table: str, key: str) -> None:
+        self.call("DeleteItem", {"TableName": table, "Key": {"pk": {"S": key}}})
+
+    def scan(self, table: str) -> list[tuple[str, str]]:
+        """Every (key, payload) in the table, following pagination."""
+        found: list[tuple[str, str]] = []
+        start = None
+        while True:
+            payload: dict = {"TableName": table}
+            if start:
+                payload["ExclusiveStartKey"] = start
+            page = self.call("Scan", payload)
+            for item in page.get("Items", []):
+                found.append(
+                    (
+                        item.get("pk", {}).get("S", ""),
+                        item.get("payload", {}).get("S", ""),
+                    )
+                )
+            start = page.get("LastEvaluatedKey")
+            if not start:
+                return found

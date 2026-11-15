@@ -7,6 +7,11 @@ services:
     env_file:
       - path: ./.env
         required: false
+    environment:
+      # The zone the console renders timestamps in. A named zone beats mounting
+      # the host's /etc/localtime: it travels with the deployment, works on any
+      # host, and the image already ships zoneinfo (Alpine's tzdata).
+      TZ: "${TZ:-Africa/Nairobi}"
     ports:
       - "127.0.0.1:${MC_UI_PORT:-4570}:8080"
       - "127.0.0.1:${MC_GATEWAY_PORT:-4571}:4566"

@@ -214,12 +214,15 @@ the control exits at startup naming whatever is missing.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `MC_DATA_DIR` | `./data` | host directory for `control.db` (compose interpolation) |
+| `MC_DATA_DIR` | `./data` | host directory mounted at `/var/lib/ministack/control`; no longer holds the database |
 | `MC_UI_PORT` | `4570` | loopback port for the console and control API |
 | `MC_GATEWAY_PORT` | `4571` | loopback port for the emulator gateway |
 | `MINISTACK_NODE_URL` | required | the emulator endpoint the control talks to |
 | `MINISTACK_NODE_NAME` | required | node name shown in the console |
-| `CONTROL_DB` | required | SQLite path inside the container |
+| `MC_STORE_ACCOUNT` | `111111111111` | account the control reads its own DynamoDB tables as |
+| `MC_STORE_REGION` | `us-east-1` | region those tables live in |
+| `MC_STORE_URL` | `$MINISTACK_NODE_URL` | override the store's endpoint |
+| `TZ` | `Africa/Nairobi` | zone the console renders timestamps in |
 | `CONTROL_PORT` | `8080` | console/API port inside the container |
 | `CONTROL_GATEWAY_PORT` | `4566` | emulator gateway port inside the container |
 | `MC_ADMIN_TOKEN` | generated | bearer token for scripted API access; empty means `up.sh` seeds one |
@@ -259,12 +262,14 @@ and the dashboard requires a session.
 - Scripted API access uses `Authorization: Bearer <MC_ADMIN_TOKEN>`
   instead of a session. The gateway (`4571`) is SigV4 and needs no session.
 
-### Storage (one SQLite database)
+### Storage (the emulator's DynamoDB)
 
-Everything the control persists lives in `data/control/control.db`: local users
-(PBKDF2-SHA256, 260k rounds), accounts and their principals, live sessions,
-resource ownership, settings and the bucket registry. One `0600` file, one
-transaction per write, and a single thing to back up. The pre-2026-11-11 side
+Everything the control persists lives in the emulator it fronts: one DynamoDB
+table per store — local users (PBKDF2-SHA256, 260k rounds), accounts and their
+principals, live sessions, resource ownership, settings and the bucket registry —
+created at Layer 0 by `control/store.py` before the API serves. There is no
+database file and nothing to back up on this host; the control plane is a tenant
+of the service it manages, and its state moves with that service. The pre-2026-11-11 side
 files (`accounts.json`, `sessions.json`, `ownership.json`, `settings.json`,
 `nodes.json`, `registry.json`, `users.db`) are imported once on startup and
 renamed to `*.imported`; nothing reads them afterwards, so they can be deleted.
@@ -277,7 +282,7 @@ renamed to `*.imported`; nothing reads them afterwards, so they can be deleted.
 The control seeds **nothing** from `.env`. The first account created — by local
 sign-up — is the platform owner: `global_admin` and `default_admin` are set on
 it, and it can promote other accounts to global admin from **Accounts**. From
-then on `control.db` is the source of truth; there is no env-var password to
+then on the emulator's DynamoDB is the source of truth; there is no env-var password to
 change. SQLite is deliberate for one control replica: swap the connection for
 Postgres when a second one runs.
 
@@ -295,11 +300,11 @@ Humans are never accounts: they are principals inside one.
 
 | Path | What it does |
 | --- | --- |
-| **Local user** (`/login`, `/signup`) | password verified against `control.db`; a signup mints the account and its alias |
+| **Local user** (`/login`, `/signup`) | password verified against the users table in DynamoDB; a signup mints the account and its alias |
 
 Every principal is a local user with its own password and IAM access key.
 
-Accounts are the tenancy boundary and live in `control.db`: one `accounts` table
+Accounts are the tenancy boundary and live in the emulator's DynamoDB: one `accounts` table
 keyed by ID.
 
 `GET /api/accounts/me` returns the session's `user`, `account`, `alias`, `role`,
@@ -340,7 +345,7 @@ it, so rewriting it to the container name would fail every verified request with
 
 Provisioning calls use the account ID as a root key, which is why the control can
 set up IAM in any account without holding a long-lived secret. A principal's
-issued secret lives in the `accounts` table in `control.db`, which is why that
+issued secret lives in the `accounts` table in DynamoDB, which is why that
 file is `0600` and never leaves the host.
 
 ### Account to first S3 call
@@ -394,7 +399,7 @@ signs each read as that account's 12-digit **root**
 (`Credential=<id>/<date>/<region>/<service>/aws4_request`, dummy signature), so
 the control holds no AWS secret and can list **every** account.
 
-- Three selects: **account** (every account in `control.db`, alias + ID),
+- Three selects: **account** (every account in the `accounts` table, alias + ID),
   **region**, **service** (`BROWSE_SERVICES` in `control/app.py`).
 - The "Signed as" line comes from STS `GetCallerIdentity`, so the page proves
   which account actually answered.
@@ -406,7 +411,7 @@ the control holds no AWS secret and can list **every** account.
   account has enabled (matched against what the node serves) and merges the rows;
   S3 rows dedupe by name, because a bucket name is unique partition-wide. The
   console exposes it as a toggle on the Resources page.
-- **Owner metadata** comes from the `owners` table in `control.db`: a successful
+- **Owner metadata** comes from the `owners` table in DynamoDB: a successful
   console action that names a resource records the creating principal. The
   emulator keeps no owner, so CLI-created resources simply show the account.
 - JSON: `GET /api/browse?account=&region=&service=` — `400` for an unknown
@@ -491,7 +496,7 @@ Pages: **Dashboard** (`/`), **Resources** (`/resources/:service`), **Favorites**
   a new account or a wiped database starts with empty lists. Favorites pin
   services in the top navigation.
 - **Sessions survive restarts** — live sessions are rows in the `sessions` table
-  of `control.db`, and the expiry slides on activity, so a container restart or a
+  of the emulator's DynamoDB, and the expiry slides on activity, so a container restart or a
   long working day does not sign you out. Logging out deletes the row.
 - **Typed API surface** — `web/src/api.ts` and `web/src/types.ts` are
   TypeScript; the rest of the console is still JS via `allowJs`, so the
@@ -579,14 +584,14 @@ nobody can sign in as.
 published GHCR tag — and starts the container. The emulator is a separate image
 and a separate repository.
 
-**The control owns its data directory** (`MC_DATA_DIR`, `./data` unless `.env`
-says otherwise), created by `up.sh` (mode `0755`). It holds one file, `control.db`; there is no migration path from the old
-JSON side files. Back up the directory (or take a SQLite copy) while the control
-is stopped — it writes on every change, so a live copy can lose data.
+The data directory (`MC_DATA_DIR`, `./data` unless `.env` says otherwise) is still
+created by `up.sh` (mode `0755`), but the database is no longer there: state lives
+in the emulator's DynamoDB, so restarting the control loses nothing and a wiped
+data directory loses nothing either.
 
 `MC_ADMIN_TOKEN` is optional: it is a bearer token for scripted API access, not a
-password. Leave it empty and the control generates one on first run, stores it in
-`control.db` and prints it once to the container log (`podman logs
+password. Leave it empty and `up.sh` seeds one into `.env` on first run and the
+control logs it once (`podman logs core-ministack-control | grep seeded`) (`podman logs
 ministack-control | grep generated`). Set it to pin your own, e.g.
 `python3 -c "import secrets; print(secrets.token_hex(24))"`. Either way the
 console session is unaffected.

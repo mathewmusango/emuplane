@@ -36,7 +36,6 @@ import json
 import os
 import re
 import secrets
-import sqlite3
 import signal
 import sys
 import threading
@@ -47,11 +46,12 @@ from urllib.parse import parse_qs, quote, urlencode, urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
+from dynamo import DynamoError  # noqa: E402
+from store import Store  # noqa: E402
 
-# One SQLite file holds every control-plane document: accounts, users,
-# sessions, ownership, settings and the bucket registry. There are no side files
-# and no import path: a deployment starts from an empty database or restores one.
-DB_FILE = os.environ.get("CONTROL_DB", "").strip()
+# No database file: every control-plane document lives in the emulator's
+# DynamoDB (control/store.py) — the service this plane manages. Layer 0 creates
+# the tables before the API serves.
 CONTROL_PORT = int(os.environ.get("CONTROL_PORT", "8080"))
 GATEWAY_PORT = int(os.environ.get("CONTROL_GATEWAY_PORT", "4566"))
 ADMIN_TOKEN = os.environ.get("MC_ADMIN_TOKEN", "").strip()
@@ -74,7 +74,6 @@ GATEWAY_URL = os.environ.get("MC_GATEWAY_URL", "").strip().rstrip("/")
 CONSOLE_URL = os.environ.get("MC_CONSOLE_URL", "").strip().rstrip("/")
 
 REQUIRED_SETTINGS = {
-    "CONTROL_DB": DB_FILE,
     "MINISTACK_NODE_NAME": NODE_NAME,
     "MINISTACK_NODE_URL": NODE_URL,
     "MC_GATEWAY_URL": GATEWAY_URL,
@@ -212,114 +211,6 @@ NODES: list[dict] = [
 ]
 
 
-class ControlDB:
-    """One SQLite database for every control-plane document.
-
-    The control used to keep a family of side files beside `users.db`, each
-    rewritten whole with a tmp-file rename: seven write paths, seven permission
-    fixups, no shared transaction and no way to query them. Everything lives in
-    this one file now — one thing to back up, one set of permissions, and SQL for
-    the reads the console already makes (live sessions, owner lookup). The
-    in-memory dicts stay the working set; each store writes through.
-    """
-
-    SCHEMA = (
-        """CREATE TABLE IF NOT EXISTS users (
-               username TEXT PRIMARY KEY COLLATE NOCASE,
-               email TEXT,
-               password_hash TEXT NOT NULL,
-               account_id TEXT NOT NULL,
-               role TEXT NOT NULL DEFAULT 'root',
-               created_at TEXT NOT NULL,
-               last_login TEXT)""",
-        """CREATE TABLE IF NOT EXISTS accounts (
-               account_id TEXT PRIMARY KEY,
-               payload TEXT NOT NULL)""",
-        """CREATE TABLE IF NOT EXISTS sessions (
-               token TEXT PRIMARY KEY,
-               expires REAL NOT NULL,
-               payload TEXT NOT NULL)""",
-        """CREATE TABLE IF NOT EXISTS owners (
-               key TEXT PRIMARY KEY,
-               payload TEXT NOT NULL)""",
-        """CREATE TABLE IF NOT EXISTS settings (
-               key TEXT PRIMARY KEY,
-               value TEXT NOT NULL)""",
-        """CREATE TABLE IF NOT EXISTS buckets (
-               name TEXT PRIMARY KEY,
-               payload TEXT NOT NULL)""",
-        """CREATE TABLE IF NOT EXISTS bucket_nodes (
-               name TEXT PRIMARY KEY,
-               payload TEXT NOT NULL)""",
-    )
-
-    def __init__(self, path: str) -> None:
-        self.path = path
-        directory = os.path.dirname(path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        for statement in self.SCHEMA:
-            self._run(statement)
-        try:
-            os.chmod(path, 0o600)
-        except OSError:
-            pass
-
-    def connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path, timeout=5)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    def _run(self, sql: str, params: tuple = (), fetch: str = "") -> object:
-        conn = self.connect()
-        try:
-            cursor = conn.execute(sql, params)
-            if fetch == "one":
-                row = cursor.fetchone()
-                conn.commit()
-                return dict(row) if row is not None else None
-            if fetch == "all":
-                rows = [dict(row) for row in cursor.fetchall()]
-                conn.commit()
-                return rows
-            conn.commit()
-            return None
-        finally:
-            conn.close()
-
-    def execute(self, sql: str, params: tuple = ()) -> None:
-        self._run(sql, params)
-
-    def rows(self, sql: str, params: tuple = ()) -> list[dict]:
-        return self._run(sql, params, fetch="all") or []
-
-    def row(self, sql: str, params: tuple = ()) -> dict | None:
-        return self._run(sql, params, fetch="one")
-
-    def count(self, table: str) -> int:
-        found = self.row(f"SELECT COUNT(*) AS n FROM {table}")
-        return int(found["n"]) if found else 0
-
-    def replace(self, table: str, rows: list[tuple]) -> None:
-        """Rewrite one whole table in a single transaction."""
-        self.rewrite({table: rows})
-
-    def rewrite(self, tables: dict[str, list[tuple]]) -> None:
-        """Rewrite several tables atomically — the multi-store write."""
-        conn = self.connect()
-        try:
-            with conn:
-                for table, rows in tables.items():
-                    conn.execute(f"DELETE FROM {table}")
-                    if rows:
-                        placeholders = ",".join("?" * len(rows[0]))
-                        conn.executemany(
-                            f"INSERT INTO {table} VALUES ({placeholders})", rows
-                        )
-        finally:
-            conn.close()
-
-
 class Accounts:
     """Accounts are the tenancy boundary.
 
@@ -338,17 +229,14 @@ class Accounts:
     the one-time SQLite import.
     """
 
-    def __init__(self, db: ControlDB) -> None:
+    def __init__(self, db: Store) -> None:
         self.db = db
         self.lock = threading.Lock()
         self.accounts: dict[str, dict] = {}
         self._load()
 
     def _load(self) -> None:
-        self.accounts = {
-            row["account_id"]: json.loads(row["payload"])
-            for row in self.db.rows("SELECT account_id, payload FROM accounts")
-        }
+        self.accounts = self.db.payloads("accounts")
         if self.accounts:
             changed = False
             for account in self.accounts.values():
@@ -431,12 +319,12 @@ class Accounts:
         }
 
     def _save(self) -> None:
-        self.db.replace(
+        self.db.replace_all(
             "accounts",
-            [
-                (account_id, json.dumps(account))
+            {
+                account_id: json.dumps(account)
                 for account_id, account in self.accounts.items()
-            ],
+            },
         )
 
     @staticmethod
@@ -669,40 +557,17 @@ class Accounts:
 class UserStore:
     """Local credentials: username -> password hash -> account.
 
-    The tables live in the same `control.db` as the rest of the control state;
-    this store answers only "is this password right, and which account does the
-    username belong to". SQLite is enough for one control replica — swapping
-    `_connect` for Postgres is the nod when more than one runs.
+    One document per user in the emulator's DynamoDB, keyed by the lower-cased
+    username (the old table used `COLLATE NOCASE`). This store answers only "is
+    this password right, and which account does the username belong to".
     """
 
     ROUNDS = 260_000
 
-    def __init__(self, db: ControlDB) -> None:
+    def __init__(self, db: Store) -> None:
         self.db = db
-        self.path = db.path
         self.lock = threading.Lock()
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path, timeout=5)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    def _run(self, sql: str, params: tuple = (), fetch: str = "") -> object:
-        conn = self._connect()
-        try:
-            cursor = conn.execute(sql, params)
-            if fetch == "one":
-                row = cursor.fetchone()
-                conn.commit()
-                return dict(row) if row is not None else None
-            if fetch == "all":
-                rows = [dict(row) for row in cursor.fetchall()]
-                conn.commit()
-                return rows
-            conn.commit()
-            return None
-        finally:
-            conn.close()
+        self.users: dict[str, dict] = db.payloads("users")
 
     def _hash(self, password: str) -> str:
         salt = secrets.token_bytes(16)
@@ -731,17 +596,22 @@ class UserStore:
             return False
         return hmac.compare_digest(computed, base64.b64decode(digest))
 
+    @staticmethod
+    def _key(username: str) -> str:
+        return (username or "").lower()
+
+    def _save(self, username: str, record: dict) -> None:
+        self.users[self._key(username)] = record
+        self.db.put("users", self._key(username), json.dumps(record))
+
     def count(self) -> int:
-        row = self._run("SELECT COUNT(*) AS n FROM users", fetch="one")
-        return int(row["n"]) if row else 0
+        return len(self.users)
 
     def get(self, username: str) -> dict | None:
-        return self._run(
-            "SELECT * FROM users WHERE username = ?", (username,), fetch="one"
-        )
+        return self.users.get(self._key(username))
 
     def exists(self, username: str) -> bool:
-        return self.get(username) is not None
+        return self._key(username) in self.users
 
     def create(
         self,
@@ -752,10 +622,17 @@ class UserStore:
         role: str = "root",
     ) -> None:
         with self.lock:
-            self._run(
-                "INSERT INTO users (username, email, password_hash, account_id, "
-                "role, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (username, email, self._hash(password), account_id, role, now()),
+            self._save(
+                username,
+                {
+                    "username": username,
+                    "email": email,
+                    "password_hash": self._hash(password),
+                    "account_id": account_id,
+                    "role": role,
+                    "created_at": now(),
+                    "last_login": None,
+                },
             )
 
     def verify(self, username: str, password: str) -> dict | None:
@@ -763,53 +640,50 @@ class UserStore:
         if user is None or not self._matches(password, user["password_hash"]):
             return None
         with self.lock:
-            self._run(
-                "UPDATE users SET last_login = ? WHERE username = ?",
-                (now(), username),
-            )
+            user["last_login"] = now()
+            self._save(username, user)
         return user
 
     def delete_account(self, account_id: str) -> None:
         with self.lock:
-            self._run("DELETE FROM users WHERE account_id = ?", (account_id,))
+            for key, user in list(self.users.items()):
+                if user.get("account_id") == account_id:
+                    del self.users[key]
+                    self.db.delete("users", key)
 
     def set_email(self, username: str, email: str) -> None:
         """Fill in a missing address; never overwrite one the user already has."""
         if not email:
             return
         with self.lock:
-            self._run(
-                "UPDATE users SET email = ? WHERE username = ? "
-                "AND (email IS NULL OR email = '')",
-                (email, username),
-            )
+            user = self.get(username)
+            if user is not None and not user.get("email"):
+                user["email"] = email
+                self._save(username, user)
 
     def update_email(self, username: str, email: str) -> None:
         """Set the address from the owner's own request."""
         with self.lock:
-            self._run(
-                "UPDATE users SET email = ? WHERE username = ?",
-                (email, username),
-            )
+            user = self.get(username)
+            if user is not None:
+                user["email"] = email
+                self._save(username, user)
 
     def set_password(self, username: str, password: str) -> None:
         with self.lock:
-            self._run(
-                "UPDATE users SET password_hash = ? WHERE username = ?",
-                (self._hash(password), username),
-            )
+            user = self.get(username)
+            if user is not None:
+                user["password_hash"] = self._hash(password)
+                self._save(username, user)
 
 
 class Settings:
     """Small persisted control-plane settings (sign-up toggle, ...)."""
 
-    def __init__(self, db: ControlDB) -> None:
+    def __init__(self, db: Store) -> None:
         self.db = db
         self.lock = threading.Lock()
-        self.values: dict = {
-            row["key"]: json.loads(row["value"])
-            for row in db.rows("SELECT key, value FROM settings")
-        }
+        self.values: dict = db.payloads("settings")
 
     def get(self, key: str, default=None):
         return self.values.get(key, default)
@@ -818,12 +692,8 @@ class Settings:
         with self.lock:
             self.values[key] = value
             try:
-                self.db.execute(
-                    "INSERT INTO settings (key, value) VALUES (?, ?)"
-                    " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                    (key, json.dumps(value)),
-                )
-            except sqlite3.Error as exc:
+                self.db.put("settings", key, json.dumps(value))
+            except (OSError, DynamoError) as exc:
                 print(f"control: could not persist setting {key}: {exc}", flush=True)
 
 
@@ -836,13 +706,10 @@ class Owners:
     no entry — the console shows the account and leaves the user blank.
     """
 
-    def __init__(self, db: ControlDB) -> None:
+    def __init__(self, db: Store) -> None:
         self.db = db
         self.lock = threading.Lock()
-        self.entries: dict = {
-            row["key"]: json.loads(row["payload"])
-            for row in db.rows("SELECT key, payload FROM owners")
-        }
+        self.entries: dict = db.payloads("owners")
 
     @staticmethod
     def _key(account: str, service: str, name: str) -> str:
@@ -859,12 +726,8 @@ class Owners:
             entry = {"user": user or "token", "region": region, "at": now()}
             self.entries[key] = entry
             try:
-                self.db.execute(
-                    "INSERT INTO owners (key, payload) VALUES (?, ?)"
-                    " ON CONFLICT(key) DO UPDATE SET payload = excluded.payload",
-                    (key, json.dumps(entry)),
-                )
-            except sqlite3.Error as exc:
+                self.db.put("owners", key, json.dumps(entry))
+            except (OSError, DynamoError) as exc:
                 print(f"control: could not persist ownership: {exc}", flush=True)
 
     def get(self, account: str, service: str, name: str) -> dict:
@@ -877,14 +740,17 @@ class Owners:
             if kept != self.entries:
                 self.entries = kept
                 try:
-                    self.db.execute(
-                        "DELETE FROM owners WHERE key LIKE ?", (f"{prefix}%",)
-                    )
-                except sqlite3.Error:
+                    self.db.delete_prefix("owners", prefix)
+                except (OSError, DynamoError):
                     pass
 
 
-DB = ControlDB(DB_FILE)
+DB = Store()
+try:
+    DB.ensure_tables()
+except (OSError, DynamoError) as exc:
+    print(f"control: cannot reach the store at {DB.dynamo.endpoint}: {exc}", flush=True)
+    raise SystemExit(1)
 
 ACCOUNTS = Accounts(DB)
 USERS = UserStore(DB)
@@ -1132,7 +998,7 @@ def node_by_name(name: str) -> dict | None:
 class Registry:
     """Bucket ownership plus the last known inventory of every node."""
 
-    def __init__(self, db: ControlDB) -> None:
+    def __init__(self, db: Store) -> None:
         self.db = db
         self.lock = threading.Lock()
         self.buckets: dict[str, dict] = {}
@@ -1140,27 +1006,15 @@ class Registry:
         self._load()
 
     def _load(self) -> None:
-        self.buckets = {
-            row["name"]: json.loads(row["payload"])
-            for row in self.db.rows("SELECT name, payload FROM buckets")
-        }
-        self.nodes = {
-            row["name"]: json.loads(row["payload"])
-            for row in self.db.rows("SELECT name, payload FROM bucket_nodes")
-        }
+        self.buckets = self.db.payloads("buckets")
+        self.nodes = self.db.payloads("bucket_nodes")
 
     def save(self) -> None:
-        self.db.rewrite(
-            {
-                "buckets": [
-                    (name, json.dumps(entry))
-                    for name, entry in self.buckets.items()
-                ],
-                "bucket_nodes": [
-                    (name, json.dumps(entry))
-                    for name, entry in self.nodes.items()
-                ],
-            }
+        self.db.replace_all(
+            "buckets", {name: json.dumps(e) for name, e in self.buckets.items()}
+        )
+        self.db.replace_all(
+            "bucket_nodes", {name: json.dumps(e) for name, e in self.nodes.items()}
         )
 
     def reserve(
@@ -1279,14 +1133,14 @@ SESSIONS_LOCK = threading.Lock()
 
 def save_sessions() -> None:
     """Persist live sessions so a container restart does not sign everyone out."""
-    rows = [
-        (token, float(info.get("expires", 0)), json.dumps(info))
+    rows = {
+        token: json.dumps(info)
         for token, info in list(SESSIONS.items())
         if isinstance(info, dict)
-    ]
+    }
     try:
-        DB.replace("sessions", rows)
-    except sqlite3.Error as exc:
+        DB.replace_all("sessions", rows)
+    except (OSError, DynamoError) as exc:
         print(f"control: could not persist sessions: {exc}", flush=True)
 
 
@@ -1294,15 +1148,18 @@ def load_sessions() -> None:
     current = time.time()
     restored = 0
     with SESSIONS_LOCK:
-        for row in DB.rows("SELECT token, payload FROM sessions"):
+        for token, payload in DB.items("sessions"):
             try:
-                info = json.loads(row["payload"])
+                info = json.loads(payload)
             except json.JSONDecodeError:
                 continue
-            if isinstance(info, dict) and info.get("expires", 0) > current:
-                SESSIONS[row["token"]] = info
+            if not isinstance(info, dict):
+                continue
+            if info.get("expires", 0) > current:
+                SESSIONS[token] = info
                 restored += 1
-    DB.execute("DELETE FROM sessions WHERE expires <= ?", (current,))
+            else:
+                DB.delete("sessions", token)
     if restored:
         print(f"control: restored {restored} live session(s)", flush=True)
 
@@ -3789,7 +3646,6 @@ document.getElementById('refresh').onsubmit = async (event) => {{
 
 def main() -> None:
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
-    os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
     control = ThreadingHTTPServer(("0.0.0.0", CONTROL_PORT), ControlHandler)
     gateway = ThreadingHTTPServer(("0.0.0.0", GATEWAY_PORT), GatewayHandler)
     threading.Thread(target=gateway.serve_forever, daemon=True).start()
