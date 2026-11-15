@@ -152,7 +152,7 @@ REGION_CHOICES = [
 # server-rendered pages stay available under /classic.
 STATIC_DIR = os.environ.get("MC_STATIC_DIR", "/app/static")
 PUBLIC_DIR = os.environ.get("MC_PUBLIC_DIR", "/app/public")
-SPA_ROUTES = {"/", "/resources", "/favorites",
+SPA_ROUTES = {"/", "/resources",
               "/settings", "/about"}
 # Served to anyone, signed in or not: the sign-in screens themselves. The
 # endpoint behind them (`POST /api/auth/login`) mints the session, so this route
@@ -3222,9 +3222,11 @@ class ControlHandler(BaseHTTPRequestHandler):
             live = bool(token) and read_reset(token) is not None
             return self._page(self._reset_page(), 200 if live else 400)
         if path in ("/accounts", "/onboarding"):
-            # The console no longer lists accounts: root owns its own tenancy, so
-            # the account view is Settings. Old links land there instead of a 404.
+            # Retired console pages. The account view is Settings now.
             return self._redirect("/settings")
+        if path == "/favorites":
+            # Favourites as a page is gone; it pins services on All services.
+            return self._redirect("/services")
         if path in PUBLIC_SPA_ROUTES:
             return self._spa()
         if path in SPA_ROUTES or path.startswith("/resources/"):

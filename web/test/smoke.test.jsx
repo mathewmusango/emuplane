@@ -158,7 +158,7 @@ describe('console', () => {
   it('renders the dashboard shell with the account and region', async () => {
     renderAt(<App />)
     expect(await screen.findByText('Services answering')).toBeTruthy()
-    expect(screen.getAllByText('Console Home').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Home').length).toBeGreaterThan(0)
     expect(screen.getAllByText('111111111111', { exact: false }).length).toBeGreaterThan(0)
     expect(screen.getAllByText('us-east-1', { exact: false }).length).toBeGreaterThan(0)
   })
@@ -270,7 +270,7 @@ describe('console', () => {
 
     localStorage.setItem('emuplane:recent:111111111111', JSON.stringify(['s3']))
     renderAt(<Dashboard />)
-    expect(await screen.findByRole('button', { name: 'S3' })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'S3' })).toBeTruthy()
     localStorage.clear()
   })
 

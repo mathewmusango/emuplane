@@ -11,9 +11,8 @@ import { serviceLabel } from '../serviceLabels'
 import ServicesMenu from './ServicesMenu'
 
 const navItems = () => [
-  { type: 'link', text: 'Console Home', href: '/' },
+  { type: 'link', text: 'Home', href: '/' },
   { type: 'link', text: 'All services', href: '/services' },
-  { type: 'link', text: 'Favorites', href: '/favorites' },
   { type: 'divider' },
   {
     type: 'section',

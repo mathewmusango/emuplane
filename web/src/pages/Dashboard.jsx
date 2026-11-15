@@ -147,18 +147,26 @@ export default function Dashboard() {
     }
   }
 
+  // Services read as a two-column list, the way the console's own shortcuts do:
+  // icon, name, and an underline on hover — not a row of buttons that wraps at
+  // an awkward width.
   const shortcuts = (names) => (
-    <SpaceBetween direction="horizontal" size="xs">
+    <ul className="home-links">
       {names.map((name) => (
-        <Button
-          key={name}
-          iconUrl={serviceIconUrl(name)}
-          onClick={() => navigate(`/resources/${name}`)}
-        >
-          {serviceLabel(name)}
-        </Button>
+        <li key={name}>
+          <a
+            href={`/resources/${name}`}
+            onClick={(event) => {
+              event.preventDefault()
+              navigate(`/resources/${name}`)
+            }}
+          >
+            <img src={serviceIconUrl(name)} alt="" aria-hidden="true" />
+            {serviceLabel(name)}
+          </a>
+        </li>
       ))}
-    </SpaceBetween>
+    </ul>
   )
 
   const recentList = recent.slice(0, meta?.recent_limit || 5)
@@ -166,7 +174,7 @@ export default function Dashboard() {
   const show = (id) => !hidden.includes(id)
 
   return (
-    <Shell activeHref="/" breadcrumbs={[{ text: 'Console Home', href: '/' }]}>
+    <Shell activeHref="/" breadcrumbs={[{ text: 'Home', href: '/' }]}>
       <ContentLayout
         header={
           <Header
@@ -184,7 +192,7 @@ export default function Dashboard() {
               </SpaceBetween>
             }
           >
-            Console Home
+            Home
           </Header>
         }
       >

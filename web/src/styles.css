@@ -63,7 +63,39 @@ body.awsui-dark-mode {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  align-items: start;
+  /* Cards in a row share a height, so the grid reads as rows rather than a
+     ragged stack. */
+  align-items: stretch;
+}
+
+/* Service shortcuts inside a widget: two even columns of links. */
+.home-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.15rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-links a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  color: var(--color-text-link-default, #1b4fd8);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.home-links a:hover {
+  text-decoration: underline;
+}
+
+.home-links img {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
 }
 
 @media (max-width: 900px) {

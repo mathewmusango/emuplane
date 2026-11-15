@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { serviceLabel } from '../serviceLabels'
 import { describeService, groupByCategory } from '../serviceCatalogue'
 import './services-menu.css'
@@ -29,7 +28,6 @@ export function rememberService(account, name) {
 }
 
 export default function ServicesMenu({ names, account, onClose, onPick }) {
-  const navigate = useNavigate()
   const [pane, setPane] = useState('recent')
   const panel = useRef(null)
 
@@ -79,16 +77,6 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
             onClick={() => setPane('recent')}
           >
             Recently visited
-          </button>
-          <button
-            type="button"
-            className="services-menu__link"
-            onClick={() => {
-              onClose()
-              navigate('/favorites')
-            }}
-          >
-            Favorites
           </button>
           <button
             type="button"

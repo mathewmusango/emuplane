@@ -9,7 +9,6 @@ import {
   Moon,
   Search,
   Settings,
-  Star,
   Sun,
 } from 'lucide-react'
 import { api } from '../api'
@@ -146,16 +145,6 @@ export default function TopBar({
         onClick={() => onNavigate('/')}
       >
         <img src="/emuplane.png" alt="Emuplane" />
-      </button>
-
-      <button
-        type="button"
-        className="topbar__icon"
-        title="Favorites"
-        aria-label="Favorites"
-        onClick={() => onNavigate('/favorites')}
-      >
-        <Star size={18} />
       </button>
 
       <button
