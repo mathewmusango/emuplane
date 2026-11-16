@@ -606,7 +606,6 @@ export default function Resources() {
 
   return (
     <Shell
-      activeHref="/resources"
       breadcrumbs={[
         { text: serviceLongName(service), href: `/${service}/home` },
         { text: service === 's3' ? 'Buckets' : 'Resources' },
