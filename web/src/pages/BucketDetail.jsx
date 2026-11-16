@@ -84,6 +84,7 @@ export default function BucketDetail() {
   const [versioningEdit, setVersioningEdit] = useState(null)
   const [encryptionEdit, setEncryptionEdit] = useState(null)
   const [bucketKeyEdit, setBucketKeyEdit] = useState(false)
+  const [tagEdit, setTagEdit] = useState(null)
   const [accessEdit, setAccessEdit] = useState(null)
   const [settings, setSettings] = useState(null)
   const [settingsError, setSettingsError] = useState('')
@@ -360,6 +361,8 @@ export default function BucketDetail() {
       setSettings(answer.settings || null)
       setVersioningEdit(null)
       setAccessEdit(null)
+      setEncryptionEdit(null)
+      setTagEdit(null)
     } catch (err) {
       setSettingsError(err.message)
     } finally {
@@ -570,12 +573,102 @@ export default function BucketDetail() {
 
       <Container
         header={
-          <Header variant="h2" counter={`(${settings?.tags?.length || 0})`}>
+          <Header
+            variant="h2"
+            counter={`(${settings?.tags?.length || 0})`}
+            actions={
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button
+                  ariaLabel="Edit bucket tags"
+                  onClick={() =>
+                    setTagEdit(
+                      (settings?.tags || []).length
+                        ? (settings.tags || []).map((tag) => ({ ...tag }))
+                        : [{ Key: '', Value: '' }],
+                    )
+                  }
+                >
+                  {(settings?.tags || []).length ? 'Edit' : 'Add tags'}
+                </Button>
+                {(settings?.tags || []).length > 0 && (
+                  <Button
+                    ariaLabel="Remove bucket tags"
+                    loading={saving}
+                    onClick={() => save({ remove_tags: true })}
+                  >
+                    Remove tags
+                  </Button>
+                )}
+              </SpaceBetween>
+            }
+          >
             Tags
           </Header>
         }
       >
-        {(settings?.tags || []).length === 0 ? (
+        {tagEdit !== null ? (
+          <SpaceBetween size="m">
+            {tagEdit.map((tag, index) => (
+              <SpaceBetween key={index} direction="horizontal" size="xs">
+                <Input
+                  value={tag.Key}
+                  onChange={({ detail }) =>
+                    setTagEdit((rows) =>
+                      rows.map((item, at) =>
+                        at === index ? { ...item, Key: detail.value } : item,
+                      ),
+                    )
+                  }
+                  placeholder="Key"
+                  ariaLabel={`Tag key ${index + 1}`}
+                />
+                <Input
+                  value={tag.Value}
+                  onChange={({ detail }) =>
+                    setTagEdit((rows) =>
+                      rows.map((item, at) =>
+                        at === index ? { ...item, Value: detail.value } : item,
+                      ),
+                    )
+                  }
+                  placeholder="Value"
+                  ariaLabel={`Tag value ${index + 1}`}
+                />
+                <Button
+                  ariaLabel={`Remove tag ${index + 1}`}
+                  disabled={tagEdit.length === 1}
+                  onClick={() =>
+                    setTagEdit((rows) => rows.filter((_item, at) => at !== index))
+                  }
+                >
+                  Remove
+                </Button>
+              </SpaceBetween>
+            ))}
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                ariaLabel="Add another tag"
+                onClick={() =>
+                  setTagEdit((rows) => [...rows, { Key: '', Value: '' }])
+                }
+              >
+                Add tag
+              </Button>
+              <Button
+                variant="primary"
+                ariaLabel="Save bucket tags"
+                loading={saving}
+                disabled={tagEdit.some((tag) => !tag.Key.trim())}
+                onClick={() => save({ tags: tagEdit })}
+              >
+                Save
+              </Button>
+              <Button variant="link" onClick={() => setTagEdit(null)}>
+                Cancel
+              </Button>
+            </SpaceBetween>
+          </SpaceBetween>
+        ) : (settings?.tags || []).length === 0 ? (
           <Box color="text-body-secondary">No tags associated with this bucket.</Box>
         ) : (
           <Table
@@ -605,28 +698,41 @@ export default function BucketDetail() {
             </Alert>
           )}
           {!documentsError &&
-            Object.keys(editable).map((label) => (
-              <div key={label}>
-                <Header
-                  variant="h3"
-                  actions={
-                    <Button
-                      ariaLabel={`Edit ${label}`}
-                      onClick={() => openDocument(label)}
-                    >
-                      Edit
-                    </Button>
-                  }
-                >
-                  {DOCUMENT_LABELS[label] || label}
-                </Header>
-                {documents[label] ? (
-                  <pre className="result-body">{documents[label]}</pre>
-                ) : (
-                  <Box color="text-body-secondary">Not configured.</Box>
-                )}
-              </div>
-            ))}
+            Object.keys(editable).map((label) => {
+              // Object Ownership decides whether S3 will take an ACL at all: with
+              // "bucket owner enforced" the bucket does not allow ACLs, so the row
+              // says that instead of offering an edit that can only fail.
+              const aclLocked = label === 'acl' && settings?.ownership === 'BucketOwnerEnforced'
+              return (
+                <div key={label}>
+                  <Header
+                    variant="h3"
+                    actions={
+                      <Button
+                        ariaLabel={`Edit ${label}`}
+                        disabled={aclLocked}
+                        onClick={() => openDocument(label)}
+                      >
+                        Edit
+                      </Button>
+                    }
+                  >
+                    {DOCUMENT_LABELS[label] || label}
+                  </Header>
+                  {aclLocked && (
+                    <Box color="text-body-secondary" fontSize="body-s">
+                      ACLs are disabled for this bucket (Object Ownership: bucket owner
+                      enforced), so S3 refuses to change this policy.
+                    </Box>
+                  )}
+                  {documents[label] ? (
+                    <pre className="result-body">{documents[label]}</pre>
+                  ) : (
+                    <Box color="text-body-secondary">Not configured.</Box>
+                  )}
+                </div>
+              )
+            })}
           {!documentsError && (
             <div>
               <Header variant="h3">versions (ListObjectVersions)</Header>

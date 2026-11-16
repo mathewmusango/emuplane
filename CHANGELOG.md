@@ -9,6 +9,11 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **Bucket tags can be edited and removed.** *Properties → Tags* gained an editor
+  (key/value rows, add a row, remove a row) and *Remove tags*: saving sends the
+  whole `TagSet` (`PutBucketTagging` — tags are replaced as a set, not patched),
+  and removing calls `DeleteBucketTagging`. A bucket with no tags gets *Add
+  tags* instead of an empty table.
 - **The configuration documents are writable.** Every document the bucket page
   reads now has an *Edit*: CORS, lifecycle, policy, ACL, logging, notifications
   and replication are put back with their own subresource call, and a document
@@ -222,6 +227,11 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **An ACL you cannot change says why.** Object Ownership decides it: with S3's
+  default *bucket owner enforced* the bucket answers
+  `AccessControlListNotSupported: The bucket does not allow ACLs`, so the ACL row
+  disables *Edit* and explains, rather than offering an edit that can only fail.
+  On a *bucket owner preferred* bucket the ACL round-trips.
 - **An unset subresource is no longer shown as configuration.** S3 answers a
   logging or notification configuration with an empty element, not a 404, and
   the page printed it as though something were switched on. A document with no

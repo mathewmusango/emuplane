@@ -436,6 +436,89 @@ def test_default_encryption_can_be_removed(s3_endpoint):
     assert settings["bucket_key"] is False
 
 
+POLICY = (
+    '{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Principal":"*",'
+    '"Action":"s3:*","Resource":"arn:aws:s3:::policy-document-bucket/*"}]}'
+)
+
+
+def test_a_bucket_policy_is_json_and_round_trips(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "policy-document-bucket")
+    document = lambda method, path, body="", headers=None: client(method, path, body, headers)  # noqa: E731
+
+    written = buckets.write_document("policy-document-bucket", "policy", POLICY, document)
+    assert written["ok"], written.get("error")
+    documents = buckets.read_documents(
+        "policy-document-bucket", lambda method, path: client(method, path)
+    )["documents"]
+    assert documents["policy"] and "Deny" in documents["policy"]
+
+    assert buckets.clear_document("policy-document-bucket", "policy", document)["ok"]
+    documents = buckets.read_documents(
+        "policy-document-bucket", lambda method, path: client(method, path)
+    )["documents"]
+    assert documents["policy"] is None
+
+
+def test_an_acl_is_written_where_s3_allows_acl_s(s3_endpoint):
+    client = _client(s3_endpoint)
+    created = buckets.create(
+        "us-east-1",
+        {"account": ACCOUNT, "bucket": "acl-document-bucket", "ownership": "BucketOwnerPreferred"},
+        client,
+    )
+    assert created["ok"], created.get("error")
+
+    current = buckets.read_documents(
+        "acl-document-bucket", lambda method, path: client(method, path)
+    )["documents"]["acl"]
+    assert current
+
+    written = buckets.write_document(
+        "acl-document-bucket",
+        "acl",
+        current,
+        lambda method, path, body="", headers=None: client(method, path, body, headers),
+    )
+    assert written["ok"], written.get("error")
+
+
+def test_an_acl_is_refused_where_s3_disables_acls(s3_endpoint):
+    """Bucket owner enforced is S3's default and means ACLs are off."""
+    client = _client(s3_endpoint)
+    _create(client, "acl-enforced-bucket")
+    current = buckets.read_documents(
+        "acl-enforced-bucket", lambda method, path: client(method, path)
+    )["documents"]["acl"]
+
+    refused = buckets.write_document(
+        "acl-enforced-bucket",
+        "acl",
+        current,
+        lambda method, path, body="", headers=None: client(method, path, body, headers),
+    )
+    assert refused["ok"] is False
+    assert "AccessControlListNotSupported" in refused["error"]
+
+
+def test_tags_are_replaced_and_removed(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "tags-edit-bucket")
+
+    assert buckets.update_settings(
+        "tags-edit-bucket", {"tags": [{"Key": "team", "Value": "platform"}]}, client
+    )["ok"]
+    assert buckets.read_settings(
+        "tags-edit-bucket", lambda method, path: client(method, path)
+    )["settings"]["tags"] == [{"Key": "team", "Value": "platform"}]
+
+    assert buckets.update_settings("tags-edit-bucket", {"remove_tags": True}, client)["ok"]
+    assert buckets.read_settings(
+        "tags-edit-bucket", lambda method, path: client(method, path)
+    )["settings"]["tags"] == []
+
+
 def test_the_configuration_documents_are_what_s3_has(s3_endpoint):
     client = _client(s3_endpoint)
     _create(client, "documents-bucket")

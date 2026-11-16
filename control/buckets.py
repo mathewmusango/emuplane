@@ -474,6 +474,9 @@ def update_settings(bucket: str, payload: dict, call) -> dict:
                 _encryption(algorithm, bool(payload.get("bucket_key"))),
             )
         )
+    if payload.get("remove_tags"):
+        # DeleteBucketTagging: the bucket ends up with no tag set at all.
+        steps.append(("Tags", "DELETE", "?tagging", ""))
     if payload.get("tags") is not None:
         tags = [
             (str((tag or {}).get("Key") or "").strip(), str((tag or {}).get("Value") or ""))

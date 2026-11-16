@@ -160,8 +160,10 @@ export const api = {
     versioning?: boolean
     block_public_access?: Record<string, boolean>
     tags?: { Key: string; Value: string }[]
+    remove_tags?: boolean
     encryption?: string
     bucket_key?: boolean
+    remove_encryption?: boolean
   }) => request<ActionResult>('/api/s3/bucket-settings-edit', { method: 'POST', body: payload }),
   /** CopyObject: a PUT to the destination, with the source named in a header. */
   copyObject: (payload: {

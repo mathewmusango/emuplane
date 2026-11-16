@@ -758,6 +758,73 @@ describe('s3', () => {
     }
   })
 
+  it('edits bucket tags and removes them', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-settings-edit', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit bucket tags' }))
+
+      // The fixture's tag is team=platform; the editor starts from it.
+      fireEvent.change(screen.getByLabelText('Tag key 1'), {
+        target: { value: 'stage' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Save bucket tags' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        tags: [{ Key: 'stage', Value: 'platform' }],
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('removes every bucket tag', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-settings-edit', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Remove bucket tags' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({ bucket: 'logs-bucket', remove_tags: true })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('does not offer to edit the ACL where S3 turns ACLs off', async () => {
+    pinRegion('us-east-1')
+    const base = stubPath('/api/s3/bucket-settings', {
+      ok: true,
+      bucket: 'logs-bucket',
+      settings: {
+        ownership: 'BucketOwnerEnforced',
+        block_public_access: {},
+        versioning: false,
+        tags: [],
+        encryption: 'AES256',
+        bucket_key: false,
+        object_lock: false,
+      },
+    })
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      const edit = await screen.findByRole('button', { name: 'Edit acl' })
+      expect(edit.disabled).toBe(true)
+      expect(screen.getByText(/ACLs are disabled for this bucket/)).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('deletes one object from its view, after confirming', async () => {
     pinRegion('us-east-1')
     const sent = []

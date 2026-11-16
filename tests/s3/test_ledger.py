@@ -29,8 +29,8 @@ LEDGER = ROOT / "S3.md"
 README = ROOT.parent / "ministack-src" / "README.md"
 
 # Today's numbers, pinned. Raising them is the point of closing an operation.
-FLOOR_TESTED = 43
-FLOOR_SHOWN = 43
+FLOOR_TESTED = 47
+FLOOR_SHOWN = 47
 FLOOR_READS_SHOWN = 23
 
 ROW = re.compile(r"\| `([^`]+)` \| ([^|]+) \| ([^|]+) \| ([^|]+) \|")

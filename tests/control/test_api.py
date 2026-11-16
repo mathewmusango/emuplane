@@ -466,6 +466,101 @@ def test_default_encryption_can_be_removed_from_the_bucket_page(console):
     assert read["settings"]["bucket_key"] is False
 
 
+POLICY = (
+    '{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Principal":"*",'
+    '"Action":"s3:*","Resource":"arn:aws:s3:::policy-api-bucket/*"}]}'
+)
+
+
+def test_a_bucket_policy_is_saved_and_removed_through_the_page(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="policy-api-bucket"))[0] == 200
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-document",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "policy-api-bucket",
+            "document": "policy",
+            "action": "save",
+            "body": POLICY,
+        },
+    )
+    assert status == 200, body
+
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-documents?account={ACCOUNT}&region=us-east-1&bucket=policy-api-bucket",
+    )
+    assert read["documents"]["policy"] and "Deny" in read["documents"]["policy"]
+    assert read["editable"]["policy"]["kind"] == "json"
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-document",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "policy-api-bucket",
+            "document": "policy",
+            "action": "clear",
+        },
+    )
+    assert status == 200, body
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-documents?account={ACCOUNT}&region=us-east-1&bucket=policy-api-bucket",
+    )
+    assert read["documents"]["policy"] is None
+
+
+def test_tags_are_edited_and_removed_from_the_bucket_page(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="tags-api-bucket"))[0] == 200
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-settings-edit",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "tags-api-bucket",
+            "tags": [{"Key": "team", "Value": "platform"}],
+        },
+    )
+    assert status == 200, body
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-settings?account={ACCOUNT}&region=us-east-1&bucket=tags-api-bucket",
+    )
+    assert read["settings"]["tags"] == [{"Key": "team", "Value": "platform"}]
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-settings-edit",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "tags-api-bucket",
+            "remove_tags": True,
+        },
+    )
+    assert status == 200, body
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-settings?account={ACCOUNT}&region=us-east-1&bucket=tags-api-bucket",
+    )
+    assert read["settings"]["tags"] == []
+
+
 def test_an_object_written_through_the_gateway_is_readable_in_the_console(
     console, gateway
 ):
