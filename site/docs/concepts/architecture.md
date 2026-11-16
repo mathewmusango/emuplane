@@ -47,9 +47,10 @@ authenticator.
 
 ## The control plane owns the rest
 
-Accounts, users, sessions, access keys, region enablement, both registries and
-the console's settings are all Emuplane state — and all of it lives in the
-emulator's DynamoDB, one table per store, prefixed `emuplane-`:
+Logins and credentials are Emuplane state: accounts, their users, their sessions,
+their access keys (a row on each user), region enablement, both registries and the
+console's settings. All of it lives in the emulator's DynamoDB, one table per
+store, prefixed `emuplane-`:
 
 | Table | Holds |
 | --- | --- |
@@ -65,8 +66,10 @@ emulator's DynamoDB, one table per store, prefixed `emuplane-`:
 There is no database container, no data volume and nothing on the host: the
 console is stateless, so replacing the container costs nothing.
 
-The control refuses to start on a missing table rather than serving and failing
-later — which is why `bootstrap` runs first and why its failure is fatal.
+The tables are created by the `emuplane` CloudFormation stack, applied on the
+first deployment by the `bootstrap` init job. The control refuses to start on a
+missing table rather than serving and failing later, which is why `bootstrap` runs
+first and why its failure is fatal.
 
 ## Why the console reads rather than trusts
 

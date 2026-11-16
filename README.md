@@ -30,8 +30,13 @@ targets.
 
 The first run creates `.env` from `.env.example`, applies the CloudFormation stack
 that owns the control's DynamoDB tables, pulls the image and starts the console on
-`http://localhost:4570`. Nothing is seeded: create the first account at `/signup`
-and mint the deployment's API token with `./scripts/token.sh`.
+`http://localhost:4570`.
+
+Logins and credentials are stored in the emulator's DynamoDB: the accounts, their
+users, their sessions and their access keys are rows in the tables that stack
+creates on the first deployment, never files on the host. Nothing is seeded:
+create the first account at `/signup` and mint the deployment's API token with
+`./scripts/token.sh`.
 
 ## Documentation
 
