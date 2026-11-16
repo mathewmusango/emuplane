@@ -2,7 +2,7 @@
 # Capture a Firefox profile of a page load, to open at profiler.firefox.com.
 #
 #   ./scripts/profile-login.sh                       # the sign-in page
-#   ./scripts/profile-login.sh https://emuplane.mus.com/  [output.json]
+#   ./scripts/profile-login.sh https://emuplane.example.com/  [output.json]
 #
 # This uses Firefox's own Gecko profiler through the environment variables the
 # browser exposes for automation, so the file is a real profile — threads,

@@ -1,0 +1,30 @@
+/* Console accent, light theme. */
+:root {
+  --ifm-color-primary: #b35c00;
+  --ifm-color-primary-dark: #a15300;
+  --ifm-color-primary-darker: #984e00;
+  --ifm-color-primary-darkest: #7d4000;
+  --ifm-color-primary-light: #c56600;
+  --ifm-color-primary-lighter: #ce6b00;
+  --ifm-color-primary-lightest: #e27900;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+/* Console accent, dark theme. */
+[data-theme='dark'] {
+  --ifm-color-primary: #ff9900;
+  --ifm-color-primary-dark: #e68a00;
+  --ifm-color-primary-darker: #d98200;
+  --ifm-color-primary-light: #ffa31a;
+  --ifm-color-primary-lighter: #ffa926;
+  --ifm-color-primary-lightest: #ffbb52;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
+}
+
+/* Screenshots are light; keep them readable on a dark page. */
+[data-theme='dark'] img.console-shot {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+}

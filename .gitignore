@@ -13,6 +13,12 @@ tests/node_modules
 # pytest's own cache, from `python3 -m pytest tests`.
 .pytest_cache/
 
+# The documentation site: dependencies, build output, npm's cache.
+site/node_modules/
+site/build/
+site/.docusaurus/
+site/.npm-cache/
+
 qa/
 addons/
 my-docs/

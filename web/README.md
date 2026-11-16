@@ -20,7 +20,7 @@ advisory as a task, not background noise.
 
 `dist/` and `node_modules/` are gitignored. The control container mounts
 `web/dist` read-only, so run `npm run build` and restart
-`core-ministack-control` after a change. Until `dist/` exists, `/` answers `503`
+the control container after a change. Until `dist/` exists, `/` answers `503`
 with these instructions.
 
 ## Patterns

@@ -1,0 +1,10 @@
+node_modules/
+.npm-cache/
+build/
+.docusaurus/
+.cache-loader/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
