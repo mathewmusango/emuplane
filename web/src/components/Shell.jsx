@@ -111,27 +111,35 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
   })()
 
   const serviceNav = () => {
-    const spec = catalogue?.services?.[serviceHome]
-    const operations = spec?.operations || []
-    return [
-      {
-        type: 'link',
-        text: serviceHome === 's3' ? 'Buckets' : 'Resources',
-        href: location.pathname,
-      },
-      ...(operations.length
-        ? [
+    if (serviceHome === 's3') {
+      return [
+        {
+          type: 'section',
+          text: 'Buckets',
+          items: [
             {
-              type: 'section',
-              text: 'Actions',
-              items: operations.map((op) => ({
-                type: 'link',
-                text: op.label,
-                href: `${location.pathname}#${op.id}`,
-              })),
+              type: 'link',
+              text: 'General purpose buckets',
+              href: location.pathname,
             },
-          ]
-        : []),
+            { type: 'link', text: 'Directory buckets', href: '#', disabled: true },
+            { type: 'link', text: 'Table buckets', href: '#', disabled: true },
+            { type: 'link', text: 'Vector buckets', href: '#', disabled: true },
+          ],
+        },
+        {
+          type: 'section',
+          text: 'Files',
+          items: [
+            { type: 'link', text: 'File systems', href: '#', disabled: true },
+          ],
+        },
+        { type: 'divider' },
+        { type: 'link', text: 'All services', href: '/services' },
+      ]
+    }
+    return [
+      { type: 'link', text: 'Resources', href: location.pathname },
       { type: 'divider' },
       { type: 'link', text: 'All services', href: '/services' },
     ]

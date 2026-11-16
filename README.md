@@ -452,10 +452,11 @@ the control holds no AWS secret and can list **every** account.
 - **Region-scoped objects.** Every row carries the region it lives in and its
   owner (`{account, user?}`). An S3 bucket's region is the one it was created
   in; the registry still records the region a name was claimed in.
-- **View from all regions.** `GET /api/browse?region=all` sweeps every region the
-  account has enabled (matched against what the node serves) and merges the rows;
-  S3 rows dedupe by name, because a bucket name is unique partition-wide. The
-  console exposes it as a toggle on the Resources page.
+- **Every enabled region, always.** `GET /api/browse?region=all` sweeps every
+  region the account has enabled (matched against what the node serves) and merges
+  the rows; S3 rows dedupe by name, because a bucket name is unique
+  partition-wide. The console always asks for `all` — the table names each row's
+  region instead of making you switch.
 - **Owner metadata** comes from the `owners` table in DynamoDB: a successful
   console action that names a resource records the creating principal. The
   emulator keeps no owner, so CLI-created resources simply show the account.

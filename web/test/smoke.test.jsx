@@ -248,7 +248,7 @@ describe('console', () => {
         </SessionProvider>
       </BrowserRouter>,
     )
-    expect(await screen.findByText('S3 resources')).toBeTruthy()
+    expect(await screen.findAllByText('General purpose buckets')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /N\. Virginia/ }))
     fireEvent.click(screen.getByRole('menuitem', { name: /Oregon/ }))
     await waitFor(() =>
@@ -270,7 +270,7 @@ describe('console', () => {
       </>,
       ['/s3/home?region=us-east-1'],
     )
-    expect(await screen.findByText('S3 resources')).toBeTruthy()
+    expect(await screen.findAllByText('General purpose buckets')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /N\. Virginia/ }))
     fireEvent.click(screen.getByRole('menuitem', { name: /Oregon/ }))
@@ -283,15 +283,16 @@ describe('console', () => {
 
   it('renders the resource table and its action form', async () => {
     renderAt(<Resources />)
-    expect(await screen.findByText('S3 resources')).toBeTruthy()
+    expect(await screen.findAllByText('General purpose buckets')).toBeTruthy()
     expect(screen.getByText('Actions')).toBeTruthy()
     expect(await screen.findByText('aws s3 mb s3://<bucket>')).toBeTruthy()
   })
 
   it('opens a bucket and lists its objects', async () => {
     renderAt(<Resources />)
-    await screen.findByText('S3 resources')
-    fireEvent.click(await screen.findByRole('button', { name: 'Open' }))
+    await screen.findAllByText('General purpose buckets')
+    // The bucket name is the link into the bucket, as in the console.
+    fireEvent.click(await screen.findByRole('button', { name: 'logs-bucket' }))
     expect(await screen.findByText('reports/2026.csv')).toBeTruthy()
   })
 
@@ -308,14 +309,14 @@ describe('console', () => {
     expect(screen.getByText('(2/2)')).toBeTruthy()
   })
 
-  it('lists resources across every region from the All AWS Regions tab', async () => {
+  it('lists resources across every enabled region by default', async () => {
     renderAt(<Resources />)
-    await screen.findByText('S3 resources')
-    expect(screen.queryByText('Region')).toBeNull()
-    fireEvent.click(await screen.findByRole('tab', { name: 'All AWS Regions' }))
-    expect(await screen.findByText('Region')).toBeTruthy()
-    expect(screen.getByText(/created by mathewmusango/)).toBeTruthy()
-    expect(screen.getByText('us-east-1, us-west-2', { exact: false })).toBeTruthy()
+    await screen.findAllByText('General purpose buckets')
+    // No switch: the page always reads every region the account enabled, and
+    // each row carries the region the bucket lives in.
+    expect(await screen.findByText('AWS Region')).toBeTruthy()
+    expect(screen.getByText('US East (N. Virginia)')).toBeTruthy()
+    expect(screen.getAllByText('us-east-1').length).toBeGreaterThan(0)
   })
 
   it('scopes recently visited to the signed-in account', async () => {

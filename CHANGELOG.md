@@ -60,6 +60,16 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **The S3 page is one flat table, the way the console shows it.** *Buckets* is
+  the heading; *General purpose buckets* is the table, listing every bucket in
+  every enabled region with **Name / AWS Region / Creation date** (region display
+  name and code together, from `web/src/regionNames.js`). The region switch, its
+  tabs, the *All AWS Regions* toggle and the kinds side navigation are gone — one
+  table, no hashes in the URL. Header actions follow the console: refresh, *Copy
+  ARN*, *Delete*, *Create bucket*; the bucket name is the link into the bucket
+  (no *Open* column); the filter reads *Find buckets by name*. The service
+  chooser moves off the S3 page (the bar's services menu is how you switch) and
+  the API explorer sits below the table.
 - **Sign-up is one step again.** The emailed one-time password and the `/mailbox`
   page were removed on request: `Create Account` takes email, account name and
   password, creates the account and signs in. The SES send path went with them;

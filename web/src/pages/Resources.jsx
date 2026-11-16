@@ -16,11 +16,9 @@ import Input from '@cloudscape-design/components/input'
 import Modal from '@cloudscape-design/components/modal'
 import Pagination from '@cloudscape-design/components/pagination'
 import Select from '@cloudscape-design/components/select'
-import SideNavigation from '@cloudscape-design/components/side-navigation'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import StatusIndicator from '@cloudscape-design/components/status-indicator'
 import Table from '@cloudscape-design/components/table'
-import Tabs from '@cloudscape-design/components/tabs'
 
 import Textarea from '@cloudscape-design/components/textarea'
 import TextFilter from '@cloudscape-design/components/text-filter'
@@ -29,6 +27,7 @@ import { useCollection } from '@cloudscape-design/collection-hooks'
 import { api } from '../api'
 import { useSession } from '../context'
 import { useRecent } from '../prefs'
+import { regionName } from '../regionNames'
 import { ServiceIcon } from '../serviceIcons'
 import { serviceLabel, serviceLongName } from '../serviceLabels'
 import { Shell, loadCatalogue } from '../components/Shell'
@@ -68,8 +67,6 @@ export default function Resources() {
   const [params, setParams] = useState({})
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState(null)
-  const [activeTab, setActiveTab] = useState('')
-  const [allRegions, setAllRegions] = useState(false)
   // A link carries the region it was made in: adopt it **once**, when the page
   // mounts. Re-adopting on every region change made the picker's choice get
   // undone by the URL a moment later, which read as "switching does nothing".
@@ -106,16 +103,6 @@ export default function Resources() {
   const spec = catalogue?.services?.[service]
   const operations = spec?.operations || []
 
-  // The sidebar links to `#<operation-id>`; opening one selects it, so the nav
-  // and the page agree about where you are.
-  useEffect(() => {
-    const id = window.location.hash.replace('#', '')
-    if (!id || !operations.length) return
-    const match = operations.find((item) => item.id === id)
-    if (match) setOperation(match)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operations.length, service])
-
   useEffect(() => {
     setOperation(operations[0] || null)
     setParams(FIELD_DEFAULTS(operations[0]?.params))
@@ -126,7 +113,7 @@ export default function Resources() {
     if (!account) return
     setLoading(true)
     try {
-      const payload = await api.browse(account, allRegions ? 'all' : region, service)
+      const payload = await api.browse(account, 'all', service)
       setRows(payload.resources || [])
       setRegions(payload.regions || [])
       setError('')
@@ -136,7 +123,7 @@ export default function Resources() {
     } finally {
       setLoading(false)
     }
-  }, [account, allRegions, region, service])
+  }, [account, region, service])
 
   useEffect(() => {
     load()
@@ -158,17 +145,6 @@ export default function Resources() {
       })),
     }))
   }, [catalogue])
-
-  const kinds = useMemo(() => [...new Set(rows.map((row) => row.kind))], [rows])
-  const countsByKind = useMemo(() => {
-    const map = {}
-    for (const row of rows) map[row.kind] = (map[row.kind] || 0) + 1
-    return map
-  }, [rows])
-
-  useEffect(() => {
-    setActiveTab((current) => (current && !kinds.includes(current) ? '' : current))
-  }, [kinds])
 
   useEffect(() => {
     setBucket('')
@@ -242,10 +218,7 @@ export default function Resources() {
     }
   }
 
-  const visible = useMemo(
-    () => (activeTab ? rows.filter((row) => row.kind === activeTab) : rows),
-    [rows, activeTab],
-  )
+  const visible = rows
 
   const { items: visibleRows, collectionProps, paginationProps, filterProps } =
     useCollection(visible, {
@@ -310,6 +283,143 @@ export default function Resources() {
     run(operation)
   }
 
+  // Copy an S3 ARN the way the console does, straight from the selection.
+  const copyArn = async () => {
+    const name = selected[0]?.name
+    if (!name) return
+    try {
+      await navigator.clipboard.writeText(`arn:aws:s3:::${name}`)
+      addFlash('success', `Copied arn:aws:s3:::${name}`)
+    } catch {
+      // clipboard denied: the ARN is derivable from the name on screen
+      addFlash('error', `Could not copy. The ARN is arn:aws:s3:::${name}`)
+    }
+  }
+
+  const actionsPanel =
+    operations.length > 0 ? (
+      <Container
+        header={
+          <Header
+            variant="h2"
+            description="Each action is the API call the CLI would make, signed as this account's root."
+          >
+            Actions
+          </Header>
+        }
+      >
+        <Form
+          actions={
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="primary"
+                onClick={requestRun}
+                loading={running}
+                disabled={!operation}
+              >
+                Run
+              </Button>
+              {operation?.cli && (
+                <Box color="text-body-secondary" fontSize="body-s">
+                  <code>{operation.cli}</code>
+                </Box>
+              )}
+            </SpaceBetween>
+          }
+        >
+          <SpaceBetween size="m">
+            <FormField label="Operation">
+              <Select
+                selectedOption={
+                  operation
+                    ? { label: operation.label, value: operation.id }
+                    : null
+                }
+                onChange={({ detail }) =>
+                  selectOperation(
+                    operations.find(
+                      (item) => item.id === detail.selectedOption?.value,
+                    ) || null,
+                  )
+                }
+                options={operations.map((item) => ({
+                  label: item.label,
+                  value: item.id,
+                }))}
+                ariaLabel="Operation"
+              />
+            </FormField>
+
+            {operation?.params?.length > 0 && (
+              <ColumnLayout columns={2}>
+                {operation.params.map((field) => (
+                  <FormField
+                    key={field.name}
+                    label={field.label}
+                    description={field.placeholder}
+                    constraintText={field.required ? 'Required' : undefined}
+                  >
+                    {field.type === 'textarea' ? (
+                      <Textarea
+                        value={params[field.name] || ''}
+                        onChange={({ detail }) =>
+                          setParams((prev) => ({
+                            ...prev,
+                            [field.name]: detail.value,
+                          }))
+                        }
+                        placeholder={field.placeholder}
+                      />
+                    ) : field.type === 'checkbox' ? (
+                      <Toggle
+                        checked={Boolean(params[field.name])}
+                        onChange={({ detail }) =>
+                          setParams((prev) => ({
+                            ...prev,
+                            [field.name]: detail.checked,
+                          }))
+                        }
+                      />
+                    ) : (
+                      <Input
+                        type={field.type === 'number' ? 'number' : 'text'}
+                        value={params[field.name] || ''}
+                        onChange={({ detail }) =>
+                          setParams((prev) => ({
+                            ...prev,
+                            [field.name]: detail.value,
+                          }))
+                        }
+                        placeholder={field.placeholder}
+                      />
+                    )}
+                  </FormField>
+                ))}
+              </ColumnLayout>
+            )}
+
+            {result && (
+              <SpaceBetween size="s">
+                <StatusIndicator type={result.ok ? 'success' : 'error'}>
+                  {result.ok
+                    ? `HTTP ${result.status}`
+                    : result.error || `HTTP ${result.status || '0'}`}
+                </StatusIndicator>
+                {result.body && (
+                  <pre className="result-body">{pretty(result.body)}</pre>
+                )}
+              </SpaceBetween>
+            )}
+          </SpaceBetween>
+        </Form>
+      </Container>
+    ) : (
+      <Alert type="info" header="No GUI actions for this service yet">
+        Browse stays available. Add an entry to <code>control/console.py</code> to
+        give it a form.
+      </Alert>
+    )
+
   const resourceTable = (
     <Table
       {...collectionProps}
@@ -318,56 +428,96 @@ export default function Resources() {
       loadingText="Reading resources"
       trackBy={(item) => `${item.region || ''}/${item.kind}/${item.name}`}
       columnDefinitions={[
-        {
-          id: 'kind',
-          header: 'Kind',
-          cell: (item) => item.kind,
-          sortingField: 'kind',
-          width: 130,
-        },
+        ...(service === 's3'
+          ? []
+          : [
+              {
+                id: 'kind',
+                header: 'Kind',
+                cell: (item) => item.kind,
+                sortingField: 'kind',
+                width: 130,
+              },
+            ]),
         {
           id: 'name',
           header: 'Name',
-          cell: (item) => <span className="mono">{item.name}</span>,
+          cell: (item) =>
+            service === 's3' ? (
+              <Button variant="inline-link" onClick={() => openBucket(item.name)}>
+                {item.name}
+              </Button>
+            ) : (
+              <span className="mono">{item.name}</span>
+            ),
           sortingField: 'name',
         },
-        ...(allRegions
+        {
+          id: 'region',
+          header: service === 's3' ? 'AWS Region' : 'Region',
+          cell: (item) =>
+            item.region ? (
+              <span>
+                {regionName(item.region)}{' '}
+                <span className="mono">{item.region}</span>
+              </span>
+            ) : (
+              '\u2014'
+            ),
+          sortingField: 'region',
+          width: 240,
+        },
+        ...(service === 's3'
           ? [
               {
-                id: 'region',
-                header: 'Region',
-                cell: (item) => <span className="mono">{item.region || '—'}</span>,
-                sortingField: 'region',
-                width: 150,
+                id: 'created',
+                header: 'Creation date',
+                cell: (item) => item.detail?.created || '\u2014',
+                width: 230,
               },
             ]
-          : []),
-        {
-          id: 'detail',
-          header: 'Detail',
-          cell: (item) =>
-            [
-              ...Object.entries(item.detail || {})
-                .filter(([, value]) => value)
-                .map(([key, value]) => `${key}=${value}`),
-              item.owner?.user ? `created by ${item.owner.user}` : '',
-            ]
-              .filter(Boolean)
-              .join(' · '),
-        },
-        {
-          id: 'open',
-          header: '',
-          cell: (item) =>
-            item.kind === 'bucket' ? (
-              <Button variant="inline-link" onClick={() => openBucket(item.name)}>
-                Open
-              </Button>
-            ) : null,
-          width: 90,
-        },
+          : [
+              {
+                id: 'detail',
+                header: 'Detail',
+                cell: (item) =>
+                  [
+                    ...Object.entries(item.detail || {})
+                      .filter(([, value]) => value)
+                      .map(([key, value]) => `${key}=${value}`),
+                    item.owner?.user ? `created by ${item.owner.user}` : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
+              },
+            ]),
+        ...(service === 's3'
+          ? []
+          : [
+              {
+                id: 'open',
+                header: '',
+                cell: (item) =>
+                  item.kind === 'bucket' ? (
+                    <Button
+                      variant="inline-link"
+                      onClick={() => openBucket(item.name)}
+                    >
+                      Open
+                    </Button>
+                  ) : null,
+                width: 90,
+              },
+            ]),
       ]}
-      filter={<TextFilter {...filterProps} filteringPlaceholder="Find a resource" />}
+      filter={
+        <TextFilter
+          {...filterProps}
+          filteringPlaceholder={
+            service === 's3' ? 'Find buckets by name' : 'Find a resource'
+          }
+        />
+      }
       pagination={<Pagination {...paginationProps} />}
       preferences={
         <CollectionPreferences
@@ -400,10 +550,18 @@ export default function Resources() {
       header={
         <Header
           counter={`(${visible.length})`}
-          description={spec?.description}
+          description={
+            service === 's3'
+              ? 'Buckets are containers for data stored in S3.'
+              : spec?.description
+          }
           actions={
             service === 's3' ? (
               <SpaceBetween direction="horizontal" size="xs">
+                <Button iconName="refresh" ariaLabel="Refresh" onClick={load} />
+                <Button disabled={!selected.length} onClick={copyArn}>
+                  Copy ARN
+                </Button>
                 <Button
                   disabled={!selected.length}
                   onClick={() => {
@@ -426,14 +584,16 @@ export default function Resources() {
             ) : undefined
           }
         >
-          {serviceLabel(service)} resources
+          {service === 's3'
+            ? 'General purpose buckets'
+            : `${serviceLabel(service)} resources`}
         </Header>
       }
       empty={
         <Box textAlign="center">
           <SpaceBetween size="s">
             <Box color="text-body-secondary">
-              Nothing in this account{allRegions ? '' : ' and region'} yet.
+              Nothing in this account yet.
             </Box>
             <Button iconName="refresh" onClick={load}>
               Refresh
@@ -473,69 +633,37 @@ export default function Resources() {
       >
         <SpaceBetween size="l">
           {flash.length > 0 && <Flashbar items={flash} />}
-          <Container>
-            <SpaceBetween size="s">
-              <Select
-                selectedOption={
-                  serviceOptions
-                    .flatMap((group) => group.options)
-                    .find((option) => option.value === service) || null
-                }
-                onChange={({ detail }) =>
-                  detail.selectedOption?.value &&
-                  navigate(`/resources/${detail.selectedOption.value}`)
-                }
-                options={serviceOptions}
-                placeholder="Choose a service"
-                ariaLabel="Service"
-              />
-              {service === 's3' ? (
-                <Tabs
-                  activeTabId={allRegions ? 'all' : 'general'}
-                  onChange={({ detail }) => setAllRegions(detail.activeTabId === 'all')}
-                  tabs={[
-                    { id: 'general', label: 'General purpose buckets' },
-                    { id: 'all', label: 'All AWS Regions' },
-                  ]}
+          {/* The console's S3 page has no service chooser: the service menu in
+              the bar is how you move between services. */}
+          {service !== 's3' && (
+            <Container>
+              <SpaceBetween size="s">
+                <Select
+                  selectedOption={
+                    serviceOptions
+                      .flatMap((group) => group.options)
+                      .find((option) => option.value === service) || null
+                  }
+                  onChange={({ detail }) =>
+                    detail.selectedOption?.value &&
+                    navigate(`/resources/${detail.selectedOption.value}`)
+                  }
+                  options={serviceOptions}
+                  placeholder="Choose a service"
+                  ariaLabel="Service"
                 />
-              ) : (
-                <Toggle
-                  checked={allRegions}
-                  onChange={({ detail }) => setAllRegions(detail.checked)}
-                  description="List this service across every region this account has enabled. Actions and bucket contents still use the region selected in the header."
-                >
-                  View from all regions
-                </Toggle>
-              )}
-              <Box color="text-body-secondary" fontSize="body-s">
-                Account <code>{account}</code> ·{' '}
-                {allRegions ? (
-                  <>
-                    regions <code>{regions.join(', ') || '—'}</code>
-                  </>
-                ) : (
-                  <>
-                    region <code>{region}</code>
-                  </>
-                )}
-                {' · the account spans every region'}
-              </Box>
-            </SpaceBetween>
-          </Container>
+                <Box color="text-body-secondary" fontSize="body-s">
+                  Account <code>{account}</code> · read across every enabled region
+                  {' · '}
+                  <code>{regions.join(', ') || '—'}</code>
+                </Box>
+              </SpaceBetween>
+            </Container>
+          )}
 
           {error && (
             <Alert type="error" header="Could not read this service">
               {error}
-            </Alert>
-          )}
-
-          {service === 's3' && (
-            <Alert type="info" header="S3 bucket names are global">
-              A bucket name is unique across every region and account, and the bucket
-              itself lives in one region: this page lists the buckets homed in the
-              region selected in the header. Address a bucket from another region and
-              S3 answers <code>301</code> with the region to use. Turn on{' '}
-              <b>View from all regions</b> to see every bucket with its region.
             </Alert>
           )}
 
@@ -546,128 +674,7 @@ export default function Resources() {
             </Alert>
           )}
 
-          {operations.length > 0 ? (
-            <Container
-              header={
-                <Header
-                  variant="h2"
-                  description="Each action is the API call the CLI would make, signed as this account's root."
-                >
-                  Actions
-                </Header>
-              }
-            >
-              <Form
-                actions={
-                  <SpaceBetween direction="horizontal" size="xs">
-                    <Button
-                      variant="primary"
-                      onClick={requestRun}
-                      loading={running}
-                      disabled={!operation}
-                    >
-                      Run
-                    </Button>
-                    {operation?.cli && (
-                      <Box color="text-body-secondary" fontSize="body-s">
-                        <code>{operation.cli}</code>
-                      </Box>
-                    )}
-                  </SpaceBetween>
-                }
-              >
-                <SpaceBetween size="m">
-                  <FormField label="Operation">
-                    <Select
-                      selectedOption={
-                        operation
-                          ? { label: operation.label, value: operation.id }
-                          : null
-                      }
-                      onChange={({ detail }) =>
-                        selectOperation(
-                          operations.find(
-                            (item) => item.id === detail.selectedOption?.value,
-                          ) || null,
-                        )
-                      }
-                      options={operations.map((item) => ({
-                        label: item.label,
-                        value: item.id,
-                      }))}
-                      ariaLabel="Operation"
-                    />
-                  </FormField>
-
-                  {operation?.params?.length > 0 && (
-                    <ColumnLayout columns={2}>
-                      {operation.params.map((field) => (
-                        <FormField
-                          key={field.name}
-                          label={field.label}
-                          description={field.placeholder}
-                          constraintText={field.required ? 'Required' : undefined}
-                        >
-                          {field.type === 'textarea' ? (
-                            <Textarea
-                              value={params[field.name] || ''}
-                              onChange={({ detail }) =>
-                                setParams((prev) => ({
-                                  ...prev,
-                                  [field.name]: detail.value,
-                                }))
-                              }
-                              placeholder={field.placeholder}
-                            />
-                          ) : field.type === 'checkbox' ? (
-                            <Toggle
-                              checked={Boolean(params[field.name])}
-                              onChange={({ detail }) =>
-                                setParams((prev) => ({
-                                  ...prev,
-                                  [field.name]: detail.checked,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <Input
-                              type={field.type === 'number' ? 'number' : 'text'}
-                              value={params[field.name] || ''}
-                              onChange={({ detail }) =>
-                                setParams((prev) => ({
-                                  ...prev,
-                                  [field.name]: detail.value,
-                                }))
-                              }
-                              placeholder={field.placeholder}
-                            />
-                          )}
-                        </FormField>
-                      ))}
-                    </ColumnLayout>
-                  )}
-
-                  {result && (
-                    <SpaceBetween size="s">
-                      <StatusIndicator type={result.ok ? 'success' : 'error'}>
-                        {result.ok
-                          ? `HTTP ${result.status}`
-                          : result.error || `HTTP ${result.status || '0'}`}
-                      </StatusIndicator>
-                      {result.body && (
-                        <pre className="result-body">{pretty(result.body)}</pre>
-                      )}
-                    </SpaceBetween>
-                  )}
-                </SpaceBetween>
-              </Form>
-            </Container>
-          ) : (
-            <Alert type="info" header="No GUI actions for this service yet">
-              Browse stays available. Add an entry to{' '}
-              <code>control/console.py</code> to give it a form.
-            </Alert>
-          )}
+          {resourceTable}
 
           {bucket && (
             <Container
@@ -721,35 +728,7 @@ export default function Resources() {
             </Container>
           )}
 
-          {kinds.length > 0 ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '220px minmax(0, 1fr)',
-                gap: 16,
-                alignItems: 'start',
-              }}
-            >
-              <SideNavigation
-                activeHref={`#${activeTab || 'all'}`}
-                items={[
-                  { type: 'link', text: `All (${rows.length})`, href: '#all' },
-                  ...kinds.map((kind) => ({
-                    type: 'link',
-                    text: `${kind.charAt(0).toUpperCase()}${kind.slice(1)} (${countsByKind[kind] || 0})`,
-                    href: `#${kind}`,
-                  })),
-                ]}
-                onFollow={({ detail }) => {
-                  const next = detail.href.replace('#', '')
-                  setActiveTab(next === 'all' ? '' : next)
-                }}
-              />
-              {resourceTable}
-            </div>
-          ) : (
-            resourceTable
-          )}
+          {actionsPanel}
 
           <Modal
             visible={Boolean(confirmingDelete)}
