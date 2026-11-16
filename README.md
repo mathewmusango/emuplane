@@ -35,7 +35,7 @@ that owns the control's DynamoDB tables, pulls the image and starts the console 
 `http://localhost:4570`.
 
 Nothing is seeded: create the first account at `/signup`. The API bearer token is
-optional — mint it with `./scripts/token.sh` when a script, rather than a browser,
+optional: mint one with `./scripts/token.sh` when something other than the console
 needs the control API.
 
 ## Documentation
