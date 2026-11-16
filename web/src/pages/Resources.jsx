@@ -189,8 +189,6 @@ export default function Resources() {
     }
   }
 
-  // Emptying is the console's own loop: the catalogue has no single call for it,
-  // so each listed object goes through `delete-object`.
   // Emptying is one DeleteObjects request per listing, not one call per key.
   const emptyBucket = async () => {
     if (!confirmingEmpty) return

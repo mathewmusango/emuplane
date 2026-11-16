@@ -508,6 +508,32 @@ describe('s3', () => {
     expect(within(dialog).getByText(/2026-01-01,10/)).toBeTruthy()
   })
 
+  it('deletes one object from its view, after confirming', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/exec', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+
+      const view = await screen.findByRole('dialog', { name: 'reports/2026.csv' })
+      fireEvent.click(within(view).getByRole('button', { name: 'Delete' }))
+
+      const confirm = await screen.findByRole('dialog', { name: 'Delete object' })
+      fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        service: 's3',
+        operation: 'delete-object',
+        region: 'us-east-1',
+        params: { Bucket: 'logs-bucket', Key: 'reports/2026.csv' },
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('offers a non-text object as a download instead of showing bytes', async () => {
     pinRegion('us-east-1')
     const base = stubPath('/api/s3/object', {

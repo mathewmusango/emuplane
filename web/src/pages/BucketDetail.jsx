@@ -60,6 +60,7 @@ export default function BucketDetail() {
   const [documents, setDocuments] = useState({})
   const [objectView, setObjectView] = useState(null)
   const [objectError, setObjectError] = useState('')
+  const [deletingObject, setDeletingObject] = useState(null)
 
   const loadObjects = useCallback(async () => {
     if (!account) return
@@ -141,6 +142,28 @@ export default function BucketDetail() {
     } catch (err) {
       setObjectView(null)
       setObjectError(err.message)
+    }
+  }
+
+  const removeObject = async () => {
+    if (!deletingObject) return
+    setSaving(true)
+    try {
+      const answer = await api.exec({
+        account,
+        region,
+        service: 's3',
+        operation: 'delete-object',
+        params: { Bucket: name, Key: deletingObject },
+      })
+      if (!answer.ok) throw new Error(answer.error || 'Could not delete the object.')
+      setDeletingObject(null)
+      await loadObjects()
+    } catch (err) {
+      setError(err.message)
+      setDeletingObject(null)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -445,13 +468,26 @@ export default function BucketDetail() {
           header={objectView ? objectView.key : 'Could not read this object'}
           size="large"
           footer={
-            objectView?.binary ? (
+            objectView ? (
               <Box float="right">
-                <Button
-                  href={api.objectDownloadUrl(account, region, name, objectView.key)}
-                >
-                  Download
-                </Button>
+                <SpaceBetween direction="horizontal" size="xs">
+                  {objectView.binary && (
+                    <Button
+                      href={api.objectDownloadUrl(account, region, name, objectView.key)}
+                    >
+                      Download
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => {
+                      // One confirmation, then the list is the truth again.
+                      setDeletingObject(objectView.key)
+                      setObjectView(null)
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </SpaceBetween>
               </Box>
             ) : undefined
           }
@@ -469,6 +505,28 @@ export default function BucketDetail() {
           ) : (
             <pre className="result-body">{objectView?.body}</pre>
           )}
+        </Modal>
+        <Modal
+          visible={Boolean(deletingObject)}
+          onDismiss={() => setDeletingObject(null)}
+          header="Delete object"
+          footer={
+            <Box float="right">
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button variant="link" onClick={() => setDeletingObject(null)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" loading={saving} onClick={removeObject}>
+                  Delete
+                </Button>
+              </SpaceBetween>
+            </Box>
+          }
+        >
+          <Box>
+            Delete <strong>{deletingObject}</strong> from <strong>{name}</strong>? S3 keeps no
+            undo for a plain delete.
+          </Box>
         </Modal>
         <Modal
           visible={uploading}
