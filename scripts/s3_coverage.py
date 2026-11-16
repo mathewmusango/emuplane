@@ -61,6 +61,40 @@ COVERED = {
     "GetBucketLogging": "tests/s3/test_objects.py (documents)",
     "GetBucketReplication": "tests/s3/test_objects.py (documents)",
     "HeadObject": "tests/control/test_gateway.py (301 path)",
+    "CreateAccessPoint": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
+    "GetAccessPoint": "tests/s3/test_access_points.py (row details)",
+    "ListAccessPoints": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
+    "DeleteAccessPoint": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
+    "PutAccessPointPolicy": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
+    "GetAccessPointPolicy": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
+    "DeleteAccessPointPolicy": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
+    "ListMultiRegionAccessPoints": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
+    "ListAccessPointsForObjectLambda": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
+}
+
+# Catalogue action -> the operation it runs. An action's id cannot be matched to
+# an operation string by substring: `delete-bucket` is inside
+# `DeleteBucketEncryption`, which it does not do.
+ACTION_OPERATIONS = {
+    "create-bucket": ["CreateBucket"],
+    "delete-bucket": ["DeleteBucket"],
+    "list-objects": ["ListObjects v1/v2"],
+    "put-object": ["PutObject"],
+    "delete-object": ["DeleteObject", "DeleteObjects"],
+}
+
+# Operations a console page performs — a page, not an `/api/exec` action, so the
+# catalogue does not list them and the column would read as gateway-only.
+PAGES = {
+    "CreateAccessPoint": "Access Points page",
+    "GetAccessPoint": "Access Points page",
+    "ListAccessPoints": "Access Points page",
+    "DeleteAccessPoint": "Access Points page",
+    "PutAccessPointPolicy": "Access Points page (Edit policy)",
+    "GetAccessPointPolicy": "Access Points page (Edit policy)",
+    "DeleteAccessPointPolicy": "Access Points page (Remove policy)",
+    "ListMultiRegionAccessPoints": "Access Points page (Multi-Region tab)",
+    "ListAccessPointsForObjectLambda": "Access Points page (Object Lambda tab)",
 }
 
 GROUPS = [
@@ -195,9 +229,12 @@ def render() -> str:
             "| --- | --- | --- |",
         ]
         for name in listed:
-            action = ", ".join(
-                key for key in actions if key.replace("-", "").lower() in name.lower().replace(" ", "")
-            )
+            owned = [
+                key for key in actions if name in ACTION_OPERATIONS.get(key, [])
+            ]
+            if name in PAGES:
+                owned.append(PAGES[name])
+            action = ", ".join(owned)
             test = COVERED.get(name, "—")
             lines.append(f"| `{name}` | {action or '—'} | {test} |")
 

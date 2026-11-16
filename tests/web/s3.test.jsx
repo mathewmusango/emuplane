@@ -11,19 +11,21 @@ import { BrowserRouter, useLocation } from 'react-router-dom'
 import { SessionProvider } from '../../web/src/context'
 import App from '../../web/src/App'
 import Resources from '../../web/src/pages/Resources'
+import AccessPoints from '../../web/src/pages/AccessPoints'
 import { RESPONSES, installFetch, renderAt } from './fixtures'
 
 const pinRegion = (region) => sessionStorage.setItem('emuplane:region', region)
 
 // A fetch stub that records the one request under test and answers the rest from
-// the shared fixtures.
+// the shared fixtures. A GET carries no body, so only a request with one is
+// recorded — the same helper then serves a listing.
 const stubOnce = (path, answer, record) => {
   const base = globalThis.fetch
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url, options = {}) => {
       if (String(url).split('?')[0] === path) {
-        record.push(JSON.parse(options.body))
+        if (options.body) record.push(JSON.parse(options.body))
         return { ok: true, status: 200, text: async () => JSON.stringify(answer) }
       }
       return base(url, options)
@@ -474,5 +476,185 @@ describe('s3', () => {
     } finally {
       vi.stubGlobal('fetch', base)
     }
+  })
+
+  it('lists the access points S3 Control reports, in the console columns', async () => {
+    pinRegion('us-east-1')
+    renderAt(<App />, ['/s3/access-points?region=us-east-1'])
+
+    expect(
+      await screen.findByText('Access Points for general purpose buckets (1)'),
+    ).toBeTruthy()
+    expect(screen.getByText('reports-point')).toBeTruthy()
+    // Data source type and id, the alias, and the network origin.
+    expect(screen.getByText('Bucket')).toBeTruthy()
+    expect(screen.getByText('logs-bucket')).toBeTruthy()
+    expect(screen.getByText('reports-point-4ud6rlwts3alias')).toBeTruthy()
+    expect(screen.getByText('Internet')).toBeTruthy()
+  })
+
+  it('offers only the access point kinds this instance backs', async () => {
+    pinRegion('us-east-1')
+    renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+    await screen.findByText('reports-point')
+
+    for (const tab of ['General purpose buckets', 'Multi-Region', 'Object Lambda']) {
+      expect(screen.getByRole('tab', { name: tab })).toBeTruthy()
+    }
+    // Directory buckets have no backend here, so they are not a tab at all.
+    expect(screen.queryByText('Directory buckets')).toBeNull()
+  })
+
+  it('names the region when there are no access points, and offers to create one', async () => {
+    pinRegion('us-east-1')
+    const base = stubOnce(
+      '/api/s3/access-points',
+      { ok: true, status: 200, section: 'general', access_points: [] },
+      [],
+    )
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      expect(
+        await screen.findByText(
+          "You don't have any access points in the US East (N. Virginia) us-east-1 Region",
+        ),
+      ).toBeTruthy()
+      expect(
+        screen.getAllByRole('button', { name: 'Create access point' }).length,
+      ).toBeGreaterThan(0)
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('creates an access point from its own page, applying the form', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/access-points',
+      { ok: true, status: 200, name: 'reports-point', created: true },
+      sent,
+    )
+    try {
+      renderAt(<App />, ['/s3/access-points/create?region=us-east-1'])
+      await screen.findByText('Block Public Access settings for this access point')
+
+      fireEvent.change(screen.getByPlaceholderText('my-access-point'), {
+        target: { value: 'reports-point' },
+      })
+
+      // Cloudscape's Select does not open under fireEvent; user-event does.
+      const user = userEvent.setup()
+      const trigger = (await screen.findAllByRole('button')).find(
+        (button) => button.textContent.trim() === 'Choose bucket',
+      )
+      await user.click(trigger)
+      await user.click(await screen.findByRole('option', { name: /logs-bucket/ }))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Create access point' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        name: 'reports-point',
+        bucket: 'logs-bucket',
+        vpc_id: '',
+        block_public_access: {
+          BlockPublicAcls: true,
+          IgnorePublicAcls: true,
+          BlockPublicPolicy: true,
+          RestrictPublicBuckets: true,
+        },
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('deletes a selected access point after confirming', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/access-point-delete',
+      { ok: true, status: 204, name: 'reports-point' },
+      sent,
+    )
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+
+      const remove = screen.getAllByRole('button', { name: 'Delete' })[0]
+      expect(remove.disabled).toBe(true)
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      fireEvent.click(remove)
+
+      const dialog = await screen.findByRole('dialog', { name: 'Delete access point' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        name: 'reports-point',
+      })
+      expect(await screen.findByText('Deleted access point reports-point')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('edits the access point policy in a modal', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/access-point-policy-edit',
+      { ok: true, status: 200, name: 'reports-point', policy: null },
+      sent,
+    )
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit policy' }))
+
+      const dialog = await screen.findByRole('dialog', { name: /Edit policy/ })
+      const editor = within(dialog).getByRole('textbox')
+      const document = '{"Statement":[{"Effect":"Allow"}]}'
+      fireEvent.change(editor, { target: { value: document } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        region: 'us-east-1',
+        name: 'reports-point',
+        policy: document,
+      })
+      expect(await screen.findByText('Access point policy saved')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('reads the Multi-Region section from its own region', async () => {
+    pinRegion('us-east-1')
+    renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+    await screen.findByText('reports-point')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+    expect(await screen.findByText('world-point')).toBeTruthy()
+    expect(screen.getByText('logs-bucket · us-east-1, west-bucket · us-west-2')).toBeTruthy()
+    // Creation is not on this page yet, and the tab says so rather than
+    // offering a button that cannot finish.
+    expect(screen.queryByRole('button', { name: 'Create access point' })).toBeNull()
+  })
+
+  it('links Access Points from the S3 navigation', async () => {
+    pinRegion('us-east-1')
+    renderAt(<App />, ['/s3/home?region=us-east-1'])
+    expect(await screen.findAllByText('General purpose buckets')).toBeTruthy()
+    expect(screen.getByText('Access management and security')).toBeTruthy()
+    const link = screen.getByRole('link', { name: 'Access Points' })
+    expect(link.getAttribute('href')).toBe('/s3/access-points')
   })
 })

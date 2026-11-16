@@ -6,6 +6,8 @@ import Resources from './pages/Resources'
 import CreateBucket from './pages/CreateBucket'
 import S3Section from './pages/S3Section'
 import BucketDetail from './pages/BucketDetail'
+import AccessPoints from './pages/AccessPoints'
+import CreateAccessPoint from './pages/CreateAccessPoint'
 import Settings from './pages/Settings'
 import About from './pages/About'
 import SignIn from './pages/SignIn'
@@ -39,6 +41,11 @@ export default function App() {
         <Route path="/s3/files" element={<S3Section section="files" />} />
         {/* One bucket is its own page, with the tabs this instance backs. */}
         <Route path="/s3/buckets/:name" element={<BucketDetail />} />
+        {/* Access points are S3 Control, so their pages hang off S3's nav like
+            the bucket pages do. Directory buckets have no backend here and so
+            have no tab. */}
+        <Route path="/s3/access-points" element={<AccessPoints />} />
+        <Route path="/s3/access-points/create" element={<CreateAccessPoint />} />
         <Route path="/:service/home" element={<Resources />} />
         <Route path="/resources/:service" element={<ServiceRedirect />} />
         <Route path="/settings" element={<Settings />} />

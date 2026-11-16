@@ -65,8 +65,29 @@ def s3_endpoint(emulator):
 
     def route(headers: dict):
         auth = headers.get("authorization", "")
-        match = re.search(r"Credential=[^/]+/\d{8}/[^/]+/([^/]+)/aws4_request", auth)
-        return handlers.get(match.group(1) if match else "s3", emulator)
+        match = re.search(
+            r"Credential=([^/]+)/\d{8}/([^/]+)/([^/]+)/aws4_request", auth
+        )
+        service = match.group(3) if match else "s3"
+        return handlers.get(service, emulator), {
+            "key": match.group(1) if match else "",
+            "region": match.group(2) if match else "us-east-1",
+        }
+
+    def control(s3, method: str, path: str, headers: dict, body: bytes, query: dict):
+        """S3 Control's `/v20180820/...` paths, which the emulator routes in its
+        ASGI app rather than inside the S3 service."""
+        if not hasattr(s3, "is_access_point_control_path"):
+            return None
+        if path.startswith("/v20180820/mrap/") or path.startswith(
+            "/v20180820/async-requests/mrap/"
+        ):
+            return s3.handle_mrap_control(method, path, headers, body, query)
+        if s3.is_access_point_control_path(path):
+            return s3.handle_access_point_control(method, path, headers, body, query)
+        if s3.is_object_lambda_control_path(path):
+            return s3.handle_object_lambda_control(method, path, headers, body, query)
+        return None
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):  # keep the test output readable
@@ -78,9 +99,25 @@ def s3_endpoint(emulator):
             split = urlsplit(self.path)
             headers = {key.lower(): value for key, value in self.headers.items()}
             query = parse_qs(split.query, keep_blank_values=True)
-            status, out_headers, out_body = asyncio.run(
-                route(headers).handle_request(method, split.path, headers, body, query)
+            module, scope = route(headers)
+            # The ASGI app pins the credential's account and signing region for
+            # the request before any handler runs; without them, a scoped handler
+            # would see the defaults and answer as if every request belonged to
+            # the placeholder account in us-east-1.
+            from ministack.core.responses import (
+                set_request_account_id,
+                set_request_region,
             )
+
+            set_request_account_id(scope["key"])
+            set_request_region(scope["region"])
+            handled = control(module, method, split.path, headers, body, query)
+            if handled is not None:
+                status, out_headers, out_body = handled
+            else:
+                status, out_headers, out_body = asyncio.run(
+                    module.handle_request(method, split.path, headers, body, query)
+                )
             # Handlers return the body as bytes or, for a stored document, as the
             # text they hold; the ASGI layer encodes, and so does this.
             if isinstance(out_body, str):

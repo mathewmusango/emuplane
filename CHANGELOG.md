@@ -9,6 +9,22 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **Access points have their own page, through S3 Control.** `Amazon S3 →
+  Access management and security → Access Points` lists the account's access
+  points for the page's region and creates, deletes and edits policy on them:
+  `ListAccessPoints` for the table, one `GetAccessPoint` per row because the
+  listing omits the VPC id, `CreateAccessPoint` behind the create form (name,
+  bucket, network origin, Block Public Access, optional policy applied after the
+  create), and `DeleteAccessPoint` behind a confirmation. The *Edit policy* modal
+  reads `GetAccessPointPolicy`, saves with `PutAccessPointPolicy` and removes
+  with `DeleteAccessPointPolicy`; an access point with no policy is shown as
+  empty, not as an error. The *Multi-Region* and *Object Lambda* tabs are real
+  listings from `ListMultiRegionAccessPoints` (signed in us-west-2, where that
+  management lives) and `ListAccessPointsForObjectLambda`; their creation is not
+  on the page yet and each tab says so rather than offering a button that cannot
+  finish. *Directory buckets* is not a tab: this emulator has no backend for it.
+  Calls carry `x-amz-account-id`, which S3 Control requires, and are signed with
+  service `s3` on the `/v20180820/...` path.
 - **Objects can be written, opened and listed in bulk, and the bucket's documents
   are visible.** The bucket page uploads (`POST /api/s3/object` → `PutObject`,
   the key percent-encoded), opens any object in place (`GetObject`, shown as
@@ -45,8 +61,8 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **`S3.md` records what is covered, and by whom.** `scripts/s3_coverage.py`
   generates it from the emulator's own `| **S3** |` operation row and
   `control/console.py`, plus a hand-kept map of the operations an emuplane test
-  exercises: 84 operations, 5 console actions, 17 with an emuplane test, the rest
-  gateway-only. It is not hand-edited — `scripts/qa_check.py` runs
+  exercises: 84 operations and 5 console actions, each operation's test listed on
+  its row, the rest gateway-only. It is not hand-edited — `scripts/qa_check.py` runs
   `s3_coverage.py --check` and fails when the file drifts (skipped with a note
   where the emulator checkout is absent).
 - **One test tree, and S3's create proven over the wire.** `tests/` holds both
@@ -143,13 +159,18 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **Every S3 console page opens by its URL.** The SPA gate admitted only two
+  segments under `/s3/`, so a reload of a bucket page (`/s3/buckets/<name>`) or a
+  pasted access point link answered `404 not found`. It now admits any depth: the
+  client router resolves the page and redirects an unknown name itself.
 - **A bucket is a page of its own.** Clicking a bucket name opens
   `/s3/buckets/<name>`, laid out like the console: *Objects* (prefix filter,
   Name / Type / Last modified / Size, refresh, and the console's empty state),
   *Properties* (region, ARN, creation date, versioning, default encryption, tags —
   read through `/api/s3/bucket-settings`) and *Permissions* (Block Public Access
-  and Object Ownership). Metrics, Management, Metadata, File systems and Access
-  Points are not tabs: this console has nothing to back them. The inline
+  and Object Ownership). Metrics, Management, Metadata and File systems are not
+  tabs: this console has nothing to back them. Access Points moved out of a tab
+  and into a page of its own, under *Access management and security*. The inline
   "Bucket objects (0)" panel on the list page is gone with it.
 - **No bucket-type choice on create.** *Directory* buckets are not served by the
   emulator, so the radio group that offered them is gone rather than sitting there

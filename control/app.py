@@ -49,6 +49,7 @@ import console  # noqa: E402  (local module: action catalogue)
 import buckets  # noqa: E402  (local module: the console's bucket create)
 import signed  # noqa: E402  (local module: the root-signed calls)
 import s3extra  # noqa: E402  (local module: S3 Tables / S3 Files listings)
+import accesspoints  # noqa: E402  (local module: S3 Control access points)
 import mail  # noqa: E402  (local module: the one outbound message)
 from dynamo import DynamoError  # noqa: E402
 from backends import profile  # noqa: E402
@@ -2237,18 +2238,42 @@ def signed_s3(
     return signed_rest("s3", account, region, method, path, body, extra_headers)
 
 
+def s3control(account: str, region: str):
+    """An S3 Control call, as `rest(region, method, path, body)`.
+
+    S3 Control names the account in `x-amz-account-id`, and the region is an
+    argument rather than the page's: Multi-Region access point management is
+    served from us-west-2 whichever region the page is showing.
+    """
+
+    def rest(target_region, method, path, body=""):
+        return signed_rest(
+            "s3",
+            account,
+            target_region or region,
+            method,
+            path,
+            body,
+            {"x-amz-account-id": account},
+        )
+
+    return rest
+
+
 def is_console_route(path: str) -> bool:
     """The console's own paths beyond the flat `SPA_ROUTES`.
 
     A service's home (`/<service>/home`) and the pages that sit beside it
     (`/<service>/create`), plus every page S3 hangs off its own nav — the create
-    form and the bucket-type and files tabs — which the client router resolves
-    and whose unknown names it redirects away from.
+    forms, a bucket's own page and the access point pages — which the client
+    router resolves and whose unknown names it redirects away from. Any depth is
+    SPA territory: a page you cannot open by its URL is a page you cannot
+    bookmark.
     """
     parts = [part for part in path.split("/") if part]
     if not parts:
         return False
-    if parts[0] == "s3" and len(parts) <= 2:
+    if parts[0] == "s3":
         return True
     return len(parts) == 2 and parts[1] in ("home", "create")
 
@@ -3471,6 +3496,70 @@ class ControlHandler(BaseHTTPRequestHandler):
                     service=section,
                 ),
             )
+        if path == "/api/s3/access-points":
+            # Access points are S3 Control, not bucket subresources: each section
+            # is read from the region S3 Control serves it from.
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            section = (params.get("section") or ["general"])[0]
+            bucket = (params.get("bucket") or [""])[0].strip()
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if section not in accesspoints.SECTIONS:
+                return self._json(
+                    400, {"error": f"unknown access point section: {section}"}
+                )
+            result = accesspoints.listing(
+                section, region, s3control(target["account_id"], region), bucket
+            )
+            failure = result.get("status") or 0
+            return self._json(
+                200
+                if result.get("ok")
+                else (failure if 400 <= failure < 500 else 502),
+                dict(
+                    result,
+                    account=target["account_id"],
+                    section=section,
+                ),
+            )
+        if path == "/api/s3/access-point-policy":
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            name = (params.get("name") or [""])[0].strip()
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not name:
+                return self._json(400, {"error": "an access point name is required"})
+            result = accesspoints.read_policy(
+                region, name, s3control(target["account_id"], region)
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
         if path == "/api/browse":
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
@@ -4052,6 +4141,77 @@ class ControlHandler(BaseHTTPRequestHandler):
                 lambda method, target_path, body="": signed_rest(
                     "s3", target["account_id"], region, method, target_path, body
                 ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/access-points":
+            # The create form, applied as one request: CreateAccessPoint, then the
+            # policy the form carries.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            result = accesspoints.create(
+                region, payload, s3control(target["account_id"], region)
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/access-point-delete":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            name = str(payload.get("name") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not name:
+                return self._json(400, {"error": "an access point name is required"})
+            result = accesspoints.delete(
+                region, name, s3control(target["account_id"], region)
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/access-point-policy-edit":
+            # An empty policy deletes it, which is what the console's editor does
+            # when you remove the statement.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            name = str(payload.get("name") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not name:
+                return self._json(400, {"error": "an access point name is required"})
+            result = accesspoints.write_policy(
+                region, name, payload.get("policy"), s3control(target["account_id"], region)
             )
             return self._json(
                 200 if result.get("ok") else 400,

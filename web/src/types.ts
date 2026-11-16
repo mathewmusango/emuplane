@@ -152,6 +152,55 @@ export interface S3ChildListing {
   service?: string
 }
 
+/** One row of the Access Points page, whichever section it came from. */
+export interface AccessPoint {
+  name: string
+  alias: string
+  arn: string
+  network_origin: string
+  vpc_id: string
+  created: string
+  status: string
+  bucket: string
+  buckets: { bucket: string; region: string }[]
+  region: string
+}
+
+/** POST access points are read from S3 Control, not from the bucket API. */
+export interface AccessPointListing {
+  ok: boolean
+  status?: number
+  section?: string
+  region?: string
+  access_points: AccessPoint[]
+  error?: string
+  account?: string
+}
+
+export interface AccessPointResult {
+  ok: boolean
+  status?: number
+  name: string
+  arn?: string
+  alias?: string
+  /** False when the policy failed after the access point itself was made. */
+  created?: boolean
+  error?: string
+  account?: string
+  region?: string
+}
+
+export interface AccessPointPolicy {
+  ok: boolean
+  status?: number
+  name: string
+  /** null is an access point without a policy, which is a real state. */
+  policy: string | null
+  error?: string
+  account?: string
+  region?: string
+}
+
 export interface BucketTag {
   Key: string
   Value: string

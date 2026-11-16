@@ -22,6 +22,7 @@ services:
       - ./control/console.py:/app/console.py:ro,Z
       - ./control/signed.py:/app/signed.py:ro,Z
       - ./control/s3extra.py:/app/s3extra.py:ro,Z
+      - ./control/accesspoints.py:/app/accesspoints.py:ro,Z
       - ./control/dynamo.py:/app/dynamo.py:ro,Z
       - ./control/store.py:/app/store.py:ro,Z
       - ./control/api_token.py:/app/api_token.py:ro,Z

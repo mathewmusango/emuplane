@@ -155,6 +155,72 @@ export const RESPONSES = {
       },
     ],
   },
+  // The Access Points page reads three sections from one path, so its fixture is
+  // a function of the query: an answer per section, as S3 Control would give.
+  '/api/s3/access-points': (url) => {
+    const section = new URL(url, 'http://console').searchParams.get('section') || 'general'
+    if (section === 'multi-region') {
+      return {
+        ok: true,
+        status: 200,
+        section,
+        region: 'us-west-2',
+        access_points: [
+          {
+            name: 'world-point',
+            alias: 'world-point.mrap',
+            arn: 'arn:aws:s3::111111111111:accesspoint/world-point.mrap',
+            network_origin: 'Internet',
+            vpc_id: '',
+            created: '2026-11-16T09:00:00Z',
+            status: 'READY',
+            bucket: '',
+            buckets: [
+              { bucket: 'logs-bucket', region: 'us-east-1' },
+              { bucket: 'west-bucket', region: 'us-west-2' },
+            ],
+            region: 'us-west-2',
+          },
+        ],
+      }
+    }
+    if (section === 'object-lambda') {
+      return { ok: true, status: 200, section, region: 'us-east-1', access_points: [] }
+    }
+    return {
+      ok: true,
+      status: 200,
+      section,
+      region: 'us-east-1',
+      access_points: [
+        {
+          name: 'reports-point',
+          alias: 'reports-point-4ud6rlwts3alias',
+          arn: 'arn:aws:s3:us-east-1:111111111111:accesspoint/reports-point',
+          network_origin: 'Internet',
+          vpc_id: '',
+          created: '2026-11-16T09:00:00Z',
+          status: 'READY',
+          bucket: 'logs-bucket',
+          buckets: [],
+          region: 'us-east-1',
+        },
+      ],
+    }
+  },
+  '/api/s3/access-point-policy': {
+    ok: true,
+    status: 200,
+    name: 'reports-point',
+    policy: null,
+  },
+  '/api/s3/access-point-delete': { ok: true, status: 204, name: 'reports-point' },
+  '/api/s3/access-point-policy-edit': {
+    ok: true,
+    status: 200,
+    name: 'reports-point',
+    policy: null,
+  },
   '/api/s3/bucket-settings': {
     ok: true,
     bucket: 'logs-bucket',
@@ -175,17 +241,19 @@ export const RESPONSES = {
   },
 }
 
-/** Install the fetch stub the console talks to. Returns nothing usable; the
- *  stub answers every path from `RESPONSES` with a 200. */
+/** Install the fetch stub the console talks to. A fixture is either the answer or
+ *  a function of the request URL, for a path that answers differently per query. */
 export const installFetch = () =>
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url) => {
       const path = String(url).split('?')[0]
+      const answer = RESPONSES[path] ?? {}
       return {
         ok: true,
         status: 200,
-        text: async () => JSON.stringify(RESPONSES[path] ?? {}),
+        text: async () =>
+          JSON.stringify(typeof answer === 'function' ? answer(String(url)) : answer),
       }
     }),
   )

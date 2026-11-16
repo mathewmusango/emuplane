@@ -1,4 +1,7 @@
 import type {
+  AccessPointListing,
+  AccessPointPolicy,
+  AccessPointResult,
   ActionCatalogue,
   ActionResult,
 
@@ -138,6 +141,40 @@ export const api = {
     request<S3ChildListing>(`/api/s3/table-buckets?${query({ account, region })}`),
   s3FileSystems: (account: string, region: string) =>
     request<S3ChildListing>(`/api/s3/file-systems?${query({ account, region })}`),
+  // Access points are S3 Control, and each section is read from its own region.
+  accessPoints: (
+    account: string,
+    region: string,
+    section: 'general' | 'multi-region' | 'object-lambda',
+  ) =>
+    request<AccessPointListing>(
+      `/api/s3/access-points?${query({ account, region, section })}`,
+    ),
+  createAccessPoint: (payload: {
+    account: string
+    region: string
+    name: string
+    bucket: string
+    vpc_id?: string
+    block_public_access?: Record<string, boolean>
+    policy?: string
+  }) => request<AccessPointResult>('/api/s3/access-points', { method: 'POST', body: payload }),
+  deleteAccessPoint: (payload: { account: string; region: string; name: string }) =>
+    request<AccessPointResult>('/api/s3/access-point-delete', { method: 'POST', body: payload }),
+  accessPointPolicy: (account: string, region: string, name: string) =>
+    request<AccessPointPolicy>(
+      `/api/s3/access-point-policy?${query({ account, region, name })}`,
+    ),
+  editAccessPointPolicy: (payload: {
+    account: string
+    region: string
+    name: string
+    policy: string | null
+  }) =>
+    request<AccessPointPolicy>('/api/s3/access-point-policy-edit', {
+      method: 'POST',
+      body: payload,
+    }),
   exec: (payload: {
     account: string
     region: string

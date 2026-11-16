@@ -138,6 +138,13 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
             { type: 'link', text: 'File systems', href: '/s3/files' },
           ],
         },
+        {
+          type: 'section',
+          text: 'Access management and security',
+          items: [
+            { type: 'link', text: 'Access Points', href: '/s3/access-points' },
+          ],
+        },
         { type: 'divider' },
         { type: 'link', text: 'All services', href: '/services' },
       ]
@@ -222,9 +229,11 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
             }
             activeHref={
               serviceHome === 's3'
-                ? ['/s3/table-buckets', '/s3/files'].includes(location.pathname)
-                  ? location.pathname
-                  : serviceBase
+                ? location.pathname.startsWith('/s3/access-points')
+                  ? '/s3/access-points'
+                  : ['/s3/table-buckets', '/s3/files'].includes(location.pathname)
+                    ? location.pathname
+                    : serviceBase
                 : serviceHome
                   ? serviceBase
                   : activeHref || location.pathname
