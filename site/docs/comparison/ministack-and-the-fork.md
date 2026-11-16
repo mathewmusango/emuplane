@@ -159,6 +159,14 @@ So the fork's `keep one record per bucket when objects load before metadata` fix
 not reproduce on upstream 1.5.40, including the multi-bucket case. State was written
 under `<account>/` on the volume and reloaded from it, not held in memory.
 
+**And on 1.5.41.** The same two runs were repeated on `ministackorg/ministack:1.5.41-full`:
+`835 passed` against that source, and the same four buckets across two regions with
+eight objects survived the restart intact. Between `v1.5.40` and `v1.5.41` upstream
+changed RDS, ACM, SNS, SSM, Firehose and an x509 helper — `ministack/services/s3.py`
+is untouched — which is why the result carries over. The cross-region duplicate still
+answers `200` from the emulator, as it does on 1.5.40, and is still answered by the
+gateway before a client sees it.
+
 ## Running against upstream
 
 The backend is a profile plus a URL, so pointing at upstream MiniStack is a
