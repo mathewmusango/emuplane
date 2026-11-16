@@ -84,6 +84,38 @@ exists. It is yours to edit.
 The first release also measures from the repository's first commit, not from a tag
 that does not exist yet, so `--since` is optional there too.
 
+## Choosing the version
+
+The bump comes from the issue labels, so the version and the changelog have one
+source. `.github/changelog.json` carries a `bump` per section:
+
+| Section | Bump | Why |
+| --- | --- | --- |
+| Added, Changed, Deprecated | minor | new behaviour, nothing existing breaks |
+| Removed | major | something that existed is gone |
+| Fixed, Security | patch | the behaviour it already claimed is restored |
+
+The **highest** bump among the release's issues wins and the lower numbers reset: a
+feature on `1.4.2` is `1.5.0`, a removal on `1.4.2` is `2.0.0`.
+
+Below `1.0.0` a removal moves the **minor** number instead — `0.1.0` → `0.2.0` —
+because SemVer reserves the leading number for the first stable API. This project is
+pre-1.0 and says so.
+
+```bash
+GITHUB_TOKEN=… python3 scripts/changelog.py --next-version            # what the issues imply
+GITHUB_TOKEN=… python3 scripts/changelog.py --next-version --version v0.1.0
+```
+
+With no tag and no flag it starts from `0.0.0`, which is what the first release
+needs. It prints a number and writes nothing.
+
+**Why not Release Please or semantic-release.** Both derive the version from
+conventional commits, which would make the commit prefix and the issue label two
+sources of truth for one decision — and a `fix:` commit closing a `removed` issue
+would compute the wrong number. Issues are the unit here, so they decide the
+version too. The tag is still cut by hand, which is what the release guard checks.
+
 ## Writing a bullet that reads well
 
 The default bullet is the issue title. When the title is written for the tracker

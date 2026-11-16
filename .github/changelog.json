@@ -1,12 +1,12 @@
 {
   "prefix": "Changelog:",
   "sections": [
-    { "title": "Added", "labels": ["added", "feature", "enhancement"], "color": "0e8a16" },
-    { "title": "Changed", "labels": ["changed", "improvement"], "color": "1d76db" },
-    { "title": "Deprecated", "labels": ["deprecated"], "color": "fbca04" },
-    { "title": "Removed", "labels": ["removed"], "color": "d93f0b" },
-    { "title": "Fixed", "labels": ["fixed", "bug"], "color": "b60205" },
-    { "title": "Security", "labels": ["security"], "color": "5319e7" }
+    { "title": "Added", "labels": ["added", "feature", "enhancement"], "color": "0e8a16", "bump": "minor" },
+    { "title": "Changed", "labels": ["changed", "improvement"], "color": "1d76db", "bump": "minor" },
+    { "title": "Deprecated", "labels": ["deprecated"], "color": "fbca04", "bump": "minor" },
+    { "title": "Removed", "labels": ["removed"], "color": "d93f0b", "bump": "major" },
+    { "title": "Fixed", "labels": ["fixed", "bug"], "color": "b60205", "bump": "patch" },
+    { "title": "Security", "labels": ["security"], "color": "5319e7", "bump": "patch" }
   ],
   "exclude_labels": [
     "skip-changelog",

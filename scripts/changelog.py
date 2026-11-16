@@ -116,6 +116,44 @@ def check(text: str, version: str) -> int:
     return 1
 
 
+def parse_version(text: str) -> tuple[int, int, int]:
+    """`v0.2.1`, `0.2.1` and a bare tag all read as (0, 2, 1)."""
+    found = re.search(r"(\d+)\.(\d+)\.(\d+)", text or "")
+    if not found:
+        raise SystemExit(f"not a semantic version: {text!r}")
+    return tuple(int(part) for part in found.groups())  # type: ignore[return-value]
+
+
+BUMP_RANK = {"patch": 1, "minor": 2, "major": 3}
+
+
+def next_version(current: str, issues: list[dict], config: dict) -> str:
+    """The version the closed issues imply: the highest `bump` any of them carries.
+
+    Below 1.0.0 a `major` bump moves the minor number: SemVer reserves the leading
+    number for the first stable API, so a breaking change is a 0.y step.
+    """
+    level = "patch"
+    for issue in issues:
+        if issue.get("state_reason") == "not_planned":
+            continue
+        title = section_for(issue, config)
+        section = next(
+            (s for s in config.get("sections", []) if s["title"] == title), None
+        )
+        wanted = str((section or {}).get("bump") or "patch").lower()
+        if BUMP_RANK.get(wanted, 1) > BUMP_RANK[level]:
+            level = wanted
+    major, minor, patch = parse_version(current)
+    if major == 0 and level == "major":
+        level = "minor"
+    if level == "major":
+        return f"{major + 1}.0.0"
+    if level == "minor":
+        return f"{major}.{minor + 1}.0"
+    return f"{major}.{minor}.{patch + 1}"
+
+
 def label_plan(config: dict) -> list[dict]:
     """Every label the two gates depend on, with the colour and description `gh` is given."""
     plan: list[dict] = []
@@ -183,13 +221,18 @@ def repo_slug(explicit: str = "") -> str:
     return match.group(1)
 
 
-def since_default() -> str:
-    """The commit date of the newest tag, or of the first commit when the repo has no tag yet."""
-    tag = subprocess.run(
+def latest_tag() -> str:
+    """The newest tag, or an empty string when nothing has been released."""
+    return subprocess.run(
         ["git", "describe", "--tags", "--abbrev=0"],
         capture_output=True,
         text=True,
     ).stdout.strip()
+
+
+def since_default() -> str:
+    """The commit date of the newest tag, or of the first commit when the repo has no tag yet."""
+    tag = latest_tag()
     if tag:
         stamp = subprocess.run(
             ["git", "log", "-1", "--format=%cI", tag], capture_output=True, text=True
@@ -241,6 +284,11 @@ def main() -> int:
         action="store_true",
         help="create the labels the gates need, from .github/changelog.json",
     )
+    parser.add_argument(
+        "--next-version",
+        action="store_true",
+        help="print the version the closed issues imply, and write nothing",
+    )
     parser.add_argument("--dry-run", action="store_true", help="say what --create-labels would do")
     args = parser.parse_args()
 
@@ -254,6 +302,17 @@ def main() -> int:
         return 0
 
     text = FILE.read_text(encoding="utf-8")
+    if args.next_version:
+        config = load_config()
+        token = os.environ.get("GITHUB_TOKEN", "")
+        if not token:
+            raise SystemExit("set GITHUB_TOKEN to read the issues")
+        issues = fetch_issues(
+            repo_slug(args.repo), args.since or since_default(), token
+        )
+        print(next_version(args.version or latest_tag() or "v0.0.0", issues, config))
+        return 0
+
     if not args.version:
         raise SystemExit("--version is required unless --create-labels is used")
     if args.check:

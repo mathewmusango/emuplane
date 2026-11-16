@@ -176,3 +176,36 @@ def test_a_tag_wins_over_the_first_commit(monkeypatch):
     answers = iter([_Answered("v0.1.0\n"), _Answered("2026-11-01T00:00:00+00:00\n")])
     monkeypatch.setattr(changelog.subprocess, "run", lambda *a, **k: next(answers))
     assert changelog.since_default() == "2026-11-01T00:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [("v0.2.1", (0, 2, 1)), ("1.4.2", (1, 4, 2)), ("v2.0.0-rc.1", (2, 0, 0))],
+)
+def test_a_version_is_read_from_a_tag(text, expected):
+    assert changelog.parse_version(text) == expected
+
+
+def test_a_bug_fix_bumps_the_patch(config):
+    assert changelog.next_version("v1.4.2", [issue(1, "A fix", ["bug"])], config) == "1.4.3"
+
+
+def test_a_feature_bumps_the_minor_and_resets_the_patch(config):
+    assert changelog.next_version("v1.4.2", [issue(1, "A feature", ["added"])], config) == "1.5.0"
+
+
+def test_a_removal_bumps_the_major(config):
+    assert changelog.next_version("v1.4.2", [issue(1, "Gone", ["removed"])], config) == "2.0.0"
+
+
+def test_the_highest_bump_wins(config):
+    issues = [issue(1, "A fix", ["bug"]), issue(2, "A feature", ["feature"]), issue(3, "A fix", ["bug"])]
+    assert changelog.next_version("v1.4.2", issues, config) == "1.5.0"
+
+
+def test_below_one_point_oh_a_break_moves_the_minor(config):
+    assert changelog.next_version("v0.1.0", [issue(1, "Gone", ["removed"])], config) == "0.2.0"
+
+
+def test_an_excluded_issue_does_not_move_the_version(config):
+    assert changelog.next_version("v1.4.2", [issue(1, "A chore", ["chore"])], config) == "1.4.3"
