@@ -65,14 +65,27 @@ jobs:
         run: echo "ref=ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: Sign in to the registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-      - name: The image's SBOM
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          image: ${{ steps.image.outputs.ref }}
-          format: spdx-json
-          output-file: emuplane-${{ github.ref_name }}.spdx.json
-          upload-artifact: false
-          upload-release-assets: false
+      - name: The image's SBOM, read from the attestation the build attached
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "${{ steps.image.outputs.ref }}" \
+            --format '{{json .SBOM}}' > sbom-attestation.json
+          python3 - <<'PY'
+          import json, os, pathlib, sys
+
+          raw = pathlib.Path("sbom-attestation.json").read_text(encoding="utf-8").strip()
+          data = json.loads(raw or "{}")
+          spdx = (
+              data.get("SPDX")
+              or data.get("SPDX-2.3")
+              or next((value for key, value in data.items() if key.startswith("SPDX")), None)
+          )
+          if not spdx:
+              sys.exit("the image carries no SPDX attestation: was it built with sbom: true?")
+          name = f"emuplane-{os.environ['GITHUB_REF_NAME']}.spdx.json"
+          pathlib.Path(name).write_text(json.dumps(spdx, indent=2) + "\n", encoding="utf-8")
+          print(f"wrote {name}")
+          PY
       - name: Checksums and the digest the tag resolves to
         run: |
           set -euo pipefail

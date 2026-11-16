@@ -112,6 +112,31 @@ What a release carries, besides the notes and the image:
 `workflow_dispatch` is exempt from the `GITHUB_TOKEN` recursion rule, which is why
 the tagging run can start the release itself without a personal token.
 
+## The release units
+
+One release touches several artefacts, and they must not drift apart. A unit that
+is forgotten is a reader on a version whose docs, image or notes belong to a
+different one.
+
+| Unit | Where it lives | Written by |
+| --- | --- | --- |
+| Git tag | `vX.Y.Z` | `release-tag.yml`, on merge |
+| Changelog section | `CHANGELOG.md` | `changelog.py --write`, in the release PR |
+| Docs version | `site/versioned_docs/version-X.Y.Z` + `site/versions.json` | `npm --prefix site run version X.Y.Z`, in the release PR |
+| Image tag | GHCR `X.Y.Z` and `latest` | the image leaf, at the tag |
+| Image digest | the release's `IMAGE-DIGEST` | the artifacts job, at the tag |
+| SBOM and checksum | `emuplane-vX.Y.Z.spdx.json`, `SHA256SUMS` | the artifacts job, from the image's attestation |
+
+`scripts/units.py --version vX.Y.Z --check` is the guard: it verifies the local
+units (the section, the docs version and its pages, the tag) and fails naming what
+is missing. The release PR runs it before it commits, so a release cannot be
+opened with the docs left behind.
+
+```bash
+python3 scripts/units.py --version v0.2.0 --check --skip-tag   # before the tag exists
+python3 scripts/units.py --version v0.2.0 --check              # after it
+```
+
 ## Two gates in CI
 
 - **A pull request must name the issue it closes** — `Closes #12`, `Fixes #7`,
