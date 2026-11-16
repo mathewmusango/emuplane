@@ -15,7 +15,8 @@ Two columns matter:
 - **Emuplane test** — the test that exercises it, in this version.
 
 The table is generated in the implementation repository and copied here, so what
-you read is what the ledger says:
+you read is what the ledger says. Work that is planned rather than done is tracked
+on this repository's [project board](https://github.com/mathewmusango/emuplane/projects/11).
 
 ```bash
 npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
