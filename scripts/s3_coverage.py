@@ -1,28 +1,5 @@
 #!/usr/bin/env python3
-"""Write `S3.md`: what S3 offers, and who tests each part of it.
-
-Three sources, no hand-maintained list:
-
-  * the operations upstream advertises — the `| **S3** |` row of the emulator's
-    own README (`ministack-src`, a sibling checkout);
-  * the console actions — `control/console.py`, which is what the API explorer
-    and the create page are built from;
-  * the emuplane tests — the map below, kept honest by hand because a test name
-    cannot be derived from an operation name.
-
-A fourth column of knowledge is the pages: an operation a console page performs
-(`PAGES` below) is not a catalogue action, and without saying so the table would
-read as though nobody in emuplane does it. The guess that an action id is a
-substring of an operation was wrong (`delete-bucket` inside
-`DeleteBucketEncryption`), so both maps are explicit.
-
-Everything not in the map is reachable through the gateway and covered only by
-the emulator's own suite: that is the point of the last column.
-
-Usage:
-  python3 scripts/s3_coverage.py            # write S3.md
-  python3 scripts/s3_coverage.py --check    # fail when S3.md is out of date
-"""
+"""Write `S3.md`: what S3 offers, and who tests each part of it — `--check` fails when the file is stale."""
 
 from __future__ import annotations
 
@@ -35,9 +12,7 @@ EMULATOR = ROOT.parent / "ministack-src"
 README = EMULATOR / "README.md"
 TARGET = ROOT / "S3.md"
 
-# Operation -> the emuplane test that exercises it. Everything else is
-# gateway-only: the emulator's own `tests/test_s3.py` covers it, emuplane does
-# not look.
+# Operation -> the emuplane test that exercises it; everything else is gateway-only, covered by the emulator's suite.
 COVERED = {
     "CreateBucket": "tests/s3/test_create.py, tests/control/test_gateway.py, tests/control/test_parity.py",
     "DeleteBucket": "tests/control/test_gateway.py, tests/control/test_parity.py",
@@ -125,9 +100,7 @@ COVERED = {
     "WriteGetObjectResponse": "tests/s3/test_operations.py (unknown route refused)",
 }
 
-# Catalogue action -> the operation it runs. An action's id cannot be matched to
-# an operation string by substring: `delete-bucket` is inside
-# `DeleteBucketEncryption`, which it does not do.
+# Catalogue action -> the operation it runs, matched exactly: an id is not a substring of an operation name.
 ACTION_OPERATIONS = {
     "create-bucket": ["CreateBucket"],
     "delete-bucket": ["DeleteBucket"],
@@ -136,8 +109,7 @@ ACTION_OPERATIONS = {
     "delete-object": ["DeleteObject", "DeleteObjects"],
 }
 
-# Operations a console page performs — a page, not an `/api/exec` action, so the
-# catalogue does not list them and the column would read as gateway-only.
+# Operations a console page performs, which the catalogue does not list, so the column is not gateway-only.
 PAGES = {
     "ListBuckets": "Buckets page",
     "HeadBucket": "Bucket page (region check)",
@@ -187,9 +159,7 @@ PAGES = {
     "ListAccessPointsForObjectLambda": "Access Points page (Object Lambda tab)",
 }
 
-# Operation -> where the console shows or performs it. A row with an entry is
-# reachable from the GUI; a row without one is gateway-only, and the point of the
-# column is that the gap is visible per operation rather than inferred.
+# Operation -> where the console shows or performs it; no entry means gateway-only, and the gap stays visible.
 GUI = {
     "CreateBucket": "Buckets page › Create bucket",
     "DeleteBucket": "Buckets page › Delete",

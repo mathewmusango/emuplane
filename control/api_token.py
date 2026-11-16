@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""The control's API bearer token, stored hashed and minted exactly once.
-
-A bearer token is a credential, so it does not live in `.env` — plaintext in a
-file that gets copied, backed up and pasted into chats. It lives in the
-`settings` store as a SHA-256 hash, the same contract as a session: the raw value
-exists only in the output of the command that created it.
-
-    python /app/token.py --status     # is one set, and when was it made
-    python /app/token.py --rotate     # mint a new one, print it once, store the hash
-
-`scripts/token.sh` runs this inside the running container. Rotating invalidates
-the previous token immediately — that is the point of rotating.
-"""
+"""The control's API bearer token, hashed in the `settings` store: `token.py --status` or `--rotate`."""
 
 from __future__ import annotations
 

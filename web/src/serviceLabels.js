@@ -85,8 +85,7 @@ export function serviceLabel(name) {
   return NAMES[name] || words(name)
 }
 
-// The name the console uses for a service in a breadcrumb or a nav heading —
-// "Amazon S3", where the short label is just "S3".
+// The name the console uses for a service in a breadcrumb or nav heading — "Amazon S3", where the short label is "S3".
 const LONG_NAMES = {
   s3: 'Amazon S3',
   ses: 'Amazon SES',

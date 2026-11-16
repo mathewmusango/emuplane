@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the service TODO list from the upstream README.
-
-The upstream "Supported Services" tables are the source of truth for what the
-emulator can do; `control/console.py` is the source of truth for what our
-console can do. This merges both into:
-
-  my-docs/SERVICES.md   human summary + per-service operation list
-  my-docs/services.json machine-readable copy for the UI/roadmap
-
-Usage:
-  python3 scripts/upstream_services.py                 # fetch upstream README
-  python3 scripts/upstream_services.py --input FILE    # use a local copy
-"""
+"""Generate the service TODO list from the upstream README, merged with the console catalogue."""
 
 from __future__ import annotations
 

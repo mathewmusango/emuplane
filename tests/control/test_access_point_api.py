@@ -1,10 +1,4 @@
-"""The Access Points page's own API.
-
-These run the real `ControlHandler` behind a real socket, authenticated with the
-deployment's bearer token, and check the answers the page renders: a listing in
-the account's context, a create that reports the server's own ARN, the policy
-editor, and a delete.
-"""
+"""The Access Points page's own API: a listing, a create, the policy editor and a delete, over a real socket."""
 
 from __future__ import annotations
 
@@ -218,9 +212,7 @@ def test_the_multi_region_section_is_read_from_us_west_2(console):
     status, body = _list(console, section="multi-region")
     assert status == 200, body
     assert body["region"] == "us-west-2"
-    # Not an emptiness check: this process's emulator keeps every Multi-Region
-    # access point the suite makes, and the page's region has nothing to do with
-    # which of them come back.
+    # Not an emptiness check: the emulator keeps every Multi-Region access point the suite makes.
     assert all(row["region"] == "us-west-2" for row in body["access_points"])
 
 
@@ -232,8 +224,7 @@ def test_the_object_lambda_section_answers_for_the_page_region(console):
 
 
 def test_s3_control_calls_name_the_account_in_the_header(control, console, monkeypatch):
-    """S3 Control refuses a call without `x-amz-account-id`, so the page's calls
-    must carry it — and be signed in the region they act in."""
+    """S3 Control refuses a call without `x-amz-account-id`, so the page must send it, signed in its region."""
     seen = []
 
     def fake(service, account, region, method, path, body="", extra_headers=None):
@@ -263,8 +254,7 @@ def _page(host: str, path: str):
 
 
 def test_a_page_opens_by_its_url(console, control, tmp_path, monkeypatch):
-    """A page you cannot open directly is a page you cannot bookmark: the SPA
-    shell has to answer at any depth under `/s3/`."""
+    """A page you cannot open directly is a page you cannot bookmark: the SPA shell answers at any depth under `/s3/`."""
     (tmp_path / "index.html").write_text("<!doctype html><title>Emuplane</title>")
     monkeypatch.setattr(control, "STATIC_DIR", str(tmp_path))
     for path in ("/s3/access-points", "/s3/access-points/create", "/s3/buckets/logs-bucket"):

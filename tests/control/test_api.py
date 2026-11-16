@@ -1,8 +1,4 @@
-"""The control's own S3 API — what the console's pages call.
-
-These run the real `ControlHandler` behind a real socket, authenticated with the
-deployment's bearer token, and check the answers the pages rely on.
-"""
+"""The control's own S3 API — what the console's pages call, over a real socket as the bearer token."""
 
 from __future__ import annotations
 
@@ -92,8 +88,7 @@ def test_a_browse_row_carries_the_bucket_own_region(console):
     )
     assert status == 200
     regions = {row["name"]: row.get("region") for row in body["resources"]}
-    # The listing is account-wide, so the row must report the bucket's own region
-    # rather than the one it was asked in.
+    # The listing is account-wide, so the row reports the bucket's own region.
     assert regions["api-west-row-bucket"] == "us-west-2"
 
 
@@ -327,8 +322,7 @@ def test_the_bucket_page_offers_the_documents_s3_answers(console):
     )
     assert status == 200, body
     documents = body["documents"]
-    # The ACL exists on every bucket; logging and notifications are answered as
-    # empty elements, which is the same state as not configured.
+    # The ACL exists on every bucket; logging and notifications are answered as empty elements.
     assert documents["acl"] and "AccessControlPolicy" in documents["acl"]
     assert documents["logging"] is None
     assert documents["notifications"] is None

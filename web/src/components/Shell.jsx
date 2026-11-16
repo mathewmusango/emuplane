@@ -104,9 +104,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
     navigate(href)
   }
 
-  // On `/<service>/home` the sidebar is the service's own: what it lists here is
-  // what this console can actually do with it. S3 hangs more pages off that nav
-  // (create, and the bucket types and files tabs), and they all belong to it.
+  // On `/<service>/home` the sidebar is the service's own; S3 hangs more pages off that nav (create, bucket types, files tabs).
   const serviceHome = (() => {
     const parts = location.pathname.split('/').filter(Boolean)
     if (parts[0] === 's3') return 's3'
@@ -156,9 +154,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
     ]
   }
 
-  // Write the region into the URL at the moment the picker is used. The page
-  // also syncs it from an effect, but doing it here means the address bar changes
-  // on the click itself — no render scheduling involved.
+  // Write the region into the URL on the click itself, so the address bar changes without waiting for the effect.
   const changeRegion = (name) => {
     setRegion(name)
     const parts = location.pathname.split('/').filter(Boolean)

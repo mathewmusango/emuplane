@@ -16,8 +16,7 @@ body {
   margin: 0;
 }
 
-/* Cloudscape's own motion tokens already honour this; keep the few local
-   transitions we add from fighting a reduced-motion preference. */
+/* Cloudscape's own motion tokens already honour this; keep the few local transitions we add from fighting a reduced-motion preference. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -29,11 +28,7 @@ body {
   }
 }
 
-/* Brand palette, taken from Emuplane's own mark: navy ink, royal blue, sky,
-   orange. Cloudscape publishes its tokens on `body` inside an `@layer`, so an
-   unlayered override here wins without `!important` and without forking the
-   component library. Each mode is declared separately: the light link colour is
-   unreadable on the dark surface, which is why the dark block repeats it. */
+/* Brand palette, taken from Emuplane's own mark: navy ink, royal blue, sky, orange. Cloudscape publishes its tokens on `body` inside an `@layer`, so an unlayered override here wins without `!important` and without forking the component library. Each mode is declared separately: the light link colour is unreadable on the dark surface, which is why the dark block repeats it. */
 body:not(.awsui-dark-mode) {
   --color-background-button-primary-default: #ff8a1f;
   --color-background-button-primary-hover: #ef700a;
@@ -57,14 +52,12 @@ body.awsui-dark-mode {
   --color-background-item-selected: #17233d;
 }
 
-/* Console Home: a widget grid. Two columns on a normal window, one on a narrow
-   one — the widgets themselves decide their own internal layout. */
+/* Console Home: a widget grid. Two columns on a normal window, one on a narrow one — the widgets themselves decide their own internal layout. */
 .home-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  /* Cards in a row share a height, so the grid reads as rows rather than a
-     ragged stack. */
+  /* Cards in a row share a height, so the grid reads as rows rather than a ragged stack. */
   align-items: stretch;
 }
 
@@ -104,10 +97,7 @@ body.awsui-dark-mode {
   }
 }
 
-/* The console bar is fixed, so the layout is pushed down by exactly its height.
-   Doing this here rather than through AppLayout's `headerSelector` keeps the
-   offset predictable — the selector measured the bar but the page title still
-   slid underneath it. */
+/* The console bar is fixed, so the layout is pushed down by exactly its height. Doing this here rather than through AppLayout's `headerSelector` keeps the offset predictable — the selector measured the bar but the page title still slid underneath it. */
 .console-offset {
   padding-block-start: var(--topbar-h, 3.25rem);
 }

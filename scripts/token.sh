@@ -1,19 +1,10 @@
 #!/usr/bin/env bash
-# Mint or inspect the control's API bearer token.
-#
-# The token is a credential, so it is not stored in .env and not written to the
-# container log: it lives in the settings store as a SHA-256 hash, and the raw
-# value is printed here exactly once. Rotating invalidates the previous token
-# immediately.
-#
-#   ./scripts/token.sh            # rotate: prints the new token once
-#   ./scripts/token.sh --status   # is one set, and when was it made
+# Mint or inspect the control's API bearer token; it is stored hashed and printed once, and rotating invalidates it.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# The control container: EP_CONTROL_CONTAINER, else the container labelled
-# app=emuplane (the overlay names it), else the compose default name.
+# The control container: EP_CONTROL_CONTAINER, else the app=emuplane container, else the compose default name.
 container=$(sed -n 's/^EP_CONTROL_CONTAINER=//p' .env)
 if [ -z "$container" ]; then
   container=$(podman ps -a --filter label=app=emuplane --format '{{.Names}}' | head -n 1)

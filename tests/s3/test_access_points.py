@@ -1,9 +1,4 @@
-"""Access points over the wire: create, list, policy, delete.
-
-Each case drives `control/accesspoints.py` with the control's own signed client,
-wired to the emulator stand-in, so the requests are the ones the console makes —
-including the `x-amz-account-id` header S3 Control names the account in.
-"""
+"""Access points over the wire: create, list, policy, delete, with the `x-amz-account-id` header S3 Control needs."""
 
 from __future__ import annotations
 

@@ -1,16 +1,10 @@
 #!/usr/bin/env bash
-# Start Emuplane: gateway, console, accounts.
-#
-# The backend is a separate service and a separate repository. This script refuses
-# to start until it is reachable, because a gateway with no backend answers every
-# request with an error.
+# Start Emuplane: gateway, console, accounts; the backend must be reachable first, or every request errors.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# `up.sh --build` rebuilds the image first, so restarting after a source change
-# is one command. The build is cached (see scripts/build.sh); a no-change
-# rebuild costs a few seconds.
+# `up.sh --build` rebuilds the image first (cached, so a no-change rebuild costs a few seconds).
 if [ "${1:-}" = "--build" ]; then
   shift
   ./scripts/build.sh
@@ -22,13 +16,9 @@ if [ ! -f .env ]; then
 fi
 chmod 600 .env
 
-# There is no seeded account and no seeded credential: a fresh control only offers
-# sign-up, and the API bearer token is minted on demand by ./scripts/token.sh
-# (stored hashed, printed once — never kept in .env).
+# No seeded account or credential: a fresh control offers sign-up only, and ./scripts/token.sh mints the token.
 
-# The backend connection string: EP_BACKEND_URL in .env is the source of truth.
-# With it empty, the URL is derived from a container name and the default port, so
-# a compose-only setup still works.
+# EP_BACKEND_URL in .env is the source of truth; empty means derive it from a container name and port.
 node_url=$(sed -n 's/^EP_BACKEND_URL=//p' .env)
 if [ -z "$node_url" ]; then
   node_container=$(sed -n 's/^EP_BACKEND_CONTAINER=//p' .env)
@@ -42,8 +32,7 @@ if [ -z "$node_url" ]; then
 fi
 export EP_BACKEND_URL="$node_url"
 
-# When the URL names a local container, fail early with a useful sentence rather
-# than letting the control report an unreachable backend. A remote URL skips this.
+# A local container named in the URL must be running: fail early with a useful sentence. A remote URL skips this.
 host=${node_url#*://}
 host=${host%%/*}
 host=${host%%:*}
@@ -54,12 +43,7 @@ if podman container exists "$host" 2>/dev/null; then
   fi
 fi
 
-# docker-compose.yml is the generic definition; an untracked overlay (compose.yml
-# by default, or whatever EP_OVERLAY names) may add container names, routes, an
-# external network and extra mounts. The overlay also carries the compose project
-# name (`name:`), which is read from it — EP_PROJECT_NAME still overrides.
-# -p is explicit because podman-compose resolves the project name from the first
-# file and would otherwise miss the containers the overlay named.
+# docker-compose.yml is generic; an untracked overlay (compose.yml, or EP_OVERLAY) adds names, routes, network, mounts and the project name, so -p is explicit.
 overlay=$(sed -n 's/^EP_OVERLAY=//p' .env)
 overlay=${overlay:-compose.yml}
 project=$(sed -n 's/^EP_PROJECT_NAME=//p' .env)
@@ -73,9 +57,7 @@ if [ -n "$overlay" ] && [ -f "$overlay" ]; then
   compose+=(-f "$overlay")
 fi
 
-# `--dev` (or EP_DEV=1) mounts the built console and the control source instead
-# of baking them: a code change then costs a host `vite build` (~1s) or a
-# container restart (~2s), never an image build. See scripts/dev.sh.
+# `--dev` (or EP_DEV=1) mounts the built console and the control source: a change costs a vite build or a restart.
 if [ "${1:-}" = "--dev" ] || [ "${EP_DEV:-}" = "1" ]; then
   if [ ! -f compose.dev.yml ]; then
     echo "compose.dev.yml is missing; cannot apply the dev overlay" >&2
@@ -85,9 +67,7 @@ if [ "${1:-}" = "--dev" ] || [ "${EP_DEV:-}" = "1" ]; then
   echo "dev overlay: console and control source are mounted, not baked"
 fi
 
-# The overlay joins a network the backend is already on. It is declared there
-# (`networks:`), so the name is read from the overlay rather than configured twice;
-# EP_NETWORK still overrides, and up.sh creates the network when it is missing.
+# The overlay declares the network it joins, so read the name there; EP_NETWORK overrides, and up.sh creates it if missing.
 network=$(sed -n 's/^EP_NETWORK=//p' .env)
 if [ -z "$network" ] && [ -f "$overlay" ]; then
   network=$(awk '/^networks:/{block=1; next}
@@ -98,9 +78,7 @@ if [ -n "$network" ] && ! podman network exists "$network"; then
   podman network create "$network"
 fi
 
-# First setup, and every start after it: provision the control's own substrate.
-# The stack owns every DynamoDB table the control stores itself in; the job is
-# idempotent and the control refuses to serve until the tables exist.
+# Provision the control's own DynamoDB tables: idempotent, and the control refuses to serve until they exist.
 echo "applying the control stack (bootstrap/apply.py)"
 "${compose[@]}" run --rm --no-deps bootstrap
 

@@ -19,10 +19,7 @@ import {
 } from '../identityStore'
 import './topbar.css'
 
-// The console bar: mark, favourites, the services grid, search, then the
-// operator cluster on the right. Custom rather than Cloudscape's TopNavigation
-// because the services button has to sit *before* the search — that is where the
-// console puts it, and TopNavigation has no slot there.
+// The console bar: mark, favourites, the services grid, search, then the operator cluster on the right.
 
 const REGION_NAMES = {
   'us-east-1': 'N. Virginia',
@@ -79,10 +76,7 @@ export default function TopBar({
   const accountRef = useRef(null)
   const regionRef = useRef(null)
 
-  // A session added in another window is stored there; the opener only has to
-  // pick the list up again. The cookie is shared by the whole browser, so the
-  // window that added it is the one this tab is now signed in as — a reload is
-  // the honest way to show that.
+  // A session added in another window is stored there and shared by the cookie, so a reload is the honest way to show it.
   useEffect(() => {
     const onMessage = (event) => {
       if (event.origin !== window.location.origin) return
@@ -244,8 +238,7 @@ export default function TopBar({
 
           {accountOpen && (
             <div className="topbar__menu topbar__menu--account" role="menu">
-              {/* Both identities lead with the account's identity; an IAM user
-                  adds its own name underneath. */}
+              {/* Both identities lead with the account's identity; an IAM user adds its own name underneath. */}
               <div className="topbar__field">
                 <span>Account ID</span>
                 <div className="topbar__copy">
@@ -352,8 +345,7 @@ export default function TopBar({
                       setBusy(false)
                       return
                     }
-                    // Turning it on stores this session, so switching works
-                    // straight away rather than from the next sign-in.
+                    // Turning it on stores this session, so switching works straight away.
                     try {
                       const current = await api.remember()
                       enableMultiSession(true)
@@ -373,9 +365,7 @@ export default function TopBar({
                   <button
                     type="button"
                     className="topbar__box topbar__box--wide"
-                    // Signing in again adds an identity rather than replacing
-                    // this one: the cookie moves, and the token for the session
-                    // you are in now stays in the switch list.
+                    // Signing in again adds an identity rather than replacing this one: the current token stays in the switch list.
                     onClick={() => {
                       setAccountOpen(false)
                       const opened = window.open(

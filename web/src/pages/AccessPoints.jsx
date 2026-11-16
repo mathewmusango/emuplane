@@ -21,15 +21,7 @@ import { useSession } from '../context'
 import { regionName } from '../regionNames'
 import { Shell } from '../components/Shell'
 
-// The Access Points page. The console's own four tabs, minus Directory buckets:
-// this emulator serves neither directory buckets nor their access points, and an
-// empty tab would claim it served none.
-//
-// General purpose access points are fully managed here. Multi-Region ones are
-// listed and created here — a Multi-Region create is asynchronous, so the page
-// shows the operation the request answered with. Object Lambda ones are listed
-// only: their creation is not on this page yet, and the tab says so rather than
-// showing a button that cannot finish.
+// The Access Points page: three tabs (no directory buckets); Multi-Region creates are asynchronous, Object Lambda ones are listed only.
 const SECTIONS = {
   general: {
     tab: 'General purpose buckets',
@@ -52,8 +44,7 @@ const SECTIONS = {
 
 const dash = '\u2014'
 
-// S3 Control's asynchronous operations walk NEW → INPROGRESS → SUCCEEDED/FAILED.
-// The emulator settles at once, but the page shows whatever it is told.
+// S3 Control's asynchronous operations walk NEW → INPROGRESS → SUCCEEDED/FAILED; the emulator settles at once.
 const STATUS = {
   NEW: 'pending',
   INPROGRESS: 'in-progress',
@@ -65,8 +56,7 @@ const statusOf = (status) => (
   <StatusIndicator type={STATUS[status] || 'info'}>{status || dash}</StatusIndicator>
 )
 
-// SubmitMultiRegionAccessPointRoutes takes 0 or 100 per member and refuses every
-// member at 0, so a traffic dial has two states, not a range.
+// Each traffic dial is 0 or 100 per member; S3 refuses a request where every member is 0.
 const DIALS = [
   { value: '100', label: 'Active (100%)' },
   { value: '0', label: 'Inactive (0%)' },
@@ -149,9 +139,7 @@ const COLUMNS = {
   ],
 }
 
-// One asynchronous Multi-Region operation, as the create's answer carries it: the
-// token is the only handle on the operation, so the status is shown beside it
-// rather than as a bare sentence.
+// One asynchronous Multi-Region operation; the token is the only handle, so the status is shown beside it.
 const OperationDetail = ({ operation }) => (
   <SpaceBetween size="m">
     <ColumnLayout columns={3} variant="text-grid">
@@ -219,9 +207,7 @@ export default function AccessPoints() {
   const [bucketsError, setBucketsError] = useState('')
   const [createError, setCreateError] = useState('')
   const [createResult, setCreateResult] = useState(null)
-  // The operations this page created, by access point name. The token exists
-  // only in the answer that carried it, so this is the one place it can be shown
-  // from.
+  // The operations this page created, by access point name: the token exists only in the answer that carried it.
   const [operations, setOperations] = useState({})
   const [routeDials, setRouteDials] = useState(null)
   const [routesBusy, setRoutesBusy] = useState(false)
@@ -285,9 +271,7 @@ export default function AccessPoints() {
     }
   }
 
-  // A listing is not a detail: an MRAP's list row has no policy and no routes,
-  // and an Object Lambda access point's has no configuration, so the row view
-  // reads the instance resources themselves.
+  // A listing row has no policy, routes or configuration, so the row view reads the instance resources themselves.
   const openDetail = async (row = selected[0]) => {
     if (!row) return
     setDetailRow(row)
@@ -339,8 +323,7 @@ export default function AccessPoints() {
             name: policy.name,
             policy: next,
           })
-      // A Multi-Region policy is written by an asynchronous request, so a FAILED
-      // operation means the old policy is still in force: keep the editor open.
+      // A FAILED Multi-Region policy write means the old policy is still in force, so keep the editor open.
       if (answer.operation) {
         setOperations((held) => ({ ...held, [policy.name]: answer.operation }))
         if (answer.created === false) {
@@ -393,8 +376,7 @@ export default function AccessPoints() {
     }
   }
 
-  // The traffic dials are the one Multi-Region write S3 answers synchronously, so
-  // they are edited in place on the detail's own routes table.
+  // The traffic dials are the one Multi-Region write S3 answers synchronously, so they are edited in place.
   const startRoutes = () => {
     const dials = {}
     for (const route of detailView?.routes || []) {
@@ -427,9 +409,7 @@ export default function AccessPoints() {
     }
   }
 
-  // A Multi-Region create is asynchronous, so the form reads the account's own
-  // buckets — each labelled with its Region, because the members have to come
-  // from different ones — and then shows the operation the create answered with.
+  // A Multi-Region create is asynchronous, so the form reads the account's buckets, each labelled with its Region.
   const openCreate = () => {
     setCreateOpen(true)
     setNewName('')
@@ -453,8 +433,7 @@ export default function AccessPoints() {
       .catch((err) => setBucketsError(err.message))
   }
 
-  // Two members in one Region is the create S3 refuses, so the form says so
-  // before the request rather than after it.
+  // Two members in one Region is the create S3 refuses, so the form says so before the request.
   const memberProblem = useMemo(() => {
     if (members.length < 2) return ''
     const seen = new Set()
@@ -665,8 +644,7 @@ export default function AccessPoints() {
               <Button variant="link" onClick={() => setPolicy(null)}>
                 Cancel
               </Button>
-              {/* S3 Control has no DeleteMultiRegionAccessPointPolicy: a
-                  Multi-Region policy is replaced, never removed. */}
+              {/* S3 Control has no DeleteMultiRegionAccessPointPolicy: a Multi-Region policy is replaced, never removed. */}
               {policy?.section !== 'multi-region' && (
                 <Button
                   loading={busy}

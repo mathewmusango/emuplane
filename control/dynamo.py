@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""DynamoDB, as the emulator serves it — enough client for the control's store.
-
-The control keeps no database file: its documents live in the emulator's
-DynamoDB, which is the same service it fronts. That is the point of the
-architecture — the control plane is a tenant of the thing it manages.
-
-No boto3: the image is stdlib-only, and an emulator treats a 12-digit access
-key as an account root with no verified signature (the same trick `aws_call`
-already uses to read other accounts), so a request needs a credential *name*, not
-a secret. `Signature=local` is deliberate, not a placeholder someone forgot.
-
-Errors are raised as `DynamoError` with the emulator's message and type, so a
-caller sees "ResourceNotFoundException: Requested resource not found" rather than
-a bare status code.
-
-Nothing here names a particular emulator: the endpoint comes from `EP_STORE_URL`,
-then `EP_BACKEND_URL`, then a neutral local default — MiniStack, Floci or any other
-AWS-compatible emulator serves the same DynamoDB wire protocol.
-"""
+"""DynamoDB as the emulator serves it: a stdlib-only client for the control's store, signed `Signature=local`."""
 
 from __future__ import annotations
 

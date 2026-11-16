@@ -36,8 +36,7 @@ import { SERVICE_ROUTES } from '../serviceRoutes'
 const FIELD_DEFAULTS = (fields) =>
   Object.fromEntries((fields || []).map((item) => [item.name, item.default || '']))
 
-// A listing is capped, so emptying re-lists after each pass. This bounds the loop
-// in case a bucket never reports itself empty.
+// A listing is capped, so emptying re-lists after each pass; this bounds the loop in case a bucket never reports empty.
 const EMPTY_PASSES = 100
 
 function pretty(body) {
@@ -73,9 +72,7 @@ export default function Resources() {
   const [params, setParams] = useState({})
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState(null)
-  // A link carries the region it was made in: adopt it **once**, when the page
-  // mounts. Re-adopting on every region change made the picker's choice get
-  // undone by the URL a moment later, which read as "switching does nothing".
+  // A link carries the region it was made in: adopt it once at mount, or the picker's choice gets undone.
   const adopted = useRef(false)
   useEffect(() => {
     if (adopted.current) return
@@ -92,8 +89,7 @@ export default function Resources() {
   }, [region, urlRegion, setSearchParams])
 
   const [regions, setRegions] = useState([])
-  // The bucket whose objects are shown, with the region it lives in: a bucket
-  // is signed for its own region, never the page's.
+  // The bucket whose objects are shown, with the region it lives in: a bucket is signed for its own region.
   const [selected, setSelected] = useState([])
   const [confirmingDelete, setConfirmingDelete] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -107,9 +103,7 @@ export default function Resources() {
 
   const spec = catalogue?.services?.[service]
   const operations = spec?.operations || []
-  // `/:service/home` is a catch-all: any name renders. Only a service the
-  // catalogue reports is a page — `/s3files/home`, `/s3tables/home` and the rest
-  // of the upstream catalogue answer `unknown service` and are not ours to show.
+  // `/:service/home` is a catch-all: only a service the catalogue reports is a page; the rest answer `unknown service`.
   const unknown = Boolean(catalogue) && !spec
 
   useEffect(() => {
@@ -119,9 +113,7 @@ export default function Resources() {
   }, [service, catalogue])
 
   const load = useCallback(async () => {
-    // A phantom service is redirected the moment the catalogue answers, so this
-    // still runs once for it; gating on `catalogue` here would refetch every real
-    // page a second time when the catalogue lands.
+    // A phantom service still runs this once, so gating on `catalogue` here would refetch every real page.
     if (!account) return
     setLoading(true)
     try {
@@ -603,8 +595,7 @@ export default function Resources() {
   )
 
   if (unknown) {
-    // A name the console does not serve is either another service's child — S3
-    // Tables and S3 Files are pages of S3 — or nothing to show at all.
+    // A name the console does not serve is a child of another service (S3 Tables and S3 Files) or nothing to show at all.
     return <Navigate to={SERVICE_ROUTES[service] || '/services'} replace />
   }
 
@@ -636,8 +627,7 @@ export default function Resources() {
       >
         <SpaceBetween size="l">
           {flash.length > 0 && <Flashbar items={flash} />}
-          {/* The console's S3 page has no service chooser: the service menu in
-              the bar is how you move between services. */}
+          {/* The console's S3 page has no service chooser: the service menu in the bar moves between services. */}
           {service !== 's3' && (
             <Container>
               <SpaceBetween size="s">
@@ -679,8 +669,7 @@ export default function Resources() {
 
           {resourceTable}
 
-          {/* S3's actions are the table's own (Empty / Delete / Create bucket);
-              the API explorer stays on the services that have no table actions. */}
+          {/* S3's actions are the table's own (Empty / Delete / Create bucket); the API explorer stays on services with no table actions. */}
           {service !== 's3' && actionsPanel}
 
           <Modal

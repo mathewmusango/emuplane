@@ -1,7 +1,4 @@
-// Shared fixtures for the console suite: one API picture, one fetch stub.
-//
-// Both `smoke.test.jsx` (console-wide behaviour) and `s3.test.jsx` (the S3 page)
-// read from here, so the two files describe the same instance.
+// Shared fixtures for the console suite: one API picture, one fetch stub, for both smoke and s3 tests.
 
 import { vi } from 'vitest'
 import { render } from '@testing-library/react'
@@ -220,8 +217,7 @@ export const RESPONSES = {
       },
     ],
   },
-  // The Access Points page reads three sections from one path, so its fixture is
-  // a function of the query: an answer per section, as S3 Control would give.
+  // Three sections from one path, so the fixture answers per query section.
   '/api/s3/access-points': (url) => {
     const section = new URL(url, 'http://console').searchParams.get('section') || 'general'
     if (section === 'multi-region') {
@@ -333,8 +329,7 @@ export const RESPONSES = {
   },
   '/api/s3/access-point-policy': (url) => {
     const section = new URL(url, 'http://console').searchParams.get('section')
-    // A Multi-Region access point's policy is its own resource, read from the
-    // region that manages Multi-Region access points.
+    // A Multi-Region access point's policy is its own resource, read from the Multi-Region region.
     if (section === 'multi-region') {
       return {
         ok: true,
@@ -392,8 +387,7 @@ export const RESPONSES = {
     name: 'reports-point',
     policy: null,
   },
-  // A Multi-Region create answers with the operation its token names: the status
-  // the page shows is read on that token and never persisted.
+  // A Multi-Region create answers with the operation its token names, never with a persisted status.
   '/api/s3/mrap': {
     ok: true,
     status: 200,
@@ -433,8 +427,7 @@ export const RESPONSES = {
   },
 }
 
-/** Install the fetch stub the console talks to. A fixture is either the answer or
- *  a function of the request URL, for a path that answers differently per query. */
+/** Install the fetch stub: a fixture is the answer, or a function of the request URL. */
 export const installFetch = () =>
   vi.stubGlobal(
     'fetch',

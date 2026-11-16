@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-"""Reset a principal's password from the host.
-
-There is no mail transport on this server, so account recovery is a local act
-rather than an emailed link. Two forms, and they are not the same thing:
-
-    python /app/password.py <username>                   # set it now
-    python /app/password.py <username> --password VALUE   # set a chosen one
-    python /app/password.py <username> --link             # one-time reset link
-
-`--link` is the better one: it prints a single-use `/reset` URL, valid for
-EP_RESET_SECONDS (30 min), that lets the user choose their own password — so
-whoever runs this never learns it. The direct forms exist for when the person is
-not reachable at all.
-
-Every path revokes the sessions that principal holds. `scripts/password.sh` and
-`scripts/reset-link.sh` run this inside the container.
-"""
+"""Reset a principal's password from the host: `password.py <username> [--password VALUE | --link]`."""
 
 from __future__ import annotations
 

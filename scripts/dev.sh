@@ -32,8 +32,7 @@ web() {
 }
 
 api() {
-  # Discovery lives here, not at the top: `web` must not need podman at all, so
-  # it keeps working from a sandbox or a shell without it.
+  # Discovery lives here, so `web` never needs podman and works from a sandbox or a shell without it.
   local container
   container=$(sed -n 's/^EP_CONTROL_CONTAINER=//p' .env 2>/dev/null)
   if [ -z "$container" ]; then

@@ -1,14 +1,4 @@
-"""Paths, the emulator's HTTP surface, and the control's own signed client.
-
-The S3 tests talk to a real socket. `signed.request` — the function `app.py`
-calls for every root-signed request — signs and sends it; the stand-in server
-frames the HTTP and hands the request to the emulator's own `handle_request`, so
-the routing, the signing-region check and every handler are the emulator's.
-Only the framing is the stand-in's.
-
-`ministack-src` (the emulator) sits beside this repository; tests that need it
-skip when it is not checked out.
-"""
+"""Paths, the emulator's HTTP surface, and the control's own signed client: the stand-in frames HTTP only, the emulator routes and handles it."""
 
 from __future__ import annotations
 
@@ -28,8 +18,7 @@ EMULATOR = ROOT.parent / "ministack-src"
 
 sys.path[:0] = [str(ROOT / "control"), str(EMULATOR)]
 
-# The S3 handlers read `AUTH` from `ministack.app`, which drags in the server's
-# own dependencies. Nothing here serves IAM, so a stand-in module is enough.
+# The S3 handlers read `AUTH` from `ministack.app`, which drags in the server's dependencies; a stand-in is enough here.
 if "ministack.app" not in sys.modules:
     _stub = types.ModuleType("ministack.app")
     _stub.AUTH = False
@@ -50,9 +39,7 @@ def emulator():
 
 @pytest.fixture(scope="session")
 def s3_endpoint(emulator):
-    """An HTTP endpoint that speaks the emulator's S3 surface — and the two APIs
-    the console's other S3 tabs ask (S3 Tables, S3 Files), chosen by the service
-    name in the credential scope, exactly as the emulator routes them."""
+    """The emulator's S3 surface, plus S3 Tables and S3 Files routed by the credential's service name."""
 
     handlers = {"s3": emulator}
     for name in ("s3tables", "s3files"):
@@ -105,10 +92,7 @@ def s3_endpoint(emulator):
             headers = {key.lower(): value for key, value in self.headers.items()}
             query = parse_qs(split.query, keep_blank_values=True)
             module, scope = route(headers)
-            # The ASGI app pins the credential's account and signing region for
-            # the request before any handler runs; without them, a scoped handler
-            # would see the defaults and answer as if every request belonged to
-            # the placeholder account in us-east-1.
+            # The ASGI app pins the credential's account and signing region before any handler runs.
             from ministack.core.responses import (
                 set_request_account_id,
                 set_request_region,
@@ -123,8 +107,7 @@ def s3_endpoint(emulator):
                 status, out_headers, out_body = asyncio.run(
                     module.handle_request(method, split.path, headers, body, query)
                 )
-            # Handlers return the body as bytes or, for a stored document, as the
-            # text they hold; the ASGI layer encodes, and so does this.
+            # Handlers return the body as bytes or as stored text; the ASGI layer encodes, and so does this.
             if isinstance(out_body, str):
                 out_body = out_body.encode()
             self.send_response(status)
@@ -132,8 +115,7 @@ def s3_endpoint(emulator):
                 if key.lower() == "content-length":
                     continue
                 self.send_header(key, value)
-            # A HEAD answers with no body but the same Content-Length the GET would
-            # have: the size of the object is the whole point of asking.
+            # A HEAD answers with no body but the same Content-Length the GET would have.
             length = str(len(out_body))
             if method == "HEAD":
                 length = (
@@ -173,11 +155,7 @@ def s3_endpoint(emulator):
 
 @pytest.fixture(scope="session")
 def s3(s3_endpoint):
-    """`buckets.create`'s client shape, over the wire, as the root user.
-
-    Nothing is deleted by these tests, so the buckets the matrix creates stay in
-    this process's copy of the emulator, readable through the same client.
-    """
+    """`buckets.create`'s client shape, over the wire, as the root user; nothing is deleted, so the matrix's buckets stay readable."""
 
     def build(account: str, region: str):
         def call(method, path, body="", headers=None):
@@ -192,8 +170,7 @@ def s3(s3_endpoint):
 
 @pytest.fixture
 def recorder():
-    """A client that records what was asked for and answers 200, for
-    request-shape tests that never need the emulator."""
+    """A client that records what was asked for and answers 200, for request-shape tests."""
 
     class Recorded:
         def __init__(self):

@@ -1,17 +1,4 @@
-"""Every S3 operation the console does not drive, exercised on the wire.
-
-The console covers part of S3; this module is the other part's proof. It exists
-because the rule is that every operation the emulator advertises has a test that
-runs on every run — not "the emulator's own suite covers it". A future operation
-cannot slip in without one: `tests/s3/test_ledger.py` fails when a row names no
-test.
-
-Nothing here is cleaned up — buckets, objects and access points stay — except
-where the operation itself is the delete.
-
-Grouped as S3 groups them: bucket configuration, multipart, object tagging,
-annotations, Object Lock, Multi-Region access points, Object Lambda.
-"""
+"""Every S3 operation the console does not drive, exercised on the wire; `tests/s3/test_ledger.py` requires each to have one."""
 
 from __future__ import annotations
 
@@ -55,9 +42,7 @@ def put(endpoint, bucket_name, key, body="x", region="us-east-1"):
     assert 200 <= status < 300, (status, text)
 
 
-# ---------------------------------------------------------------------------
-# Bucket configuration the console does not write
-# ---------------------------------------------------------------------------
+# --- Bucket configuration the console does not write -----------------------
 
 
 def test_put_bucket_logging_then_it_is_reported(s3_endpoint):
@@ -137,9 +122,7 @@ def test_delete_public_access_block_removes_the_configuration(s3_endpoint):
     assert call(s3_endpoint, "GET", "/ops-pab-bucket?publicAccessBlock")[0] == 404
 
 
-# ---------------------------------------------------------------------------
-# Multipart upload
-# ---------------------------------------------------------------------------
+# --- Multipart upload -----------------------------------------------------
 
 
 def _initiate(endpoint, bucket_name, key):
@@ -193,9 +176,7 @@ def test_abort_multipart_upload_discards_the_parts(s3_endpoint):
     assert call(s3_endpoint, "GET", f"/ops-multipart-bucket/{key}")[0] == 404
 
 
-# ---------------------------------------------------------------------------
-# Object tagging
-# ---------------------------------------------------------------------------
+# --- Object tagging -------------------------------------------------------
 
 
 def test_object_tags_are_put_read_and_deleted(s3_endpoint):
@@ -223,9 +204,7 @@ def test_object_tags_are_put_read_and_deleted(s3_endpoint):
     assert "<Tag>" not in text
 
 
-# ---------------------------------------------------------------------------
-# Object annotations
-# ---------------------------------------------------------------------------
+# --- Object annotations ---------------------------------------------------
 
 
 def test_object_annotations_are_put_listed_read_and_deleted(s3_endpoint):
@@ -251,9 +230,7 @@ def test_object_annotations_are_put_listed_read_and_deleted(s3_endpoint):
     assert call(s3_endpoint, "GET", path)[0] == 404
 
 
-# ---------------------------------------------------------------------------
-# Object Lock: retention and legal hold
-# ---------------------------------------------------------------------------
+# --- Object Lock: retention and legal hold --------------------------------
 
 
 def _locked_object(endpoint, bucket_name, key):
@@ -300,9 +277,7 @@ def test_object_legal_hold_is_put_and_read(s3_endpoint):
     assert "ON" in text
 
 
-# ---------------------------------------------------------------------------
-# Multi-Region access points
-# ---------------------------------------------------------------------------
+# --- Multi-Region access points -------------------------------------------
 
 
 def _mrap(endpoint):
@@ -439,9 +414,7 @@ def test_mrap_delete_removes_it(s3_endpoint):
     assert status == 404
 
 
-# ---------------------------------------------------------------------------
-# Object Lambda access points
-# ---------------------------------------------------------------------------
+# --- Object Lambda access points ------------------------------------------
 
 
 def _object_lambda(endpoint, name):
@@ -574,12 +547,7 @@ def test_object_lambda_access_point_is_deleted(s3_endpoint):
 
 
 def test_write_get_object_response_refuses_an_unknown_route(s3_endpoint):
-    """The success path needs a Lambda mid-GET; its contract is the route header.
-
-    An unknown (or spent) route is AWS's `400 InvalidHostHeader`, which is what a
-    caller writing outside a request sees. The full path is the emulator's own
-    Object Lambda suite's job.
-    """
+    """The success path needs a Lambda mid-GET; its contract is the route header, so an unknown route is AWS's `400 InvalidHostHeader`."""
     status, text = call(
         s3_endpoint,
         "POST",

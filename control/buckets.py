@@ -1,14 +1,4 @@
-"""Creating a bucket the way the console's create page does it.
-
-`CreateBucket` itself takes the name, the region, and — as headers — object
-ownership and Object Lock. Everything else on that form (Block Public Access,
-versioning, tags, default encryption) is a follow-up subresource call, so this
-module makes them in the console's order and names the step that failed instead
-of answering with a bare HTTP code.
-
-The signed client is passed in as `s3(method, path, body, headers)`, so nothing
-here holds a credential — the same property `console.py` keeps.
-"""
+"""Creating a bucket the way the console's create page does it: `CreateBucket`, then each subresource the form asked for."""
 
 from __future__ import annotations
 
@@ -35,8 +25,7 @@ PUBLIC_ACCESS = (
 
 MAX_TAGS = 50
 
-# What the console sends for text typed into the form, and what it is willing to
-# show back as text. Anything else is offered as a download.
+# What the console sends for text typed into the form, and what it will show back as text.
 TEXT_TYPE = "text/plain; charset=utf-8"
 TEXTUAL = (
     "text/",
@@ -58,9 +47,7 @@ def _textual(kind: str) -> bool:
 # A listing is capped, so emptying re-lists after each pass; this bounds the loop.
 EMPTY_PASSES = 100
 
-# Namespaces: AWS's global one, and the account-scoped one whose names carry the
-# account, the region and `-an` — that suffix is what makes the name unique
-# without being global.
+# AWS's global namespace, and the account-scoped one whose names carry the account, the region and `-an`.
 NAMESPACE_GLOBAL = "global"
 NAMESPACE_REGIONAL = "regional"
 
@@ -79,12 +66,7 @@ _CODE_RE = re.compile(r"<Code>(.*?)</Code>", re.S)
 
 
 def location_constraint(region: str) -> str:
-    """The CreateBucket document.
-
-    Only the global us-east-1 endpoint accepts a request without one; every
-    regional endpoint refuses it (IllegalLocationConstraintException), and a
-    constraint naming us-east-1 is itself invalid there.
-    """
+    """The CreateBucket document: only the global us-east-1 endpoint accepts a request without one."""
     if region == "us-east-1":
         return ""
     return (
@@ -101,28 +83,18 @@ def valid_name(name: str) -> bool:
 
 
 def regional_suffix(account: str, region: str) -> str:
-    """The Account Regional namespace suffix: `<account>-<region>-an`.
-
-    `test` in the armchair's account and region is created as
-    `test.344381301567-us-east-1-an`, which is the name AWS gives it.
-    """
+    """The Account Regional namespace suffix: `<account>-<region>-an`."""
     return f"{account}-{region}-an"
 
 
 def resolve_name(payload: dict, region: str) -> tuple[str, str]:
-    """The name this request creates, and why it cannot be one.
-
-    The suffix is appended here rather than typed by the caller: a name that
-    already ends with it is not suffixed twice, so a retry after a failure, or a
-    pasted full name, still means one bucket.
-    """
+    """The name this request creates, and why it cannot be one; a name already ending in the suffix is not suffixed twice."""
     base = str(payload.get("bucket") or "").strip()
     if str(payload.get("namespace") or NAMESPACE_GLOBAL) != NAMESPACE_REGIONAL:
         return (base, "") if valid_name(base) else ("", NAME_HELP)
     account = str(payload.get("account") or "").strip()
     if not ACCOUNT_RE.match(account):
-        # The suffix *is* the account and region; without one it would compose a
-        # name that looks regional and is not.
+        # The suffix *is* the account and region; without one it would compose a name that looks regional and is not.
         return "", "The Account Regional namespace needs the 12-digit account id."
     suffix = "." + regional_suffix(account, region)
     if base.endswith(suffix):
@@ -163,8 +135,7 @@ def _tagging(tags: list[tuple[str, str]]) -> str:
 
 
 def _encryption(algorithm: str, bucket_key: bool) -> str:
-    # Bucket Keys are a KMS feature: the console shows the control either way,
-    # but sending it with SSE-S3 describes nothing real.
+    # Bucket Keys are a KMS feature: sending it with SSE-S3 describes nothing real.
     key = (
         "<BucketKeyEnabled>true</BucketKeyEnabled>"
         if bucket_key and algorithm.startswith("aws:kms")
@@ -217,8 +188,7 @@ def _options(payload: dict, region: str) -> dict:
         "versioning": bool(payload.get("versioning")),
         "object_lock": bool(payload.get("object_lock")),
         "tags": tags,
-        # The console sends the block only when the operator left it expanded;
-        # absent means "leave the emulator's default alone".
+        # The console sends the block only when expanded; absent means "leave the emulator's default alone".
         "public": (
             None
             if public is None
@@ -268,12 +238,7 @@ def _tags(xml: str) -> list[dict]:
 
 
 def read_settings(bucket: str, call) -> dict:
-    """The create form's settings, read back from `bucket`.
-
-    `call(method, path)` is the root-signed client. Best effort per setting: a
-    subresource this bucket does not have keeps the form's default rather than
-    failing the whole copy — copying is a convenience, not a transaction.
-    """
+    """The create form's settings, read back from `bucket`; a missing subresource keeps the default."""
     path = "/" + quote(bucket, safe="")
     settings = {
         "ownership": OWNERSHIP[0],
@@ -312,11 +277,7 @@ def read_settings(bucket: str, call) -> dict:
 
 
 def create(region: str, payload: dict, s3) -> dict:
-    """Create the bucket, then apply the settings the form asked for.
-
-    A follow-up failure still reports `created: True`: the bucket exists, and
-    saying otherwise would send the operator looking for a name that is taken.
-    """
+    """Create the bucket, then apply the settings; a follow-up failure still reports `created: True`."""
     try:
         options = _options(payload, region)
     except ValueError as exc:
@@ -374,12 +335,7 @@ def _bucket_path(bucket: str) -> str:
 
 
 def put_object(bucket: str, key: str, body, call, content_type: str = "") -> dict:
-    """PutObject: the key is percent-encoded, the body is what was handed over.
-
-    `body` is text from the form or bytes from a file, and `content_type` is what
-    S3 stores and serves back — a PNG that arrives as `application/xml` is a
-    wrong object, not a cosmetic detail.
-    """
+    """PutObject: the key is percent-encoded, and `content_type` is what S3 stores and serves back."""
     headers = {}
     if content_type:
         headers["Content-Type"] = content_type
@@ -405,12 +361,7 @@ def copy_object(
     destination_key: str,
     call,
 ) -> dict:
-    """CopyObject: a PUT to the destination, with the source named in a header.
-
-    The request is addressed to the *destination*, so `call` must be signed for
-    the destination's region; the source is named, not reached, which is what lets
-    a copy cross a bucket or a region.
-    """
+    """CopyObject: a PUT to the destination, so `call` must be signed for the destination's region."""
     source = "/" + quote(source_bucket, safe="") + "/" + quote(key, safe="/")
     status, text = call(
         "PUT",
@@ -434,8 +385,7 @@ def copy_object(
 def update_settings(bucket: str, payload: dict, call) -> dict:
     """The properties a bucket page can edit, each its own subresource call."""
     path = _bucket_path(bucket)
-    # `(label, method, suffix, body)` — most steps are a PUT, but removing the
-    # default encryption is a DELETE, and the page should not need two routes.
+    # `(label, method, suffix, body)`: most steps are a PUT, but removing encryption is a DELETE.
     steps: list[tuple[str, str, str, str]] = []
     if "versioning" in payload:
         status = "Enabled" if payload.get("versioning") else "Suspended"
@@ -459,8 +409,7 @@ def update_settings(bucket: str, payload: dict, call) -> dict:
             )
         )
     if payload.get("remove_encryption"):
-        # DeleteBucketEncryption: the bucket falls back to S3's own default
-        # (SSE-S3) rather than being left unencrypted.
+        # DeleteBucketEncryption: the bucket falls back to S3's own default (SSE-S3), not unencrypted.
         steps.append(("Default encryption", "DELETE", "?encryption", ""))
     elif payload.get("encryption") is not None:
         algorithm = str(payload["encryption"])
@@ -500,11 +449,7 @@ def update_settings(bucket: str, payload: dict, call) -> dict:
 
 
 def empty_bucket(bucket: str, call) -> dict:
-    """Empty a bucket with DeleteObjects, 1000 keys a request.
-
-    One call per up-to-1000 keys instead of one per key, and re-listing until the
-    bucket answers with nothing: a listing is capped, so one pass can stop short.
-    """
+    """Empty a bucket with DeleteObjects, 1000 keys a request, re-listing until nothing is left."""
     path = _bucket_path(bucket)
     removed = 0
     for _pass in range(EMPTY_PASSES):
@@ -531,13 +476,7 @@ def empty_bucket(bucket: str, call) -> dict:
     return {"ok": False, "status": 500, "removed": removed, "error": "the bucket never emptied"}
 
 
-# The bucket configuration S3 answers as documents. The console shows them as
-# they come: parsing every one into a form would be a UI project per subresource,
-# and the GETs are the part people ask for.
-#
-# `versions` is the exception in kind: it is a listing (ListObjectVersions), not a
-# setting, and it sits here because it is the version of the data rather than of
-# the configuration.
+# The bucket configuration S3 answers as documents, shown as they come; `versions` is a listing, not a setting.
 DOCUMENTS = {
     "lifecycle": "?lifecycle",
     "cors": "?cors",
@@ -549,10 +488,7 @@ DOCUMENTS = {
     "versions": "?versions",
 }
 
-# The documents the page can write, and what writing means for each: the expected
-# root element (None for the policy, which is JSON), whether S3 has a DELETE, and
-# — where it has none — the document that switches the feature off instead.
-# `versions` is absent: it is a listing, not a setting.
+# The documents the page can write: expected root (None for JSON), S3's DELETE, and what switches it off instead.
 EDITABLE = {
     "lifecycle": ("LifecycleConfiguration", "DeleteBucketLifecycle", None),
     "cors": ("CORSConfiguration", "DeleteBucketCors", None),
@@ -569,14 +505,7 @@ EDITABLE = {
 
 
 def _configured(xml: str) -> bool:
-    """Whether a document says anything.
-
-    S3 answers an unset subresource with an empty element —
-    `<BucketLoggingStatus />`, `<NotificationConfiguration />` — not with a 404.
-    Printing that as configuration is worse than printing nothing: it reads as
-    though something is switched on. A document with no children and no text is
-    the same state as a 404, and is reported the same way.
-    """
+    """Whether a document says anything: S3 answers an unset subresource with an empty element, not a 404."""
     root = _root(xml)
     if root is None:
         return True  # not XML this module can judge: show it rather than hide it
@@ -605,12 +534,7 @@ def _check_document(label: str, text: str) -> str:
 
 
 def write_document(bucket: str, label: str, text: str, call) -> dict:
-    """PutBucket<X>: one subresource, in the format S3 takes for it.
-
-    The document is checked here rather than at the emulator: a wrong root, or a
-    policy that is not JSON, is the operator's typo and should not become bucket
-    state.
-    """
+    """PutBucket<X>: one subresource, checked here so a typo never becomes bucket state."""
     if label not in EDITABLE:
         return {"ok": False, "status": 400, "error": f"{label} is not a document this page writes"}
     problem = _check_document(label, text)
@@ -653,12 +577,7 @@ def clear_document(bucket: str, label: str, call) -> dict:
 
 
 def read_documents(bucket: str, call) -> dict:
-    """Each document S3 has for `bucket`, or None where it has none at all.
-
-    `editable` travels with the documents so the page does not keep its own copy
-    of what S3 allows: which documents can be written, and whether removing one
-    means DELETE or an empty document.
-    """
+    """Each document S3 has for `bucket`, or None where it has none, with `editable` saying what may be written."""
     path = _bucket_path(bucket)
     found = {}
     for label, suffix in DOCUMENTS.items():
@@ -676,12 +595,7 @@ def read_documents(bucket: str, call) -> dict:
 
 
 def head_bucket(bucket: str, call) -> dict:
-    """HeadBucket: does `bucket` exist, and where does it live?
-
-    S3 answers a bucket in another region with 301 and names the right region in
-    `x-amz-bucket-region`; a 404 is a name that is not there at all. The body of a
-    HEAD is empty by definition, so there is no error document to read.
-    """
+    """HeadBucket: a 301 names the right region in `x-amz-bucket-region`, a 404 a name that is not there."""
     status, headers, _ = call("HEAD", _bucket_path(bucket))
     region = (headers.get("x-amz-bucket-region") or "").strip()
     if 200 <= status < 400:
@@ -692,14 +606,7 @@ def head_bucket(bucket: str, call) -> dict:
 
 
 def read_object(bucket: str, key: str, call) -> dict:
-    """GetObject as content: text when it decodes, a download when it does not.
-
-    `call(method, path)` answers `(status, headers, bytes)`. HeadObject goes
-    first, because the type, the size and the ETag are headers: a PNG is then
-    never downloaded just to be thrown away, and the page can show what only a
-    HEAD knows. The GET follows only when the bytes have to be read — a textual
-    type, or one that says nothing either way.
-    """
+    """GetObject as content: HEAD first for type, size and ETag, then GET only when the bytes must be read."""
     path = _bucket_path(bucket) + "/" + quote(key, safe="/")
     status, headers, _ = call("HEAD", path)
     if not 200 <= status < 300:
@@ -749,10 +656,7 @@ def _head_failure(status: int) -> str:
     return f"HTTP {status or 'unknown'}"
 
 
-# The reads that live beside an object rather than in it. Each is its own GET on
-# the object's own path, and each answers something that is a state rather than a
-# failure: no tags and no annotations are empty answers, and Object Lock says it
-# is not configured in its own code.
+# The reads beside an object: no tags and no annotations are empty answers, and Object Lock says "not configured".
 def _annotation_rows(xml: str) -> list[dict]:
     root = _root(xml)
     if root is None:
@@ -778,20 +682,12 @@ def _code(xml: str) -> str:
     return found.group(1) if found else ""
 
 
-# A bucket without Object Lock refuses the read outright; one with Object Lock
-# but no retention on this object answers 404 with the same code. Neither is an
-# error the page should shout about, so both are reported as "not configured" and
-# only a real failure keeps its message.
+# Neither "no Object Lock" answer is an error: both are "not configured", so only a real failure keeps its message.
 _LOCK_ABSENT = ("NoSuchObjectLockConfiguration", "InvalidRequest", "ObjectLockConfigurationNotFoundError")
 
 
 def read_object_meta(bucket: str, key: str, call) -> dict:
-    """GetObjectTagging, ListObjectAnnotations, GetObjectRetention, GetObjectLegalHold.
-
-    `call(method, path)` answers `(status, body)`. Everything here is a state
-    beside the object, so a read that reports "not configured" comes back as
-    empty with no error, and `errors` only carries what genuinely failed.
-    """
+    """GetObjectTagging, ListObjectAnnotations, GetObjectRetention, GetObjectLegalHold: states beside the object."""
     path = _bucket_path(bucket) + "/" + quote(key, safe="/")
     found: dict = {"bucket": bucket, "key": key, "errors": {}}
 

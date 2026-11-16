@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""The backends Emuplane can front, and the little that differs between them.
-
-Emuplane is not an emulator: it is the control plane, console and gateway in
-front of one. MiniStack, Floci, LocalStack and Moto all answer the same AWS wire
-protocol, so the difference is a **profile** — a display name, a default port and
-the handful of quirks worth knowing — never a fork of the code.
-
-`EP_BACKEND` selects one (default `generic`); `EP_BACKEND_URL` is the connection
-string and is the only thing that has to be right for the gateway to work.
-Adding a backend is a row in `PROFILES`, or nothing at all if `generic` fits.
-"""
+"""The backends Emuplane can front, each a profile — a name, a port and its quirks — never a fork of the code."""
 
 from __future__ import annotations
 

@@ -1,11 +1,4 @@
-"""One access point in full, from the section that owns it.
-
-A listing is not a detail: a Multi-Region Access Point's listing carries neither
-its policy nor its routing dials, and an Object Lambda access point's carries no
-configuration. The page's row view reads the instance resources instead, and these
-tests make those access points through the gateway — signed as a client signs —
-and then check what the console reads back for them.
-"""
+"""One access point in full, from the section that owns it: instance resources, not the listing's summary."""
 
 from __future__ import annotations
 

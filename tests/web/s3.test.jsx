@@ -1,8 +1,4 @@
-// The S3 page: the bucket table, its actions, and the create page.
-//
-// The region is the console's own — it comes from the bar's picker — so these
-// tests drive it there rather than through a form control, and they pin the
-// Account Regional namespace suffix following that selection.
+// The S3 page: the bucket table, its actions, and the create page, with the region driven from the bar's picker.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -16,9 +12,7 @@ import { RESPONSES, installFetch, renderAt } from './fixtures'
 
 const pinRegion = (region) => sessionStorage.setItem('emuplane:region', region)
 
-// A fetch stub that records the one request under test and answers the rest from
-// the shared fixtures. A GET carries no body, so only a request with one is
-// recorded — the same helper then serves a listing.
+// A fetch stub that records the body-carrying request under test and answers the rest from the fixtures.
 const stubOnce = (path, answer, record) => {
   const base = globalThis.fetch
   vi.stubGlobal(
@@ -46,9 +40,7 @@ const withBuckets = (extra) => {
 const WEST_BUCKET = { name: 'west-bucket', kind: 'bucket', region: 'us-west-2', detail: {} }
 const EAST_BUCKET = { name: 'east-bucket', kind: 'bucket', region: 'us-east-1', detail: {} }
 
-// The Multi-Region create modal: a name, then members picked from the account's
-// own buckets. Cloudscape's Multiselect does not open under fireEvent; user-event
-// does, and its options are in a portal, so they are found by `screen`.
+// The Multi-Region create modal: Cloudscape's Multiselect needs user-event, and its options are in a portal.
 const openMultiRegionCreate = async (name, memberLabels) => {
   fireEvent.click(screen.getByRole('button', { name: 'Create Multi-Region access point' }))
   const dialog = await screen.findByRole('dialog', { name: 'Create Multi-Region access point' })
@@ -96,8 +88,7 @@ describe('s3', () => {
   })
 
   it("reads an object listing in the bucket's own region", async () => {
-    // The row says where the bucket lives; the listing must be signed for that
-    // region, not the page's — otherwise the emulator answers 301.
+    // The listing must be signed for the bucket's own region, not the page's, or the emulator answers 301.
     pinRegion('us-east-1')
     const browse = RESPONSES['/api/browse']
     const urls = []
@@ -367,8 +358,7 @@ describe('s3', () => {
       renderAt(<App />, ['/s3/create'])
       await screen.findByText('Copy settings from an existing bucket - optional')
 
-      // The trigger's accessible name comes from the field label, so find it by
-      // the placeholder it shows.
+      // The trigger's accessible name comes from the field label, so find it by the placeholder it shows.
       const trigger = screen
         .getAllByRole('button')
         .find((button) => button.textContent.trim() === 'Choose bucket')
@@ -407,9 +397,7 @@ describe('s3', () => {
   it('offers the account\u2019s buckets for copying their settings', async () => {
     pinRegion('us-east-1')
     renderAt(<App />, ['/s3/create'])
-    // The control is there and reads the account's buckets; the copy itself is
-    // covered by control/buckets.py's round trip (tests/s3) and on the live
-    // instance, because Cloudscape's dropdown does not open under jsdom.
+    // Cloudscape's dropdown does not open under jsdom, so only the control's presence is checked here.
     expect(
       await screen.findByText('Copy settings from an existing bucket - optional'),
     ).toBeTruthy()
@@ -1096,8 +1084,7 @@ describe('s3', () => {
     )
     try {
       await openBucket()
-      // The header action and the modal's own button share a name; the closed
-      // modal stays in the DOM, so the first is the page's.
+      // The header action and the closed modal's button share a name; the closed modal stays in the DOM, so the first is the page's.
       fireEvent.click(screen.getAllByRole('button', { name: 'Upload' })[0])
 
       const file = new File(['hello from disk\n'], 'notes.txt', { type: 'text/plain' })
@@ -1128,8 +1115,7 @@ describe('s3', () => {
     const base = stubOnce('/api/s3/object', { ok: true, status: 200, key: 'notes.txt' }, sent)
     try {
       await openBucket()
-      // The header action and the modal's own button share a name; the closed
-      // modal stays in the DOM, so the first is the page's.
+      // The header action and the closed modal's button share a name, so the first is the page's.
       fireEvent.click(screen.getAllByRole('button', { name: 'Upload' })[0])
       const dialog = await screen.findByRole('dialog', { name: 'Upload object' })
 
@@ -1318,8 +1304,7 @@ describe('s3', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
     expect(await screen.findByText('world-point')).toBeTruthy()
     expect(screen.getByText('logs-bucket · us-east-1, west-bucket · us-west-2')).toBeTruthy()
-    // Creating one is on the tab, and it is a Multi-Region create rather than the
-    // single-bucket page's.
+    // Creating one belongs to the Multi-Region tab, not to the single-bucket page.
     expect(
       screen.getByRole('button', { name: 'Create Multi-Region access point' }),
     ).toBeTruthy()
@@ -1347,8 +1332,7 @@ describe('s3', () => {
         name: 'new-world-point',
         buckets: ['logs-bucket', 'west-bucket'],
       })
-      // The create is asynchronous: the answer's operation is shown with the token
-      // it was described on, and the listing is reloaded.
+      // The create is asynchronous: the answer's operation is shown with its token, and the listing reloads.
       expect(
         await within(dialog).findByText(/async-request\/mrap\/create/),
       ).toBeTruthy()
@@ -1407,8 +1391,7 @@ describe('s3', () => {
       await waitFor(() => expect(within(dialog).getAllByText('SUCCEEDED').length).toBe(3))
       fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
 
-      // The row's own view carries the operation, because the token exists only in
-      // the answer this page still holds.
+      // The row's view carries the operation, whose token exists only in the answer this page still holds.
       const named = (await screen.findAllByText('new-world-point')).find((cell) =>
         cell.closest('tr'),
       )
@@ -1438,8 +1421,7 @@ describe('s3', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View details' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Access point world-point' })
-    // The listing has none of this: the report, the dials and the policy are
-    // three reads on the access point itself.
+    // The listing has none of this: the report, the dials and the policy are three reads on the access point.
     expect(within(dialog).getByText('Routes')).toBeTruthy()
     expect(within(dialog).getAllByText('100%').length).toBe(2)
     expect(within(dialog).getByText(/"Statement"/)).toBeTruthy()
@@ -1456,15 +1438,13 @@ describe('s3', () => {
       await screen.findByText('world-point')
 
       fireEvent.click(screen.getAllByRole('radio')[0])
-      // The header's action and the delete dialog's own button share a name, and a
-      // closed dialog stays in the DOM, so the first is the page's.
+      // The header's action and the closed dialog's button share a name, so the first is the page's.
       fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
 
       const dialog = await screen.findByRole('dialog', {
         name: 'Delete Multi-Region access point',
       })
-      // Deleting one is asynchronous, and the dialog says so rather than
-      // promising it is already gone.
+      // Deleting one is asynchronous, and the dialog says so rather than promising it is already gone.
       expect(within(dialog).getByText(/member buckets and their objects are not touched/)).toBeTruthy()
       fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
@@ -1578,8 +1558,7 @@ describe('s3', () => {
       await user.click(await screen.findByRole('option', { name: 'Inactive (0%)' }))
     }
 
-    // S3 refuses an access point with every member switched off, so the page does
-    // not offer to ask.
+    // S3 refuses an access point with every member switched off, so the page does not offer to ask.
     expect(within(dialog).getByText(/At least one Region has to stay Active/)).toBeTruthy()
     expect(within(dialog).getByRole('button', { name: 'Save' }).disabled).toBe(true)
   })

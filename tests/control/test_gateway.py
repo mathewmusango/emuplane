@@ -1,9 +1,4 @@
-"""S3 through the gateway — the surface `aws cli` and Terraform actually hit.
-
-Every case is a real HTTP request with a SigV4-shaped `Authorization` header, the
-way a client sends it: the gateway reads the credential scope (key, region,
-service), enforces the account's regions, claims the name, and forwards.
-"""
+"""S3 through the gateway — the surface `aws cli` and Terraform actually hit, as SigV4-shaped HTTP."""
 
 from __future__ import annotations
 
@@ -73,8 +68,7 @@ def test_a_delete_releases_the_name(control, gateway):
 
 
 def test_an_unknown_access_key_does_not_become_an_account(control, gateway):
-    """The 12-digit account is the root; a key that is not one is looked up, and
-    an unknown key resolves to no account rather than to itself."""
+    """The 12-digit account is the root; an unknown access key resolves to no account rather than to itself."""
     key = "AKIDEXAMPLE000000000"
     assert not control.ACCOUNTS.account_for_key(key)
 

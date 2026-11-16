@@ -1,6 +1,4 @@
-// Region display names, in the console's own wording ("US East (N. Virginia)").
-// The table shows the name and the code together, so a bucket's region reads
-// without a legend.
+// Region display names in the console's own wording ("US East (N. Virginia)"), shown beside the code.
 
 const REGION_NAMES = {
   'us-east-1': 'US East (N. Virginia)',

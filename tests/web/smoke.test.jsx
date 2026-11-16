@@ -153,9 +153,6 @@ describe('console', () => {
   })
 
   it('stores the identity when multi-session is on at sign-in', async () => {
-    // This is the path that crashed: the identity store's `remember` used to be
-    // shadowed by the "remember this account" checkbox state, so signing in with
-    // multi-session on called a boolean.
     localStorage.clear()
     localStorage.setItem('emuplane:multi-session', 'on')
     renderAt(<App />, ['/login'])

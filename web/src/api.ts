@@ -41,10 +41,7 @@ interface RequestOptions {
   raw?: boolean
 }
 
-// A 401 usually means the session expired: bounce to the login screens. Two cases
-// are the exception and keep the server's own sentence — a sign-in call (401 is
-// the answer to a wrong password) and the sign-in screens themselves (there is no
-// session to lose, and replacing the reason with "session expired" hides it).
+// A 401 usually means the session expired: bounce to the login screens, except sign-in calls and the sign-in screens, which keep the server's sentence.
 const SIGNED_OUT_ROUTES = ['/login', '/signin', '/forgot']
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -266,8 +263,7 @@ export const api = {
   }) => request<AccessPointResult>('/api/s3/access-points', { method: 'POST', body: payload }),
   deleteAccessPoint: (payload: { account: string; region: string; name: string }) =>
     request<AccessPointResult>('/api/s3/access-point-delete', { method: 'POST', body: payload }),
-  /** One access point in full: an MRAP's report, policy and routes, or an
-   *  Object Lambda access point's configuration and policy. */
+  /** One access point in full: an MRAP's report, policy and routes, or an Object Lambda access point's configuration and policy. */
   accessPointDetail: (
     account: string,
     region: string,
@@ -296,8 +292,7 @@ export const api = {
       method: 'POST',
       body: payload,
     }),
-  /** CreateMultiRegionAccessPoint, then the operation it answers with: the token
-   *  lives in this answer and nowhere else. */
+  /** CreateMultiRegionAccessPoint: the operation it answers with, and the token that lives only in that answer. */
   createMultiRegionAccessPoint: (payload: {
     account: string
     region: string
@@ -306,8 +301,7 @@ export const api = {
   }) => request<MultiRegionResult>('/api/s3/mrap', { method: 'POST', body: payload }),
   deleteMultiRegionAccessPoint: (payload: { account: string; region: string; name: string }) =>
     request<MultiRegionResult>('/api/s3/mrap-delete', { method: 'POST', body: payload }),
-  /** PutMultiRegionAccessPointPolicy: replaced, never removed — S3 Control has no
-   *  delete for a Multi-Region policy. */
+  /** PutMultiRegionAccessPointPolicy: replaced, never removed — S3 Control has no delete for a Multi-Region policy. */
   editMultiRegionPolicy: (payload: {
     account: string
     region: string

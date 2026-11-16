@@ -1,20 +1,4 @@
-"""`S3.md` is the record of what is covered; this keeps it honest.
-
-The table is generated, so it cannot go stale — `scripts/qa_check.py` runs
-`s3_coverage.py --check` and fails when the file drifts. Generation cannot catch
-what actually went wrong in this repository: a row whose proof was deleted, and a
-count that quietly walked backwards when a control was removed.
-
-The rule this file enforces is simple and absolute: **every operation the
-emulator advertises names a test, and those tests run on every run**. Not "the
-emulator's own suite covers it" — an operation with no emuplane test is a row
-with an em dash in the last column, and that fails. So does a test file that is
-named but absent, an operation with no row at all, and a headline count that
-falls below its pinned floor.
-
-A floor is a ratchet, not a target: raise it when an operation is closed, and the
-next person is told when one slips back.
-"""
+"""`S3.md` is the generated record of what is covered; every operation must name a test, and the counts ratchet upwards."""
 
 from __future__ import annotations
 

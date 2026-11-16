@@ -17,8 +17,7 @@ import { multiSessionEnabled, remember as rememberIdentity } from '../identitySt
 import { useThemeMode } from '../components/themeToggle'
 import './signin.css'
 
-// '' when the value is usable, otherwise the sentence the field shows. The server
-// validates again — this only spares the first screen a round trip.
+// '' when the value is usable, otherwise the sentence the field shows; the server validates again.
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const ALIAS = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/
 
@@ -74,15 +73,13 @@ const RESET_HELP =
 const ACCOUNT_HELP =
   'The account ID is the 12 digits on the onboarding receipt. The alias is the short name the account was created with; either one identifies the tenancy.'
 
-// The card every screen sits in: one narrow panel on the page background, the way
-// AWS lays out its own sign-in pages.
+// The card every screen sits in: one narrow panel on the page background, laid out the way AWS does.
 function Card({ title, description, info, children }) {
   const { dark, toggle } = useThemeMode()
   return (
     <div className="signin">
       <div className="signin__card">
-        {/* Corner utility, the way the sign-up page places its own: inside the
-            card, inset from the top-right edge. */}
+        {/* Corner utility, the way the sign-up page places its own: inside the card, inset from the top-right edge. */}
         <button
           type="button"
           className="signin__theme"
@@ -96,9 +93,7 @@ function Card({ title, description, info, children }) {
           <div className="signin__body">
             <img className="signin__mark" src="/emuplane.png" alt="Emuplane" />
             <div className="signin__heading">
-              {/* The title is rendered here rather than by Cloudscape's Header: its
-                  heading root is a flex row that will not centre, and the sign-up
-                  page centres its title. */}
+              {/* The title is a raw h1: Cloudscape's Header heading root is a flex row that will not centre. */}
               <h1 className="signin__title">
                 {title}
                 {info ? <span className="signin__info">{info}</span> : null}
@@ -221,8 +216,7 @@ export default function SignIn() {
     }
     setBusy(true)
     try {
-      // The server decides whether this principal still owes a code; the screen
-      // follows its answer rather than guessing.
+      // The server decides whether this principal still owes a code; the screen follows its answer.
       const multi = multiSessionEnabled()
       const result = await api.signIn({
         mode: userType,
@@ -286,8 +280,7 @@ export default function SignIn() {
   const passwordField = (
     <SpaceBetween size="xs">
       <FormField label="Password" errorText={errors.password}>
-        {/* The reveal control lives inside the field, the way AWS does it, so the
-            eye lines up with the input it acts on. */}
+        {/* The reveal control lives inside the field so the eye lines up with the input it acts on. */}
         <div className="signin__password">
           <Input
             type={showPassword ? 'text' : 'password'}

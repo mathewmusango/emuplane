@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Copy the S3 coverage ledger into docs/reference/s3-coverage.md.
-
-Usage:
-  npm run s3:coverage              # the repository this site lives in
-  python3 scripts/s3_coverage.py <control checkout>
-"""
+"""Copy the S3 coverage ledger into docs/reference/s3-coverage.md."""
 
 from __future__ import annotations
 

@@ -168,11 +168,7 @@ export interface ObjectAnnotationRow {
   etag: string
 }
 
-/**
- * The reads that live beside an object: its tag set, its annotations and the two
- * Object Lock states. An unset subresource is not an error, so `errors` carries
- * only what genuinely failed.
- */
+/** The reads beside an object: tags, annotations and the two Object Lock states; `errors` carries only what genuinely failed. */
 export interface ObjectMeta {
   ok: boolean
   bucket: string
@@ -294,8 +290,7 @@ export interface AccessPointPolicy {
   region?: string
 }
 
-/** One asynchronous Multi-Region operation, as DescribeMultiRegionAccessPointOperation
- *  answers it: what was asked for, what came back, and the token that names it. */
+/** One asynchronous Multi-Region operation: what was asked for, what came back, and the token that names it. */
 export interface MultiRegionOperation {
   token: string
   /** CreateMultiRegionAccessPoint, and the other operations that answer with a token. */
@@ -311,9 +306,7 @@ export interface MultiRegionOperation {
   error: { code: string; message: string } | null
 }
 
-/** CreateMultiRegionAccessPoint. `ok` says the request was made and its operation
- *  read; `created` says that operation ended SUCCEEDED, and a failed one carries
- *  its status instead of pretending the access point exists. */
+/** CreateMultiRegionAccessPoint: `ok` means the request was made and its operation read; `created` means it ended SUCCEEDED. */
 export interface MultiRegionResult {
   ok: boolean
   status?: number
@@ -478,8 +471,7 @@ export interface SettingsResult {
   instance_regions: string[]
 }
 
-// The answer to POST /api/auth/login. `mfa_required` is what decides whether the
-// code screen appears; it is false for every account until enrolment exists.
+// The answer to POST /api/auth/login; `mfa_required` decides whether the code screen appears.
 export interface SignInResult {
   ok: boolean
   mfa_required: boolean

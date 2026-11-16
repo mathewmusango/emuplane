@@ -1,29 +1,5 @@
 #!/usr/bin/env python3
-"""Control plane for AWS-compatible emulators.
-
-One process, two listeners:
-
-  :8080  admin API and HTML dashboard (published as 127.0.0.1:4570)
-  :8081  the gateway, the single entrypoint for every AWS client
-         (published as 127.0.0.1:4571)
-
-Design rules:
-
-  * There is one emulator. MiniStack partitions state by account (a 12-digit
-    access key) and by region (the SigV4 scope) inside a single process, so
-    regions and accounts are configuration, not containers.
-  * The control plane never depends on the emulator being up. It starts first,
-    polls it, and renders from a cache — a dead emulator is shown as DOWN, not
-    as a missing page.
-  * The S3 inventory is cached and persisted. A failed refresh keeps the known
-    buckets and marks them stale rather than dropping them.
-  * The gateway reads the signing region and the access key and forwards to the
-    one emulator. It also keeps **one global bucket-name registry**, because
-    AWS keeps S3 names unique across accounts and regions alike: CreateBucket
-    is reserved atomically, so a name cannot be claimed twice.
-
-No third-party dependencies: the image is stock `python:3.13-alpine`.
-"""
+"""Control plane for AWS-compatible emulators: an admin API on :8080 and the gateway on :8081, stock Python only."""
 
 from __future__ import annotations
 
@@ -55,24 +31,15 @@ from dynamo import DynamoError  # noqa: E402
 from backends import profile  # noqa: E402
 from store import Store, StoreNotProvisioned  # noqa: E402
 
-# No database file: every control-plane document lives in the emulator's
-# DynamoDB (control/store.py) — the service this plane manages. Layer 0 creates
-# the tables before the API serves.
+# No database file: control-plane documents live in the emulator's DynamoDB (control/store.py), whose tables Layer 0 creates.
 EP_PORT = int(os.environ.get("EP_PORT", "8080"))
 GATEWAY_PORT = int(os.environ.get("EP_GATEWAY_PORT", "8081"))
-# The API bearer token is *not* an env setting: a credential in `.env` is a
-# credential in every backup and paste. It lives in the settings store as a
-# SHA-256 hash (control/token.py mints it and prints the raw value once), so only
-# a digest ever reaches the database.
+# The API bearer token lives in the settings store as a SHA-256 digest (control/token.py mints it), never in `.env`.
 TOKEN_KEY = "admin_token"
 
 
 def stored_token_hash() -> str:
-    """The digest in the settings store, read fresh so a rotation takes effect.
-
-    `control/token.py` rotates the token from another process, so this cannot be
-    a boot-time copy held in memory.
-    """
+    """The digest in the settings store, read fresh so a rotation in another process takes effect."""
     try:
         raw = DB.get("settings", TOKEN_KEY)
     except (OSError, DynamoError):
@@ -95,32 +62,23 @@ def bearer_ok(presented: str) -> bool:
     return secrets.compare_digest(
         hashlib.sha256(presented.encode()).hexdigest(), expected
     )
-# One emulator, many regions and accounts: these are data, not containers.
-# MiniStack's own fallback region for unsigned callers. There is no configured
-# region list: every region exists, and the one a request uses comes from its
-# SigV4 scope. These are just the regions seen so far (for the UI).
+# The fallback region for unsigned callers; every region exists, chosen by the request's SigV4 scope.
 DEFAULT_REGION = "us-east-1"
+# The regions seen at the gateway so far, for the UI only.
 SEEN_REGIONS: set[str] = set()
 SEEN_LOCK = threading.Lock()
 
-# One file in one PutObject. The emulator keeps objects in memory, so a cap is a
-# lab decision, not an S3 limit; the page says the same number.
+# One file in one PutObject; the in-memory emulator's cap is a lab decision, not an S3 limit.
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 _CONTENT_TYPE_RE = re.compile(r"^[-\w.+/]+\s*(;.*)?$")
 
 
 def safe_content_type(value: str) -> str:
-    """The file's type as S3 should store it, or a neutral one.
-
-    A header is not a place to trust: a CR/LF would split it, and anything odd is
-    dropped rather than forwarded to the emulator.
-    """
+    """The file's type as S3 should store it, or a neutral one: a CR/LF would split the header."""
     kind = (value or "").split("\r")[0].split("\n")[0].strip()[:128]
     return kind if kind and _CONTENT_TYPE_RE.match(kind) else "application/octet-stream"
-# The endpoint this control fronts. Nothing here names a particular emulator:
-# MiniStack, Floci or anything else that answers the same APIs is equally valid,
-# and the label in the console comes from the URL unless EP_BACKEND_NAME says it.
+# The endpoint this control fronts; anything answering the same APIs works, and the label comes from the URL.
 NODE_URL = os.environ.get("EP_BACKEND_URL", "").strip().rstrip("/")
 BACKEND = profile(os.environ.get("EP_BACKEND"))
 NODE_NAME = (
@@ -133,14 +91,12 @@ POLL_SECONDS = int(os.environ.get("EP_POLL_SECONDS", "10"))
 
 API_VERSION = "v1"
 STARTED_AT = time.time()
-# Canonical public addresses shown in the UI. A deployment publishes them (a
-# reverse proxy, a published port); the console displays whatever is set here.
+# Canonical public addresses for the UI; a deployment publishes them (a reverse proxy or a port).
 GATEWAY_URL = os.environ.get("EP_GATEWAY_URL", "").strip().rstrip("/")
 CONSOLE_URL = os.environ.get("EP_CONSOLE_URL", "").strip().rstrip("/")
 
 REQUIRED_SETTINGS = {
-    # The node name falls back to the URL's host; only the endpoint the node is
-    # reached at, and the two public addresses, have to be known.
+    # Only the endpoint and the two public addresses must be known; the node name falls back to the URL's host.
     "EP_BACKEND_URL": NODE_URL,
     "EP_GATEWAY_URL": GATEWAY_URL,
     "EP_CONSOLE_URL": CONSOLE_URL,
@@ -150,8 +106,7 @@ if MISSING_SETTINGS:
     sys.exit(
         "control: missing required .env setting(s): " + ", ".join(MISSING_SETTINGS)
     )
-# Regions offered in the console. MiniStack serves all of them; the list only
-# decides what the picker shows, and anything seen at the gateway is added.
+# Regions the picker offers; anything seen at the gateway is added to the account's own list.
 REGION_CHOICES = [
     "us-east-1", "us-east-2", "us-west-1", "us-west-2",
     "ca-central-1", "ca-west-1", "sa-east-1", "mx-central-1",
@@ -164,19 +119,12 @@ REGION_CHOICES = [
     "me-south-1", "me-central-1", "af-south-1", "il-central-1",
 ]
 
-# No bootstrap administrator is seeded: a fresh control has **no accounts**, just
-# sign-up, the way AWS leaves a new account to the person creating it. The first
-# sign-up becomes the platform owner (global + default admin).
-
-# The React console. Built by `npm run build` in `web/` and mounted here; the
-# server-rendered pages stay available under /classic.
+# The React console, built by `npm run build` in `web/` and mounted here; the server-rendered pages stay at /classic.
 STATIC_DIR = os.environ.get("MC_STATIC_DIR", "/app/static")
 PUBLIC_DIR = os.environ.get("MC_PUBLIC_DIR", "/app/public")
 SPA_ROUTES = {"/", "/resources",
               "/settings", "/about"}
-# Served to anyone, signed in or not: the sign-in screens themselves. The
-# endpoint behind them (`POST /api/auth/login`) mints the session, so this route
-# *is* the login page — there is no server-rendered form any more.
+# Public login pages: `POST /api/auth/login` mints the session, so this route is the login page.
 PUBLIC_SPA_ROUTES = {"/login", "/signin"}
 MIME = {
     ".html": "text/html; charset=utf-8",
@@ -192,9 +140,7 @@ MIME = {
     ".txt": "text/plain; charset=utf-8",
 }
 
-# The icon set `scripts/favicons.sh` writes into `web/public`. They sit at fixed
-# names rather than hashed ones, so they must be servable from the root and must
-# not be cached as immutable — a new logo has to reach a returning visitor.
+# Fixed icon names, so they must be servable from the root and revalidated rather than cached as immutable.
 ICON_ASSETS = {
     "/favicon.ico",
     "/favicon-32.png",
@@ -203,9 +149,7 @@ ICON_ASSETS = {
     "/apple-touch-icon.png",
 }
 
-# The same icon declaration in both surfaces — the console's `index.html` and the
-# server-rendered auth pages. SVG first (crisp at every size), then the PNG set
-# `scripts/favicons.sh` writes, with the `.ico` left to the browser's fallback.
+# The same icon declaration for the console's `index.html` and the server-rendered auth pages.
 ICON_LINKS = (
     '<link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png">'
     '<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">'
@@ -214,8 +158,7 @@ ICON_LINKS = (
     '<meta name="theme-color" content="#0f141a">'
 )
 SESSION_SECONDS = int(os.environ.get("EP_SESSION_SECONDS", "28800"))
-# AWS allows two access keys per IAM user; the console holds the same line per
-# account so a rotation can overlap (create the new key, then delete the old).
+# AWS allows two keys per IAM user; the same cap per account lets a rotation overlap.
 MAX_ACCESS_KEYS = 2
 RECENT_LIMIT = int(os.environ.get("EP_RECENT_LIMIT", "5") or 5)
 
@@ -239,8 +182,7 @@ HOP_BY_HOP = {
     "expect",
 }
 
-# The upstream catalogue's sections, so the menu and /services read the same way
-# as github.com/ministackorg/ministack. Anything not listed lands in "Other".
+# The upstream catalogue's sections, so the menu and /services read as they do upstream; anything else is "Other".
 SERVICE_GROUPS: list[tuple[str, set[str]]] = [
     ("Core", {
         "s3", "sqs", "sns", "dynamodb", "dynamodbstreams", "lambda",
@@ -303,23 +245,7 @@ NODES: list[dict] = [
 
 
 class Accounts:
-    """Accounts are the tenancy boundary.
-
-    Stored as one row per account in the `accounts` store, each carrying this
-    shape:
-
-        {"account_id": "111111111111", "alias": "mathewmusango",
-         "root": "mathewmusango", "created_at": "...",
-         "users": {"mathewmusango": {"username": ..., "role": "root"}}}
-
-    A principal holds its IAM keys in `access_keys` (name, id, secret, created).
-    The flat `access_key_id` / `secret_access_key` / `credentials_issued` fields
-    mirror the first key: the classic pages and the provision response still read
-    them, so they stay as a pointer, never a second copy.
-
-    The pre-2026-11-11 v1 shape (`{username: account_id}`) is converted during
-    the one-time SQLite import.
-    """
+    """Accounts are the tenancy boundary: one store row per account, its principals holding IAM keys."""
 
     def __init__(self, db: Store) -> None:
         self.db = db
@@ -341,22 +267,17 @@ class Accounts:
                 if "default_admin" not in account:
                     account["default_admin"] = False
                     changed = True
-                # Tenancy is AWS-shaped: no account is a global administrator.
-                # The flags stay in the document for shape stability, and an old
-                # one that granted cross-tenant access is cleared here.
+                # Tenancy is AWS-shaped: an old cross-tenant grant is cleared here, the flags kept only for shape.
                 if account.get("global_admin") or account.get("default_admin"):
                     account["global_admin"] = False
                     account["default_admin"] = False
                     changed = True
-                # Regions are opt-in. Accounts created before that rule carry
-                # the whole list; treat it as "untouched" and keep just the
-                # home region, so the picker starts from one like AWS.
+                # Regions are opt-in: an account carrying the whole list is treated as untouched and keeps its home region.
                 regions = account.get("regions")
                 if regions is not None and set(regions) == set(REGION_CHOICES):
                     account["regions"] = [DEFAULT_REGION]
                     changed = True
-            # One key per principal used to live in the flat fields; fold it
-            # into the list so the console has a single shape to render.
+            # One key per principal used to live in the flat fields; fold it into the list for a single shape.
             for account in self.accounts.values():
                 for user in account.get("users", {}).values():
                     if "access_keys" in user:
@@ -384,8 +305,7 @@ class Accounts:
             "created_at": now(),
             # Regions are opt-in per account, like AWS. us-east-1 is always on.
             "regions": [DEFAULT_REGION],
-            # Regions added because a request used them (see enable_region), so
-            # the console can say why they are on.
+            # Regions added on first use (see enable_region), so the console can say why they are on.
             "auto_regions": [],
             "global_admin": False,
             "default_admin": False,
@@ -394,14 +314,7 @@ class Accounts:
         }
 
     def _save(self) -> None:
-        """Persist the accounts this process holds — but never delete by omission.
-
-        This used to replace the whole table, which made an in-memory copy the
-        authority: a second writer (a CLI, the bootstrap job, another process)
-        could be clobbered back, and a row someone else had just created was
-        deleted simply because this process had not loaded it. Writes are
-        per-row now; removal is explicit in `delete()`.
-        """
+        """Persist the accounts this process holds, row by row; removal is explicit in `delete()`."""
         for account_id, account in self.accounts.items():
             self.db.put("accounts", account_id, json.dumps(account))
 
@@ -423,13 +336,7 @@ class Accounts:
         return alias
 
     def by_ref(self, ref: str) -> dict | None:
-        """Account by ID or alias (case-insensitive on the alias).
-
-        A miss re-reads the table once before answering: the control is the only
-        writer in normal operation, but an operator tool (or a probe) can create
-        an account out of process, and "no such account" must not be a lie about
-        a row that exists.
-        """
+        """Account by ID or alias (case-insensitive on the alias); a miss re-reads the table once."""
         ref = (ref or "").strip()
         if not ref:
             return None
@@ -599,8 +506,7 @@ class Accounts:
             if account is None:
                 return None
             account["regions"] = sorted({DEFAULT_REGION, *regions})
-            # A region that is no longer enabled is no longer "added on first
-            # use" either; keep the note only for regions still on.
+            # A region that is no longer enabled is no longer "added on first use" either; keep the note only for regions still on.
             if account.get("auto_regions"):
                 account["auto_regions"] = [
                     name for name in account["auto_regions"] if name in account["regions"]
@@ -609,13 +515,7 @@ class Accounts:
             return account
 
     def enable_region(self, account_id: str, region: str) -> dict | None:
-        """Enable one advertised region because a request needed it.
-
-        The gateway calls this when a client signs for a region the account has
-        not enabled but is a region MiniStack serves. The region is
-        recorded in `auto_regions` so the console can say it was enabled on
-        first use rather than by hand.
-        """
+        """Enable an advertised region on first use, recorded in `auto_regions` so the console can say why."""
         with self.lock:
             account = self.accounts.get(account_id)
             if account is None or region in self.regions_of(account):
@@ -646,12 +546,7 @@ class Accounts:
 
 
 class UserStore:
-    """Local credentials: username -> password hash -> account.
-
-    One document per user in the emulator's DynamoDB, keyed by the lower-cased
-    username (the old table used `COLLATE NOCASE`). This store answers only "is
-    this password right, and which account does the username belong to".
-    """
+    """Local credentials: username -> password hash -> account, one document per user."""
 
     ROUNDS = 260_000
 
@@ -696,14 +591,7 @@ class UserStore:
         self.db.put("users", self._key(username), json.dumps(record))
 
     def _reload(self) -> dict[str, dict]:
-        """Read the whole table again.
-
-        Credentials are written by more than one process: this server, and the
-        host-side `password.py` that resets a locked-out principal. Serving a
-        copy loaded at start-up would leave a reset invisible until a restart,
-        so every read goes to the store. The table holds one row per principal,
-        which makes this a scan of a handful of rows.
-        """
+        """Read the whole table again, because the host-side `password.py` may have reset a password."""
         try:
             self.users = self.db.payloads("users")
         except (OSError, DynamoError) as exc:
@@ -720,11 +608,7 @@ class UserStore:
         return self._key(username) in self._reload()
 
     def find_by_email(self, email: str) -> dict | None:
-        """The user record whose address matches, case-insensitively.
-
-        Root sign-in asks for an email, but the store is keyed by username and
-        the address is optional, so a user without one simply has no match.
-        """
+        """The user record whose address matches, case-insensitively; no address means no match."""
         wanted = (email or "").strip().lower()
         if not wanted:
             return None
@@ -823,13 +707,7 @@ class Settings:
 
 
 class Owners:
-    """Best-effort provenance: which principal created a named resource.
-
-    The emulator keeps no owner metadata, so this is a control-plane ledger keyed
-    by `account/service/name` (names are unique per service inside an account; S3
-    is account-scoped upstream anyway). A resource created with the CLI simply has
-    no entry — the console shows the account and leaves the user blank.
-    """
+    """Best-effort provenance: which principal created a named resource, keyed by `account/service/name`."""
 
     def __init__(self, db: Store) -> None:
         self.db = db
@@ -887,24 +765,13 @@ OWNERS = Owners(DB)
 
 
 def seed_local_admin() -> None:
-    """Retired: a fresh control starts with no accounts, only sign-up.
-
-    Kept as a named tombstone so the next reader does not go looking for the
-    bootstrap user in `app.py` again — `ensure_local()` already makes the first
-    sign-up the platform owner (global and default admin). Removed 2026-11-15
-    with the `MC_ADMIN_USER`/`_EMAIL`/`_PASSWORD` settings.
-    """
+    """Retired tombstone: a fresh control starts with no accounts, only sign-up (see `ensure_local`)."""
 
 
 # No seed call on purpose: the database may be empty and that is the design.
 
 
-# --------------------------------------------------------------------------
-# IAM provisioning
-#
-# A 12-digit access key is an account **root**: MiniStack skips secret
-# verification for root keys, so the control can drive IAM for any account by
-# presenting its ID. The issued IAM user key is a real, verified credential.
+# IAM provisioning: a 12-digit access key is an account root and needs no verified signature.
 
 
 def iam_request(account_id: str, action: str, **params) -> tuple[bool, str]:
@@ -963,12 +830,7 @@ def ensure_iam_user(account: dict, principal: dict) -> str:
 def create_access_key(
     account: dict, principal: dict, name: str
 ) -> tuple[dict | None, str]:
-    """Issue one more IAM key and record it. Returns `(key, error)`.
-
-    The cap is checked against the store first so a refused request never leaves
-    an orphan key at the emulator; if the store rejects it afterwards (a racing
-    delete), the key we just made is removed again.
-    """
+    """Issue one more IAM key and record it; the cap is checked first so a refusal leaves no orphan."""
     account_id = account["account_id"]
     username = principal["username"]
     if ACCOUNTS.key_count(account) >= MAX_ACCESS_KEYS:
@@ -1101,7 +963,6 @@ def node_by_name(name: str) -> dict | None:
     return None
 
 
-# --------------------------------------------------------------------------
 # persistent registry + node cache
 
 
@@ -1175,14 +1036,7 @@ class Registry:
     def reconcile(
         self, node: dict, names: dict[str, str], reachable: bool, account: str = ""
     ) -> list[str]:
-        """Merge one account's inventory. Unreachable keeps the last known set.
-
-        ``names`` maps bucket name to the region it was listed in: S3 state is
-        account- and region-scoped, so an inventory is assembled one region at
-        a time. The listing is per account, so pruning is too: entries
-        belonging to other accounts must survive a reconcile of the root
-        account.
-        """
+        """Merge one account's inventory; unreachable keeps the last known set, and pruning is per account."""
         conflicts: list[str] = []
         checked = now()
         owner = account or node.get("account_id", "")
@@ -1242,12 +1096,7 @@ SESSIONS_LOCK = threading.Lock()
 
 
 def session_key(token: str) -> str:
-    """The store key for a session token: a digest, never the token itself.
-
-    A session token is a bearer credential, so a copy of the table must not be
-    enough to replay it. The cookie carries the raw token; the store keeps only
-    its SHA-256, which is what the lookup hashes again.
-    """
+    """The store key for a session token: a digest, never the token itself, so the table cannot be replayed."""
     return hashlib.sha256((token or "").encode()).hexdigest()
 
 
@@ -1276,9 +1125,7 @@ def load_sessions() -> None:
             if not isinstance(info, dict):
                 continue
             if info.get("expires", 0) > current:
-                # Rows written before sessions were hashed are keyed by the raw
-                # token. Re-key them in memory and drop the raw copy, so the
-                # table never keeps a usable credential.
+                # Rows written before sessions were hashed are re-keyed in memory and the raw copy dropped.
                 digest = key if re.fullmatch(r"[0-9a-f]{64}", key) else session_key(key)
                 SESSIONS[digest] = info
                 restored += 1
@@ -1360,14 +1207,7 @@ def purge_user_sessions(account_id: str, username: str) -> None:
         save_sessions()
 
 
-# --------------------------------------------------------------------------
-# password-reset links
-#
-# There is no mail transport here, so a reset link is minted by an administrator
-# and handed over out of band — the user still chooses their own password, which
-# is the point of a link rather than an admin-typed password. The token follows
-# the same contract as a session: only its SHA-256 is stored, the raw value
-# appears once in the link, it expires, and it is deleted when it is used.
+# password-reset links: the token follows the session contract — only its SHA-256 is stored.
 
 RESET_SECONDS = int(os.environ.get("EP_RESET_SECONDS", "1800"))
 
@@ -1424,7 +1264,6 @@ def consume_reset(token: str) -> dict | None:
     return record
 
 
-# --------------------------------------------------------------------------
 # node calls
 
 
@@ -1512,13 +1351,7 @@ def health_snapshot() -> dict:
 def list_bucket_names(
     node: dict, account: str = "", region: str = ""
 ) -> tuple[bool, dict[str, str]]:
-    """List one account's buckets in one region. A 12-digit key is that
-    account's root.
-
-    ListBuckets is regional: the signing region decides what is enumerated, so
-    an account's inventory is the union of the listings over its enabled
-    regions.
-    """
+    """List one account's buckets in one region; ListBuckets is regional, so inventory is a union."""
     region = region or DEFAULT_REGION
     extra = {}
     if account:
@@ -1537,11 +1370,7 @@ def list_bucket_names(
 
 
 def refresh_registry() -> dict:
-    """Rebuild the name registry from every known account's inventory.
-
-    The listing is per account (each with that account's root key), so a
-    reconcile never sees — or prunes — another account's buckets.
-    """
+    """Rebuild the name registry from every known account's inventory, listed per account."""
     conflicts: list[str] = []
     for account_id, account in list(ACCOUNTS.accounts.items()):
         regions = ACCOUNTS.regions_of(account)
@@ -1561,7 +1390,6 @@ def refresh_registry() -> dict:
     }
 
 
-# --------------------------------------------------------------------------
 # replication backends
 
 
@@ -1577,22 +1405,14 @@ BUCKET_TAKEN = "Bucket {name} already exists"
 
 
 def bucket_taken(name: str) -> str:
-    """The one message for a name that is already taken.
-
-    The emulator sends the same sentence, so the answer does not depend on which
-    layer caught it.
-    """
+    """The one message for a name that is already taken, the same sentence the emulator sends."""
     return BUCKET_TAKEN.format(name=name)
 
 
 def reserve_across(
     bucket: str, region: str, account: str = ""
 ) -> tuple[bool, str, int]:
-    """Claim a bucket name for this create; an existing name is refused.
-
-    One answer for every duplicate — this account's or another's, this region's
-    or another's — with the same ``409`` and message the emulator gives.
-    """
+    """Claim a bucket name for this create; a duplicate gets one 409 wherever it is asked."""
     node = node_by_region(region)
     if node is None:
         return False, "no emulator is configured", 503
@@ -1604,7 +1424,6 @@ def release_across(bucket: str) -> None:
     REGISTRY.release(bucket)
 
 
-# --------------------------------------------------------------------------
 # gateway
 
 
@@ -1629,8 +1448,7 @@ def detect_region_service(headers, query: str) -> tuple[str, str]:
 
 
 def request_account(headers, query: str) -> str:
-    """The account a request belongs to: a 12-digit access key, else the root
-    fallback. This is also what selects the account inside the emulator."""
+    """The account a request belongs to: a 12-digit access key, else the root fallback."""
     auth = headers.get("Authorization", "")
     match = re.search(r"Credential=([^/]+)/\d{8}/", auth)
     if not match:
@@ -1667,9 +1485,7 @@ def proxy(
         for key, value in headers.items()
         if key.lower() not in HOP_BY_HOP
     }
-    # Keep the client's Host: with AUTH=true MiniStack verifies the SigV4
-    # signature, which covers the Host header. Rewriting it would make every
-    # signed request fail with SignatureDoesNotMatch.
+    # Keep the client's Host: the SigV4 signature covers it, and rewriting it breaks every signed request.
     forwarded.setdefault("Host", f"{url.hostname}:{url.port or 80}")
     if body is not None:
         forwarded["Content-Length"] = str(len(body))
@@ -1763,9 +1579,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                         f"region {region} is not enabled for this account",
                     )
                     return
-                # A region MiniStack serves, so the reference is
-                # honoured and recorded as enabled on first use instead of being
-                # refused. A region outside the catalogue stays refused.
+                # A region in the catalogue is honoured as enabled on first use; one outside stays refused.
                 ACCOUNTS.enable_region(account, region)
                 print(
                     f"gateway: enabled {region} for {owner.get('alias', account)} on first use",
@@ -1825,13 +1639,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
                     )
                     return
             elif entry.get("account_id") != account or entry.get("region") != region:
-                # Another account's name, or this account's bucket in another
-                # region: one answer, whichever account or region asks.
+                # Another account's name, or this account's bucket elsewhere: one answer either way.
                 self._error(409, "BucketAlreadyExists", bucket_taken(bucket))
                 return
-            # The owner re-creating in the bucket's own region is forwarded: the
-            # emulator answers AWS's 200-and-reset (us-east-1) or
-            # BucketAlreadyOwnedByYou, and either way the reservation stays.
+            # The owner re-creating in the bucket's own region is forwarded; the reservation stays.
             node = node_by_region(region)
             if node is None:
                 self._error(503, "ServiceUnavailable", "no emulator is configured")
@@ -1876,7 +1687,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self._forward(node, region, body)
 
 
-# --------------------------------------------------------------------------
 # control API + dashboard
 
 
@@ -2102,8 +1912,7 @@ def brand_logo_path() -> str:
 
 
 def reset_email_html(link: str, username: str, minutes: int) -> str:
-    """The HTML alternative: inline styles only, because mail clients ignore
-    stylesheets. The mark is referenced by `cid:`, which `mail.py` attaches."""
+    """The HTML alternative: inline styles only, and the mark by `cid:`, which `mail.py` attaches."""
     safe_link = html.escape(link, quote=True)
     safe_user = html.escape(username)
     return f"""<!doctype html><html><body style="margin:0;padding:24px;background:#f3f6fc;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0b1b3f">
@@ -2167,11 +1976,7 @@ BROWSE_SERVICES = [
 ]
 
 
-# --------------------------------------------------------------------------
-# resource browser
-#
-# A 12-digit access key is an account root and needs no verified signature, so
-# the control can read every account's resources without holding any secret.
+# resource browser: a 12-digit access key is an account root, so no secret is held.
 
 
 def aws_call(
@@ -2229,11 +2034,7 @@ def signed_rest(
     body="",
     extra_headers: dict | None = None,
 ) -> tuple[int, str]:
-    """A generic REST call (S3, Lambda, API Gateway, ...) as the account root.
-
-    The signing itself lives in `signed.py`, so the S3 create sequence can be
-    exercised on a real socket without a store behind it.
-    """
+    """A generic REST call (S3, Lambda, API Gateway, ...) as the account root, signed in `signed.py`."""
     node = primary_node()
     if node is None:
         return 0, "emulator is not registered"
@@ -2273,12 +2074,7 @@ def signed_s3(
 
 
 def s3control(account: str, region: str):
-    """An S3 Control call, as `rest(region, method, path, body)`.
-
-    S3 Control names the account in `x-amz-account-id`, and the region is an
-    argument rather than the page's: Multi-Region access point management is
-    served from us-west-2 whichever region the page is showing.
-    """
+    """An S3 Control call as `rest(region, method, path, body)`, signed for the region named."""
 
     def rest(target_region, method, path, body=""):
         return signed_rest(
@@ -2295,15 +2091,7 @@ def s3control(account: str, region: str):
 
 
 def is_console_route(path: str) -> bool:
-    """The console's own paths beyond the flat `SPA_ROUTES`.
-
-    A service's home (`/<service>/home`) and the pages that sit beside it
-    (`/<service>/create`), plus every page S3 hangs off its own nav — the create
-    forms, a bucket's own page and the access point pages — which the client
-    router resolves and whose unknown names it redirects away from. Any depth is
-    SPA territory: a page you cannot open by its URL is a page you cannot
-    bookmark.
-    """
+    """The console's own paths beyond the flat `SPA_ROUTES`, resolved by the client router at any depth."""
     parts = [part for part in path.split("/") if part]
     if not parts:
         return False
@@ -2321,8 +2109,7 @@ def static_asset(url_path: str) -> tuple[bytes, str] | None:
         or url_path == "/emuplane.png"
     ):
         return None
-    # The logo also ships in `web/public`, so the sign-in pages keep their brand
-    # mark before `web/dist` has ever been built.
+    # The logo also ships in `web/public`, so the sign-in pages keep their mark before `web/dist` exists.
     for root in (PUBLIC_DIR, STATIC_DIR):
         base = os.path.realpath(root)
         target = os.path.realpath(os.path.join(base, url_path.lstrip("/")))
@@ -2547,8 +2334,7 @@ def _browse_region(service: str, account: str, region: str) -> list[dict]:
     return rows
 
 
-# Parameters that name the resource an action creates or touches. The emulator
-# records no owner, so this is how the control learns who made what.
+# Parameters that name the resource an action creates; the emulator records no owner.
 OWNER_PARAMS = (
     "Bucket", "QueueName", "TopicArn", "TableName", "UserName", "RoleName",
     "FunctionName", "ParameterName", "SecretId", "StreamName", "logGroupName",
@@ -2577,13 +2363,7 @@ def _bucket_claim(name: str) -> dict:
 
 
 def _bucket_location(account: str, region: str, name: str) -> str:
-    """Where a bucket really lives, asked of S3 itself.
-
-    `ListBuckets` is account-global and says nothing about a bucket's region, and
-    a bucket created straight on the emulator has no claim either. `GetBucketLocation`
-    answers whatever region it is signed for, and an empty constraint is us-east-1
-    — which is what AWS returns for it, not a guess.
-    """
+    """Where a bucket really lives, asked of S3 itself: `GetBucketLocation`, empty meaning us-east-1."""
     status, body = signed_s3(account, region, "GET", "/" + quote(name) + "?location")
     if not 200 <= status < 300:
         return ""
@@ -2596,15 +2376,7 @@ def _bucket_location(account: str, region: str, name: str) -> str:
 def _annotate(
     service: str, account: str, region: str, rows: list[dict]
 ) -> list[dict]:
-    """Attach the region and owner metadata every row carries.
-
-    The registry is the only thing that knows where a bucket this console created
-    lives: the fork's ``ListBuckets`` is account-global, as AWS's is, so every
-    enabled region answers with every bucket and the queried region says nothing
-    about a bucket's own. A bucket with no claim — one made straight on the
-    emulator — is located by asking S3 (`GetBucketLocation`); the queried region
-    stays the fallback for a name even that cannot answer for.
-    """
+    """Attach the region and owner metadata every row carries, locating an unclaimed bucket by asking S3."""
     for row in rows:
         claim = _bucket_claim(row["name"]) if service == "s3" else {}
         entry = OWNERS.get(account, service, row["name"])
@@ -2635,11 +2407,7 @@ def served_regions(account: dict) -> list[str]:
 
 
 def browse_all(service: str, account: str, regions: list[str]) -> list[dict]:
-    """Every region at once: one row per resource.
-
-    A bucket name is unique partition-wide, so S3 rows dedupe by name alone;
-    every other service may reuse a name in another region.
-    """
+    """Every region at once, one row per resource; S3 rows dedupe by name alone."""
     rows: list[dict] = []
     seen: set[tuple] = set()
     for region in regions:
@@ -2686,8 +2454,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
-        # These pages carry a form and change with every build; a cached copy is
-        # how a reworked screen looks "unchanged" to a returning browser.
+        # These pages carry a form and change with every build, so they are never cached.
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(payload)
@@ -2736,8 +2503,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         if found is None:
             return self._json(404, {"error": "asset not found"})
         payload, content_type = found
-        # Hashed build output never changes under a name; the brand files (icons
-        # and the marks) keep their name across releases, so they revalidate.
+        # Hashed build output is immutable; the brand files keep their name and revalidate.
         brand = url_path in ICON_ASSETS or url_path.startswith("/backends/")
         cache = (
             "public, max-age=86400"
@@ -2787,13 +2553,7 @@ class ControlHandler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _platform(info: dict) -> bool:
-        """Cross-tenant access belongs to the deployment, never to a login.
-
-        The AWS model has no global administrator: a root user owns its account
-        and nothing else, and IAM users live inside that boundary. The only
-        principal that may cross tenancies is the bearer token — a deployment
-        credential held by the operator, not somebody's login.
-        """
+        """Cross-tenant access belongs to the deployment's bearer token, never to a login."""
         return not info
 
     def _can_touch(self, info: dict, account: str) -> bool:
@@ -2828,15 +2588,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _auth_login(self) -> None:
-        """JSON sign-in for the console's own screens.
-
-        Root takes an email (or username) and a password; IAM takes an account
-        reference, a username and a password. Success mints the same HttpOnly
-        session cookie the server-rendered form used to, so every later request
-        is unchanged. The answer says whether this principal still owes an MFA
-        code; enrolment does not exist yet (slice 3b), so it is false for every
-        account and the code screen is not reached.
-        """
+        """JSON sign-in for the console's own screens, minting the same session cookie as before."""
         payload = self._body()
         mode = str(payload.get("mode") or "root").strip().lower()
         password = str(payload.get("password") or "")
@@ -2884,8 +2636,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         account = ACCOUNTS.by_ref(record["account_id"])
         principal = ((account or {}).get("users") or {}).get(username)
         if account is not None and principal is None:
-            # The account was cached before this principal existed (an operator
-            # tool added it out of process). Read the table once more.
+            # The account was cached before this principal existed; read the table once more.
             ACCOUNTS._load()
             account = ACCOUNTS.by_ref(record["account_id"])
             principal = ((account or {}).get("users") or {}).get(username)
@@ -2919,8 +2670,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             "role": principal["role"],
         }
         if payload.get("multi"):
-            # Opt-in: the browser keeps this to switch back without a password.
-            # It is a session token, so it is only ever returned on request.
+            # Opt-in: only ever returned on request, so the browser can switch back without a password.
             answer["token"] = token
         self._json(
             200,
@@ -2932,13 +2682,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         )
 
     def _auth_switch(self) -> None:
-        """Adopt an identity the browser already holds a session token for.
-
-        Multi-session is opt-in and client-side: the token sits in
-        `localStorage` only after the account menu turned it on. The server
-        merely re-mints the cookie for a token that is still live — a dead one
-        is refused, so signing out everywhere also ends the switch list.
-        """
+        """Adopt an identity the browser holds a live session token for; a dead one is refused."""
         payload = self._body()
         token = str(payload.get("token") or "").strip()
         info = session_info(token) if token else None
@@ -3013,11 +2757,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     def _auth_layout(
         self, title: str, body: str, logo: bool | None = None
     ) -> str:
-        """The shell every server-rendered auth page sits in.
-
-        `logo` defaults to on for /reset — the one auth page a link lands on, so
-        it has to look like the product that sent the mail.
-        """
+        """The shell every server-rendered auth page sits in; `logo` defaults to on for /reset."""
         if logo is None:
             logo = urlsplit(self.path).path == "/reset"
         mark = (
@@ -3327,8 +3067,7 @@ class ControlHandler(BaseHTTPRequestHandler):
     def _route_get(self):
         path = urlsplit(self.path).path
         if path == "/health":
-            # Public and unauthenticated: liveness only. Counts, uptime, mode and
-            # seen regions are in `/api/meta`, behind a session.
+            # Public and unauthenticated: liveness only; counts and mode are in /api/meta.
             return self._json(200, {"status": "ok"})
         if path == "/signup":
             return self._page(self._signup_page())
@@ -3353,8 +3092,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         if path.startswith("/assets/"):
             return self._asset(path)
         if path == "/emuplane.png" or path.startswith("/backends/"):
-            # Public brand marks: the sign-in pages carry Emuplane's, the console
-            # carries the backend profile's.
+            # Public brand marks: the sign-in pages carry Emuplane's, the console the backend's.
             return self._asset(path)
         if path in ICON_ASSETS:
             return self._asset(path)
@@ -3423,8 +3161,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 {"account": target["account_id"], "region": region, "counts": counts},
             )
         if path == "/api/s3/bucket-head":
-            # HeadBucket: the page asks where this bucket really is before it
-            # reads anything, so a bookmarked link works from any region.
+            # HeadBucket: the page asks where this bucket really is before it reads anything.
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
             region = (params.get("region") or [DEFAULT_REGION])[0]
@@ -3451,8 +3188,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             )
             return self._json(
                 200 if result.get("ok") else 502,
-                # `region` is the bucket's own answer; the one the page asked with
-                # is echoed separately so the two cannot be confused.
+                # `region` is the bucket's own answer; the page's requested region is echoed separately.
                 dict(result, account=target["account_id"], requested_region=region),
             )
         if path in (
@@ -3495,8 +3231,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             if not key:
                 return self._json(400, {"error": "a key is required"})
             if path.endswith("object-meta"):
-                # The reads beside an object: its tag set, its annotations and the
-                # two Object Lock states, each its own GET on the object's path.
+                # The reads beside an object: tag set, annotations and the two Object Lock states.
                 result = buckets.read_object_meta(
                     bucket,
                     key,
@@ -3525,8 +3260,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                     dict(result, account=target["account_id"], region=region),
                 )
             if path.endswith("object-download"):
-                # The object as a file: the console shows text inline and offers
-                # this for everything else, so a PNG is not a page of mojibake.
+                # The object as a file, for everything the console does not show as text.
                 status, headers, data = signed_rest_raw(
                     "s3",
                     target["account_id"],
@@ -3600,8 +3334,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(403, {"error": "region is not enabled"})
             if not bucket:
                 return self._json(400, {"error": "bucket is required"})
-            # A bucket is read in its own region; asking elsewhere is a 301 on the
-            # wire, and saying which region saves the caller the round trip.
+            # A bucket is read in its own region; saying which saves the caller a 301 round trip.
             claim = _bucket_claim(bucket)
             if claim.get("region") and claim["region"] != region:
                 return self._json(
@@ -3677,8 +3410,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 ),
             )
         if path == "/api/s3/access-points":
-            # Access points are S3 Control, not bucket subresources: each section
-            # is read from the region S3 Control serves it from.
+            # Access points are S3 Control, each section read from the region that serves it.
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
             region = (params.get("region") or [DEFAULT_REGION])[0]
@@ -3735,8 +3467,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             if not name:
                 return self._json(400, {"error": "an access point name is required"})
             rest = s3control(target["account_id"], region)
-            # A Multi-Region access point's policy is its own resource, read from
-            # the region that manages Multi-Region access points.
+            # An MRAP's policy is its own resource, read from the region that manages MRAPs.
             result = (
                 accesspoints.read_multi_region_policy(name, rest)
                 if section == "multi-region"
@@ -3747,9 +3478,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region, section=section),
             )
         if path == "/api/s3/access-point-detail":
-            # One access point read from the resources that own it: an MRAP's
-            # report, policy and routes; an Object Lambda access point's
-            # configuration and policy.
+            # One access point read from the resources that own it, per its kind.
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
             region = (params.get("region") or [DEFAULT_REGION])[0]
@@ -3878,10 +3607,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                         }
                         for account in visible
                     ],
-                    # Accounts are one global tenancy per identity: the same
-                    # account ID works in every region, now and in a future
-                    # multi-region cluster. Regions are a data axis only.
-                    # Selectable regions are the ones this account enabled.
+                    # One global tenancy per identity: the same account ID works in every region.
                     "regions": enabled,
                     "auto_regions": auto_regions,
                     "all_regions": list(REGION_CHOICES),
@@ -4037,11 +3763,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _issue_reset_link(self, username: str) -> None:
-        """Mint a one-time reset link for a principal (platform admin only).
-
-        The link is the whole credential, so the raw token is returned here and
-        nowhere else — the store keeps only its digest.
-        """
+        """Mint a one-time reset link (platform admin only); the store keeps only its digest."""
         record = USERS.get(username)
         if record is None:
             return self._json(404, {"error": "unknown user"})
@@ -4063,12 +3785,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         )
 
     def _reset_user_password(self, username: str) -> None:
-        """Set a new password for a principal who cannot sign in.
-
-        There is no mail transport on this server, so recovery is a local act: a
-        platform administrator (or the account's own root user) issues the new
-        password here, and every session that principal holds is dropped.
-        """
+        """Set a new password for a principal who cannot sign in, dropping its sessions."""
         payload = self._body()
         password = str(payload.get("password") or "")
         if len(password) < 8:
@@ -4163,9 +3880,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 501, {"error": "MFA enrolment is not implemented yet."}
             )
         if path == "/api/auth/remember":
-            # Multi-session opt-in: hand this session's own token to its holder so
-            # the browser can switch back to it later. The cookie is the same
-            # token; nothing else is disclosed.
+            # Multi-session opt-in: hand this session's own token back so the browser can switch to it.
             token = self._session_token()
             info = session_info(token) if token else None
             if info is None:
@@ -4277,8 +3992,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                     "user": principal["username"],
                     "max_keys": MAX_ACCESS_KEYS,
                     "keys": public_keys(principal),
-                    # The secret is only ever handed back when a key is created,
-                    # like the AWS console's "download .csv" step.
+                    # The secret is only ever handed back when a key is created.
                     "key": key,
                     "aws_access_key_id": (key or {}).get("access_key_id"),
                     "aws_secret_access_key": (key or {}).get("secret_access_key"),
@@ -4315,9 +4029,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/object-upload":
-            # A file from the operator's machine, sent as its own bytes: the body
-            # is the object, not base64 inside JSON. S3 stores the Content-Type it
-            # is given, which is why the browser's file type is passed through.
+            # The body is the object itself, not base64 in JSON; the browser's file type is passed through.
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
             region = (params.get("region") or [DEFAULT_REGION])[0]
@@ -4335,8 +4047,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(
                     403, {"error": f"region {region} is not enabled for this account"}
                 )
-            # Read the body before answering anything: an early return would leave
-            # the file in the socket for the next keep-alive request to choke on.
+            # Read the body first: an early return would leave the file in the socket.
             data = self._read_body()
             if not bucket or not key:
                 return self._json(400, {"error": "a bucket and a key are required"})
@@ -4364,8 +4075,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region, bucket=bucket),
             )
         if path == "/api/s3/object-copy":
-            # CopyObject is a PUT to the destination, so the call is signed where
-            # the destination lives - HeadBucket says where that is.
+            # CopyObject is a PUT to the destination, so the call is signed where the destination lives.
             payload = self._body()
             info = self._caller()
             account = str(payload.get("account") or info.get("account") or "").strip()
@@ -4452,9 +4162,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/bucket-document":
-            # One configuration document: save it, or clear it. Clearing is a
-            # DELETE where S3 has one and an empty document where it has not,
-            # which is knowledge the control owns, not the page.
+            # One configuration document: save it or clear it, DELETE or empty document as S3 allows.
             payload = self._body()
             info = self._caller()
             account = str(payload.get("account") or info.get("account") or "").strip()
@@ -4520,8 +4228,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/access-points":
-            # The create form, applied as one request: CreateAccessPoint, then the
-            # policy the form carries.
+            # The create form as one request: CreateAccessPoint, then the policy it carries.
             payload = self._body()
             info = self._caller()
             account = str(payload.get("account") or info.get("account") or "").strip()
@@ -4545,10 +4252,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/mrap":
-            # A Multi-Region access point is made by an asynchronous request: the
-            # create answers with a request token, and the operation it names is
-            # described here and now, because the token outlives this request
-            # nowhere. The guard is the access point page's own.
+            # An MRAP create is asynchronous: the token it answers with is described here and now.
             payload = self._body()
             info = self._caller()
             account = str(payload.get("account") or info.get("account") or "").strip()
@@ -4575,8 +4279,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/mrap-delete":
-            # DeleteMultiRegionAccessPoint is asynchronous too: the answer is a
-            # token, so the operation it names is described with it.
+            # DeleteMultiRegionAccessPoint is asynchronous too: its token is described with it.
             payload = self._body()
             info = self._caller()
             account = str(payload.get("account") or info.get("account") or "").strip()
@@ -4635,8 +4338,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/mrap-routes":
-            # The one Multi-Region write that is not asynchronous: S3 answers 200
-            # with no token, so the dials are read back from the access point.
+            # The one Multi-Region write that is not asynchronous, so the dials are read back.
             payload = self._body()
             info = self._caller()
             account = str(payload.get("account") or info.get("account") or "").strip()
@@ -4683,8 +4385,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/access-point-policy-edit":
-            # An empty policy deletes it, which is what the console's editor does
-            # when you remove the statement.
+            # An empty policy deletes it, which is what removing the statement does.
             payload = self._body()
             info = self._caller()
             account = str(payload.get("account") or info.get("account") or "").strip()
@@ -4726,13 +4427,11 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if not name:
                 return self._json(400, {"error": "a bucket name is required"})
-            # The suffix of the Account Regional namespace is added server-side,
-            # so the name the registry claims is the name the bucket gets.
+            # The namespace suffix is added server-side, so the claimed name is the bucket's name.
             name, problem = buckets.resolve_name(payload, region)
             if problem:
                 return self._json(400, {"error": problem})
-            # The name is claimed before the emulator sees it, exactly as the
-            # gateway claims it, so a taken name gets one answer from both paths.
+            # The name is claimed before the emulator sees it, exactly as the gateway does.
             entry = bucket_owner(name)
             reserved = entry is None
             if entry is None:

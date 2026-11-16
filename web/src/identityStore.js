@@ -1,12 +1,4 @@
-// Identities this browser can switch between.
-//
-// Off by default. When the account menu's "Turn on multi-session support" is
-// enabled, a successful sign-in also stores that session's token here, so the
-// menu can switch back to it without asking for the password again.
-//
-// This is the one place where a session token sits in `localStorage`, which is
-// readable by any script on the page — the reason it is opt-in and never the
-// default. Turning the feature off drops every stored token.
+// Identities this browser can switch between: a session token is stored here only while multi-session is opted in, and dropped when it is off.
 
 const ENABLED_KEY = 'emuplane:multi-session'
 const IDENTITIES_KEY = 'emuplane:identities'

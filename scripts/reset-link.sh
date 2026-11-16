@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
-# Mint a one-time password-reset link for a principal.
-#
-# There is no mail transport on this server, so the link is handed over out of
-# band: run this, send the URL to the person, and they choose their own password
-# on `/reset`. The token is stored only as a digest, it expires after
-# EP_RESET_SECONDS (30 min by default), and it stops working once used.
-#
-#   ./scripts/reset-link.sh <username>
-#
-# If the person cannot be reached at all, `./scripts/password.sh <username>` sets
-# the password outright instead.
+# Mint a one-time password-reset link for a principal, handed over out of band.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

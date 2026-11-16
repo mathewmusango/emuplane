@@ -1,14 +1,4 @@
-"""The reads that live beside an object: tags, annotations and Object Lock.
-
-The object view asks one control route for all four, because they are all reads on
-the same object's path. Each is its own GET underneath, and each answers a state
-rather than a failure — no tag set, no annotations, and Object Lock that is not
-configured are all ordinary answers, and only a real failure keeps its message.
-
-The writes have no console control (they are proven on the wire in
-`tests/s3/test_operations.py`), so these tests make them through the gateway,
-signed the way a client signs them, and then check what the console reads back.
-"""
+"""The reads beside an object — tags, annotations, Object Lock — where absence is a state, not a failure."""
 
 from __future__ import annotations
 

@@ -1,8 +1,6 @@
 import { useTheme } from '../prefs'
 
-// The sign-in page is outside Cloudscape's top navigation, so it needs the state
-// itself: the stored preference is `system` by default, and a click pins an
-// explicit light or dark choice.
+// The sign-in page is outside Cloudscape's top navigation, so it needs the theme state itself.
 export function useThemeMode() {
   const { theme, setTheme } = useTheme()
   const systemDark =
@@ -17,8 +15,7 @@ const SUN = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" view
 
 const MOON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23e9ebed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>`
 
-// Cloudscape's top navigation only renders its own utility types, so the
-// toggle is exposed as a utility object rather than a custom element.
+// Cloudscape's top navigation only renders its own utility types, so the toggle is a utility object.
 export function useThemeToggle() {
   const { theme, setTheme } = useTheme()
   const systemDark =

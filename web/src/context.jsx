@@ -7,9 +7,7 @@ const SessionContext = createContext(null)
 const REGION_KEY = 'emuplane:region'
 const ACCOUNT_KEY = 'emuplane:account'
 
-// Routes that exist without a session. `/api/meta` can only answer 401 there, so
-// the console must not ask for it — and a fresh sign-in then loads it on the way
-// into the app, which is what makes the data current.
+// Routes that exist without a session: `/api/meta` can only answer 401 there, so the console must not ask for it.
 const SIGNED_OUT_ROUTES = ['/login', '/signin', '/forgot', '/reset']
 
 export const useSession = () => useContext(SessionContext)
@@ -41,8 +39,7 @@ export function SessionProvider({ children }) {
         return chosen
       })
       setRegionState((current) => {
-        // Selectable regions are the ones the account enabled; a node is not
-        // required (the emulator serves every region).
+        // Selectable regions are the account's enabled ones; a node is not required (the emulator serves every region).
         const enabled = next.regions?.length ? next.regions : ['us-east-1']
         const chosen = enabled.includes(current) ? current : enabled[0]
         sessionStorage.setItem(REGION_KEY, chosen)

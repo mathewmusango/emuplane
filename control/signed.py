@@ -1,16 +1,4 @@
-"""The calls the control makes as an account's root.
-
-A 12-digit access key is an account root with no verified signature, so these
-sign with a credential *name* and `Signature=local` — the property the gateway
-already relies on, and the reason nothing in this module holds a secret.
-
-The endpoint is an argument: `app.py` picks the node for the region and passes it
-in, and the tests point it at a socket they control.
-
-Two readers over one sender: `request` answers text (the shape every existing
-caller wants), `request_bytes` answers the headers and the bytes (what an upload,
-a download, or a look at an object's stored content type needs).
-"""
+"""The calls the control makes as an account's root: signed with a credential name and `Signature=local`, never a secret."""
 
 from __future__ import annotations
 
@@ -18,9 +6,7 @@ import http.client
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
-# Signed, sized or inferred here; a caller may not supply them. `Content-Type` is
-# deliberately absent: an upload knows the file's type, and S3 stores what it is
-# sent.
+# Signed, sized or inferred here; a caller may not supply them, and `Content-Type` stays the upload's.
 RESERVED = ("host", "authorization", "content-length")
 
 
@@ -66,11 +52,7 @@ def request_bytes(
     body=b"",
     extra_headers: dict | None = None,
 ) -> tuple[int, dict, bytes]:
-    """One signed call, answered as `(status, headers, body bytes)`.
-
-    Headers come back lower-cased, which is how the emulator reads them and how a
-    caller names them (`content-type`, `etag`).
-    """
+    """One signed call, answered as `(status, headers, body bytes)`, headers lower-cased."""
     url, data, headers = _prepare(
         endpoint, service, account, region, method, path, body, extra_headers
     )
@@ -99,12 +81,7 @@ def request(
     body="",
     extra_headers: dict | None = None,
 ) -> tuple[int, str]:
-    """One signed call, answered as `(status, body text)`.
-
-    `body` may be text or bytes; bytes are sent as they are, which is what a
-    binary upload hands over. The answer is decoded leniently because not every
-    answer is text (an object read is not).
-    """
+    """One signed call, answered as `(status, body text)`; bytes go out as they are and the answer decodes leniently."""
     status, _headers, payload = request_bytes(
         endpoint, service, account, region, method, path, body, extra_headers
     )

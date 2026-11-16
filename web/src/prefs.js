@@ -4,9 +4,7 @@ import { applyMode, Mode } from '@cloudscape-design/global-styles'
 const FAV_PREFIX = 'emuplane:favorites'
 const FAV_EVENT = 'emuplane:favorites-changed'
 
-// Browser state is scoped to the signed-in account: a new account (or a wiped
-// database, which mints new IDs) starts with an empty list instead of replaying
-// whatever the previous tenancy left behind.
+// Browser state is scoped to the signed-in account, so a new account starts with an empty list.
 const keyFor = (prefix, scope) => `${prefix}:${scope || 'anon'}`
 
 function readFavorites(key) {

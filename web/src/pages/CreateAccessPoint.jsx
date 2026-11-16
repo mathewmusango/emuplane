@@ -58,9 +58,7 @@ export default function CreateAccessPoint() {
 
   const back = () => navigate(`/s3/access-points?region=${region}`)
 
-  // An access point must be in the same Region as its bucket, so the picker
-  // offers this Region's buckets and says each one's Region rather than hiding
-  // the rule in an error message.
+  // An access point must be in the same Region as its bucket, so the picker offers this Region's buckets and names each one's Region.
   useEffect(() => {
     if (!account) return undefined
     let live = true

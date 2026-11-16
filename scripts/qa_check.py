@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""QA gate: signed-off behaviour must still be there and nothing secret leaks.
-
-`qa/tasks.json` lists each completed task with evidence: a file plus a literal
-marker that proves the behaviour still exists. This catches reverted or
-"redone" tasks without failing on unrelated edits to the same file. The ledger is
-local-only (gitignored) — when it is absent the gate still runs its security and
-compile checks and reports that no evidence was checked.
-
-If a change is intentional, set the task `"reopened": true` (and say why), make
-the change, then clear the flag once it is signed off again.
-
-Usage:
-  python3 scripts/qa_check.py            # evidence + security + py_compile
-  python3 scripts/qa_check.py --tests    # also run tests/ (console + python)
-"""
+"""QA gate: signed-off behaviour must still be there and nothing secret leaks; `--tests` also runs both suites."""
 
 from __future__ import annotations
 
@@ -122,9 +108,7 @@ def compile_python() -> list[str]:
 
 
 def test_python() -> list[str]:
-    """`tests/` needs pytest, which the runtime image does not ship: run it where
-    it exists, and say so where it does not.
-    """
+    """`tests/` needs pytest, which the runtime image does not ship: run it where it exists."""
     try:
         import pytest  # noqa: F401
     except ImportError:
@@ -137,11 +121,7 @@ def test_python() -> list[str]:
 
 
 def coverage() -> list[str]:
-    """`S3.md` is generated, so a stale one is a failure, not a nuisance.
-
-    It needs the emulator checkout (its README is the operation list); without
-    that sibling the check says so and passes.
-    """
+    """`S3.md` is generated, so a stale one is a failure; without the emulator checkout it passes."""
     readme = ROOT.parent / "ministack-src" / "README.md"
     script = ROOT / "scripts" / "s3_coverage.py"
     if not readme.is_file() or not script.is_file():

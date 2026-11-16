@@ -1,5 +1,4 @@
-// Official AWS architecture-service icons (MIT package `aws-icons`, derived from
-// the AWS icon set). Imported as URLs so Vite fingerprints and serves them.
+// Official AWS architecture-service icons (MIT package `aws-icons`), imported as URLs so Vite fingerprints them.
 import acm from './assets/aws/acm.svg'
 import apigateway from './assets/aws/apigateway.svg'
 import athena from './assets/aws/athena.svg'

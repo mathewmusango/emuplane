@@ -13,9 +13,7 @@ import About from './pages/About'
 import SignIn from './pages/SignIn'
 import { useSession } from './context'
 
-/** The console's service path is `/<service>/home?region=<region>`, the shape the
- *  real console uses, so a link reproduces the account's view. The old
- *  `/resources/<service>` path redirects into it. */
+/** The console's service path is `/<service>/home?region=<region>`; the old `/resources/<service>` path redirects into it. */
 function ServiceRedirect() {
   const { service = 's3' } = useParams()
   const { region } = useSession()
@@ -29,29 +27,21 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/services" element={<Services />} />
         <Route path="/resources" element={<Navigate to="/services" replace />} />
-        {/* S3's create is its own page, the way the console does it: one form
-            with the region, ownership, access, versioning, tags, encryption and
-            Object Lock, applied in a single request. */}
+        {/* S3's create is its own page: one form applies region, ownership, access, versioning, tags, encryption and Object Lock. */}
         <Route path="/s3/create" element={<CreateBucket />} />
-        {/* S3 Tables and S3 Files are children of S3 in the console, so their
-            pages hang off the S3 nav rather than existing as services of their
-            own (`/s3tables/home` and friends are not pages). Directory and vector
-            buckets are not pages at all: this emulator serves neither. */}
+        {/* S3 Tables and S3 Files are children of S3, so their pages hang off the S3 nav; directory and vector buckets are not pages. */}
         <Route path="/s3/table-buckets" element={<S3Section section="table-buckets" />} />
         <Route path="/s3/files" element={<S3Section section="files" />} />
         {/* One bucket is its own page, with the tabs this instance backs. */}
         <Route path="/s3/buckets/:name" element={<BucketDetail />} />
-        {/* Access points are S3 Control, so their pages hang off S3's nav like
-            the bucket pages do. Directory buckets have no backend here and so
-            have no tab. */}
+        {/* Access points are S3 Control, so their pages hang off S3's nav; directory buckets have no backend here. */}
         <Route path="/s3/access-points" element={<AccessPoints />} />
         <Route path="/s3/access-points/create" element={<CreateAccessPoint />} />
         <Route path="/:service/home" element={<Resources />} />
         <Route path="/resources/:service" element={<ServiceRedirect />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/about" element={<About />} />
-        {/* The sign-in screens are the login page: the control plane serves this
-            route without a session and POST /api/auth/login mints the cookie. */}
+        {/* The sign-in screens are the login page: the route works without a session, and POST /api/auth/login mints the cookie. */}
         <Route path="/login" element={<SignIn />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="*" element={<Navigate to="/" replace />} />

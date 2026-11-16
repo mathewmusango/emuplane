@@ -1,9 +1,4 @@
-"""The S3 children the bucket list cannot answer: S3 Tables and S3 Files.
-
-Each case creates the resource through the emulator's own API, then lists it
-through `control/s3extra.py` — so the parsing and the endpoint mapping are
-exercised against real responses, over a socket.
-"""
+"""The S3 children the bucket list cannot answer, S3 Tables and S3 Files, created through the emulator and listed over a socket."""
 
 from __future__ import annotations
 

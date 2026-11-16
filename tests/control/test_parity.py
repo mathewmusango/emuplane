@@ -1,31 +1,4 @@
-"""The same operation from both ends: MiniStack first, emuplane second.
-
-S3 can be written by a client that never touches this console — `aws s3 mb`, a
-direct signed call, another tool. So each operation here is exercised twice:
-
-  * **ministack** — the control's own signed client, straight at the emulator,
-    the same path a foreign client takes (no gateway, no claim recorded);
-  * **emuplane** — the console's API, which is how this product reads and
-    reverses it.
-
-A resource made on one side must be visible, readable and reversible from the
-other. Nothing created here is cleaned up: the buckets and objects stay so the
-next run — and the operator — can see them. Only the cases that *are* a delete
-remove anything, and they remove what they made.
-
-The first slice is the five core operations: create-bucket, delete-bucket,
-list-objects, put-object, delete-object.
-
-What this proves, and what it does not: the two ends agree. It cannot prove that
-MiniStack matches AWS — both ends are the same emulator, so a wrong assumption
-shared by both passes. Fidelity is the emulator's own suite's job; this suite's
-job is the seam (region resolution, claims, path encoding, account scoping),
-which is where this console actually breaks.
-
-One bucket per case, because the emulator is one session-wide process: an exact
-listing assertion in a shared bucket would depend on test order. The buckets and
-objects stay behind, so a later run — or the operator — can look at them.
-"""
+"""The same operation from both ends — MiniStack directly and through the console — one bucket per case because the emulator is session-wide."""
 
 from __future__ import annotations
 
@@ -112,8 +85,7 @@ def create_bucket(console, name: str) -> None:
 
 
 def test_a_bucket_created_on_ministack_is_drawn_by_emuplane(s3_endpoint, console):
-    """A bucket made straight on the emulator is listed by name, with the region
-    it really lives in, and its settings are readable."""
+    """A bucket made straight on the emulator is listed by name, with the region it lives in."""
     raw = ministack(s3_endpoint)
     status, _ = raw("PUT", f"/{BUCKET}")
     assert 200 <= status < 300

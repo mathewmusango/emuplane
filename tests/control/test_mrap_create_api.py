@@ -1,12 +1,4 @@
-"""A Multi-Region access point made from the console, and the operation that says so.
-
-CreateMultiRegionAccessPoint is asynchronous: the create answers with a request
-token, and only `DescribeMultiRegionAccessPointOperation` on that token says what
-became of the request. The page's create form is therefore one control route that
-creates and describes at once — the token is kept in that answer and nowhere else
-— and these tests drive it against the real emulator, then read the access point
-back through the listing the page shows.
-"""
+"""A Multi-Region access point made from the console: the create route makes and describes the async operation at once."""
 
 from __future__ import annotations
 
@@ -73,8 +65,7 @@ def test_a_create_is_described_by_the_token_it_answers_with(console):
     operation = body["operation"]
     assert operation["operation"] == "CreateMultiRegionAccessPoint"
     assert operation["status"] == "SUCCEEDED"
-    # The token names the operation: created in us-west-2, which is where S3
-    # Control serves Multi-Region management for this account.
+    # The token names the operation: created in us-west-2, where S3 Control serves Multi-Region management.
     assert operation["token"].startswith(
         f"arn:aws:s3:us-west-2:{ACCOUNT}:async-request/mrap/create/"
     )
@@ -111,8 +102,7 @@ def test_a_failed_operation_reports_its_status_instead_of_a_created_access_point
         buckets=("api-mrap-missing-east", "api-mrap-missing-west"),
     )
     assert status == 200, body
-    # The request itself was accepted, so `ok` holds: the failure is the
-    # operation's, and saying "not created" without it would hide what S3 refused.
+    # The request itself was accepted, so `ok` holds: the failure is the operation's.
     assert body["ok"] is True
     assert body["created"] is False
     assert body["operation"]["status"] == "FAILED"

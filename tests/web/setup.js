@@ -3,8 +3,7 @@ import { cleanup } from '@testing-library/react'
 
 afterEach(cleanup)
 
-// jsdom has no layout engine; Cloudscape's app layout and autosuggest only
-// observe, so a no-op observer is enough to render them.
+// jsdom has no layout engine; a no-op observer is enough for Cloudscape's app layout and autosuggest.
 class Observer {
   observe() {}
   unobserve() {}

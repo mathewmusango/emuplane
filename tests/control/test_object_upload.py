@@ -1,10 +1,4 @@
-"""Uploading a file from the operator's machine, and getting it back.
-
-The page sends the file as its own bytes — not base64 inside JSON — with the
-browser's content type, so S3 stores what the file is. Reading it back splits
-three ways: text is shown, anything else is a download, and the stored type is
-kept either way.
-"""
+"""Uploading a file from the operator's machine, and getting it back: bytes and content type kept."""
 
 from __future__ import annotations
 
@@ -173,8 +167,7 @@ def test_a_missing_object_cannot_be_downloaded(console):
 def test_a_content_type_is_never_forwarded_unchecked(control):
     assert control.safe_content_type("image/png") == "image/png"
     assert control.safe_content_type("text/plain; charset=utf-8") == "text/plain; charset=utf-8"
-    # A header is not a place to trust: a CR/LF would split it, so everything from
-    # the first one is dropped rather than forwarded.
+    # A header is not a place to trust: everything from the first CR/LF is dropped, not forwarded.
     assert control.safe_content_type("text/plain\r\nX-Evil: 1") == "text/plain"
     assert control.safe_content_type("") == "application/octet-stream"
     assert control.safe_content_type("   ") == "application/octet-stream"

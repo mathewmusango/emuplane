@@ -5,9 +5,7 @@ import { describeService, groupByCategory } from '../serviceCatalogue'
 import { useFavorites } from '../prefs'
 import './services-menu.css'
 
-// The services menu: a category rail on the left, the services themselves on the
-// right. Two panes are computed — what you visited, and everything — and every
-// category is a third. Alphabetical inside a pane, as the console does it.
+// The services menu: a category rail on the left, the services on the right, alphabetical inside each pane.
 
 const recentKey = (account) => `emuplane:recent:${account || 'anon'}`
 
@@ -131,8 +129,7 @@ export default function ServicesMenu({ names, account, onClose, onPick }) {
             <ul className="services-menu__items">
               {list().map((name) => (
                 <li key={name} className="services-menu__row">
-                  {/* The star sits against the name, not at the far edge of the
-                      row: it belongs to the service, and the eye finds it there. */}
+                  {/* The star sits against the name, since it belongs to the service. */}
                   <button
                     type="button"
                     className={`services-menu__star${isFavorite(name) ? ' is-favorite' : ''}`}

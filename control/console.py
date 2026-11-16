@@ -1,12 +1,4 @@
-"""Console catalogue: every GUI action is an AWS API call.
-
-The React UI renders forms from `CATALOGUE` and posts them to `/api/exec`, which
-runs the matching entry here through the same root-signed client the resource
-browser uses. Nothing in this module holds a credential.
-
-Parameter names are the AWS ones (`Bucket`, `QueueUrl`, `TableName`, ...) so the
-form fields and the API call stay recognisable as the CLI equivalent.
-"""
+"""Console catalogue: every GUI action is an AWS API call, run through the same root-signed client."""
 
 from __future__ import annotations
 
@@ -62,10 +54,7 @@ def _json(service, target, names=(), build=None, ok=(200,)):
 
 def _s3(method, path, body="", quote_params=()):
     def run(params, account, region, call, rest):
-        # A request line cannot carry a raw key: a space answers
-        # InvalidURL before the call is made. Percent-encode the values the path
-        # interpolates, keeping "/" literal, since that is what S3 reads as the
-        # bucket/key separator.
+        # A request line cannot carry a raw key: percent-encode the path values, keeping "/" literal.
         values = {
             name: quote(str(params[name]), safe="/") if name in quote_params else params[name]
             for name in params
@@ -80,9 +69,7 @@ def _s3(method, path, body="", quote_params=()):
 
 
 def _create_bucket_body(_params, region):
-    """A bare create still has to name the region on every non-us-east-1
-    endpoint. The console's create page adds the rest of the settings through
-    `buckets.create`, which shares this document."""
+    """A bare create still has to name the region on every non-us-east-1 endpoint."""
     return buckets.location_constraint(region)
 
 
@@ -720,12 +707,7 @@ def public_catalogue() -> dict:
 
 
 def _error_message(body: str, status: int) -> str:
-    """The human half of a failed call: S3's XML ``<Message>`` or AWS JSON.
-
-    The console shows this instead of the wire format, so a duplicate bucket
-    reads as the sentence the emulator sent, not as a status code next to an
-    XML blob.
-    """
+    """The human half of a failed call: S3's XML ``<Message>`` or the AWS JSON message."""
     text = body or ""
     match = re.search(r"<Message>(.*?)</Message>", text, re.S)
     if match:

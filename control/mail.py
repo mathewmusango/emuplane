@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
-"""Outbound mail, for the one message this control has to send.
-
-Standard library only — `smtplib` plus `email.message` — because the runtime
-image carries no third-party packages and this is one short message.
-
-Settings are `EP_MAIL_*` (see `.env.example`); `EP_MAIL_HOST` empty means mail is
-off. Credentials are read from the environment and never logged: a failure is
-reported by its stage and the SMTP status code, not by echoing the exchange.
-
-The message is `multipart/alternative` (plain text plus a branded HTML part) and
-the product mark is embedded as `multipart/related` with a `cid:` — a remote
-`<img>` would be blocked by most clients and would point at a host the recipient
-cannot reach.
-"""
+"""Outbound mail for the one message this control sends: stdlib `smtplib`, configured by `EP_MAIL_*`, never logging a credential."""
 
 from __future__ import annotations
 

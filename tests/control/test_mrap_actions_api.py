@@ -1,10 +1,4 @@
-"""The other Multi-Region writes: delete, policy, and the traffic dials.
-
-DeleteMultiRegionAccessPoint and PutMultiRegionAccessPointPolicy answer with a
-request token like the create does, so the control describes their operations the
-same way. SubmitMultiRegionAccessPointRoutes is the exception: S3 answers it
-synchronously, so its result is read back from the access point's own routes.
-"""
+"""The other Multi-Region writes: delete and policy answer with a request token, submit-routes answers synchronously."""
 
 from __future__ import annotations
 
@@ -173,8 +167,7 @@ def test_a_policy_that_is_not_a_document_is_refused_before_the_call(console):
     assert status == 400
     assert "Statement" in body["error"]
 
-    # S3 Control has no Delete for a Multi-Region policy, so an empty document is
-    # refused rather than sent as a request that would keep the old policy.
+    # S3 Control has no Delete for a Multi-Region policy, so an empty document is refused, not sent.
     status, body = _policy(console, "api-mrap-act-bad-policy", None)
     assert status == 400
     assert "replaced, not removed" in body["error"]

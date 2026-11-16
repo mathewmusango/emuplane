@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Write the control API's route table into docs/reference/control-api.md.
-
-Usage:
-  npm run api                     # the repository this site lives in
-  python3 scripts/api_reference.py <control checkout>
-"""
+"""Write the control API's route table into docs/reference/control-api.md."""
 
 from __future__ import annotations
 

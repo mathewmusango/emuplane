@@ -1,9 +1,4 @@
-"""The console's own S3 operations: what each one puts on the wire.
-
-`console.py` is the catalogue the API explorer renders; its `run` functions are
-the last hop before the signed client, so these tests pin the request itself —
-method, path and body — rather than any state.
-"""
+"""The console's own S3 operations: the method, path and body each one puts on the wire."""
 
 from __future__ import annotations
 

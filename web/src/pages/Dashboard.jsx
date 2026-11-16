@@ -20,9 +20,7 @@ import { ServiceIcon } from '../serviceIcons'
 import { serviceLabel } from '../serviceLabels'
 import { serviceHref } from '../serviceRoutes'
 
-// Console Home is a grid of widgets rather than one fixed page: the layout the
-// visitor settles on is remembered, and "Reset to default layout" brings every
-// widget back. Same shape as the console's own home.
+// Console Home is a grid of remembered widgets; "Reset to default layout" brings every widget back.
 
 const HIDDEN_KEY = 'emuplane:widgets:hidden'
 
@@ -148,9 +146,7 @@ export default function Dashboard() {
     }
   }
 
-  // Services read as a two-column list, the way the console's own shortcuts do:
-  // icon, name, and an underline on hover — not a row of buttons that wraps at
-  // an awkward width.
+  // Services read as a two-column list: icon, name, and an underline on hover.
   const shortcuts = (names) => (
     <ul className="home-links">
       {names.map((name) => (

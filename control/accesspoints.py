@@ -1,21 +1,4 @@
-"""Access points: the S3 Control API behind the console's Access Points page.
-
-Access points are not bucket subresources: S3 Control serves them under
-`/v20180820/...`, it names the account in `x-amz-account-id`, and a management
-call is resolved in the region it was signed for. The console keeps that shape —
-the signed client passed in as `rest(region, method, path, body)`, so nothing
-here holds a credential and the region is an argument rather than ambient state.
-
-The listing is one call, but `ListAccessPoints` leaves out the VPC id, so each
-row is opened with `GetAccessPoint` — bounded, because a page is not a crawler.
-Multi-Region access points are managed from us-west-2 only, which is why that
-listing's region is fixed here rather than taken from the page.
-
-Creating a Multi-Region access point is asynchronous: the call answers with a
-request token, and the operation it names is the only account of what became of
-the request, so the console describes that operation at once and keeps the token
-nowhere else.
-"""
+"""Access points: the S3 Control API behind the console's Access Points page, called per region, each row opened for the VPC id the listing omits."""
 
 from __future__ import annotations
 
@@ -50,8 +33,7 @@ DETAIL_LIMIT = 100
 NAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$")
 VPC_RE = re.compile(r"^vpc-[0-9a-f]{8,17}$")
 
-# S3 Control's asynchronous operations: a POST to `.../<create|delete|put-policy>`
-# answers with a token, and a GET to a token describes the operation.
+# S3 Control's asynchronous operations: a POST answers with a token, a GET to that token describes it.
 ASYNC = "/v20180820/async-requests/mrap"
 
 NAME_HELP = (
@@ -96,12 +78,7 @@ def _field(element, name: str) -> str:
 
 
 def _child(element, name: str):
-    """The direct child called `name`, or None.
-
-    `_field` searches at or under an element, which is wrong when one document
-    carries the same name twice — an async operation reports its request and its
-    answer side by side — so a section is entered by its own child.
-    """
+    """The direct child called `name`: `_field` would also find a same-named element in another section."""
     if element is None:
         return None
     for child in list(element):
@@ -120,11 +97,7 @@ def _children(element, container: str, entry: str) -> list:
 
 
 def _entries(xml: str, container: str, entry: str) -> list | None:
-    """The `entry` elements under `container`, or None when the answer is not XML.
-
-    None is not "empty": a body this module cannot read must not be shown as an
-    account with no access points.
-    """
+    """The `entry` elements under `container`, or None when the answer is not XML — None is not "empty"."""
     root = _root(xml)
     if root is None:
         return None
@@ -229,12 +202,7 @@ def _policy_problem(policy: str) -> str:
 
 
 def create(region: str, payload: dict, rest) -> dict:
-    """CreateAccessPoint, then the optional policy the form carries.
-
-    A policy that fails to apply still reports `created: True`: the access point
-    exists, and saying otherwise would send the operator looking for a name that
-    is taken.
-    """
+    """CreateAccessPoint, then the optional policy; a failed policy still reports `created: True`."""
     try:
         name, bucket, vpc_id, public, tags = _form(payload)
     except ValueError as exc:
@@ -315,12 +283,7 @@ def list_general(region: str, rest, bucket: str = "") -> dict:
 
 
 def _mrap_members(entry) -> list[dict]:
-    """An MRAP's member buckets, each with the region it lives in.
-
-    A member is itself a `Region` element, so its own name has to come from a
-    child called `Region` rather than from itself — `_field` on the member would
-    answer the member's whitespace.
-    """
+    """An MRAP's member buckets: a member is itself a `Region`, so its own region is a child called `Region`."""
     members = []
     for member in _children(entry, "Regions", "Region"):
         region = ""
@@ -349,8 +312,7 @@ def list_multi_region(rest) -> dict:
         row["created"] = _field(entry, "CreatedAt")
         row["status"] = _field(entry, "Status") or "READY"
         row["buckets"] = _mrap_members(entry)
-        # An MRAP has no bucket of its own; its ARN names the account and alias,
-        # and the report carries the account inside each member Region.
+        # An MRAP has no bucket of its own: its ARN is built from the account in a member Region and the alias.
         members = _children(entry, "Regions", "Region")
         account = _field(members[0] if members else None, "BucketAccountId")
         if account and row["alias"]:
@@ -395,22 +357,11 @@ def listing(section: str, region: str, rest, bucket: str = "") -> dict:
     return {"ok": False, "status": 400, "error": f"unknown access point section: {section}"}
 
 
-# ---------------------------------------------------------------------------
-# One access point in full
-# ---------------------------------------------------------------------------
-#
-# A listing is not a detail: a Multi-Region Access Point's listing carries neither
-# its policy nor its routing dials, and an Object Lambda access point's carries no
-# configuration at all. The row's view therefore reads the instance resources
-# themselves, which is what the console's detail pane shows.
+# One access point in full: a listing is not a detail, so the row's view reads the instance resources themselves.
 
 
 def _mrap_policy_text(text: str) -> str:
-    """The policy in force, from the Established (or else Proposed) state.
-
-    AWS reports the policy twice while it propagates; MiniStack applies at once,
-    so either the same text or an empty one.
-    """
+    """The policy in force, from the Established state or else Proposed."""
     state = _first(text, "Established")
     if state is None:
         state = _first(text, "Proposed")
@@ -435,12 +386,7 @@ def read_multi_region_policy(name: str, rest) -> dict:
 
 
 def multi_region_detail(name: str, rest) -> dict:
-    """GetMultiRegionAccessPoint, GetMultiRegionAccessPointPolicy, and the routes.
-
-    Three reads on one resource, from the region that manages Multi-Region access
-    points. Routes address the access point by ARN, which the report only implies,
-    so they are read after it and skipped when the ARN cannot be built.
-    """
+    """GetMultiRegionAccessPoint, its policy, and the routes, which are addressed by the ARN read from the report."""
     status, text = rest(MULTI_REGION_HOME, "GET", MULTI_REGION + "/" + quote(name, safe=""))
     if not 200 <= status < 300:
         return {"ok": False, "status": status or 502, "name": name, "error": _detail(text, status)}
@@ -498,11 +444,7 @@ def multi_region_detail(name: str, rest) -> dict:
 
 
 def object_lambda_detail(region: str, name: str, rest) -> dict:
-    """GetAccessPointForObjectLambda, its configuration, and its policy.
-
-    The policy is read last and its absence is a state — S3 answers
-    `NoSuchAccessPointPolicy` for an access point that never had one.
-    """
+    """GetAccessPointForObjectLambda, its configuration and its policy; a missing policy is a state."""
     base = OBJECT_LAMBDA + "/" + quote(name, safe="")
     status, text = rest(region, "GET", base)
     if not 200 <= status < 300:
@@ -530,8 +472,7 @@ def object_lambda_detail(region: str, name: str, rest) -> dict:
     status, text = rest(region, "GET", base + "/configuration")
     if 200 <= status < 300:
         configuration = _first(text, "Configuration")
-        # The configuration is shown as the document S3 answers with, not as a
-        # form: a Lambda's payload is arbitrary JSON and a form would flatten it.
+        # The configuration is shown as the document S3 answers with: a Lambda's payload is arbitrary JSON.
         detail["configuration"] = (
             ElementTree.tostring(configuration, encoding="unicode")
             if configuration is not None
@@ -607,28 +548,14 @@ def write_policy(region: str, name: str, policy, rest) -> dict:
     return {"ok": False, "status": status or 502, "name": name, "error": _detail(body, status)}
 
 
-# ---------------------------------------------------------------------------
-# Creating a Multi-Region access point
-# ---------------------------------------------------------------------------
-#
-# CreateMultiRegionAccessPoint is asynchronous: S3 Control answers with a request
-# token long before the access point exists, and DescribeMultiRegionAccessPointOperation
-# on that token is the only account of what became of the request. The console
-# describes it as soon as the create answers, because the token exists only in
-# that answer — nothing here keeps it.
-#
-# The members are the operator's own buckets, one per Region: S3 refuses two
-# buckets in one Region, and a Multi-Region access point over fewer than two
-# Regions is not what its name says.
+# Multi-Region access points are created by an asynchronous request: describe its token at once, since nothing keeps it.
 
 
 def _mrap_create_body(name: str, buckets: list[str]) -> str:
     members = "".join(
         f"<Region><Bucket>{html.escape(bucket)}</Bucket></Region>" for bucket in buckets
     )
-    # AWS blocks public access on a Multi-Region access point by default, and this
-    # console has no control for the four dials, so the default is sent explicitly
-    # rather than left to the emulator's own default.
+    # AWS blocks public access on an MRAP by default, and this console has no control for the four dials.
     public = "".join(f"<{field}>true</{field}>" for field in PUBLIC_ACCESS)
     return (
         f'<CreateMultiRegionAccessPointRequest xmlns="{CONTROL_NS}">'
@@ -657,12 +584,7 @@ def _mrap_form(payload: dict) -> tuple[str, list[str]]:
 
 
 def _async_operation(element) -> dict:
-    """One `AsyncOperation`, as the page shows it.
-
-    The document repeats itself: `RequestParameters` carries what was asked for
-    and `ResponseDetails` what came back, both under a `Name`, so each section is
-    entered by its own child rather than searched from the root.
-    """
+    """One `AsyncOperation`: RequestParameters and ResponseDetails are entered by their own child."""
     asked = None
     request = _child(element, "RequestParameters")
     if request is not None:
@@ -689,8 +611,7 @@ def _async_operation(element) -> dict:
     }
     failure = _child(answered, "ErrorDetails")
     if failure is not None:
-        # A failed operation is the answer, not an error page: it carries the code
-        # S3 refused with and the name it refused for.
+        # A failed operation is the answer, not an error page: it carries the code S3 refused with.
         operation["error"] = {
             "code": _field(failure, "Code"),
             "message": _field(failure, "Message"),
@@ -723,12 +644,7 @@ def _mrap_async_body(operation: str, name: str, extra: str = "") -> str:
 
 
 def _mrap_answered(name: str, status: int, text: str, rest) -> dict:
-    """The token an asynchronous request answered with, described.
-
-    Create, delete and put-policy all answer 200 with nothing but a request
-    token, and the token is the whole answer to "did it work?" — so the operation
-    it names is read here and returned with it.
-    """
+    """The request token an asynchronous request answered with, described — the token is the whole answer."""
     if not 200 <= status < 300:
         return {
             "ok": False,
@@ -775,13 +691,7 @@ def _mrap_answered(name: str, status: int, text: str, rest) -> dict:
 
 
 def create_multi_region(payload: dict, rest) -> dict:
-    """CreateMultiRegionAccessPoint, then the operation it answers with.
-
-    `ok` says the request was submitted and its operation described; `created`
-    says the operation itself ended SUCCEEDED. A failed operation is still `ok`,
-    because the page has to show the status and the per-Region results S3
-    reported — an empty row would read as though nothing was attempted.
-    """
+    """CreateMultiRegionAccessPoint: `ok` says the request was described, `created` that the operation ended SUCCEEDED."""
     try:
         name, buckets = _mrap_form(payload)
     except ValueError as exc:
@@ -808,12 +718,7 @@ def delete_multi_region(name: str, rest) -> dict:
 
 
 def write_multi_region_policy(name: str, policy, rest) -> dict:
-    """PutMultiRegionAccessPointPolicy, then the operation it answers with.
-
-    A Multi-Region access point policy is replaced, never removed: S3 Control has
-    no DeleteMultiRegionAccessPointPolicy, so an empty document is refused here
-    rather than sent as a request that would quietly keep the old policy.
-    """
+    """PutMultiRegionAccessPointPolicy; an empty document is refused, since S3 Control has no delete for it."""
     key = str(name or "").strip()
     if not key:
         return {"ok": False, "status": 400, "error": "an access point name is required"}
@@ -842,17 +747,12 @@ def write_multi_region_policy(name: str, policy, rest) -> dict:
     return _mrap_answered(key, status, body, rest)
 
 
-# A traffic dial is all-or-nothing: S3 accepts 0 (Inactive) or 100 (Active), and
-# refuses an access point with every member switched off.
+# A traffic dial is all-or-nothing: 0 (Inactive) or 100 (Active), and every member off is refused.
 ROUTE_DIALS = ("0", "100")
 
 
 def write_multi_region_routes(arn: str, routes: list, rest) -> dict:
-    """SubmitMultiRegionAccessPointRoutes, addressed by the access point's ARN.
-
-    This one is synchronous: S3 answers 200 with no token, so there is no
-    operation to describe — the dials are read back from the access point.
-    """
+    """SubmitMultiRegionAccessPointRoutes, addressed by ARN; it is synchronous, so there is no operation to describe."""
     key = str(arn or "").strip()
     if not key.startswith("arn:"):
         return {

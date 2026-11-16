@@ -21,8 +21,7 @@ import { regionName } from '../regionNames'
 import { serviceLongName } from '../serviceLabels'
 import { Shell } from '../components/Shell'
 
-// Block Public Access: the four settings the console nests under one master
-// checkbox, in its own wording.
+// Block Public Access: the four settings the console nests under one master checkbox.
 const PUBLIC_ACCESS = [
   [
     'BlockPublicAcls',
@@ -70,9 +69,7 @@ const allPublic = (value) =>
 
 export default function CreateBucket() {
   const navigate = useNavigate()
-  // The region is the console's own: it comes from the bar's picker, and this
-  // page follows it — including into the namespace suffix — rather than offering
-  // a second control that could disagree with it.
+  // The region comes from the bar's picker, and this page follows it, including into the namespace suffix.
   const { account, region } = useSession()
 
   const [name, setName] = useState('')
@@ -94,8 +91,7 @@ export default function CreateBucket() {
 
   const backToBuckets = () => navigate(`/s3/home?region=${region}`)
 
-  // The buckets on offer for "copy settings": the account's own, every region,
-  // because the reader is per bucket and each row carries where it lives.
+  // The buckets on offer for "copy settings": the account's own, every region, each row carrying where it lives.
   useEffect(() => {
     if (!account) return undefined
     let live = true
@@ -118,9 +114,7 @@ export default function CreateBucket() {
     region: row.region || region,
   }))
 
-  // Copying is a convenience, not a transaction: whatever cannot be read keeps
-  // the form's default. Object Lock is deliberately not copied — once a bucket
-  // has it, it cannot be turned off.
+  // Copying keeps the form's default when a read fails; Object Lock is not copied, because it cannot be turned off.
   const copySettings = async (option) => {
     setCopyFrom(option)
     setCopyError('')
@@ -141,8 +135,7 @@ export default function CreateBucket() {
     }
   }
 
-  // The Account Regional namespace appends `<account>-<region>-an` to the name;
-  // the backend appends it too, and that is the name the bucket gets.
+  // The Account Regional namespace appends `<account>-<region>-an` to the name, and the backend appends it too.
   const suffix = namespace === 'regional' ? `.${account}-${region}-an` : ''
 
   const setPublicField = (field, value) => {
@@ -157,8 +150,7 @@ export default function CreateBucket() {
   }
 
   const lockOn = objectLock === 'enable'
-  // Object Lock only exists on a versioned bucket, and it turns versioning on
-  // rather than offering a choice.
+  // Object Lock only exists on a versioned bucket, so it turns versioning on rather than offering a choice.
   const versioningEnabled = lockOn || versioning === 'enable'
 
   const addTag = () => setTags((current) => [...current, { Key: '', Value: '' }])
@@ -193,8 +185,7 @@ export default function CreateBucket() {
         setError(result?.error || 'Could not create the bucket.')
         return
       }
-      // The bucket landed in the region the bar is showing, so the list is that
-      // region's view of the account.
+      // The bucket landed in the region the bar is showing, so the list is that region's view.
       navigate(`/s3/home?region=${region}`, {
         state: { created: result.bucket || name.trim() },
       })

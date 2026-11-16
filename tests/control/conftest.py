@@ -1,12 +1,4 @@
-"""The control and its gateway, running in this process.
-
-`app.py` refuses to import without a store, so this installs an in-memory
-stand-in for `store.Store` — same string-per-key contract DynamoDB has — seeds two
-accounts and one bearer token, and then runs the *real* `ControlHandler` and
-`GatewayHandler` on ephemeral ports. Past that boundary nothing is mocked:
-requests are real HTTP, signed the way a client signs them, and forwarded to the
-stand-in emulator from `tests/conftest.py`.
-"""
+"""The control and its gateway running in-process: a stand-in `store.Store` over dicts, real HTTP past that boundary."""
 
 from __future__ import annotations
 

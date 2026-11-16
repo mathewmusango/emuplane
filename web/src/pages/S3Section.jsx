@@ -13,10 +13,7 @@ import { useSession } from '../context'
 import { regionName } from '../regionNames'
 import { Shell } from '../components/Shell'
 
-// The S3 console's other tabs, and only the ones this emulator backs: S3 Tables
-// and S3 Files are separate APIs on the same instance. Directory buckets (S3
-// Express One Zone) and vector buckets have no backend here, so they are not
-// tabs at all rather than empty ones.
+// The S3 console's other tabs, only the ones this emulator backs: S3 Tables and S3 Files are separate APIs; directory and vector buckets have no backend.
 const SECTIONS = {
   'table-buckets': {
     title: 'Table buckets',

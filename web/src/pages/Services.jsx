@@ -34,9 +34,7 @@ import { groupByCategory } from '../serviceCatalogue'
 import { Shell, loadCatalogue } from '../components/Shell'
 import './services.css'
 
-// All services: one card, three flowing columns, one block per category and a
-// plain alphabetical run of links inside it — the shape the console's own
-// Services page takes. No view switcher: there is one way to read this page.
+// All services: one card, three flowing columns, one block per category with a plain alphabetical run of links.
 
 const CATEGORY_ICON = {
   Analytics: BarChart3,

@@ -1,14 +1,4 @@
-"""Creating a bucket with every option the console's create page offers.
-
-Each case runs `control/buckets.create` — the real sequence the page triggers —
-with the control's own signed client pointed at a stand-in server that hands the
-request to the emulator's `handle_request`. The documents therefore go over a
-socket, through the signing-region check and the emulator's real handlers, and
-the assertions read the settings back *through the API* rather than out of a
-module dict.
-
-Nothing is deleted: the buckets stay in this process's copy of the emulator.
-"""
+"""Creating a bucket with every option the console's create page offers, asserted back through the API over a socket."""
 
 from __future__ import annotations
 
@@ -41,8 +31,7 @@ LOCK = (False, True)
 NAMESPACE = ("global", "regional")
 
 
-# --------------------------------------------------------------------------
-# reading a bucket's settings back from the wire
+# --- reading a bucket's settings back from the wire -----------------------
 
 
 def _payload(index, combination) -> dict:
@@ -175,8 +164,7 @@ def test_every_option_combination(payload, expected, s3):
 
 
 def test_the_regional_namespace_needs_the_account():
-    """The suffix is the account and the region; without them it composes a name
-    that only looks regional."""
+    """The suffix is the account and the region; without them it composes a name that only looks regional."""
     payload = {"account": "", "bucket": "test", "namespace": "regional"}
     assert buckets.resolve_name(payload, "us-east-1") == (
         "",

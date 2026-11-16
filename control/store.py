@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""The control plane's documents, stored in the emulator's DynamoDB.
-
-Every store in `app.py` keeps its working set in memory and writes each change
-through to one table of key -> JSON document. That shape is what makes the swap
-from the old SQLite file mechanical: the callers ask for "everything in this
-table" at boot and put/delete individual keys after that.
-
-**The tables are provisioned, not conjured.** `bootstrap/template.yml` defines
-them as a CloudFormation stack and `bootstrap/apply.py` applies it as the
-first-setup init job; this module only *verifies* they exist before the API
-serves. A failure to reach the emulator, or a stack that has not run, is raised
-with the endpoint and the missing tables named — the control plane depends on the
-service it fronts, and that dependency must fail loudly, not fall back to a
-local file or create its own schema at boot.
-"""
+"""The control plane's documents, in emulator DynamoDB tables that `bootstrap/template.yml` provisions and this module only verifies."""
 
 from __future__ import annotations
 
@@ -22,8 +8,6 @@ import json
 from dynamo import Dynamo, DynamoError  # noqa: F401  (DynamoError re-exported)
 
 # One table per store keeps the access patterns obvious and the boot scan small.
-# `cells`, `principals` and `audit` are the substrate records from
-# ARCHITECTURE.md; the rest are the console's own state.
 TABLES = (
     "accounts",
     "users",
@@ -58,12 +42,7 @@ class Store:
     # -- layer 0 -----------------------------------------------------------
 
     def verify_tables(self) -> None:
-        """Refuse to serve unless the bootstrap stack has provisioned every table.
-
-        Creating them here would make the application the source of its own
-        schema, which is what `bootstrap/template.yml` and its init job exist to
-        prevent. The message names the tables and the command that fixes it.
-        """
+        """Refuse to serve unless the bootstrap stack has provisioned every table."""
         missing = [
             table_name(store)
             for store in TABLES
@@ -113,13 +92,7 @@ class Store:
                 self.dynamo.delete(table_name(store), key)
 
     def replace_all(self, store: str, rows: dict[str, str]) -> None:
-        """Make the table exactly `rows` — put what is there, drop what is not.
-
-        The old `replace()`/`rewrite()` rewrote a whole table in one transaction.
-        DynamoDB has no such transaction across a partition, but these tables hold
-        tens of rows, so a scan-and-diff is honest and cheap. A concurrent writer
-        would be a bug either way: each store holds a lock while it saves.
-        """
+        """Make the table exactly `rows`: a scan-and-diff, safe because each store holds a lock while it saves."""
         existing = {key for key, _ in self.items(store)}
         for key, payload in rows.items():
             self.put(store, key, payload)

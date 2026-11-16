@@ -1,8 +1,4 @@
-"""Writing an object, editing a bucket's settings, emptying a bucket.
-
-Each case drives `control/buckets.py` with the control's own signed client, wired
-to the emulator stand-in — so the requests are the ones the console makes.
-"""
+"""Writing an object, editing a bucket's settings, emptying a bucket — the requests the console makes."""
 
 from __future__ import annotations
 
@@ -306,8 +302,7 @@ def test_an_unknown_encryption_is_refused_before_the_call(s3_endpoint):
 
 
 def test_an_unset_subresource_is_reported_as_not_configured():
-    """S3 answers an unset subresource with an empty element, not a 404: showing
-    that as configuration reads as though something were switched on."""
+    """S3 answers an unset subresource with an empty element, not a 404: showing that as configuration reads as switched on."""
     answers = {
         "?logging": '<BucketLoggingStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/" />',
         "?acl": (

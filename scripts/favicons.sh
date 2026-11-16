@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate the browser icons from one source image.
-#
-#   ./scripts/favicons.sh                 # the shipped mark: web/public/emuplane.png
-#   ./scripts/favicons.sh path/to/logo.png
-#
-# The source is the product mark, whatever its format (SVG, PNG, JPEG). Outputs
-# land in `web/public/`, which Vite copies to the build root, so the console and
-# the server-rendered auth pages share one icon set:
-#
-#   favicon.ico           16/32/48, for legacy browsers and Windows
-#   favicon-32.png        the small tab icon
-#   favicon-192.png       Android home screen
-#   favicon-512.png       install prompt / maskable
-#   apple-touch-icon.png  180px, iOS
-#
-# Non-square sources are centred on a transparent square rather than squashed.
-# Re-run this whenever the logo changes; the pages point at fixed names.
+# Regenerate the browser icons from one source image into web/public/.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

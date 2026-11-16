@@ -24,9 +24,7 @@ import { useSession } from '../context'
 import { regionName } from '../regionNames'
 import { Shell } from '../components/Shell'
 
-// One bucket, the way the console shows it: a page of its own with the tabs this
-// instance can actually back. Metrics, Management, File systems, Access Points and
-// Metadata are not tabs here — the console has nothing to put in them.
+// One bucket: its own page with only the tabs this instance can back (no Metrics, Management, File systems, Access Points, Metadata).
 
 // One file per request, the same ceiling the control enforces.
 const MAX_UPLOAD = 25 * 1024 * 1024
@@ -41,8 +39,7 @@ const ENCRYPTION = [
   ['aws:kms:dsse', 'Dual-layer server-side encryption (DSSE-KMS)'],
 ]
 
-// The bucket picker's options for a copy: every bucket the account has, each
-// with the region it lives in, because a copy is addressed to the destination.
+// The bucket picker's options for a copy: every bucket the account has, each with the region it lives in.
 
 const formatSize = (bytes) => {
   if (!bytes) return '0 B'
@@ -59,9 +56,7 @@ export default function BucketDetail() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { account, region: sessionRegion } = useSession()
 
-  // The URL names a region, but a bookmarked or pasted link may be missing it or
-  // carrying the bar's region for a bucket that lives elsewhere. HeadBucket
-  // answers where the bucket really is, and the page reads nothing until it does.
+  // The URL's region may be missing or wrong, so HeadBucket answers where the bucket really is and the page reads nothing until it does.
   const requested = searchParams.get('region') || sessionRegion
   const [bucketRegion, setBucketRegion] = useState('')
   const [headMissing, setHeadMissing] = useState(false)
@@ -122,8 +117,7 @@ export default function BucketDetail() {
         setBucketRegion(answer.region || requested)
       })
       .catch(() => {
-        // A head that fails leaves the page where the URL pointed: the list below
-        // reports the real problem.
+        // A head that fails leaves the page where the URL pointed; the list below reports the real problem.
         if (live) setBucketRegion(requested)
       })
     return () => {
@@ -185,8 +179,7 @@ export default function BucketDetail() {
             `${chosen.name} is ${formatSize(chosen.size)}; this console uploads up to ${formatSize(MAX_UPLOAD)} in one request.`,
           )
         }
-        // The file's bytes are the body, and its type is stored with it, so a PNG
-        // comes back as a PNG rather than as text.
+        // The file's bytes are the body and its type is stored with it, so a PNG comes back as a PNG.
         await api.uploadObjectFile({
           account,
           region,
@@ -223,9 +216,7 @@ export default function BucketDetail() {
       setObjectError(err.message)
       return
     }
-    // The reads beside the object follow it: its tags, its annotations and the two
-    // Object Lock states are all reads on the same path, and their failure is not
-    // the object failing to open.
+    // The reads beside the object follow it; their failure is not the object failing to open.
     try {
       setObjectMeta(await api.objectMeta(account, region, name, key))
     } catch (err) {
@@ -243,8 +234,7 @@ export default function BucketDetail() {
     }
   }
 
-  // The eight documents the bucket page displays: each is its own GET, and a
-  // failure is an error rather than "nothing configured".
+  // The eight documents the bucket page displays: each is its own GET, and a failure is an error rather than "nothing configured".
   const loadDocuments = useCallback(async () => {
     if (!account || !bucketRegion || headMissing) return
     try {
@@ -262,8 +252,7 @@ export default function BucketDetail() {
     loadDocuments()
   }, [loadDocuments])
 
-  // A document that is not configured is edited from its own shape, so the
-  // operator starts from a well-formed element rather than a blank box.
+  // An unconfigured document is edited from its own shape, so the operator starts from a well-formed element.
   const templateFor = (meta) =>
     meta.kind === 'json'
       ? '{\n  "Version": "2012-10-17",\n  "Statement": []\n}'
@@ -318,8 +307,7 @@ export default function BucketDetail() {
     }
   }
 
-  // The copy destination list is read when the copy form opens, not on every view
-  // of the bucket page.
+  // The copy destination list is read when the copy form opens, not on every view of the bucket page.
   useEffect(() => {
     if (!copying || !account) return undefined
     let live = true
@@ -482,8 +470,7 @@ export default function BucketDetail() {
     </Container>
   )
 
-  // The two child listings the bucket page shows for this bucket alone: S3 Files
-  // and the access points attached to it.
+  // The two child listings the bucket page shows for this bucket alone: S3 Files and the access points attached to it.
   useEffect(() => {
     if (!account || !bucketRegion || headMissing) return undefined
     let live = true
@@ -513,8 +500,7 @@ export default function BucketDetail() {
     }
   }, [account, region, name, bucketRegion, headMissing])
 
-  // One card per subresource, the way the console lays them out: the document as
-  // S3 answers it, with the control that writes it.
+  // One card per subresource, the way the console lays them out: the document as S3 answers it, with the control that writes it.
   const documentCard = (label, title, description) => {
     const meta = editable[label] || {}
     const aclLocked = label === 'acl' && settings?.ownership === 'BucketOwnerEnforced'
@@ -574,8 +560,7 @@ export default function BucketDetail() {
     )
   }
 
-  // A failed read is not the same as an empty document, so every tab that renders
-  // one says the read failed rather than letting the cards look unconfigured.
+  // A failed read is not the same as an empty document, so every tab says the read failed rather than looking unconfigured.
   const documentsAlert = (
     <Alert type="error" header="Could not read this bucket's configuration">
       {documentsError}
@@ -1057,8 +1042,7 @@ export default function BucketDetail() {
     </Container>
   )
 
-  // The reads that sit beside an object rather than in it. Each is its own GET, so
-  // a failure names the read that failed instead of hiding the whole tab.
+  // The reads that sit beside an object rather than in it: each is its own GET, so a failure names the read that failed.
   const metaFailed = (label) => {
     const reason = objectMeta?.errors?.[label]
     return reason ? (
@@ -1475,8 +1459,7 @@ export default function BucketDetail() {
                 setFile(detail.value)
                 setUploadError('')
                 const chosen = detail.value[0]
-                // The destination key follows the file name until the operator
-                // types one, which is what the console does.
+                // The destination key follows the file name until the operator types one.
                 if (chosen && (!newKey.trim() || newKey === file[0]?.name)) {
                   setNewKey(chosen.name)
                 }

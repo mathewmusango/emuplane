@@ -1,10 +1,4 @@
-// The AWS-style service taxonomy the console navigates by: one category per
-// service, a stable category order, and a one-line description used by the
-// services menu and the search results.
-//
-// The backend advertises its own sections (Core / Extended / Infrastructure),
-// which describe *support tiers*, not product categories — so the console keeps
-// its own map and falls back to "Other" for anything it has not been taught.
+// The AWS-style service taxonomy the console navigates by; anything it has not been taught falls back to "Other".
 
 import { serviceLabel } from './serviceLabels'
 
