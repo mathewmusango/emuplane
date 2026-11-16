@@ -25,3 +25,4 @@ addons/
 my-docs/
 # Internal design notes: cells, router, break-glass. Not for a public repo.
 ARCHITECTURE.md
+site/static/img/mark.png

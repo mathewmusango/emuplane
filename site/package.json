@@ -4,14 +4,17 @@
   "private": true,
   "description": "The Emuplane documentation site.",
   "scripts": {
-    "dev": "docusaurus start",
-    "build": "docusaurus build",
-    "serve": "docusaurus serve",
-    "clear": "docusaurus clear",
-    "write-translations": "docusaurus write-translations",
-    "version": "docusaurus docs:version",
     "api": "python3 scripts/api_reference.py",
-    "s3:coverage": "python3 ../scripts/s3_coverage.py"
+    "build": "docusaurus build",
+    "clear": "docusaurus clear",
+    "dev": "docusaurus start",
+    "prebuild": "cp ../web/public/emuplane.png static/img/mark.png",
+    "predev": "cp ../web/public/emuplane.png static/img/mark.png",
+    "prestart": "cp ../web/public/emuplane.png static/img/mark.png",
+    "s3:coverage": "python3 ../scripts/s3_coverage.py",
+    "serve": "docusaurus serve",
+    "version": "docusaurus docs:version",
+    "write-translations": "docusaurus write-translations"
   },
   "dependencies": {
     "@docusaurus/core": "^3.0.0",
