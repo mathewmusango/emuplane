@@ -78,8 +78,9 @@ does not exist yet, so `--since` is optional there too.
 ## A release
 
 `main` is protected: nothing is pushed to it directly, it takes squash merges only,
-and it keeps a linear history. So the release is a pull request the bot opens and a
-person merges:
+and it keeps a linear history. **No one bypasses it, including the owner** — the
+release pull request is merged like any other. So the release is a pull request the
+bot opens and a person merges:
 
 ```mermaid
 flowchart LR
