@@ -42,6 +42,9 @@ host and nothing has to be built there.
   `/tmp` on a tmpfs, every capability dropped and `no-new-privileges`, plus
   `init: true` so signals are forwarded and children reaped. Nothing needs a
   writable layer: all state is in the emulator.
+- `docker-compose.yml` names the published image and never builds it, so `up` on a
+  fresh host pulls. A deployment's own overlay can add a `build:` block beside that
+  name, which is how a checkout builds itself with `up` and `build`.
 
 ## The bootstrap stack
 
