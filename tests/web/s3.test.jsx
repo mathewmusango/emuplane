@@ -58,6 +58,44 @@ describe('s3', () => {
     expect(await screen.findByText('reports/2026.csv')).toBeTruthy()
   })
 
+  it("reads an object listing in the bucket's own region", async () => {
+    // The row says where the bucket lives; the listing must be signed for that
+    // region, not the page's — otherwise the emulator answers 301.
+    pinRegion('us-east-1')
+    const browse = RESPONSES['/api/browse']
+    const urls = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        urls.push(String(url))
+        return base(url, options)
+      }),
+    )
+    RESPONSES['/api/browse'] = {
+      ...browse,
+      resources: [
+        ...browse.resources,
+        { name: 'west-bucket', kind: 'bucket', region: 'us-west-2', detail: {} },
+      ],
+    }
+    try {
+      renderAt(<Resources />)
+      await screen.findAllByText('General purpose buckets')
+      fireEvent.click(await screen.findByRole('button', { name: 'west-bucket' }))
+
+      await waitFor(() =>
+        expect(urls.some((url) => url.includes('/api/s3/objects'))).toBe(true),
+      )
+      const listing = urls.find((url) => url.includes('/api/s3/objects'))
+      expect(listing).toContain('region=us-west-2')
+      expect(listing).toContain('bucket=west-bucket')
+    } finally {
+      RESPONSES['/api/browse'] = browse
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('updates the real address bar when the picker changes region', async () => {
     pinRegion('us-east-1')
     window.history.replaceState({}, '', '/s3/home?region=us-east-1')

@@ -121,3 +121,29 @@ def test_an_object_written_through_the_gateway_is_readable_in_the_console(
     )
     assert status == 200, body
     assert [item["key"] for item in body["objects"]] == ["notes/hello.txt"]
+
+
+def test_objects_are_read_in_the_bucket_own_region(console):
+    """A bucket is signed for its own region; elsewhere is a 301 naming it."""
+    name = "api-west-objects-bucket"
+    assert (
+        api(console, "POST", "/api/s3/buckets", page(bucket=name, region="us-west-2"))[0]
+        == 200
+    )
+
+    status, body = api(
+        console,
+        "GET",
+        f"/api/s3/objects?account={ACCOUNT}&region=us-east-1&bucket={name}",
+    )
+    assert status == 301
+    assert "us-west-2" in body["error"]
+    assert body["region"] == "us-west-2"
+
+    # And the right region is served.
+    status, body = api(
+        console,
+        "GET",
+        f"/api/s3/objects?account={ACCOUNT}&region=us-west-2&bucket={name}",
+    )
+    assert status == 200, body

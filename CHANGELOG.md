@@ -387,6 +387,13 @@ the minor number is bumped by hand, patch releases are the bot's.
   purpose buckets* and *All AWS Regions* — driving the same all-regions fetch.
 ### Fixed
 
+- **A bucket is opened, emptied and deleted in its own region.** The table now
+  reports each bucket's real region, but the object listing still signed with the
+  page's region — so opening a bucket that lives elsewhere answered
+  `PermanentRedirect` ("must be addressed using the specified endpoint"). The row
+  carries the region into the listing now, and `/api/s3/objects` answers a `301`
+  that *names* both regions when it is asked for the wrong one, instead of passing
+  the emulator's XML through. Emptied and deleted already followed the row.
 - **A service the console does not serve is no longer a page.** `/:service/home`
   is a catch-all, so `/s3files/home` and `/s3tables/home` rendered the shell with
   `unknown service` under it — the answer `/api/browse` gives them, and the one

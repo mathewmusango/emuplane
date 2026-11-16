@@ -92,7 +92,9 @@ export default function Resources() {
   }, [region, urlRegion, setSearchParams])
 
   const [regions, setRegions] = useState([])
-  const [bucket, setBucket] = useState('')
+  // The bucket whose objects are shown, with the region it lives in: a bucket
+  // is signed for its own region, never the page's.
+  const [bucket, setBucket] = useState(null)
   const [objects, setObjects] = useState([])
   const [objectsLoading, setObjectsLoading] = useState(false)
   const [selected, setSelected] = useState([])
@@ -160,7 +162,7 @@ export default function Resources() {
   }, [catalogue])
 
   useEffect(() => {
-    setBucket('')
+    setBucket(null)
     setObjects([])
     setSelected([])
   }, [service])
@@ -220,7 +222,7 @@ export default function Resources() {
       }
       addFlash('success', `Bucket ${name} emptied (${removed} objects deleted).`)
       setConfirmingEmpty(null)
-      if (bucket === name) setObjects([])
+      if (bucket?.name === name) setObjects([])
       load()
     } catch (err) {
       addFlash('error', `${err.message}${removed ? ` (${removed} already deleted)` : ''}`)
@@ -229,11 +231,15 @@ export default function Resources() {
     }
   }
 
-  const openBucket = async (name) => {
-    setBucket(name)
+  const openBucket = async (row) => {
+    const target = {
+      name: row.name,
+      region: row.region || region,
+    }
+    setBucket(target)
     setObjectsLoading(true)
     try {
-      const payload = await api.s3Objects(account, region, name)
+      const payload = await api.s3Objects(account, target.region, target.name)
       setObjects(payload.objects || [])
     } catch (err) {
       addFlash('error', err.message)
@@ -479,7 +485,7 @@ export default function Resources() {
           header: 'Name',
           cell: (item) =>
             service === 's3' ? (
-              <Button variant="inline-link" onClick={() => openBucket(item.name)}>
+              <Button variant="inline-link" onClick={() => openBucket(item)}>
                 {item.name}
               </Button>
             ) : (
@@ -536,7 +542,7 @@ export default function Resources() {
                   item.kind === 'bucket' ? (
                     <Button
                       variant="inline-link"
-                      onClick={() => openBucket(item.name)}
+                      onClick={() => openBucket(item)}
                     >
                       Open
                     </Button>
@@ -728,12 +734,12 @@ export default function Resources() {
                 <Header
                   variant="h2"
                   counter={`(${objects.length})`}
-                  description={`Objects in ${bucket}`}
+                  description={`Objects in ${bucket.name} \u00b7 ${bucket.region}`}
                   actions={
                     <Button
                       variant="link"
                       onClick={() => {
-                        setBucket('')
+                        setBucket(null)
                         setObjects([])
                       }}
                     >

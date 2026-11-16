@@ -3362,6 +3362,20 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(403, {"error": "region is not enabled"})
             if not bucket:
                 return self._json(400, {"error": "bucket is required"})
+            # A bucket is read in its own region; asking elsewhere is a 301 on the
+            # wire, and saying which region saves the caller the round trip.
+            claim = _bucket_claim(bucket)
+            if claim.get("region") and claim["region"] != region:
+                return self._json(
+                    301,
+                    {
+                        "error": (
+                            f"bucket {bucket} is in {claim['region']}, not {region}"
+                        ),
+                        "bucket": bucket,
+                        "region": claim["region"],
+                    },
+                )
             query = "/" + quote(bucket) + "?list-type=2"
             if prefix:
                 query += "&prefix=" + quote(prefix)
