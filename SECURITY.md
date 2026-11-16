@@ -9,11 +9,14 @@ rather than implying otherwise.
 
 - Console sessions are stored as digests, and so is the API bearer token; neither
   is recoverable from the store.
-- Access keys issued in the console (`AKIA…`) are verified. A 12-digit account key
-  is that account's **root** and is accepted with any secret.
-- **The gateway does not verify SigV4 signatures.** It resolves the account from
-  the access key and enforces region enablement; it is a router with an
-  authorisation rule, not an authenticator.
+- **The gateway does not verify SigV4 signatures.** It reads the access key from
+  the credential scope, resolves the account, enforces region enablement and
+  forwards the request unchanged — it is a router with an authorisation rule, not
+  an authenticator.
+- Verification happens behind it, in the emulator: issued keys (`AKIA…`) are
+  checked against the secret it minted. A 12-digit account id is that account's
+  **root** and is accepted with any secret, which is what lets the control call the
+  emulator as the account owner.
 - One account cannot see another's state. The deployment bearer token is the only
   cross-tenant caller, and it belongs to an operator, not to a login.
 - An email address belongs to exactly one principal, so a password reset resolves
