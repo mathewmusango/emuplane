@@ -4538,6 +4538,36 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region),
             )
+        if path == "/api/s3/mrap":
+            # A Multi-Region access point is made by an asynchronous request: the
+            # create answers with a request token, and the operation it names is
+            # described here and now, because the token outlives this request
+            # nowhere. The guard is the access point page's own.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            result = accesspoints.create_multi_region(
+                payload, s3control(target["account_id"], region)
+            )
+            failure = result.get("status") or 0
+            return self._json(
+                200
+                if result.get("ok")
+                else (failure if 400 <= failure < 500 else 502),
+                dict(result, account=target["account_id"], region=region),
+            )
         if path == "/api/s3/access-point-delete":
             payload = self._body()
             info = self._caller()

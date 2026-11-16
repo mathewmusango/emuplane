@@ -10,6 +10,11 @@ The listing is one call, but `ListAccessPoints` leaves out the VPC id, so each
 row is opened with `GetAccessPoint` — bounded, because a page is not a crawler.
 Multi-Region access points are managed from us-west-2 only, which is why that
 listing's region is fixed here rather than taken from the page.
+
+Creating a Multi-Region access point is asynchronous: the call answers with a
+request token, and the operation it names is the only account of what became of
+the request, so the console describes that operation at once and keeps the token
+nowhere else.
 """
 
 from __future__ import annotations
@@ -44,6 +49,10 @@ DETAIL_LIMIT = 100
 
 NAME_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{1,48}[a-z0-9])$")
 VPC_RE = re.compile(r"^vpc-[0-9a-f]{8,17}$")
+
+# S3 Control's asynchronous operations: a POST to `.../<create|delete|put-policy>`
+# answers with a token, and a GET to a token describes the operation.
+ASYNC = "/v20180820/async-requests/mrap"
 
 NAME_HELP = (
     "Access point names are 3 to 50 characters: lowercase letters, digits and "
@@ -84,6 +93,21 @@ def _field(element, name: str) -> str:
         if _local(child) == name:
             return (child.text or "").strip()
     return ""
+
+
+def _child(element, name: str):
+    """The direct child called `name`, or None.
+
+    `_field` searches at or under an element, which is wrong when one document
+    carries the same name twice — an async operation reports its request and its
+    answer side by side — so a section is entered by its own child.
+    """
+    if element is None:
+        return None
+    for child in list(element):
+        if _local(child) == name:
+            return child
+    return None
 
 
 def _children(element, container: str, entry: str) -> list:
@@ -290,6 +314,23 @@ def list_general(region: str, rest, bucket: str = "") -> dict:
     return {"ok": True, "status": status, "region": region, "access_points": rows}
 
 
+def _mrap_members(entry) -> list[dict]:
+    """An MRAP's member buckets, each with the region it lives in.
+
+    A member is itself a `Region` element, so its own name has to come from a
+    child called `Region` rather than from itself — `_field` on the member would
+    answer the member's whitespace.
+    """
+    members = []
+    for member in _children(entry, "Regions", "Region"):
+        region = ""
+        for child in list(member):
+            if _local(child) == "Region":
+                region = (child.text or "").strip()
+        members.append({"bucket": _field(member, "Bucket"), "region": region})
+    return members
+
+
 def list_multi_region(rest) -> dict:
     """ListMultiRegionAccessPoints, served from us-west-2."""
     status, text = rest(MULTI_REGION_HOME, "GET", MULTI_REGION)
@@ -307,13 +348,10 @@ def list_multi_region(rest) -> dict:
         row = _base_row(MULTI_REGION_HOME, entry)
         row["created"] = _field(entry, "CreatedAt")
         row["status"] = _field(entry, "Status") or "READY"
-        members = _children(entry, "Regions", "Region")
-        row["buckets"] = [
-            {"bucket": _field(member, "Bucket"), "region": _field(member, "Region")}
-            for member in members
-        ]
+        row["buckets"] = _mrap_members(entry)
         # An MRAP has no bucket of its own; its ARN names the account and alias,
         # and the report carries the account inside each member Region.
+        members = _children(entry, "Regions", "Region")
         account = _field(members[0] if members else None, "BucketAccountId")
         if account and row["alias"]:
             row["arn"] = f"arn:aws:s3::{account}:accesspoint/{row['alias']}"
@@ -365,23 +403,6 @@ def listing(section: str, region: str, rest, bucket: str = "") -> dict:
 # its policy nor its routing dials, and an Object Lambda access point's carries no
 # configuration at all. The row's view therefore reads the instance resources
 # themselves, which is what the console's detail pane shows.
-
-
-def _mrap_members(entry) -> list[dict]:
-    """An MRAP's member buckets, each with the region it lives in.
-
-    A member is itself a `Region` element, so its own name has to come from a
-    child called `Region` rather than from itself — `_field` on the member would
-    answer the member's whitespace.
-    """
-    members = []
-    for member in _children(entry, "Regions", "Region"):
-        region = ""
-        for child in list(member):
-            if _local(child) == "Region":
-                region = (child.text or "").strip()
-        members.append({"bucket": _field(member, "Bucket"), "region": region})
-    return members
 
 
 def multi_region_detail(name: str, rest) -> dict:
@@ -560,3 +581,170 @@ def write_policy(region: str, name: str, policy, rest) -> dict:
     if 200 <= status < 300:
         return {"ok": True, "status": status, "name": name, "policy": text}
     return {"ok": False, "status": status or 502, "name": name, "error": _detail(body, status)}
+
+
+# ---------------------------------------------------------------------------
+# Creating a Multi-Region access point
+# ---------------------------------------------------------------------------
+#
+# CreateMultiRegionAccessPoint is asynchronous: S3 Control answers with a request
+# token long before the access point exists, and DescribeMultiRegionAccessPointOperation
+# on that token is the only account of what became of the request. The console
+# describes it as soon as the create answers, because the token exists only in
+# that answer — nothing here keeps it.
+#
+# The members are the operator's own buckets, one per Region: S3 refuses two
+# buckets in one Region, and a Multi-Region access point over fewer than two
+# Regions is not what its name says.
+
+
+def _mrap_create_body(name: str, buckets: list[str]) -> str:
+    members = "".join(
+        f"<Region><Bucket>{html.escape(bucket)}</Bucket></Region>" for bucket in buckets
+    )
+    # AWS blocks public access on a Multi-Region access point by default, and this
+    # console has no control for the four dials, so the default is sent explicitly
+    # rather than left to the emulator's own default.
+    public = "".join(f"<{field}>true</{field}>" for field in PUBLIC_ACCESS)
+    return (
+        f'<CreateMultiRegionAccessPointRequest xmlns="{CONTROL_NS}">'
+        f"<Details><Name>{html.escape(name)}</Name>"
+        f"<Regions>{members}</Regions>"
+        f"<PublicAccessBlock>{public}</PublicAccessBlock>"
+        "</Details></CreateMultiRegionAccessPointRequest>"
+    )
+
+
+def _mrap_form(payload: dict) -> tuple[str, list[str]]:
+    """The create form's name and members, checked once, in the shape the call needs."""
+    name = str(payload.get("name") or "").strip()
+    if not NAME_RE.match(name) or "--" in name:
+        raise ValueError(NAME_HELP)
+    buckets: list[str] = []
+    for entry in payload.get("buckets") or []:
+        bucket = str(entry).strip()
+        if bucket and bucket not in buckets:
+            buckets.append(bucket)
+    if len(buckets) < 2:
+        raise ValueError(
+            "A Multi-Region access point needs member buckets in at least two Regions."
+        )
+    return name, buckets
+
+
+def _async_operation(element) -> dict:
+    """One `AsyncOperation`, as the page shows it.
+
+    The document repeats itself: `RequestParameters` carries what was asked for
+    and `ResponseDetails` what came back, both under a `Name`, so each section is
+    entered by its own child rather than searched from the root.
+    """
+    asked = None
+    request = _child(element, "RequestParameters")
+    if request is not None:
+        for child in list(request):
+            asked = child  # `...Request`: the operation's own element
+            break
+    answered = _child(element, "ResponseDetails")
+
+    operation = {
+        "token": _field(element, "RequestTokenARN"),
+        "operation": _field(element, "Operation"),
+        "status": _field(element, "RequestStatus"),
+        "created": _field(element, "CreationTime"),
+        "name": _field(asked, "Name"),
+        "buckets": [
+            _field(member, "Bucket")
+            for member in _children(asked, "Regions", "Region")
+        ],
+        "results": [
+            {"region": _field(result, "Name"), "status": _field(result, "RequestStatus")}
+            for result in _children(answered, "Regions", "Region")
+        ],
+        "error": None,
+    }
+    failure = _child(answered, "ErrorDetails")
+    if failure is not None:
+        # A failed operation is the answer, not an error page: it carries the code
+        # S3 refused with and the name it refused for.
+        operation["error"] = {
+            "code": _field(failure, "Code"),
+            "message": _field(failure, "Message"),
+        }
+    return operation
+
+
+def describe_operation(token: str, rest) -> dict:
+    """DescribeMultiRegionAccessPointOperation, on the token a create answered with."""
+    status, text = rest(MULTI_REGION_HOME, "GET", ASYNC + "/" + quote(token, safe=""))
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "error": _detail(text, status)}
+    element = _first(text, "AsyncOperation")
+    if element is None:
+        return {
+            "ok": False,
+            "status": status,
+            "error": "the answer was not an asynchronous operation",
+        }
+    return {"ok": True, "status": 200, "operation": _async_operation(element)}
+
+
+def create_multi_region(payload: dict, rest) -> dict:
+    """CreateMultiRegionAccessPoint, then the operation it answers with.
+
+    `ok` says the request was submitted and its operation described; `created`
+    says the operation itself ended SUCCEEDED. A failed operation is still `ok`,
+    because the page has to show the status and the per-Region results S3
+    reported — an empty row would read as though nothing was attempted.
+    """
+    try:
+        name, buckets = _mrap_form(payload)
+    except ValueError as exc:
+        return {"ok": False, "status": 400, "error": str(exc)}
+
+    status, text = rest(
+        MULTI_REGION_HOME, "POST", ASYNC + "/create", _mrap_create_body(name, buckets)
+    )
+    if not 200 <= status < 300:
+        return {
+            "ok": False,
+            "status": status or 502,
+            "name": name,
+            "error": _detail(text, status),
+        }
+
+    token = _field(_first(text, "CreateMultiRegionAccessPointResult"), "RequestTokenARN")
+    if not token:
+        return {
+            "ok": False,
+            "status": 502,
+            "name": name,
+            "error": "the create answered with no request token to describe",
+        }
+
+    described = describe_operation(token, rest)
+    if not described.get("ok"):
+        return {
+            "ok": False,
+            "status": described.get("status") or 502,
+            "name": name,
+            "error": (
+                "the access point was requested, but the operation that says whether "
+                f"it was made could not be read: {described.get('error')}"
+            ),
+        }
+
+    operation = described["operation"]
+    result = {
+        "name": name,
+        "created": operation.get("status") == "SUCCEEDED",
+        "operation": operation,
+    }
+    if not result["created"]:
+        failure = operation.get("error") or {}
+        result["error"] = (
+            f"{failure['code']}: {failure['message']}"
+            if failure.get("code")
+            else f"the operation ended {operation.get('status') or 'without a status'}"
+        )
+    return {"ok": True, "status": 200, **result}

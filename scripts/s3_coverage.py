@@ -106,8 +106,8 @@ COVERED = {
     "GetObjectRetention": "tests/s3/test_operations.py (retention)",
     "PutObjectLegalHold": "tests/s3/test_operations.py (legal hold)",
     "GetObjectLegalHold": "tests/s3/test_operations.py (legal hold)",
-    "CreateMultiRegionAccessPoint": "tests/s3/test_operations.py (MRAP create + describe)",
-    "DescribeMultiRegionAccessPointOperation": "tests/s3/test_operations.py (MRAP create + describe)",
+    "CreateMultiRegionAccessPoint": "tests/s3/test_operations.py (MRAP create + describe), tests/control/test_mrap_create_api.py",
+    "DescribeMultiRegionAccessPointOperation": "tests/s3/test_operations.py (MRAP create + describe), tests/control/test_mrap_create_api.py",
     "GetMultiRegionAccessPoint": "tests/s3/test_operations.py (MRAP read + policy)",
     "PutMultiRegionAccessPointPolicy": "tests/s3/test_operations.py (MRAP read + policy)",
     "GetMultiRegionAccessPointPolicy": "tests/s3/test_operations.py (MRAP read + policy)",
@@ -179,6 +179,8 @@ PAGES = {
     "GetAccessPointPolicy": "Access Points page (Edit policy)",
     "DeleteAccessPointPolicy": "Access Points page (Remove policy)",
     "ListMultiRegionAccessPoints": "Access Points page (Multi-Region tab)",
+    "CreateMultiRegionAccessPoint": "Access Points page (Multi-Region create)",
+    "DescribeMultiRegionAccessPointOperation": "Access Points page (Multi-Region create)",
     "ListAccessPointsForObjectLambda": "Access Points page (Object Lambda tab)",
 }
 
@@ -238,6 +240,8 @@ GUI = {
     "GetAccessPointPolicy": "Access Points page › Edit policy",
     "DeleteAccessPointPolicy": "Access Points page › Remove policy",
     "ListMultiRegionAccessPoints": "Access Points page › Multi-Region",
+    "CreateMultiRegionAccessPoint": "Access Points page › Multi-Region › Create",
+    "DescribeMultiRegionAccessPointOperation": "Access Points page › Multi-Region › Create (operation status)",
     "GetMultiRegionAccessPoint": "Access Points page › Multi-Region › View details",
     "GetMultiRegionAccessPointPolicy": "Access Points page › Multi-Region › View details",
     "GetMultiRegionAccessPointRoutes": "Access Points page › Multi-Region › View details",

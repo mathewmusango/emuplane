@@ -34,6 +34,35 @@ const stubOnce = (path, answer, record) => {
   return base
 }
 
+// Buckets the fixture instance has not got, for the forms that pick from them.
+const withBuckets = (extra) => {
+  const browse = RESPONSES['/api/browse']
+  RESPONSES['/api/browse'] = { ...browse, resources: [...browse.resources, ...extra] }
+  return () => {
+    RESPONSES['/api/browse'] = browse
+  }
+}
+
+const WEST_BUCKET = { name: 'west-bucket', kind: 'bucket', region: 'us-west-2', detail: {} }
+const EAST_BUCKET = { name: 'east-bucket', kind: 'bucket', region: 'us-east-1', detail: {} }
+
+// The Multi-Region create modal: a name, then members picked from the account's
+// own buckets. Cloudscape's Multiselect does not open under fireEvent; user-event
+// does, and its options are in a portal, so they are found by `screen`.
+const openMultiRegionCreate = async (name, memberLabels) => {
+  fireEvent.click(screen.getByRole('button', { name: 'Create Multi-Region access point' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Create Multi-Region access point' })
+  fireEvent.change(within(dialog).getByPlaceholderText('my-world-point'), {
+    target: { value: name },
+  })
+  const user = userEvent.setup()
+  await user.click(within(dialog).getByText('Choose buckets'))
+  for (const label of memberLabels) {
+    await user.click(await screen.findByRole('option', { name: label }))
+  }
+  return dialog
+}
+
 describe('s3', () => {
   beforeEach(installFetch)
 
@@ -1289,9 +1318,113 @@ describe('s3', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
     expect(await screen.findByText('world-point')).toBeTruthy()
     expect(screen.getByText('logs-bucket · us-east-1, west-bucket · us-west-2')).toBeTruthy()
-    // Creation is not on this page yet, and the tab says so rather than
-    // offering a button that cannot finish.
+    // Creating one is on the tab, and it is a Multi-Region create rather than the
+    // single-bucket page's.
+    expect(
+      screen.getByRole('button', { name: 'Create Multi-Region access point' }),
+    ).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Create access point' })).toBeNull()
+  })
+
+  it('creates a Multi-Region access point over two Regions and shows its operation', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/mrap', RESPONSES['/api/s3/mrap'], sent)
+    const restore = withBuckets([WEST_BUCKET, EAST_BUCKET])
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+      await screen.findByText('world-point')
+
+      const dialog = await openMultiRegionCreate('new-world-point', [/logs-bucket/, /west-bucket/])
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        name: 'new-world-point',
+        buckets: ['logs-bucket', 'west-bucket'],
+      })
+      // The create is asynchronous: the answer's operation is shown with the token
+      // it was described on, and the listing is reloaded.
+      expect(
+        await within(dialog).findByText(/async-request\/mrap\/create/),
+      ).toBeTruthy()
+      expect(within(dialog).getAllByText('SUCCEEDED').length).toBeGreaterThan(0)
+      expect(
+        await screen.findByText('Multi-Region access point new-world-point is ready'),
+      ).toBeTruthy()
+    } finally {
+      restore()
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('refuses two member buckets in one Region before the request', async () => {
+    pinRegion('us-east-1')
+    const restore = withBuckets([EAST_BUCKET])
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+      await screen.findByText('world-point')
+
+      const dialog = await openMultiRegionCreate('new-world-point', [/logs-bucket/, /east-bucket/])
+      // Both are in us-east-1, which is the create S3 would refuse.
+      expect(within(dialog).getByText(/two are in us-east-1/)).toBeTruthy()
+      expect(within(dialog).getByRole('button', { name: 'Create' }).disabled).toBe(true)
+    } finally {
+      restore()
+    }
+  })
+
+  it('shows the operation that created a Multi-Region access point in its details', async () => {
+    pinRegion('us-east-1')
+    const base = stubOnce('/api/s3/mrap', RESPONSES['/api/s3/mrap'], [])
+    const restore = withBuckets([WEST_BUCKET])
+    const listing = RESPONSES['/api/s3/access-points']
+    RESPONSES['/api/s3/access-points'] = (url) => {
+      const answer = listing(url)
+      if (answer.section !== 'multi-region') return answer
+      // The refresh after the create lists what it made.
+      const made = {
+        ...answer.access_points[0],
+        name: 'new-world-point',
+        alias: 'new-world-point.mrap',
+      }
+      return { ...answer, access_points: [made] }
+    }
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+      await screen.findByText('new-world-point')
+
+      const dialog = await openMultiRegionCreate('new-world-point', [/logs-bucket/, /west-bucket/])
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+      await waitFor(() => expect(within(dialog).getAllByText('SUCCEEDED').length).toBe(3))
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+
+      // The row's own view carries the operation, because the token exists only in
+      // the answer this page still holds.
+      const named = (await screen.findAllByText('new-world-point')).find((cell) =>
+        cell.closest('tr'),
+      )
+      fireEvent.click(within(named.closest('tr')).getByRole('radio'))
+      fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+
+      const details = await screen.findByRole('dialog', {
+        name: 'Access point new-world-point',
+      })
+      expect(within(details).getByText('Creation operation')).toBeTruthy()
+      expect(within(details).getByText(/async-request\/mrap\/create/)).toBeTruthy()
+    } finally {
+      RESPONSES['/api/s3/access-points'] = listing
+      restore()
+      vi.stubGlobal('fetch', base)
+    }
   })
 
   it('opens a Multi-Region access point: its buckets, its routes and its policy', async () => {

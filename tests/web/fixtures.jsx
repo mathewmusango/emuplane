@@ -299,7 +299,7 @@ export const RESPONSES = {
       return {
         ok: true,
         section: 'multi-region',
-        name: 'world-point',
+        name: params.get('name') || 'world-point',
         alias: 'world-point.mrap',
         arn: 'arn:aws:s3::111111111111:accesspoint/world-point.mrap',
         state: 'READY',
@@ -340,6 +340,27 @@ export const RESPONSES = {
     status: 200,
     name: 'reports-point',
     policy: null,
+  },
+  // A Multi-Region create answers with the operation its token names: the status
+  // the page shows is read on that token and never persisted.
+  '/api/s3/mrap': {
+    ok: true,
+    status: 200,
+    name: 'new-world-point',
+    created: true,
+    operation: {
+      token: 'arn:aws:s3:us-west-2:111111111111:async-request/mrap/create/2f8a1c',
+      operation: 'CreateMultiRegionAccessPoint',
+      status: 'SUCCEEDED',
+      created: '2026-11-16T13:00:00Z',
+      name: 'new-world-point',
+      buckets: ['logs-bucket', 'west-bucket'],
+      results: [
+        { region: 'us-east-1', status: 'SUCCEEDED' },
+        { region: 'us-west-2', status: 'SUCCEEDED' },
+      ],
+      error: null,
+    },
   },
   '/api/s3/bucket-settings': {
     ok: true,

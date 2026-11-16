@@ -5,9 +5,11 @@ import Box from '@cloudscape-design/components/box'
 import Button from '@cloudscape-design/components/button'
 import ColumnLayout from '@cloudscape-design/components/column-layout'
 import ContentLayout from '@cloudscape-design/components/content-layout'
+import FormField from '@cloudscape-design/components/form-field'
 import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
 import Modal from '@cloudscape-design/components/modal'
+import Multiselect from '@cloudscape-design/components/multiselect'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import StatusIndicator from '@cloudscape-design/components/status-indicator'
 import Table from '@cloudscape-design/components/table'
@@ -22,10 +24,11 @@ import { Shell } from '../components/Shell'
 // this emulator serves neither directory buckets nor their access points, and an
 // empty tab would claim it served none.
 //
-// General purpose access points are fully managed here. Multi-Region and Object
-// Lambda ones are listed from the same S3 Control API; their creation is not on
-// this page yet, and each tab says so rather than showing a button that cannot
-// finish.
+// General purpose access points are fully managed here. Multi-Region ones are
+// listed and created here — a Multi-Region create is asynchronous, so the page
+// shows the operation the request answered with. Object Lambda ones are listed
+// only: their creation is not on this page yet, and the tab says so rather than
+// showing a button that cannot finish.
 const SECTIONS = {
   general: {
     tab: 'General purpose buckets',
@@ -47,6 +50,19 @@ const SECTIONS = {
 }
 
 const dash = '\u2014'
+
+// S3 Control's asynchronous operations walk NEW → INPROGRESS → SUCCEEDED/FAILED.
+// The emulator settles at once, but the page shows whatever it is told.
+const STATUS = {
+  NEW: 'pending',
+  INPROGRESS: 'in-progress',
+  SUCCEEDED: 'success',
+  FAILED: 'error',
+}
+
+const statusOf = (status) => (
+  <StatusIndicator type={STATUS[status] || 'info'}>{status || dash}</StatusIndicator>
+)
 
 const pretty = (text) => {
   if (!text) return ''
@@ -125,6 +141,51 @@ const COLUMNS = {
   ],
 }
 
+// One asynchronous Multi-Region operation, as the create's answer carries it: the
+// token is the only handle on the operation, so the status is shown beside it
+// rather than as a bare sentence.
+const OperationDetail = ({ operation }) => (
+  <SpaceBetween size="m">
+    <ColumnLayout columns={3} variant="text-grid">
+      <div>
+        <Box variant="awsui-key-label">Operation</Box>
+        {operation.operation || dash}
+      </div>
+      <div>
+        <Box variant="awsui-key-label">Request status</Box>
+        {statusOf(operation.status)}
+      </div>
+      <div>
+        <Box variant="awsui-key-label">Requested</Box>
+        {operation.created || dash}
+      </div>
+    </ColumnLayout>
+    <div>
+      <Box variant="awsui-key-label">Request token ARN</Box>
+      <span className="mono">{operation.token || dash}</span>
+    </div>
+    {operation.error && (
+      <Alert type="error" header="The operation ended in error">
+        {operation.error.message || operation.error.code}
+      </Alert>
+    )}
+    <Table
+      items={operation.results || []}
+      header={<Header variant="h3">Regions</Header>}
+      empty={<Box color="text-body-secondary">No Region was reported.</Box>}
+      columnDefinitions={[
+        { id: 'region', header: 'Region', cell: (row) => row.region || dash },
+        {
+          id: 'status',
+          header: 'Request status',
+          width: 200,
+          cell: (row) => statusOf(row.status),
+        },
+      ]}
+    />
+  </SpaceBetween>
+)
+
 export default function AccessPoints() {
   const navigate = useNavigate()
   const { account, region } = useSession()
@@ -143,6 +204,16 @@ export default function AccessPoints() {
   const [detailRow, setDetailRow] = useState(null)
   const [detailView, setDetailView] = useState(null)
   const [detailError, setDetailError] = useState('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [members, setMembers] = useState([])
+  const [bucketOptions, setBucketOptions] = useState([])
+  const [bucketsError, setBucketsError] = useState('')
+  const [createError, setCreateError] = useState('')
+  const [createResult, setCreateResult] = useState(null)
+  // The operations this page created, by access point name. The token exists
+  // only in the create's answer, so this is the one place it can be shown from.
+  const [operations, setOperations] = useState({})
   const detail = SECTIONS[section]
 
   const load = () => {
@@ -272,6 +343,72 @@ export default function AccessPoints() {
     }
   }
 
+  // A Multi-Region create is asynchronous, so the form reads the account's own
+  // buckets — each labelled with its Region, because the members have to come
+  // from different ones — and then shows the operation the create answered with.
+  const openCreate = () => {
+    setCreateOpen(true)
+    setNewName('')
+    setMembers([])
+    setCreateError('')
+    setCreateResult(null)
+    setBucketsError('')
+    setBucketOptions([])
+    if (!account) return
+    api
+      .browse(account, 'all', 's3')
+      .then((payload) =>
+        setBucketOptions(
+          (payload.resources || []).map((row) => ({
+            label: `${row.name} · ${row.region || region}`,
+            value: row.name,
+            region: row.region || region,
+          })),
+        ),
+      )
+      .catch((err) => setBucketsError(err.message))
+  }
+
+  // Two members in one Region is the create S3 refuses, so the form says so
+  // before the request rather than after it.
+  const memberProblem = useMemo(() => {
+    if (members.length < 2) return ''
+    const seen = new Set()
+    for (const member of members) {
+      if (seen.has(member.region)) {
+        return `A Multi-Region access point takes one bucket per Region, and two are in ${member.region}.`
+      }
+      seen.add(member.region)
+    }
+    return ''
+  }, [members])
+
+  const createMultiRegion = async () => {
+    setCreateError('')
+    setCreateResult(null)
+    setBusy(true)
+    try {
+      const answer = await api.createMultiRegionAccessPoint({
+        account,
+        region,
+        name: newName.trim(),
+        buckets: members.map((member) => member.value),
+      })
+      setCreateResult(answer)
+      if (answer.operation) {
+        setOperations((held) => ({ ...held, [answer.name]: answer.operation }))
+      }
+      if (answer.created) {
+        setNotice(`Multi-Region access point ${answer.name} is ready`)
+        load()
+      }
+    } catch (err) {
+      setCreateError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const general = section === 'general'
 
   const table = (
@@ -341,6 +478,11 @@ export default function AccessPoints() {
                   Create access point
                 </Button>
               )}
+              {section === 'multi-region' && (
+                <Button variant="primary" onClick={openCreate}>
+                  Create Multi-Region access point
+                </Button>
+              )}
             </SpaceBetween>
           }
         >
@@ -358,6 +500,11 @@ export default function AccessPoints() {
                   onClick={() => navigate(`/s3/access-points/create?region=${region}`)}
                 >
                   Create access point
+                </Button>
+              )}
+              {section === 'multi-region' && (
+                <Button variant="primary" onClick={openCreate}>
+                  Create Multi-Region access point
                 </Button>
               )}
             </SpaceBetween>
@@ -394,9 +541,9 @@ export default function AccessPoints() {
           )}
           {!general && !error && (
             <Alert type="info">
-              This console lists {section === 'multi-region' ? 'Multi-Region' : 'Object Lambda'}{' '}
-              access points. Creating, deleting and editing them is done with the S3 Control API
-              for now.
+              {section === 'multi-region'
+                ? 'A Multi-Region access point is created by an asynchronous request: S3 Control answers with a request token, and the operation it names is shown as soon as it is read. Deleting one, and changing its policy or routes, is done with the S3 Control API for now.'
+                : 'This console lists Object Lambda access points. Creating, deleting and editing them is done with the S3 Control API for now.'}
             </Alert>
           )}
           <Tabs
@@ -487,6 +634,103 @@ export default function AccessPoints() {
       </Modal>
 
       <Modal
+        visible={createOpen}
+        onDismiss={() => setCreateOpen(false)}
+        header="Create Multi-Region access point"
+        size="large"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setCreateOpen(false)}>
+                {createResult ? 'Close' : 'Cancel'}
+              </Button>
+              <Button
+                variant="primary"
+                loading={busy}
+                disabled={
+                  Boolean(createResult?.created) ||
+                  !newName.trim() ||
+                  members.length < 2 ||
+                  Boolean(memberProblem)
+                }
+                onClick={createMultiRegion}
+              >
+                Create
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          {createError && (
+            <Alert type="error" header="Could not create the access point">
+              {createError}
+            </Alert>
+          )}
+          {bucketsError && (
+            <Alert type="error" header="Could not read the buckets">
+              {bucketsError}
+            </Alert>
+          )}
+          {createResult && (
+            <Alert
+              type={createResult.created ? 'success' : 'error'}
+              header={
+                createResult.created
+                  ? `Created ${createResult.name}`
+                  : `The operation did not create ${createResult.name}`
+              }
+            >
+              {createResult.created
+                ? 'S3 Control answered the request with a token, and the operation it names ended SUCCEEDED.'
+                : createResult.error}
+            </Alert>
+          )}
+          <FormField
+            label="Name"
+            description="3 to 50 characters: lowercase letters, digits and hyphens, beginning and ending with a letter or number."
+          >
+            <Input
+              value={newName}
+              onChange={({ detail: changed }) => setNewName(changed.value)}
+              placeholder="my-world-point"
+              disabled={Boolean(createResult)}
+            />
+          </FormField>
+          <FormField
+            label="Member buckets"
+            description="One bucket per Region, at least two. Each request is routed to the bucket in its own Region."
+            errorText={memberProblem}
+            constraintText={
+              members.length < 2 && !createResult
+                ? 'Choose at least two buckets, in different Regions.'
+                : undefined
+            }
+          >
+            <Multiselect
+              selectedOptions={members}
+              onChange={({ detail: changed }) => setMembers(changed.selectedOptions)}
+              options={bucketOptions}
+              placeholder="Choose buckets"
+              empty="No buckets in this account"
+              disabled={Boolean(createResult)}
+            />
+          </FormField>
+          {createResult?.operation && (
+            <SpaceBetween size="xs">
+              <Header
+                variant="h3"
+                description="DescribeMultiRegionAccessPointOperation, read on the token the create answered with. The token is kept in this answer only."
+              >
+                Operation
+              </Header>
+              <OperationDetail operation={createResult.operation} />
+            </SpaceBetween>
+          )}
+        </SpaceBetween>
+      </Modal>
+
+      <Modal
         visible={Boolean(detailRow)}
         onDismiss={() => setDetailRow(null)}
         header={detailRow ? `Access point ${detailRow.name}` : ''}
@@ -554,6 +798,17 @@ export default function AccessPoints() {
                     },
                   ]}
                 />
+                {operations[detailRow?.name] && (
+                  <SpaceBetween size="xs">
+                    <Header
+                      variant="h3"
+                      description="The create was asynchronous: this is the operation whose token it answered with, as read on this page."
+                    >
+                      Creation operation
+                    </Header>
+                    <OperationDetail operation={operations[detailRow.name]} />
+                  </SpaceBetween>
+                )}
               </SpaceBetween>
             ) : (
               <div>

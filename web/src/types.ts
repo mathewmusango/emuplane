@@ -294,6 +294,37 @@ export interface AccessPointPolicy {
   region?: string
 }
 
+/** One asynchronous Multi-Region operation, as DescribeMultiRegionAccessPointOperation
+ *  answers it: what was asked for, what came back, and the token that names it. */
+export interface MultiRegionOperation {
+  token: string
+  /** CreateMultiRegionAccessPoint, and the other operations that answer with a token. */
+  operation: string
+  /** SUCCEEDED, FAILED, INPROGRESS — the operation's own status, not the HTTP one. */
+  status: string
+  created: string
+  name: string
+  /** The members the request named. */
+  buckets: string[]
+  /** One row per Region the operation touched. */
+  results: { region: string; status: string }[]
+  error: { code: string; message: string } | null
+}
+
+/** CreateMultiRegionAccessPoint. `ok` says the request was made and its operation
+ *  read; `created` says that operation ended SUCCEEDED, and a failed one carries
+ *  its status instead of pretending the access point exists. */
+export interface MultiRegionResult {
+  ok: boolean
+  status?: number
+  name: string
+  created: boolean
+  operation?: MultiRegionOperation
+  error?: string
+  account?: string
+  region?: string
+}
+
 export interface BucketTag {
   Key: string
   Value: string

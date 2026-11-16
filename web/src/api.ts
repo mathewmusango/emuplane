@@ -6,6 +6,7 @@ import type {
   ActionCatalogue,
   ActionResult,
   BucketHead,
+  MultiRegionResult,
 
   BrowseResult,
   BucketSettings,
@@ -289,6 +290,14 @@ export const api = {
       method: 'POST',
       body: payload,
     }),
+  /** CreateMultiRegionAccessPoint, then the operation it answers with: the token
+   *  lives in this answer and nowhere else. */
+  createMultiRegionAccessPoint: (payload: {
+    account: string
+    region: string
+    name: string
+    buckets: string[]
+  }) => request<MultiRegionResult>('/api/s3/mrap', { method: 'POST', body: payload }),
   exec: (payload: {
     account: string
     region: string
