@@ -297,6 +297,13 @@ class Accounts:
             for account in self.accounts.values():
                 users = account.get("users") or {}
                 normalised = {self._key(name): user for name, user in users.items()}
+                # The account's own principal is `root`, as in IAM: nobody chooses that name.
+                for name, user in list(normalised.items()):
+                    if user.get("role") == "root":
+                        user["username"] = "root"
+                        if name != "root":
+                            normalised.pop(name)
+                            normalised["root"] = user
                 if normalised != users:
                     account["users"] = normalised
                     changed = True
@@ -549,7 +556,7 @@ class Accounts:
 
 
 class UserStore:
-    """Local credentials: username -> password hash -> account, one document per user."""
+    """Local credentials, keyed by `account/principal`: one document per principal."""
 
     ROUNDS = 260_000
 
@@ -557,6 +564,7 @@ class UserStore:
         self.db = db
         self.lock = threading.Lock()
         self.users: dict[str, dict] = db.payloads("users")
+        self._migrate()
 
     def _hash(self, password: str) -> str:
         salt = secrets.token_bytes(16)
@@ -586,12 +594,32 @@ class UserStore:
         return hmac.compare_digest(computed, base64.b64decode(digest))
 
     @staticmethod
-    def _key(username: str) -> str:
-        return (username or "").lower()
+    def _key(account_id: str, username: str) -> str:
+        return f"{account_id}/{(username or '').strip().lower()}"
 
-    def _save(self, username: str, record: dict) -> None:
-        self.users[self._key(username)] = record
-        self.db.put("users", self._key(username), json.dumps(record))
+    def _migrate(self) -> None:
+        """Re-key rows written before the account was part of the key, and name every root `root`."""
+        changed = False
+        for key, row in list(self.users.items()):
+            if "/" in key:
+                continue
+            account_id = row.get("account_id", "")
+            name = "root" if row.get("role") == "root" else row.get("username", "")
+            if row.get("role") == "root":
+                row["username"] = "root"
+            self.users.pop(key, None)
+            self.db.delete("users", key)
+            new_key = self._key(account_id, name)
+            self.users[new_key] = row
+            self.db.put("users", new_key, json.dumps(row))
+            changed = True
+        if changed:
+            print("control: re-keyed the credential store by account", flush=True)
+
+    def _save(self, account_id: str, username: str, record: dict) -> None:
+        key = self._key(account_id, username)
+        self.users[key] = record
+        self.db.put("users", key, json.dumps(record))
 
     def _reload(self) -> dict[str, dict]:
         """Read the whole table again, because the host-side `password.py` may have reset a password."""
@@ -604,14 +632,11 @@ class UserStore:
     def count(self) -> int:
         return len(self._reload())
 
-    def get(self, username: str) -> dict | None:
-        return self._reload().get(self._key(username))
-
-    def exists(self, username: str) -> bool:
-        return self._key(username) in self._reload()
+    def get(self, account_id: str, username: str) -> dict | None:
+        return self._reload().get(self._key(account_id, username))
 
     def find_by_email(self, email: str) -> dict | None:
-        """The user record whose address matches, case-insensitively; no address means no match."""
+        """The principal whose address matches, case-insensitively; no address means no match."""
         wanted = (email or "").strip().lower()
         if not wanted:
             return None
@@ -619,6 +644,9 @@ class UserStore:
             if (user.get("email") or "").strip().lower() == wanted:
                 return user
         return None
+
+    def exists(self, account_id: str, username: str) -> bool:
+        return self._key(account_id, username) in self._reload()
 
     def create(
         self,
@@ -630,6 +658,7 @@ class UserStore:
     ) -> None:
         with self.lock:
             self._save(
+                account_id,
                 username,
                 {
                     "username": username,
@@ -642,18 +671,18 @@ class UserStore:
                 },
             )
 
-    def verify(self, username: str, password: str) -> dict | None:
-        user = self.get(username)
+    def verify(self, account_id: str, username: str, password: str) -> dict | None:
+        user = self.get(account_id, username)
         if user is None or not self._matches(password, user["password_hash"]):
             return None
         with self.lock:
             user["last_login"] = now()
-            self._save(username, user)
+            self._save(account_id, username, user)
         return user
 
-    def matches(self, username: str, password: str) -> bool:
+    def matches(self, account_id: str, username: str, password: str) -> bool:
         """Is this already the password on file? Unlike verify, no side effects."""
-        user = self.get(username)
+        user = self.get(account_id, username)
         return bool(user and self._matches(password, user.get("password_hash", "")))
 
     def delete_account(self, account_id: str) -> None:
@@ -663,30 +692,30 @@ class UserStore:
                     del self.users[key]
                     self.db.delete("users", key)
 
-    def set_email(self, username: str, email: str) -> None:
-        """Fill in a missing address; never overwrite one the user already has."""
+    def set_email(self, account_id: str, username: str, email: str) -> None:
+        """Fill in a missing address; never overwrite one the principal already has."""
         if not email:
             return
         with self.lock:
-            user = self.get(username)
+            user = self.get(account_id, username)
             if user is not None and not user.get("email"):
                 user["email"] = email
-                self._save(username, user)
+                self._save(account_id, username, user)
 
-    def update_email(self, username: str, email: str) -> None:
+    def update_email(self, account_id: str, username: str, email: str) -> None:
         """Set the address from the owner's own request."""
         with self.lock:
-            user = self.get(username)
+            user = self.get(account_id, username)
             if user is not None:
                 user["email"] = email
-                self._save(username, user)
+                self._save(account_id, username, user)
 
-    def set_password(self, username: str, password: str) -> None:
+    def set_password(self, account_id: str, username: str, password: str) -> None:
         with self.lock:
-            user = self.get(username)
+            user = self.get(account_id, username)
             if user is not None:
                 user["password_hash"] = self._hash(password)
-                self._save(username, user)
+                self._save(account_id, username, user)
 
 
 class Settings:
@@ -2606,12 +2635,13 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(
                     400, {"error": "Enter the email address for the account."}
                 )
-            user = USERS.find_by_email(identifier) or USERS.get(identifier)
+            user = USERS.find_by_email(identifier)
             if user is None:
                 time.sleep(0.4)
                 return self._json(
                     401, {"error": "That email address and password do not match."}
                 )
+            account_id = user.get("account_id", "")
             username = user["username"]
         else:
             reference = str(payload.get("account") or "").strip()
@@ -2621,28 +2651,25 @@ class ControlHandler(BaseHTTPRequestHandler):
                     400, {"error": "Enter the account and the IAM username."}
                 )
             account = ACCOUNTS.by_ref(reference)
-            user = USERS.get(username)
-            if (
-                account is None
-                or user is None
-                or user.get("account_id") != account["account_id"]
-            ):
+            user = USERS.get(account["account_id"], username) if account else None
+            if account is None or user is None:
                 time.sleep(0.4)
                 return self._json(
                     401, {"error": "That account, username and password do not match."}
                 )
+            account_id = account["account_id"]
 
-        record = USERS.verify(username, password)
+        record = USERS.verify(account_id, username, password)
         if record is None:
             time.sleep(0.4)
             return self._json(401, {"error": "That password does not match."})
         account = ACCOUNTS.by_ref(record["account_id"])
-        principal = ((account or {}).get("users") or {}).get(username)
+        principal = ((account or {}).get("users") or {}).get(ACCOUNTS._key(username))
         if account is not None and principal is None:
             # The account was cached before this principal existed; read the table once more.
             ACCOUNTS._load()
             account = ACCOUNTS.by_ref(record["account_id"])
-            principal = ((account or {}).get("users") or {}).get(username)
+            principal = ((account or {}).get("users") or {}).get(ACCOUNTS._key(username))
         if account is None or principal is None:
             return self._json(
                 500, {"error": "This user has no account record; sign up again."}
@@ -2713,28 +2740,19 @@ class ControlHandler(BaseHTTPRequestHandler):
                 self._signup_page({"form": "Sign-up is disabled on this lab."}), 403
             )
         form = self._form()
-        username = (form.get("username") or "").strip()
         account_name = (form.get("account") or "").strip()
         email = (form.get("email") or "").strip()
         password = form.get("password") or ""
         confirm = form.get("confirm") or ""
         errors: dict[str, str] = {}
-        if not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", username):
-            errors["username"] = (
-                "A user name is required: 3-32 characters, letters, digits, "
-                "dot, dash or underscore."
-            )
-        elif USERS.exists(username):
-            errors["username"] = (
-                "That user name is already in use on this lab: sign-in names are "
-                "unique across accounts."
-            )
-        if account_name and not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", account_name):
+        if not account_name:
+            errors["account"] = "An account name is required."
+        elif not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", account_name):
             errors["account"] = (
                 "An account name is 3-32 characters: letters, digits, dot, dash "
                 "or underscore."
             )
-        elif ACCOUNTS.alias_taken(account_name or username):
+        elif ACCOUNTS.alias_taken(account_name):
             errors["account"] = (
                 "An account with that name already exists. Choose another account "
                 "name."
@@ -2748,20 +2766,21 @@ class ControlHandler(BaseHTTPRequestHandler):
         elif password != confirm:
             errors["confirm"] = "The passwords do not match."
         if errors:
-            return self._page(
-                self._signup_page(errors, username, email, account_name), 400
-            )
+            return self._page(self._signup_page(errors, email, account_name), 400)
 
-        account, principal = ACCOUNTS.create(username, account_name)
+        account, principal = ACCOUNTS.create("root", account_name)
         USERS.create(
-            username,
+            "root",
             email,
             password,
             account["account_id"],
             principal.get("role", "root"),
         )
         session = new_session(
-            username, account["account_id"], principal["role"], account["alias"]
+            principal["username"],
+            account["account_id"],
+            principal["role"],
+            account["alias"],
         )
         self.send_response(302)
         self.send_header("Location", "/")
@@ -2813,11 +2832,10 @@ class ControlHandler(BaseHTTPRequestHandler):
     def _signup_page(
         self,
         errors: dict[str, str] | None = None,
-        username: str = "",
         email: str = "",
         account: str = "",
     ) -> str:
-        """Step one: the address the code goes to, the login, and the account's name."""
+        """Step one: the address that identifies the root, and the account's name."""
         errors = errors or {}
 
         def problem(field: str) -> str:
@@ -2846,18 +2864,11 @@ class ControlHandler(BaseHTTPRequestHandler):
         {problem("email")}
       </div>
       <div class="field">
-        <label for="username">User name</label>
-        <p class="hint">How you sign in. Unique across this lab.</p>
-        <input id="username" name="username" value="{html.escape(username)}"
-               placeholder="username" autocomplete="username" required>
-        {problem("username")}
-      </div>
-      <div class="field">
         <label for="account">Account name</label>
-        <p class="hint">The name of your AWS account. Leave it empty to use your
-          user name.</p>
+        <p class="hint">The name of your AWS account. You sign in as its root user
+          with the email address above.</p>
         <input id="account" name="account" value="{html.escape(account)}"
-               placeholder="my-account">
+               placeholder="my-account" required>
         {problem("account")}
       </div>
       <div class="field">
@@ -3136,7 +3147,7 @@ class ControlHandler(BaseHTTPRequestHandler):
         if path == "/api/accounts/me":
             info = session_info(self._session_token()) or {}
             account = ACCOUNTS.by_ref(info.get("account", "")) if info else None
-            record = USERS.get(info.get("user", "")) if info else None
+            record = USERS.get(info.get("account", ""), info.get("user", "")) if info else None
             return self._json(
                 200,
                 {
@@ -3765,13 +3776,13 @@ class ControlHandler(BaseHTTPRequestHandler):
                 ),
                 400,
             )
-        user = USERS.get(record.get("user", ""))
+        user = USERS.get(record.get("account", ""), record.get("user", ""))
         if user is None:
             return self._page(
                 self._reset_page(errors={"form": "That account no longer exists."}),
                 400,
             )
-        if USERS.matches(user["username"], password):
+        if USERS.matches(record.get("account", ""), user["username"], password):
             return self._page(
                 self._reset_page(
                     token,
@@ -3783,16 +3794,45 @@ class ControlHandler(BaseHTTPRequestHandler):
                 400,
             )
         consume_reset(token)
-        USERS.set_password(user["username"], password)
+        USERS.set_password(record.get("account", ""), user["username"], password)
         purge_user_sessions(record.get("account", ""), user["username"])
         self.send_response(302)
         self.send_header("Location", "/login?reset=1")
         self.send_header("Content-Length", "0")
         self.end_headers()
 
+    def _principal(self, name: str, hint: str = "") -> tuple[str, dict] | None:
+        """`(account, record)` for a principal name: the caller's account, a hint, or the only match."""
+        info = self._caller()
+        accounts = []
+        if hint:
+            account = ACCOUNTS.by_ref(hint)
+            if account is not None:
+                accounts = [account]
+        elif info.get("account"):
+            account = ACCOUNTS.by_ref(info["account"])
+            if account is not None:
+                accounts = [account]
+        else:
+            accounts = [
+                account
+                for account in ACCOUNTS.accounts.values()
+                if ACCOUNTS._key(name) in (account.get("users") or {})
+            ]
+        for account in accounts:
+            record = USERS.get(account["account_id"], name)
+            if record is not None:
+                return account["account_id"], record
+        return None
+
     def _issue_reset_link(self, username: str) -> None:
         """Mint a one-time reset link (platform admin only); the store keeps only its digest."""
-        record = USERS.get(username)
+        found = self._principal(username)
+        if found is None:
+            return self._json(
+                404, {"error": "unknown user, or the name needs an account"}
+            )
+        _account, record = found
         if record is None:
             return self._json(404, {"error": "unknown user"})
         account_id = record.get("account_id", "")
@@ -3820,19 +3860,21 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(
                 400, {"error": "the new password must be at least 8 characters"}
             )
-        record = USERS.get(username)
-        if record is None:
-            return self._json(404, {"error": "unknown user"})
-        account_id = record.get("account_id", "")
+        found = self._principal(username, str(payload.get("account") or "").strip())
+        if found is None:
+            return self._json(
+                404, {"error": "unknown user, or the name needs an account"}
+            )
+        account_id, record = found
         if not self._can_touch(self._caller(), account_id):
             return self._json(
                 403, {"error": "this user belongs to a different account"}
             )
-        if USERS.matches(record["username"], password):
+        if USERS.matches(account_id, record["username"], password):
             return self._json(
                 400, {"error": "that is already the password on this account"}
             )
-        USERS.set_password(record["username"], password)
+        USERS.set_password(account_id, record["username"], password)
         purge_user_sessions(account_id, record["username"])
         return self._json(
             200,
@@ -3862,7 +3904,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(
                     400, {"error": "the new password must be at least 8 characters"}
                 )
-            if USERS.verify(username, current) is None:
+            if USERS.verify(account["account_id"], username, current) is None:
                 return self._json(
                     403, {"error": "the current password is not correct"}
                 )
@@ -3872,13 +3914,13 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(
                     400, {"error": "that email address does not look right"}
                 )
-            USERS.update_email(username, email)
+            USERS.update_email(account["account_id"], username, email)
         if name is not None:
             ACCOUNTS.set_name(account["account_id"], str(name).strip())
         if new:
-            USERS.set_password(username, new)
+            USERS.set_password(account["account_id"], username, new)
         updated = ACCOUNTS.by_ref(account["account_id"]) or {}
-        record = USERS.get(username) or {}
+        record = USERS.get(account["account_id"], username) or {}
         return self._json(
             200,
             {
@@ -3935,8 +3977,9 @@ class ControlHandler(BaseHTTPRequestHandler):
             role = str(payload.get("role") or "iam").strip().lower()
             email = str(payload.get("email") or "").strip()
             target = ACCOUNTS.by_ref(str(payload.get("account") or info.get("account") or ""))
-            if role not in {"root", "iam"}:
-                return self._json(400, {"error": "role must be root or iam"})
+            if role != "iam":
+                # One root per account, as in AWS: the rest are IAM users.
+                return self._json(400, {"error": "a user added here is an IAM user"})
             if not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", username):
                 return self._json(
                     400,
@@ -3953,7 +3996,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(
                     403, {"error": "you can only add users to your own account"}
                 )
-            if USERS.exists(username):
+            if USERS.exists(target["account_id"], username):
                 return self._json(409, {"error": "that username is already taken"})
             principal = ACCOUNTS.add_principal(target["account_id"], username, role)
             if principal is None:
@@ -4559,13 +4602,13 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(
                     400, {"error": "password must be at least 8 characters"}
                 )
-            if USERS.exists(username):
-                return self._json(400, {"error": "that username is already registered"})
-            account, principal = ACCOUNTS.create(username)
+            if ACCOUNTS.alias_taken(username):
+                return self._json(400, {"error": "an account with that name already exists"})
+            account, principal = ACCOUNTS.create("root", username)
             if display_name:
                 ACCOUNTS.set_name(account["account_id"], display_name)
             USERS.create(
-                username, email, password, account["account_id"],
+                "root", email, password, account["account_id"],
                 principal.get("role", "root"),
             )
             _key, problem = create_access_key(account, principal, "primary")
@@ -4574,7 +4617,8 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._json(
                 201,
                 {
-                    "username": username,
+                    "user": principal["username"],
+                    "account_name": username,
                     "account_id": account["account_id"],
                     "alias": account["alias"],
                     "iam_user": principal.get("iam_user"),

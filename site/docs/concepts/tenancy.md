@@ -22,18 +22,23 @@ flowchart LR
 - A 12-digit id, a name, and a root user created at sign-up.
 - IAM users belong to one account and can be given their own password.
 
-### Two names, and which is which
+### Root owns the account; IAM users join it
 
-- The **user name** is the login. It is unique across the whole lab, and it is
-  what you type at `/login`.
-- The **account name** is the tenancy's label. You choose it at sign-up and it
-  defaults to your user name; it is unique among accounts, so two people cannot
-  both call their account `acme`.
-- They are shown separately — the account name beside the account id, the user
-  name as the identity inside it — because they are different things.
-- A signed-in user may touch **its own account only**. The deployment bearer
-  token is the one principal that may cross tenancies, and it exists so an
-  operator can administer the lab rather than to act as a global root.
+- The **root user is the account**. Sign-up asks for an email address, an
+  account name and a password, and creates both in one step: the account is
+  named by you, and its root principal is `root`, identified by that email.
+- Root has **full access to its own account and to nothing else**. It is not a
+  global root, and it cannot read or change another account's state.
+- **IAM users join** the account. You add them inside it, and their names are
+  unique **within that account**, so two accounts may each have an `alice`.
+- A user name therefore only has to be understood in its account: the console
+  shows the account name beside the account id and the user name as the identity
+  inside it, because they live at different levels.
+- Signing in follows the same split: root mode takes the **email**, IAM mode
+  takes the **account and the user name**.
+- The deployment bearer token is the one principal that may cross tenancies, and
+  it exists so an operator can administer the deployment rather than to act as a
+  global root.
 
 ## Regions
 
