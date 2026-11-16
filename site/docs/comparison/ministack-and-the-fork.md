@@ -8,6 +8,16 @@ This project tracks a **fork** of it —
 built from upstream `v1.5.40` with its S3 work on `main`: a small set of changes
 the console needs, kept deliberately narrow so the rest stays upstream's code.
 
+The image the reference deployment runs is
+`ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full` — the `v1.5.40-fork.3`
+release, `-full` being the Debian/glibc variant, named to drop in for upstream's
+own `<version>-full` tags.
+
+The fork's own notes are in `README.fork.md`, carried on
+[`feat/s3-region-scoped-state`](https://github.com/mathewmusango/ministack-upstream/tree/feat/s3-region-scoped-state).
+The S3 patch itself is on `main`, so read that branch for the notes and `main` for
+the code.
+
 ## Why a fork at all
 
 An emulator answers requests. A console has to *show* them, which adds three
