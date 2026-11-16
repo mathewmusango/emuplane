@@ -323,9 +323,20 @@ class Accounts:
         self.db.put("accounts", account["account_id"], json.dumps(account))
 
     @staticmethod
+    def _key(username: str) -> str:
+        """The key a principal is stored under: one name, one case."""
+        return (username or "").strip().lower()
+
+    @staticmethod
     def _slug(value: str) -> str:
         slug = re.sub(r"[^a-z0-9-]+", "-", value.lower()).strip("-")
         return slug[:32] or "account"
+
+    def alias_taken(self, name: str) -> bool:
+        """Is this account name already in use? Case and punctuation do not distinguish it."""
+        wanted = self._slug(name)
+        self._load()
+        return any(a["alias"] == wanted for a in self.accounts.values())
 
     def unique_alias(self, wanted: str) -> str:
         base = self._slug(wanted)
@@ -362,14 +373,14 @@ class Accounts:
             if candidate not in self.accounts:
                 return candidate
 
-    def create(self, username: str) -> tuple[dict, dict]:
+    def create(self, username: str, name: str = "") -> tuple[dict, dict]:
         account_id = self._new_id()
-        account = self._blank(account_id, self.unique_alias(username))
+        account = self._blank(account_id, self.unique_alias(name or username))
         # No account is a global administrator: root owns its own tenancy.
         account["global_admin"] = False
         account["default_admin"] = False
         user = {"username": username, "role": "root"}
-        account["users"][username] = user
+        account["users"][self._key(username)] = user
         self.accounts[account_id] = account
         self._put(account)
         return account, user
@@ -380,10 +391,10 @@ class Accounts:
         """Add an IAM principal to an existing account, or None if it is taken."""
         with self.lock:
             account = self.accounts.get(account_id)
-            if account is None or username in account["users"]:
+            if account is None or self._key(username) in account["users"]:
                 return None
             principal = {"username": username, "role": role}
-            account["users"][username] = principal
+            account["users"][self._key(username)] = principal
             self._put(account)
             return principal
 
@@ -395,21 +406,6 @@ class Accounts:
         account["name"] = name
         self._put(account)
         return account
-
-    def ensure_local(self, username: str) -> tuple[dict, dict]:
-        """The `.env` admin signs in as the root of its own account."""
-        with self.lock:
-            for account in self.accounts.values():
-                user = account["users"].get(username)
-                if user is not None:
-                    return account, user
-            account = self._blank(self._new_id(), self.unique_alias(username))
-            account["global_admin"] = False
-            user = {"username": username, "role": "root"}
-            account["users"][username] = user
-            self.accounts[account["account_id"]] = account
-            self._put(account)
-            return account, user
 
     @staticmethod
     def _mirror_primary(user: dict) -> None:
@@ -446,7 +442,7 @@ class Accounts:
             account = self.accounts.get(account_id)
             if account is None:
                 return None, "unknown account"
-            user = account["users"].get(username)
+            user = account["users"].get(self._key(username))
             if user is None:
                 return None, "unknown principal"
             if self.key_count(account) >= MAX_ACCESS_KEYS:
@@ -481,7 +477,7 @@ class Accounts:
             account = self.accounts.get(account_id)
             if account is None:
                 return None, "unknown account"
-            user = account["users"].get(username)
+            user = account["users"].get(self._key(username))
             if user is None:
                 return None, "unknown principal"
             keys = user.get("access_keys") or []
@@ -765,7 +761,7 @@ OWNERS = Owners(DB)
 
 
 def seed_local_admin() -> None:
-    """Retired tombstone: a fresh control starts with no accounts, only sign-up (see `ensure_local`)."""
+    """Retired tombstone: a fresh control starts with no accounts, only sign-up."""
 
 
 # No seed call on purpose: the database may be empty and that is the design.
@@ -2711,17 +2707,31 @@ class ControlHandler(BaseHTTPRequestHandler):
             )
         form = self._form()
         username = (form.get("username") or "").strip()
+        account_name = (form.get("account") or "").strip()
         email = (form.get("email") or "").strip()
         password = form.get("password") or ""
         confirm = form.get("confirm") or ""
         errors: dict[str, str] = {}
         if not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", username):
             errors["username"] = (
-                "An account name is required: 3-32 characters, letters, digits, "
+                "A user name is required: 3-32 characters, letters, digits, "
                 "dot, dash or underscore."
             )
         elif USERS.exists(username):
-            errors["username"] = "That account name is already taken."
+            errors["username"] = (
+                "That user name is already in use on this lab: sign-in names are "
+                "unique across accounts."
+            )
+        if account_name and not re.fullmatch(r"[A-Za-z0-9._-]{3,32}", account_name):
+            errors["account"] = (
+                "An account name is 3-32 characters: letters, digits, dot, dash "
+                "or underscore."
+            )
+        elif ACCOUNTS.alias_taken(account_name or username):
+            errors["account"] = (
+                "An account with that name already exists. Choose another account "
+                "name."
+            )
         if not email:
             errors["email"] = "An email address is required."
         elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
@@ -2731,9 +2741,11 @@ class ControlHandler(BaseHTTPRequestHandler):
         elif password != confirm:
             errors["confirm"] = "The passwords do not match."
         if errors:
-            return self._page(self._signup_page(errors, username, email), 400)
+            return self._page(
+                self._signup_page(errors, username, email, account_name), 400
+            )
 
-        account, principal = ACCOUNTS.ensure_local(username)
+        account, principal = ACCOUNTS.create(username, account_name)
         USERS.create(
             username,
             email,
@@ -2796,8 +2808,9 @@ class ControlHandler(BaseHTTPRequestHandler):
         errors: dict[str, str] | None = None,
         username: str = "",
         email: str = "",
+        account: str = "",
     ) -> str:
-        """Step one: the address the code goes to, and the account name."""
+        """Step one: the address the code goes to, the login, and the account's name."""
         errors = errors or {}
 
         def problem(field: str) -> str:
@@ -2826,11 +2839,19 @@ class ControlHandler(BaseHTTPRequestHandler):
         {problem("email")}
       </div>
       <div class="field">
-        <label for="username">Account name</label>
-        <p class="hint">Choose a name for your account.</p>
+        <label for="username">User name</label>
+        <p class="hint">How you sign in. Unique across this lab.</p>
         <input id="username" name="username" value="{html.escape(username)}"
                placeholder="username" autocomplete="username" required>
         {problem("username")}
+      </div>
+      <div class="field">
+        <label for="account">Account name</label>
+        <p class="hint">The name of your AWS account. Leave it empty to use your
+          user name.</p>
+        <input id="account" name="account" value="{html.escape(account)}"
+               placeholder="my-account">
+        {problem("account")}
       </div>
       <div class="field">
         <label for="password">Password</label>

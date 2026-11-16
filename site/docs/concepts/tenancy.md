@@ -19,8 +19,18 @@ flowchart LR
 
 ## Accounts
 
-- A 12-digit id, an alias, and a root user created at sign-up.
+- A 12-digit id, a name, and a root user created at sign-up.
 - IAM users belong to one account and can be given their own password.
+
+### Two names, and which is which
+
+- The **user name** is the login. It is unique across the whole lab, and it is
+  what you type at `/login`.
+- The **account name** is the tenancy's label. You choose it at sign-up and it
+  defaults to your user name; it is unique among accounts, so two people cannot
+  both call their account `acme`.
+- They are shown separately — the account name beside the account id, the user
+  name as the identity inside it — because they are different things.
 - A signed-in user may touch **its own account only**. The deployment bearer
   token is the one principal that may cross tenancies, and it exists so an
   operator can administer the lab rather than to act as a global root.
