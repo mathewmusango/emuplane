@@ -20,7 +20,7 @@ That split is the porting contract:
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `EP_BACKEND` | `generic` | backend profile: `generic`, `ministack`, `floci`, `localstack`, `moto` |
+| `EP_BACKEND` | `generic` | backend profile: `generic`, `ministack`, `floci`, `localstack`, `moto`; only `ministack` is tested |
 | `EP_BACKEND_URL` | required | the emulator endpoint the control talks to |
 | `EP_BACKEND_NAME` | empty | label shown for the backend; empty means the profile name, else the URL's host |
 | `EP_CONSOLE_URL` | required | console address shown in the interface |

@@ -12,11 +12,17 @@
 
 ---
 
-Emuplane is not an emulator. It is what you put in front of one — MiniStack,
-LocalStack, Floci, moto — so it is usable by more than one person: it holds the
+Emuplane is not an emulator. It is what you put in front of one — [MiniStack](https://github.com/ministackorg/ministack),
+[LocalStack](https://github.com/localstack/localstack), [Floci](https://github.com/floci-io/floci) or
+[moto](https://github.com/getmoto/moto).
+
+It is what makes an emulator usable by more than one person: it holds the
 accounts and the logins inside them, issues the access keys clients sign with,
-serves the console and control API, and is the endpoint Terraform and the AWS CLI
-point at.
+serves the console and control API, and is the endpoint Terraform and the AWS
+CLI point at.
+
+Currently tested on MiniStack only; the others are profiles, not verified
+targets.
 
 ```bash
 ./scripts/up.sh

@@ -32,8 +32,8 @@ bearer token is minted once with `./scripts/token.sh`.
 ## What it is not
 
 - **Not an emulator.** The emulator is a separate project; Emuplane talks to it
-  through one URL. Backends are pluggable (`generic`, `ministack`, `floci`,
-  `localstack`, `moto`).
+  through one URL. Backends are pluggable — [MiniStack](https://github.com/ministackorg/ministack), [LocalStack](https://github.com/localstack/localstack), [Floci](https://github.com/floci-io/floci) or [moto](https://github.com/getmoto/moto) — but only
+  MiniStack is tested.
 - **Not a proxy to real AWS.** It is a local lab: no credential leaves the box.
 - **Not production infrastructure.** A control plane for a lab, sized to run
   beside the emulator on one host.
