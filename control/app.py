@@ -3740,6 +3740,39 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region),
             )
+        if path == "/api/s3/access-point-detail":
+            # One access point read from the resources that own it: an MRAP's
+            # report, policy and routes; an Object Lambda access point's
+            # configuration and policy.
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            section = (params.get("section") or ["general"])[0]
+            name = (params.get("name") or [""])[0].strip()
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not name:
+                return self._json(400, {"error": "an access point name is required"})
+            result = accesspoints.detail(
+                section, region, name, s3control(target["account_id"], region)
+            )
+            failure = result.get("status") or 0
+            return self._json(
+                200
+                if result.get("ok")
+                else (failure if 400 <= failure < 500 else 502),
+                dict(result, account=target["account_id"], section=section),
+            )
         if path == "/api/browse":
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()

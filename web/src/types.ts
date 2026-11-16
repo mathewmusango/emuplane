@@ -258,6 +258,31 @@ export interface AccessPointResult {
   region?: string
 }
 
+/** One access point read in full, from the section that owns it. */
+export interface AccessPointDetail {
+  ok: boolean
+  status?: number
+  section: string
+  name: string
+  alias: string
+  arn?: string
+  /** The resource's own state (READY), not the HTTP status. */
+  state?: string
+  created?: string
+  region?: string
+  /** Multi-Region: the member buckets and how much traffic each takes. */
+  buckets?: { bucket: string; region: string }[]
+  routes?: { bucket: string; region: string; traffic: string }[]
+  /** Object Lambda: the configuration document S3 answers with. */
+  configuration?: string | null
+  /** null is an access point without a policy, which is a real state. */
+  policy?: string | null
+  /** Only what genuinely failed: a missing policy is not an error. */
+  errors?: Record<string, string>
+  account?: string
+  error?: string
+}
+
 export interface AccessPointPolicy {
   ok: boolean
   status?: number

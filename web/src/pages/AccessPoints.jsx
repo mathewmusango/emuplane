@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Box from '@cloudscape-design/components/box'
 import Button from '@cloudscape-design/components/button'
+import ColumnLayout from '@cloudscape-design/components/column-layout'
 import ContentLayout from '@cloudscape-design/components/content-layout'
 import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
@@ -139,6 +140,9 @@ export default function AccessPoints() {
   const [policy, setPolicy] = useState(null)
   const [policyText, setPolicyText] = useState('')
   const [policyError, setPolicyError] = useState('')
+  const [detailRow, setDetailRow] = useState(null)
+  const [detailView, setDetailView] = useState(null)
+  const [detailError, setDetailError] = useState('')
   const detail = SECTIONS[section]
 
   const load = () => {
@@ -195,6 +199,22 @@ export default function AccessPoints() {
       setNotice('ARN copied')
     } catch {
       setNotice(`Copy failed. The ARN is ${arn}`)
+    }
+  }
+
+  // A listing is not a detail: an MRAP's list row has no policy and no routes,
+  // and an Object Lambda access point's has no configuration, so the row view
+  // reads the instance resources themselves.
+  const openDetail = async () => {
+    const row = selected[0]
+    if (!row) return
+    setDetailRow(row)
+    setDetailView(null)
+    setDetailError('')
+    try {
+      setDetailView(await api.accessPointDetail(account, region, section, row.name))
+    } catch (err) {
+      setDetailError(err.message)
     }
   }
 
@@ -295,6 +315,11 @@ export default function AccessPoints() {
               <Button disabled={!selected.length || !selected[0]?.arn} onClick={copyArn}>
                 Copy ARN
               </Button>
+              {!general && (
+                <Button disabled={selected.length !== 1} onClick={openDetail}>
+                  View details
+                </Button>
+              )}
               {general && (
                 <Button disabled={selected.length !== 1} onClick={openPolicy}>
                   Edit policy
@@ -459,6 +484,108 @@ export default function AccessPoints() {
             deleted.
           </Alert>
         </SpaceBetween>
+      </Modal>
+
+      <Modal
+        visible={Boolean(detailRow)}
+        onDismiss={() => setDetailRow(null)}
+        header={detailRow ? `Access point ${detailRow.name}` : ''}
+        size="large"
+        footer={
+          <Box float="right">
+            <Button onClick={() => setDetailRow(null)}>Close</Button>
+          </Box>
+        }
+      >
+        {detailError ? (
+          <Alert type="error">{detailError}</Alert>
+        ) : !detailView ? (
+          <Box color="text-body-secondary">Reading the access point…</Box>
+        ) : (
+          <SpaceBetween size="l">
+            <ColumnLayout columns={3} variant="text-grid">
+              <div>
+                <Box variant="awsui-key-label">State</Box>
+                {detailView.state || dash}
+              </div>
+              <div>
+                <Box variant="awsui-key-label">Alias</Box>
+                <span className="mono">{detailView.alias || dash}</span>
+              </div>
+              <div>
+                <Box variant="awsui-key-label">Created</Box>
+                {detailView.created || dash}
+              </div>
+            </ColumnLayout>
+
+            {detailView.section === 'multi-region' ? (
+              <SpaceBetween size="l">
+                <Table
+                  items={detailView.buckets || []}
+                  header={<Header variant="h3">Buckets</Header>}
+                  columnDefinitions={[
+                    { id: 'bucket', header: 'Bucket', cell: (row) => row.bucket },
+                    { id: 'region', header: 'Region', cell: (row) => row.region },
+                  ]}
+                />
+                {detailView.errors?.routes && (
+                  <Alert type="error" header="Could not read the routes">
+                    {detailView.errors.routes}
+                  </Alert>
+                )}
+                <Table
+                  items={detailView.routes || []}
+                  header={
+                    <Header
+                      variant="h3"
+                      description="Traffic dials decide how much of the request load each bucket takes."
+                    >
+                      Routes
+                    </Header>
+                  }
+                  columnDefinitions={[
+                    { id: 'bucket', header: 'Bucket', cell: (row) => row.bucket },
+                    { id: 'region', header: 'Region', cell: (row) => row.region },
+                    {
+                      id: 'traffic',
+                      header: 'Traffic dial',
+                      width: 140,
+                      cell: (row) => `${row.traffic}%`,
+                    },
+                  ]}
+                />
+              </SpaceBetween>
+            ) : (
+              <div>
+                <Box variant="awsui-key-label">Configuration</Box>
+                {detailView.errors?.configuration && (
+                  <Alert type="error" header="Could not read the configuration">
+                    {detailView.errors.configuration}
+                  </Alert>
+                )}
+                {detailView.configuration ? (
+                  <pre className="result-body">{detailView.configuration}</pre>
+                ) : (
+                  <Box color="text-body-secondary">Not configured.</Box>
+                )}
+              </div>
+            )}
+
+            {detailView.errors?.policy && (
+              <Alert type="error" header="Could not read the policy">
+                {detailView.errors.policy}
+              </Alert>
+            )}
+            <div>
+              <Box variant="awsui-key-label">Access point policy</Box>
+              {detailView.policy ? (
+                <pre className="result-body">{detailView.policy}</pre>
+              ) : (
+                <Box color="text-body-secondary">No policy on this access point.</Box>
+              )}
+            </div>
+          </SpaceBetween>
+        )}
       </Modal>
     </Shell>
   )

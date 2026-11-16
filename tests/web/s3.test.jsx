@@ -1294,6 +1294,39 @@ describe('s3', () => {
     expect(screen.queryByRole('button', { name: 'Create access point' })).toBeNull()
   })
 
+  it('opens a Multi-Region access point: its buckets, its routes and its policy', async () => {
+    pinRegion('us-east-1')
+    renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+    await screen.findByText('reports-point')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+    await screen.findByText('world-point')
+    fireEvent.click(screen.getAllByRole('radio')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Access point world-point' })
+    // The listing has none of this: the report, the dials and the policy are
+    // three reads on the access point itself.
+    expect(within(dialog).getByText('Routes')).toBeTruthy()
+    expect(within(dialog).getByText('100%')).toBeTruthy()
+    expect(within(dialog).getByText(/"Statement"/)).toBeTruthy()
+  })
+
+  it('opens an Object Lambda access point with its configuration, and no policy is a state', async () => {
+    pinRegion('us-east-1')
+    renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+    await screen.findByText('reports-point')
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Object Lambda' }))
+    await screen.findByText('lambda-point')
+    fireEvent.click(screen.getAllByRole('radio')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Access point lambda-point' })
+    expect(within(dialog).getByText(/SupportingAccessPoint/)).toBeTruthy()
+    expect(within(dialog).getByText('No policy on this access point.')).toBeTruthy()
+  })
+
   it('links Access Points from the S3 navigation', async () => {
     pinRegion('us-east-1')
     renderAt(<App />, ['/s3/home?region=us-east-1'])

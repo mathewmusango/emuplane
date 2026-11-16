@@ -250,7 +250,26 @@ export const RESPONSES = {
       }
     }
     if (section === 'object-lambda') {
-      return { ok: true, status: 200, section, region: 'us-east-1', access_points: [] }
+      return {
+        ok: true,
+        status: 200,
+        section,
+        region: 'us-east-1',
+        access_points: [
+          {
+            name: 'lambda-point',
+            alias: 'lambda-point-7hkw2mx4alias',
+            arn: 'arn:aws:s3-object-lambda:us-east-1:111111111111:accesspoint/lambda-point',
+            network_origin: 'Internet',
+            vpc_id: '',
+            created: '2026-11-16T09:00:00Z',
+            status: 'READY',
+            bucket: '',
+            buckets: [],
+            region: 'us-east-1',
+          },
+        ],
+      }
     }
     return {
       ok: true,
@@ -271,6 +290,42 @@ export const RESPONSES = {
           region: 'us-east-1',
         },
       ],
+    }
+  },
+  // A listing is not a detail, so the row view has its own answer per section.
+  '/api/s3/access-point-detail': (url) => {
+    const params = new URL(url, 'http://console').searchParams
+    if (params.get('section') === 'multi-region') {
+      return {
+        ok: true,
+        section: 'multi-region',
+        name: 'world-point',
+        alias: 'world-point.mrap',
+        arn: 'arn:aws:s3::111111111111:accesspoint/world-point.mrap',
+        state: 'READY',
+        created: '2026-11-16T09:00:00Z',
+        region: 'us-west-2',
+        buckets: [
+          { bucket: 'logs-bucket', region: 'us-east-1' },
+          { bucket: 'west-bucket', region: 'us-west-2' },
+        ],
+        routes: [{ bucket: 'logs-bucket', region: 'us-east-1', traffic: '100' }],
+        policy: '{"Version":"2012-10-17","Statement":[]}',
+        errors: {},
+      }
+    }
+    return {
+      ok: true,
+      section: 'object-lambda',
+      name: 'lambda-point',
+      alias: 'lambda-point-7hkw2mx4alias',
+      state: 'READY',
+      created: '2026-11-16T09:00:00Z',
+      region: 'us-east-1',
+      configuration:
+        '<Configuration><SupportingAccessPoint>arn:aws:s3:us-east-1:111111111111:accesspoint/reports-point</SupportingAccessPoint></Configuration>',
+      policy: null,
+      errors: {},
     }
   },
   '/api/s3/access-point-policy': {

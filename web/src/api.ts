@@ -1,5 +1,6 @@
 import type {
   AccessPointListing,
+  AccessPointDetail,
   AccessPointPolicy,
   AccessPointResult,
   ActionCatalogue,
@@ -263,6 +264,17 @@ export const api = {
   }) => request<AccessPointResult>('/api/s3/access-points', { method: 'POST', body: payload }),
   deleteAccessPoint: (payload: { account: string; region: string; name: string }) =>
     request<AccessPointResult>('/api/s3/access-point-delete', { method: 'POST', body: payload }),
+  /** One access point in full: an MRAP's report, policy and routes, or an
+   *  Object Lambda access point's configuration and policy. */
+  accessPointDetail: (
+    account: string,
+    region: string,
+    section: 'multi-region' | 'object-lambda',
+    name: string,
+  ) =>
+    request<AccessPointDetail>(
+      `/api/s3/access-point-detail?${query({ account, region, section, name })}`,
+    ),
   accessPointPolicy: (account: string, region: string, name: string) =>
     request<AccessPointPolicy>(
       `/api/s3/access-point-policy?${query({ account, region, name })}`,

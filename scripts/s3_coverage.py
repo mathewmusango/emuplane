@@ -238,7 +238,13 @@ GUI = {
     "GetAccessPointPolicy": "Access Points page › Edit policy",
     "DeleteAccessPointPolicy": "Access Points page › Remove policy",
     "ListMultiRegionAccessPoints": "Access Points page › Multi-Region",
+    "GetMultiRegionAccessPoint": "Access Points page › Multi-Region › View details",
+    "GetMultiRegionAccessPointPolicy": "Access Points page › Multi-Region › View details",
+    "GetMultiRegionAccessPointRoutes": "Access Points page › Multi-Region › View details",
     "ListAccessPointsForObjectLambda": "Access Points page › Object Lambda",
+    "GetAccessPointForObjectLambda": "Access Points page › Object Lambda › View details",
+    "GetAccessPointConfigurationForObjectLambda": "Access Points page › Object Lambda › View details",
+    "GetAccessPointPolicyForObjectLambda": "Access Points page › Object Lambda › View details",
 }
 
 # What counts as a read: the operations a page has to be able to show.

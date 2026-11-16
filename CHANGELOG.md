@@ -9,6 +9,20 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **A Multi-Region and an Object Lambda access point read back in full.** Each
+  row's *View details* reads the access point itself, because a listing is not a
+  detail: an MRAP's list row carries neither policy nor routing dials, and an
+  Object Lambda access point's carries no configuration. The MRAP view shows the
+  member buckets, the policy
+  (`GetMultiRegionAccessPointPolicy`, read from *Established*) and the traffic
+  dials (`GetMultiRegionAccessPointRoutes`, which address the access point by the
+  ARN the report only implies — so the routes are read after it). The Object
+  Lambda view shows its alias and state, the configuration document as S3 answers
+  it, and its policy, where no policy is a state rather than an error. `GET
+  /api/s3/access-point-detail` answers both. One read is still unplaced:
+  `DescribeMultiRegionAccessPointOperation` describes an async operation by the
+  token its create returned, so it needs a Multi-Region access point created from
+  this console first. S3.md: **58 of 84** operations shown, **34 of the 35** reads.
 - **The reads beside an object are shown.** The object view is tabbed now —
   *Content*, *Tags*, *Annotations*, *Object Lock* — and each tab is its own read on
   the object's own path: `GetObjectTagging` for the tag set,

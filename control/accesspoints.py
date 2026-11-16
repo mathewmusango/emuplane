@@ -357,6 +357,171 @@ def listing(section: str, region: str, rest, bucket: str = "") -> dict:
     return {"ok": False, "status": 400, "error": f"unknown access point section: {section}"}
 
 
+# ---------------------------------------------------------------------------
+# One access point in full
+# ---------------------------------------------------------------------------
+#
+# A listing is not a detail: a Multi-Region Access Point's listing carries neither
+# its policy nor its routing dials, and an Object Lambda access point's carries no
+# configuration at all. The row's view therefore reads the instance resources
+# themselves, which is what the console's detail pane shows.
+
+
+def _mrap_members(entry) -> list[dict]:
+    """An MRAP's member buckets, each with the region it lives in.
+
+    A member is itself a `Region` element, so its own name has to come from a
+    child called `Region` rather than from itself — `_field` on the member would
+    answer the member's whitespace.
+    """
+    members = []
+    for member in _children(entry, "Regions", "Region"):
+        region = ""
+        for child in list(member):
+            if _local(child) == "Region":
+                region = (child.text or "").strip()
+        members.append({"bucket": _field(member, "Bucket"), "region": region})
+    return members
+
+
+def multi_region_detail(name: str, rest) -> dict:
+    """GetMultiRegionAccessPoint, GetMultiRegionAccessPointPolicy, and the routes.
+
+    Three reads on one resource, from the region that manages Multi-Region access
+    points. Routes address the access point by ARN, which the report only implies,
+    so they are read after it and skipped when the ARN cannot be built.
+    """
+    status, text = rest(MULTI_REGION_HOME, "GET", MULTI_REGION + "/" + quote(name, safe=""))
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "name": name, "error": _detail(text, status)}
+
+    report = _first(text, "AccessPoint")
+    members = _mrap_members(report)
+    alias = _field(report, "Alias")
+    account = ""
+    for member in _children(report, "Regions", "Region"):
+        account = _field(member, "BucketAccountId")
+        if account:
+            break
+    arn = f"arn:aws:s3::{account}:accesspoint/{alias}" if account and alias else ""
+
+    detail = {
+        "section": "multi-region",
+        "name": _field(report, "Name") or name,
+        "alias": alias,
+        "arn": arn,
+        # `state` is the resource's own status; `status` in an answer is the HTTP code.
+        "state": _field(report, "Status"),
+        "created": _field(report, "CreatedAt"),
+        "region": MULTI_REGION_HOME,
+        "buckets": members,
+        "policy": None,
+        "routes": [],
+        "errors": {},
+    }
+
+    status, text = rest(
+        MULTI_REGION_HOME, "GET", MULTI_REGION + "/" + quote(name, safe="") + "/policy"
+    )
+    if 200 <= status < 300:
+        # AWS reports the policy twice, Established and Proposed; the first is the
+        # one in force, and MiniStack applies at once, so either is the same text.
+        state = _first(text, "Established")
+        if state is None:
+            state = _first(text, "Proposed")
+        detail["policy"] = _field(state, "Policy") or None
+    elif not (status == 404 and _code(text) == "NoSuchMultiRegionAccessPointPolicy"):
+        detail["errors"]["policy"] = _detail(text, status)
+
+    if arn:
+        status, text = rest(
+            MULTI_REGION_HOME, "GET", MULTI_REGION + "/" + quote(arn, safe="") + "/routes"
+        )
+        if 200 <= status < 300:
+            detail["routes"] = [
+                {
+                    "bucket": _field(route, "Bucket"),
+                    "region": _field(route, "Region"),
+                    "traffic": _field(route, "TrafficDialPercentage"),
+                }
+                for route in _children(_root(text), "Routes", "Route")
+            ]
+        else:
+            detail["errors"]["routes"] = _detail(text, status)
+
+    return {"ok": True, "status": 200, **detail}
+
+
+def object_lambda_detail(region: str, name: str, rest) -> dict:
+    """GetAccessPointForObjectLambda, its configuration, and its policy.
+
+    The policy is read last and its absence is a state — S3 answers
+    `NoSuchAccessPointPolicy` for an access point that never had one.
+    """
+    base = OBJECT_LAMBDA + "/" + quote(name, safe="")
+    status, text = rest(region, "GET", base)
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "name": name, "error": _detail(text, status)}
+
+    record = _first(text, "GetAccessPointForObjectLambdaResult")
+    if record is None:
+        record = _root(text)
+    detail = {
+        "section": "object-lambda",
+        "name": _field(record, "Name") or name,
+        "created": _field(record, "CreationDate"),
+        "alias": "",
+        "state": "",
+        "region": region,
+        "configuration": None,
+        "policy": None,
+        "errors": {},
+    }
+    for child in list(record) if record is not None else []:
+        if _local(child) == "Alias":
+            detail["alias"] = _field(child, "Value")
+            detail["state"] = _field(child, "Status")
+
+    status, text = rest(region, "GET", base + "/configuration")
+    if 200 <= status < 300:
+        configuration = _first(text, "Configuration")
+        # The configuration is shown as the document S3 answers with, not as a
+        # form: a Lambda's payload is arbitrary JSON and a form would flatten it.
+        detail["configuration"] = (
+            ElementTree.tostring(configuration, encoding="unicode")
+            if configuration is not None
+            else text
+        )
+    else:
+        detail["errors"]["configuration"] = _detail(text, status)
+
+    status, text = rest(region, "GET", base + "/policy")
+    if 200 <= status < 300:
+        result = _first(text, "GetAccessPointPolicyForObjectLambdaResult")
+        if result is None:
+            result = _root(text)
+        detail["policy"] = _field(result, "Policy") or None
+    elif status == 404 and _code(text) == "NoSuchAccessPointPolicy":
+        detail["policy"] = None
+    else:
+        detail["errors"]["policy"] = _detail(text, status)
+
+    return {"ok": True, "status": 200, **detail}
+
+
+def detail(section: str, region: str, name: str, rest) -> dict:
+    """One access point, read from the section that owns it."""
+    if section == "multi-region":
+        return multi_region_detail(name, rest)
+    if section == "object-lambda":
+        return object_lambda_detail(region, name, rest)
+    return {
+        "ok": False,
+        "status": 400,
+        "error": f"{section} access points have no detail view here",
+    }
+
+
 def delete(region: str, name: str, rest) -> dict:
     status, text = rest(region, "DELETE", _path(name))
     if 200 <= status < 300:
