@@ -15,6 +15,16 @@ remove anything, and they remove what they made.
 
 The first slice is the five core operations: create-bucket, delete-bucket,
 list-objects, put-object, delete-object.
+
+What this proves, and what it does not: the two ends agree. It cannot prove that
+MiniStack matches AWS — both ends are the same emulator, so a wrong assumption
+shared by both passes. Fidelity is the emulator's own suite's job; this suite's
+job is the seam (region resolution, claims, path encoding, account scoping),
+which is where this console actually breaks.
+
+One bucket per case, because the emulator is one session-wide process: an exact
+listing assertion in a shared bucket would depend on test order. The buckets and
+objects stay behind, so a later run — or the operator — can look at them.
 """
 
 from __future__ import annotations
@@ -24,6 +34,13 @@ import signed
 from conftest import ACCOUNT, api
 
 BUCKET = "parity-ministack-bucket"
+
+
+def ensure_bucket(raw, name: str) -> str:
+    """A bucket this case can call its own; 409 means an earlier case made it."""
+    status, _ = raw("PUT", f"/{name}")
+    assert 200 <= status < 300 or status == 409, status
+    return name
 
 
 def ministack(endpoint: str, region: str = "us-east-1"):
@@ -159,24 +176,25 @@ def test_objects_written_on_ministack_are_listed_and_read_by_emuplane(
     s3_endpoint, console
 ):
     raw = ministack(s3_endpoint)
+    bucket = ensure_bucket(raw, "parity-list-bucket")
     for key, body in (
         ("parity/one.txt", "one"),
         ("parity/two.txt", "two"),
         ("loose.txt", "loose"),
     ):
-        assert 200 <= raw("PUT", f"/{BUCKET}/{key}", body)[0] < 300
+        assert 200 <= raw("PUT", f"/{bucket}/{key}", body)[0] < 300
 
-    listed = objects(console, BUCKET)
+    listed = objects(console, bucket)
     keys = sorted(row["key"] for row in listed)
     assert keys == ["loose.txt", "parity/one.txt", "parity/two.txt"]
 
-    narrowed = objects(console, BUCKET, prefix="parity/")
+    narrowed = objects(console, bucket, prefix="parity/")
     assert sorted(row["key"] for row in narrowed) == ["parity/one.txt", "parity/two.txt"]
 
     status, read = api(
         console,
         "GET",
-        f"/api/s3/object?account={ACCOUNT}&region=us-east-1&bucket={BUCKET}&key=parity/one.txt",
+        f"/api/s3/object?account={ACCOUNT}&region=us-east-1&bucket={bucket}&key=parity/one.txt",
     )
     assert status == 200, read
     assert read["body"] == "one"
@@ -184,6 +202,7 @@ def test_objects_written_on_ministack_are_listed_and_read_by_emuplane(
 
 def test_an_object_put_by_emuplane_is_an_object_on_ministack(s3_endpoint, console):
     raw = ministack(s3_endpoint)
+    bucket = ensure_bucket(raw, "parity-put-bucket")
     status, body = api(
         console,
         "POST",
@@ -191,17 +210,17 @@ def test_an_object_put_by_emuplane_is_an_object_on_ministack(s3_endpoint, consol
         {
             "account": ACCOUNT,
             "region": "us-east-1",
-            "bucket": BUCKET,
+            "bucket": bucket,
             "key": "parity/from-the-console.txt",
             "body": "written by the console",
         },
     )
     assert status == 200, body
 
-    status, read = raw("GET", f"/{BUCKET}/parity/from-the-console.txt")
+    status, read = raw("GET", f"/{bucket}/parity/from-the-console.txt")
     assert status == 200
     assert read == "written by the console"
-    assert "parity/from-the-console.txt" in raw("GET", f"/{BUCKET}?list-type=2")[1]
+    assert "parity/from-the-console.txt" in raw("GET", f"/{bucket}?list-type=2")[1]
 
 
 # --- delete-object ---------------------------------------------------------
@@ -209,18 +228,20 @@ def test_an_object_put_by_emuplane_is_an_object_on_ministack(s3_endpoint, consol
 
 def test_an_object_deleted_by_emuplane_is_gone_from_ministack(s3_endpoint, console):
     raw = ministack(s3_endpoint)
+    bucket = ensure_bucket(raw, "parity-delete-object-bucket")
     key = "parity/delete-by-emuplane.txt"
-    assert 200 <= raw("PUT", f"/{BUCKET}/{key}", "temporary")[0] < 300
+    assert 200 <= raw("PUT", f"/{bucket}/{key}", "temporary")[0] < 300
 
-    status, body = action(console, "delete-object", {"Bucket": BUCKET, "Key": key})
+    status, body = action(console, "delete-object", {"Bucket": bucket, "Key": key})
     assert status == 200, body
 
-    assert raw("GET", f"/{BUCKET}/{key}")[0] == 404
-    assert key not in [row["key"] for row in objects(console, BUCKET)]
+    assert raw("GET", f"/{bucket}/{key}")[0] == 404
+    assert key not in [row["key"] for row in objects(console, bucket)]
 
 
 def test_an_object_deleted_on_ministack_is_gone_from_emuplane(s3_endpoint, console):
     raw = ministack(s3_endpoint)
+    bucket = ensure_bucket(raw, "parity-delete-object-2-bucket")
     key = "parity/delete-on-ministack.txt"
     status, body = api(
         console,
@@ -229,16 +250,16 @@ def test_an_object_deleted_on_ministack_is_gone_from_emuplane(s3_endpoint, conso
         {
             "account": ACCOUNT,
             "region": "us-east-1",
-            "bucket": BUCKET,
+            "bucket": bucket,
             "key": key,
             "body": "temporary",
         },
     )
     assert status == 200, body
 
-    assert 200 <= raw("DELETE", f"/{BUCKET}/{key}")[0] < 300
+    assert 200 <= raw("DELETE", f"/{bucket}/{key}")[0] < 300
 
-    assert key not in [row["key"] for row in objects(console, BUCKET)]
+    assert key not in [row["key"] for row in objects(console, bucket)]
 
 
 # --- the catalogue this slice covers ---------------------------------------
