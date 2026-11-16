@@ -76,11 +76,9 @@ with S3 region isolation, on `main` — [why, and what differs](https://mathewmu
 ## References
 
 - [MiniStack documentation](https://ministack.org/docs/)
-- [MiniStack on GitHub](https://github.com/ministackorg/ministack)
+- [MiniStack on GitHub](https://github.com/ministackorg/ministack) — the fork is
+  upstream `v1.5.40` plus one patch
 - [The emulator fork this project runs](https://github.com/mathewmusango/ministack-upstream)
-  (`main`)
-- [The fork's own notes](https://github.com/mathewmusango/ministack-upstream/tree/feat/s3-region-scoped-state)
-  — `README.fork.md` lives on that branch; the S3 patch itself is on `main`
-- Emulator image the reference setup runs:
+  (`main`), published as
   `ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full`
 - [StackPort (UI inspiration)](https://github.com/DaviReisVieira/stackport)
