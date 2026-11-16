@@ -142,6 +142,15 @@ stays real for a client that reads the emulator's state directly, which is why t
 image remains pinned to it and the probes above are recorded rather than the
 conclusions alone.
 
+**Restart, tested the same day.** Upstream was run with `PERSIST_STATE=1` and
+`S3_PERSIST=1` onto an empty directory, a bucket and an object were written, the
+container was stopped and started, and the object read back intact — `GET` 200 with
+the original body, `HEAD` on the bucket 200, state under `<account>/` on disk. The
+fork's `keep one record per bucket when objects load before metadata` fix did not
+reproduce in that shape. It is a load-order bug, so one bucket and one object is
+weak evidence rather than proof; a second run with several buckets would be the
+thing to try before relying on upstream for persisted state.
+
 ## Running against upstream
 
 The backend is a profile plus a URL, so pointing at upstream MiniStack is a
