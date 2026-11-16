@@ -52,9 +52,6 @@ needs the control API.
 | [Limits](https://mathewmusango.github.io/emuplane/docs/reference/limits) | what this deliberately does not do |
 | [S3 coverage](https://mathewmusango.github.io/emuplane/docs/reference/s3-coverage) | every operation, and whether the console shows it |
 
-The same documentation is published from [`site/`](site) and versioned per
-release.
-
 ## The emulator is a separate project
 
 A backend is a **profile** in [`control/backends.py`](control/backends.py): a
