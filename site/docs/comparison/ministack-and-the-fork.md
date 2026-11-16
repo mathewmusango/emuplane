@@ -124,6 +124,24 @@ The parity run for the current release is **outstanding** in the release notes; 
 section records one dated experiment, not a per-release table.
 :::
 
+### The suite, on both sources
+
+`tests/conftest.py` reads `EP_EMULATOR_SRC`, so the same suite can import either
+source instead of guessing which one it tested:
+
+```bash
+git -C ../ministack-src worktree add ../ministack-v1540 v1.5.40
+EP_EMULATOR_SRC=$PWD/../ministack-v1540 python3 -m pytest tests -q   # upstream
+python3 -m pytest tests -q                                          # the fork
+```
+
+Both were green on 2026-11-17 — **835 passed each**. So no operation among the 84
+is fork-only at the module level, and the patch's bucket-name rules are invisible to
+these tests because the gateway answers the collisions first. What the fork changes
+stays real for a client that reads the emulator's state directly, which is why the
+image remains pinned to it and the probes above are recorded rather than the
+conclusions alone.
+
 ## Running against upstream
 
 The backend is a profile plus a URL, so pointing at upstream MiniStack is a

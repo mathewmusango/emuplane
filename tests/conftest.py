@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 import sys
 import threading
@@ -14,7 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-EMULATOR = ROOT.parent / "ministack-src"
+EMULATOR = Path(os.environ.get("EP_EMULATOR_SRC") or ROOT.parent / "ministack-src")
 
 sys.path[:0] = [str(ROOT / "control"), str(EMULATOR)]
 
