@@ -54,10 +54,10 @@ needs the control API.
 
 ## The emulator is a separate project
 
-A backend is a **profile** in [`control/backends.py`](control/backends.py): a
-display name, a default port and the quirks worth knowing. `EP_BACKEND` selects
-it and `EP_BACKEND_URL` is the connection string, so changing backend is a `.env`
-change, not a fork of this repository.
+A backend is a **profile** in [`control/backends.py`](control/backends.py): an id,
+the name the console shows, its default port and a note on what to expect from it.
+`EP_BACKEND` picks the profile, `EP_BACKEND_URL` is where it lives, and changing
+backends is configuration rather than a fork.
 
 The reference backend is a fork of MiniStack with S3 region isolation —
 [why, and what differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
