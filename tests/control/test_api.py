@@ -335,6 +335,137 @@ def test_the_bucket_page_offers_the_documents_s3_answers(console):
     assert documents["lifecycle"] is None
 
 
+CORS = (
+    '<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">'
+    "<CORSRule><AllowedMethod>GET</AllowedMethod><AllowedOrigin>*</AllowedOrigin></CORSRule>"
+    "</CORSConfiguration>"
+)
+
+
+def test_a_configuration_document_is_saved_and_cleared_through_the_page(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="documents-api-write"))[0] == 200
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-document",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "documents-api-write",
+            "document": "cors",
+            "action": "save",
+            "body": CORS,
+        },
+    )
+    assert status == 200, body
+
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-documents?account={ACCOUNT}&region=us-east-1&bucket=documents-api-write",
+    )
+    assert read["documents"]["cors"] and "CORSRule" in read["documents"]["cors"]
+    assert read["editable"]["cors"] == {"delete": True, "kind": "xml", "root": "CORSConfiguration"}
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-document",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "documents-api-write",
+            "document": "cors",
+            "action": "clear",
+        },
+    )
+    assert status == 200, body
+
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-documents?account={ACCOUNT}&region=us-east-1&bucket=documents-api-write",
+    )
+    assert read["documents"]["cors"] is None
+
+
+def test_a_document_with_the_wrong_root_is_refused_by_the_page(console):
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-document",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "documents-api-write",
+            "document": "cors",
+            "action": "save",
+            "body": "<LifecycleConfiguration/>",
+        },
+    )
+    assert status == 400
+    assert "CORSConfiguration" in body["error"]
+
+
+def test_the_version_listing_cannot_be_written(console):
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-document",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "documents-api-write",
+            "document": "versions",
+            "action": "save",
+            "body": "<x/>",
+        },
+    )
+    assert status == 400
+    assert "not a document this page writes" in body["error"]
+
+
+def test_default_encryption_can_be_removed_from_the_bucket_page(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="crypt-api-remove"))[0] == 200
+    assert (
+        api(
+            console,
+            "POST",
+            "/api/s3/bucket-settings-edit",
+            {
+                "account": ACCOUNT,
+                "region": "us-east-1",
+                "bucket": "crypt-api-remove",
+                "encryption": "aws:kms",
+                "bucket_key": True,
+            },
+        )[0]
+        == 200
+    )
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-settings-edit",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "crypt-api-remove",
+            "remove_encryption": True,
+        },
+    )
+    assert status == 200, body
+
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-settings?account={ACCOUNT}&region=us-east-1&bucket=crypt-api-remove",
+    )
+    assert read["settings"]["encryption"] == "AES256"
+    assert read["settings"]["bucket_key"] is False
+
+
 def test_an_object_written_through_the_gateway_is_readable_in_the_console(
     console, gateway
 ):

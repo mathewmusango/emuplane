@@ -174,9 +174,37 @@ export const api = {
     destination_key?: string
   }) => request<ActionResult>('/api/s3/object-copy', { method: 'POST', body: payload }),
   bucketDocuments: (account: string, region: string, bucket: string) =>
-    request<{ ok: boolean; documents: Record<string, string | null> }>(
-      `/api/s3/bucket-documents?${query({ account, region, bucket })}`,
-    ),
+    request<{
+      ok: boolean
+      documents: Record<string, string | null>
+      editable: Record<
+        string,
+        { delete: boolean; kind: 'xml' | 'json'; root: string }
+      >
+    }>(`/api/s3/bucket-documents?${query({ account, region, bucket })}`),
+  /** PutBucket<X> for one configuration document. */
+  writeBucketDocument: (payload: {
+    account: string
+    region: string
+    bucket: string
+    document: string
+    body: string
+  }) =>
+    request<ActionResult>('/api/s3/bucket-document', {
+      method: 'POST',
+      body: { ...payload, action: 'save' },
+    }),
+  /** DeleteBucket<X>, or an empty document where S3 has no DELETE. */
+  clearBucketDocument: (payload: {
+    account: string
+    region: string
+    bucket: string
+    document: string
+  }) =>
+    request<ActionResult>('/api/s3/bucket-document', {
+      method: 'POST',
+      body: { ...payload, action: 'clear' },
+    }),
   readObject: (account: string, region: string, bucket: string, key: string) =>
     request<ObjectContent>(
       `/api/s3/object?${query({ account, region, bucket, key })}`,

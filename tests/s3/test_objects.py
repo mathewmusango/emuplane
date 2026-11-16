@@ -327,6 +327,115 @@ def test_an_unset_subresource_is_reported_as_not_configured():
     assert "AccessControlPolicy" in documents["acl"]
 
 
+CORS = (
+    '<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">'
+    "<CORSRule><AllowedMethod>GET</AllowedMethod><AllowedOrigin>*</AllowedOrigin></CORSRule>"
+    "</CORSConfiguration>"
+)
+LIFECYCLE = (
+    '<LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">'
+    "<Rule><ID>expire-tmp</ID><Status>Enabled</Status><Filter><Prefix>tmp/</Prefix></Filter>"
+    "<Expiration><Days>30</Days></Expiration></Rule></LifecycleConfiguration>"
+)
+
+
+def _four(method, path, body="", headers=None):
+    raise AssertionError(f"S3 should not have been called ({method} {path})")
+
+
+def test_a_configuration_document_can_be_written_read_and_removed(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "cors-document-bucket")
+    document = lambda method, path, body="", headers=None: client(method, path, body, headers)  # noqa: E731
+
+    written = buckets.write_document("cors-document-bucket", "cors", CORS, document)
+    assert written["ok"], written.get("error")
+
+    documents = buckets.read_documents(
+        "cors-document-bucket", lambda method, path: client(method, path)
+    )["documents"]
+    assert documents["cors"] and "CORSRule" in documents["cors"]
+
+    cleared = buckets.clear_document("cors-document-bucket", "cors", document)
+    assert cleared["ok"], cleared.get("error")
+    documents = buckets.read_documents(
+        "cors-document-bucket", lambda method, path: client(method, path)
+    )["documents"]
+    assert documents["cors"] is None
+
+
+def test_a_lifecycle_document_round_trips(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "lifecycle-document-bucket")
+    document = lambda method, path, body="", headers=None: client(method, path, body, headers)  # noqa: E731
+
+    assert buckets.write_document("lifecycle-document-bucket", "lifecycle", LIFECYCLE, document)[
+        "ok"
+    ]
+    documents = buckets.read_documents(
+        "lifecycle-document-bucket", lambda method, path: client(method, path)
+    )["documents"]
+    assert documents["lifecycle"] and "expire-tmp" in documents["lifecycle"]
+
+    assert buckets.clear_document("lifecycle-document-bucket", "lifecycle", document)["ok"]
+    documents = buckets.read_documents(
+        "lifecycle-document-bucket", lambda method, path: client(method, path)
+    )["documents"]
+    assert documents["lifecycle"] is None
+
+
+def test_a_document_with_the_wrong_root_is_refused_before_the_call():
+    refused = buckets.write_document("some-bucket", "cors", LIFECYCLE, _four)
+    assert refused["ok"] is False
+    assert "CORSConfiguration" in refused["error"]
+
+
+def test_a_policy_must_be_a_json_document():
+    refused = buckets.write_document("some-bucket", "policy", "<Policy/>", _four)
+    assert refused["ok"] is False
+    assert "Statement" in refused["error"]
+
+
+def test_versions_is_a_listing_and_cannot_be_written():
+    refused = buckets.write_document("some-bucket", "versions", "<x/>", _four)
+    assert refused["ok"] is False
+    assert "not a document this page writes" in refused["error"]
+
+
+def test_logging_is_switched_off_with_an_empty_document(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "logging-clear-bucket")
+    cleared = buckets.clear_document(
+        "logging-clear-bucket",
+        "logging",
+        lambda method, path, body="", headers=None: client(method, path, body, headers),
+    )
+    assert cleared["ok"], cleared.get("error")
+
+
+def test_an_acl_cannot_be_removed():
+    refused = buckets.clear_document("some-bucket", "acl", _four)
+    assert refused["ok"] is False
+    assert "no way to remove" in refused["error"]
+
+
+def test_default_encryption_can_be_removed(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "encryption-remove-bucket")
+
+    removed = buckets.update_settings(
+        "encryption-remove-bucket", {"remove_encryption": True}, client
+    )
+    assert removed["ok"], removed.get("error")
+
+    settings = buckets.read_settings(
+        "encryption-remove-bucket", lambda method, path: client(method, path)
+    )["settings"]
+    # S3 always encrypts; removing the setting falls back to SSE-S3.
+    assert settings["encryption"] == "AES256"
+    assert settings["bucket_key"] is False
+
+
 def test_the_configuration_documents_are_what_s3_has(s3_endpoint):
     client = _client(s3_endpoint)
     _create(client, "documents-bucket")

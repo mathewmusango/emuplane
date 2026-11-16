@@ -4376,6 +4376,48 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region),
             )
+        if path == "/api/s3/bucket-document":
+            # One configuration document: save it, or clear it. Clearing is a
+            # DELETE where S3 has one and an empty document where it has not,
+            # which is knowledge the control owns, not the page.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            document = str(payload.get("document") or "").strip()
+            action = str(payload.get("action") or "save").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket:
+                return self._json(400, {"error": "a bucket is required"})
+            if document not in buckets.EDITABLE:
+                return self._json(
+                    400, {"error": f"{document} is not a document this page writes"}
+                )
+            client = lambda method, target_path, body="", headers=None: signed_rest(  # noqa: E731
+                "s3", target["account_id"], region, method, target_path, body, headers
+            )
+            if action == "clear":
+                result = buckets.clear_document(bucket, document, client)
+            else:
+                text = str(payload.get("body") or "")
+                if not text.strip():
+                    return self._json(400, {"error": "the document is empty"})
+                result = buckets.write_document(bucket, document, text, client)
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
         if path == "/api/s3/bucket-settings-edit":
             payload = self._body()
             info = self._caller()

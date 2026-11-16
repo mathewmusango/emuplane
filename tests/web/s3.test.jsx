@@ -520,15 +520,71 @@ describe('s3', () => {
     expect(within(dialog).getByText('24 B')).toBeTruthy()
   })
 
-  it('shows the configuration documents the bucket holds', async () => {
+  it('shows every document, and does not dress an unset one up as configuration', async () => {
     pinRegion('us-east-1')
     await openBucket()
     fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
     expect(await screen.findByText(/<Policy><Statement>/)).toBeTruthy()
-    // A subresource S3 reports as empty is not configuration and is not shown.
-    expect(screen.queryByText('logging')).toBeNull()
+    // Every document has a row, because every one can be written...
+    expect(screen.getByText('logging')).toBeTruthy()
+    // ...but one S3 reports as empty says so instead of showing an element.
+    expect(screen.getAllByText('Not configured.').length).toBeGreaterThan(0)
     // The one listing in the section says what it is.
     expect(screen.getByText('versions (ListObjectVersions)')).toBeTruthy()
+  })
+
+  it('writes a configuration document from its editor', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-document', { ok: true, status: 200 }, sent)
+    const cors =
+      '<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">' +
+      '<CORSRule><AllowedMethod>GET</AllowedMethod><AllowedOrigin>*</AllowedOrigin></CORSRule>' +
+      '</CORSConfiguration>'
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit cors' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Edit cors' })
+      fireEvent.change(within(dialog).getByRole('textbox'), {
+        target: { value: cors },
+      })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        document: 'cors',
+        action: 'save',
+        body: cors,
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('removes a configuration document from its editor', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-document', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit policy' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Edit policy' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        document: 'policy',
+        action: 'clear',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
   })
 
   it('opens a bucket from a link that names no region, by asking where it lives', async () => {
@@ -644,7 +700,7 @@ describe('s3', () => {
         await screen.findByRole('button', { name: 'Edit bucket versioning' }),
       )
       fireEvent.click(screen.getByLabelText('Disable'))
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save bucket versioning' }))
 
       await waitFor(() => expect(sent.length).toBe(1))
       expect(sent[0]).toMatchObject({
@@ -668,7 +724,7 @@ describe('s3', () => {
         await screen.findByRole('button', { name: 'Edit default encryption' }),
       )
       fireEvent.click(screen.getByLabelText(/Dual-layer/))
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Save default encryption' }))
 
       await waitFor(() => expect(sent.length).toBe(1))
       expect(sent[0]).toMatchObject({
@@ -676,6 +732,27 @@ describe('s3', () => {
         encryption: 'aws:kms:dsse',
         bucket_key: true,
       })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('removes the default encryption, falling back to SSE-S3', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-settings-edit', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Edit default encryption' }),
+      )
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Remove default encryption' }),
+      )
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({ bucket: 'logs-bucket', remove_encryption: true })
     } finally {
       vi.stubGlobal('fetch', base)
     }

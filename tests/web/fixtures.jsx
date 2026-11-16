@@ -166,6 +166,16 @@ export const RESPONSES = {
       replication: null,
       versions: '<ListVersionsResult><Name>logs-bucket</Name></ListVersionsResult>',
     },
+    // What S3 lets the page write, as the control reports it.
+    editable: {
+      lifecycle: { delete: true, kind: 'xml', root: 'LifecycleConfiguration' },
+      cors: { delete: true, kind: 'xml', root: 'CORSConfiguration' },
+      policy: { delete: true, kind: 'json', root: '' },
+      acl: { delete: false, kind: 'xml', root: 'AccessControlPolicy' },
+      logging: { delete: true, kind: 'xml', root: 'BucketLoggingStatus' },
+      notifications: { delete: true, kind: 'xml', root: 'NotificationConfiguration' },
+      replication: { delete: true, kind: 'xml', root: 'ReplicationConfiguration' },
+    },
   },
   '/api/s3/table-buckets': {
     ok: true,

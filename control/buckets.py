@@ -13,6 +13,7 @@ here holds a credential — the same property `console.py` keeps.
 from __future__ import annotations
 
 import html
+import json
 import re
 from urllib.parse import quote
 from xml.etree import ElementTree
@@ -433,12 +434,15 @@ def copy_object(
 def update_settings(bucket: str, payload: dict, call) -> dict:
     """The properties a bucket page can edit, each its own subresource call."""
     path = _bucket_path(bucket)
-    steps: list[tuple[str, str, str]] = []
+    # `(label, method, suffix, body)` — most steps are a PUT, but removing the
+    # default encryption is a DELETE, and the page should not need two routes.
+    steps: list[tuple[str, str, str, str]] = []
     if "versioning" in payload:
         status = "Enabled" if payload.get("versioning") else "Suspended"
         steps.append(
             (
                 "Bucket versioning",
+                "PUT",
                 "?versioning",
                 f'<VersioningConfiguration xmlns="{S3_NS}"><Status>{status}</Status>'
                 "</VersioningConfiguration>",
@@ -449,17 +453,23 @@ def update_settings(bucket: str, payload: dict, call) -> dict:
         steps.append(
             (
                 "Block Public Access",
+                "PUT",
                 "?publicAccessBlock",
                 _public_access({name: bool(flags.get(name)) for name in PUBLIC_ACCESS}),
             )
         )
-    if payload.get("encryption") is not None:
+    if payload.get("remove_encryption"):
+        # DeleteBucketEncryption: the bucket falls back to S3's own default
+        # (SSE-S3) rather than being left unencrypted.
+        steps.append(("Default encryption", "DELETE", "?encryption", ""))
+    elif payload.get("encryption") is not None:
         algorithm = str(payload["encryption"])
         if algorithm not in ENCRYPTION:
             return {"ok": False, "status": 400, "error": f"unknown encryption: {algorithm}"}
         steps.append(
             (
                 "Default encryption",
+                "PUT",
                 "?encryption",
                 _encryption(algorithm, bool(payload.get("bucket_key"))),
             )
@@ -471,12 +481,12 @@ def update_settings(bucket: str, payload: dict, call) -> dict:
         ]
         if any(not key for key, _ in tags):
             return {"ok": False, "status": 400, "error": "every tag needs a key"}
-        steps.append(("Tags", "?tagging", _tagging(tags)))
+        steps.append(("Tags", "PUT", "?tagging", _tagging(tags)))
     if not steps:
         return {"ok": False, "status": 400, "error": "nothing to update"}
 
-    for label, suffix, body in steps:
-        status, text = call("PUT", path + suffix, body)
+    for label, method, suffix, body in steps:
+        status, text = call(method, path + suffix, body)
         if not 200 <= status < 300:
             return {
                 "ok": False,
@@ -536,6 +546,24 @@ DOCUMENTS = {
     "versions": "?versions",
 }
 
+# The documents the page can write, and what writing means for each: the expected
+# root element (None for the policy, which is JSON), whether S3 has a DELETE, and
+# — where it has none — the document that switches the feature off instead.
+# `versions` is absent: it is a listing, not a setting.
+EDITABLE = {
+    "lifecycle": ("LifecycleConfiguration", "DeleteBucketLifecycle", None),
+    "cors": ("CORSConfiguration", "DeleteBucketCors", None),
+    "policy": (None, "DeleteBucketPolicy", None),
+    "acl": ("AccessControlPolicy", None, None),
+    "logging": ("BucketLoggingStatus", None, '<BucketLoggingStatus xmlns="{ns}" />'),
+    "notifications": (
+        "NotificationConfiguration",
+        None,
+        '<NotificationConfiguration xmlns="{ns}" />',
+    ),
+    "replication": ("ReplicationConfiguration", "DeleteBucketReplication", None),
+}
+
 
 def _configured(xml: str) -> bool:
     """Whether a document says anything.
@@ -552,14 +580,96 @@ def _configured(xml: str) -> bool:
     return bool(list(root)) or bool((root.text or "").strip())
 
 
+_WRITE_HELP = {
+    "xml": "The document must be XML with a <{root}> root.",
+    "json": "The policy must be a JSON document with a `Statement`.",
+}
+
+
+def _check_document(label: str, text: str) -> str:
+    """Why this document cannot be written, or '' when it can."""
+    root, _delete, _empty = EDITABLE[label]
+    if root is None:
+        try:
+            document = json.loads(text)
+        except ValueError:
+            return _WRITE_HELP["json"]
+        return "" if isinstance(document, dict) and document.get("Statement") else _WRITE_HELP["json"]
+    parsed = _root(text)
+    if parsed is None or _local(parsed) != root:
+        return _WRITE_HELP["xml"].format(root=root)
+    return ""
+
+
+def write_document(bucket: str, label: str, text: str, call) -> dict:
+    """PutBucket<X>: one subresource, in the format S3 takes for it.
+
+    The document is checked here rather than at the emulator: a wrong root, or a
+    policy that is not JSON, is the operator's typo and should not become bucket
+    state.
+    """
+    if label not in EDITABLE:
+        return {"ok": False, "status": 400, "error": f"{label} is not a document this page writes"}
+    problem = _check_document(label, text)
+    if problem:
+        return {"ok": False, "status": 400, "error": problem}
+    headers = {} if EDITABLE[label][0] else {"Content-Type": "application/json"}
+    status, body = call("PUT", _bucket_path(bucket) + DOCUMENTS[label], text, headers)
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "document": label}
+    return {
+        "ok": False,
+        "status": status or 502,
+        "error": f"{label} failed: {_detail(body, status)}",
+    }
+
+
+def clear_document(bucket: str, label: str, call) -> dict:
+    """Remove a document: DELETE where S3 has one, an empty document where it has not."""
+    if label not in EDITABLE:
+        return {"ok": False, "status": 400, "error": f"{label} is not a document this page writes"}
+    _root_name, delete, empty = EDITABLE[label]
+    path = _bucket_path(bucket) + DOCUMENTS[label]
+    if delete:
+        status, body = call("DELETE", path, "")
+    elif empty:
+        status, body = call("PUT", path, empty.format(ns=S3_NS), {})
+    else:
+        return {
+            "ok": False,
+            "status": 400,
+            "error": f"S3 has no way to remove a {label} document; it is replaced, not deleted.",
+        }
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "document": label}
+    return {
+        "ok": False,
+        "status": status or 502,
+        "error": f"{label} failed: {_detail(body, status)}",
+    }
+
+
 def read_documents(bucket: str, call) -> dict:
-    """Each document S3 has for `bucket`, or None where it has none at all."""
+    """Each document S3 has for `bucket`, or None where it has none at all.
+
+    `editable` travels with the documents so the page does not keep its own copy
+    of what S3 allows: which documents can be written, and whether removing one
+    means DELETE or an empty document.
+    """
     path = _bucket_path(bucket)
     found = {}
     for label, suffix in DOCUMENTS.items():
         status, body = call("GET", path + suffix)
         found[label] = body if 200 <= status < 300 and _configured(body) else None
-    return {"ok": True, "bucket": bucket, "documents": found}
+    editable = {
+        label: {
+            "delete": bool(delete or empty),
+            "kind": "xml" if root else "json",
+            "root": root or "",
+        }
+        for label, (root, delete, empty) in EDITABLE.items()
+    }
+    return {"ok": True, "bucket": bucket, "documents": found, "editable": editable}
 
 
 def head_bucket(bucket: str, call) -> dict:

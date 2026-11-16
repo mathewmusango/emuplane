@@ -88,7 +88,10 @@ export default function BucketDetail() {
   const [settings, setSettings] = useState(null)
   const [settingsError, setSettingsError] = useState('')
   const [documents, setDocuments] = useState({})
+  const [editable, setEditable] = useState({})
   const [documentsError, setDocumentsError] = useState('')
+  const [documentEdit, setDocumentEdit] = useState(null)
+  const [documentError, setDocumentError] = useState('')
   const [objectView, setObjectView] = useState(null)
   const [objectError, setObjectError] = useState('')
   const [deletingObject, setDeletingObject] = useState(null)
@@ -213,25 +216,77 @@ export default function BucketDetail() {
 
   // The eight documents the bucket page displays: each is its own GET, and a
   // failure is an error rather than "nothing configured".
-  useEffect(() => {
-    if (!account || !bucketRegion || headMissing) return undefined
-    let live = true
-    api
-      .bucketDocuments(account, region, name)
-      .then((answer) => {
-        if (!live) return
-        setDocuments(answer.documents || {})
-        setDocumentsError('')
-      })
-      .catch((err) => {
-        if (!live) return
-        setDocuments({})
-        setDocumentsError(err.message)
-      })
-    return () => {
-      live = false
+  const loadDocuments = useCallback(async () => {
+    if (!account || !bucketRegion || headMissing) return
+    try {
+      const answer = await api.bucketDocuments(account, region, name)
+      setDocuments(answer.documents || {})
+      setEditable(answer.editable || {})
+      setDocumentsError('')
+    } catch (err) {
+      setDocuments({})
+      setDocumentsError(err.message)
     }
   }, [account, region, name, bucketRegion, headMissing])
+
+  useEffect(() => {
+    loadDocuments()
+  }, [loadDocuments])
+
+  // A document that is not configured is edited from its own shape, so the
+  // operator starts from a well-formed element rather than a blank box.
+  const templateFor = (meta) =>
+    meta.kind === 'json'
+      ? '{\n  "Version": "2012-10-17",\n  "Statement": []\n}'
+      : `<${meta.root} xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n</${meta.root}>`
+
+  const openDocument = (label) => {
+    setDocumentError('')
+    setDocumentEdit({
+      label,
+      meta: editable[label],
+      text: documents[label] || templateFor(editable[label] || { kind: 'xml', root: label }),
+    })
+  }
+
+  const saveDocument = async () => {
+    setSaving(true)
+    setDocumentError('')
+    try {
+      await api.writeBucketDocument({
+        account,
+        region,
+        bucket: name,
+        document: documentEdit.label,
+        body: documentEdit.text,
+      })
+      setDocumentEdit(null)
+      await loadDocuments()
+    } catch (err) {
+      setDocumentError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const clearDocument = async () => {
+    setSaving(true)
+    setDocumentError('')
+    try {
+      await api.clearBucketDocument({
+        account,
+        region,
+        bucket: name,
+        document: documentEdit.label,
+      })
+      setDocumentEdit(null)
+      await loadDocuments()
+    } catch (err) {
+      setDocumentError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // The copy destination list is read when the copy form opens, not on every view
   // of the bucket page.
@@ -441,6 +496,7 @@ export default function BucketDetail() {
                 />
                 <Button
                   variant="primary"
+                  ariaLabel="Save bucket versioning"
                   loading={saving}
                   onClick={() => save({ versioning: versioningEdit })}
                 >
@@ -489,6 +545,7 @@ export default function BucketDetail() {
             <SpaceBetween direction="horizontal" size="xs">
               <Button
                 variant="primary"
+                ariaLabel="Save default encryption"
                 loading={saving}
                 onClick={() =>
                   save({ encryption: encryptionEdit, bucket_key: bucketKeyEdit })
@@ -498,6 +555,13 @@ export default function BucketDetail() {
               </Button>
               <Button variant="link" onClick={() => setEncryptionEdit(null)}>
                 Cancel
+              </Button>
+              <Button
+                variant="link"
+                loading={saving}
+                onClick={() => save({ remove_encryption: true })}
+              >
+                Remove default encryption
               </Button>
             </SpaceBetween>
           </SpaceBetween>
@@ -528,33 +592,51 @@ export default function BucketDetail() {
         header={
           <Header
             variant="h2"
-            description="What S3 answers for this bucket's subresources, exactly as it answers them. A subresource S3 reports as empty is not configured, and is not shown here."
+            description="Each subresource S3 holds for this bucket, as S3 answers it. Edit one to write it back; a document S3 reports as empty is not configured."
           >
             Configuration documents
           </Header>
         }
       >
-        <SpaceBetween size="s">
+        <SpaceBetween size="m">
           {documentsError && (
             <Alert type="error" header="Could not read these documents">
               {documentsError}
             </Alert>
           )}
           {!documentsError &&
-            (Object.entries(documents).filter(([, xml]) => xml).length === 0 ? (
-              <Box color="text-body-secondary">
-                Nothing configured beyond the settings above.
-              </Box>
-            ) : (
-              Object.entries(documents)
-                .filter(([, xml]) => xml)
-                .map(([label, xml]) => (
-                  <div key={label}>
-                    <Box variant="awsui-key-label">{DOCUMENT_LABELS[label] || label}</Box>
-                    <pre className="result-body">{xml}</pre>
-                  </div>
-                ))
+            Object.keys(editable).map((label) => (
+              <div key={label}>
+                <Header
+                  variant="h3"
+                  actions={
+                    <Button
+                      ariaLabel={`Edit ${label}`}
+                      onClick={() => openDocument(label)}
+                    >
+                      Edit
+                    </Button>
+                  }
+                >
+                  {DOCUMENT_LABELS[label] || label}
+                </Header>
+                {documents[label] ? (
+                  <pre className="result-body">{documents[label]}</pre>
+                ) : (
+                  <Box color="text-body-secondary">Not configured.</Box>
+                )}
+              </div>
             ))}
+          {!documentsError && (
+            <div>
+              <Header variant="h3">versions (ListObjectVersions)</Header>
+              {documents.versions ? (
+                <pre className="result-body">{documents.versions}</pre>
+              ) : (
+                <Box color="text-body-secondary">Not configured.</Box>
+              )}
+            </div>
+          )}
         </SpaceBetween>
       </Container>
     </SpaceBetween>
@@ -737,6 +819,50 @@ export default function BucketDetail() {
               )}
             </SpaceBetween>
           )}
+        </Modal>
+        <Modal
+          visible={Boolean(documentEdit)}
+          onDismiss={() => setDocumentEdit(null)}
+          header={`Edit ${documentEdit?.label || ''}`}
+          size="large"
+          footer={
+            <Box float="right">
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button variant="link" onClick={() => setDocumentEdit(null)}>
+                  Cancel
+                </Button>
+                {documents[documentEdit?.label] && documentEdit?.meta?.delete && (
+                  <Button loading={saving} onClick={clearDocument}>
+                    Remove document
+                  </Button>
+                )}
+                <Button
+                  variant="primary"
+                  loading={saving}
+                  disabled={!documentEdit?.text?.trim()}
+                  onClick={saveDocument}
+                >
+                  Save
+                </Button>
+              </SpaceBetween>
+            </Box>
+          }
+        >
+          <SpaceBetween size="m">
+            {documentError && <Alert type="error">{documentError}</Alert>}
+            <Box color="text-body-secondary" fontSize="body-s">
+              {documentEdit?.meta?.kind === 'json'
+                ? 'The bucket policy is a JSON document with a Statement.'
+                : `S3 takes this document as XML with a <${documentEdit?.meta?.root || ''}> root.`}
+            </Box>
+            <Textarea
+              value={documentEdit?.text || ''}
+              onChange={({ detail }) =>
+                setDocumentEdit((open) => ({ ...open, text: detail.value }))
+              }
+              rows={14}
+            />
+          </SpaceBetween>
         </Modal>
         <Modal
           visible={Boolean(copying)}
