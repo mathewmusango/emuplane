@@ -12,7 +12,7 @@ the change, then clear the flag once it is signed off again.
 
 Usage:
   python3 scripts/qa_check.py            # evidence + security + py_compile
-  python3 scripts/qa_check.py --tests    # also run the web test suite
+  python3 scripts/qa_check.py --tests    # also run tests/ (console + python)
 """
 
 from __future__ import annotations
@@ -121,6 +121,21 @@ def compile_python() -> list[str]:
     return problems
 
 
+def test_python() -> list[str]:
+    """`tests/` needs pytest, which the runtime image does not ship: run it where
+    it exists, and say so where it does not.
+    """
+    try:
+        import pytest  # noqa: F401
+    except ImportError:
+        print("pytest is not installed: skipped tests/")
+        return []
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "tests"], cwd=ROOT
+    )
+    return [] if result.returncode == 0 else ["python test suite failed"]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tests", action="store_true")
@@ -132,6 +147,7 @@ def main() -> int:
         result = subprocess.run(["npm", "test", "--silent"], cwd=ROOT / "web")
         if result.returncode != 0:
             problems.append("web test suite failed")
+        problems.extend(test_python())
 
     if problems:
         print("QA gate failed:")

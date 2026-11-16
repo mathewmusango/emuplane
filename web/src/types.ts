@@ -133,7 +133,10 @@ export interface BucketTag {
 export interface CreateBucketOptions {
   account: string
   region: string
+  /** The name as typed; the Account Regional namespace suffix is added server-side. */
   bucket: string
+  /** `global` or `regional` (AWS's Account Regional namespace). */
+  namespace: string
   ownership: string
   block_public_access: Record<string, boolean>
   versioning: boolean

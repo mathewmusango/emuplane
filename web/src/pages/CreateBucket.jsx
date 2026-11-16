@@ -54,10 +54,13 @@ const MAX_TAGS = 50
 const NAME_RE = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/
 const IP_RE = /^\d{1,3}(\.\d{1,3}){3}$/
 
-const nameProblem = (name) => {
+const nameProblem = (name, suffix = '') => {
   if (!name) return 'A bucket name is required.'
   if (!NAME_RE.test(name) || name.includes('..') || IP_RE.test(name)) {
     return 'Use 3-63 lowercase letters, digits, dots or hyphens, starting and ending with a letter or digit.'
+  }
+  if (name.length + suffix.length > 63) {
+    return `The namespace suffix takes ${suffix.length} characters, so the name is at most ${63 - suffix.length}.`
   }
   return ''
 }
@@ -73,6 +76,7 @@ export default function CreateBucket() {
   const [region, setFormRegion] = useState(sessionRegion)
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState('')
+  const [namespace, setNamespace] = useState('global')
   const [ownership, setOwnership] = useState('BucketOwnerEnforced')
   const [publicAccess, setPublicAccess] = useState(allPublic(true))
   const [blockAll, setBlockAll] = useState(true)
@@ -94,6 +98,10 @@ export default function CreateBucket() {
   )
 
   const backToBuckets = () => navigate(`/s3/home?region=${region}`)
+
+  // The Account Regional namespace appends `<account>-<region>-an` to the name;
+  // the backend appends it too, and that is the name the bucket gets.
+  const suffix = namespace === 'regional' ? `.${account}-${region}-an` : ''
 
   const setPublicField = (field, value) => {
     const next = { ...publicAccess, [field]: value }
@@ -120,7 +128,7 @@ export default function CreateBucket() {
     setTags((current) => current.filter((_, at) => at !== index))
 
   const submit = async () => {
-    const problem = nameProblem(name.trim())
+    const problem = nameProblem(name.trim(), suffix)
     setNameError(problem)
     if (problem) return
     setBusy(true)
@@ -130,6 +138,7 @@ export default function CreateBucket() {
         account,
         region,
         bucket: name.trim(),
+        namespace,
         ownership,
         block_public_access: publicAccess,
         versioning: versioningEnabled,
@@ -236,8 +245,8 @@ export default function CreateBucket() {
                   description="Choose the namespace where you want to create your bucket."
                 >
                   <RadioGroup
-                    value="global"
-                    onChange={() => {}}
+                    value={namespace}
+                    onChange={({ detail }) => setNamespace(detail.value)}
                     items={[
                       {
                         value: 'global',
@@ -247,10 +256,8 @@ export default function CreateBucket() {
                       },
                       {
                         value: 'regional',
-                        label: 'Account Regional namespace',
-                        description:
-                          'Not available on this backend: a bucket name here is global, as it is on AWS.',
-                        disabled: true,
+                        label: 'Account Regional namespace (recommended)',
+                        description: `The name carries this account and region — ${`.${account}-${region}-an`} — so it cannot collide with another account's bucket.`,
                       },
                     ]}
                   />
@@ -260,16 +267,25 @@ export default function CreateBucket() {
                   label="Bucket name"
                   description="The name is the bucket's identity in the gateway, in the console and on the wire."
                   errorText={nameError}
-                  constraintText="3-63 characters: lowercase letters, digits, periods and hyphens; must begin and end with a letter or number; unique in the global namespace."
+                  constraintText={
+                    suffix
+                      ? `3-63 characters: lowercase letters, digits, periods and hyphens. The namespace adds ${suffix}, so the name itself is at most ${63 - suffix.length}.`
+                      : '3-63 characters: lowercase letters, digits, periods and hyphens; must begin and end with a letter or number; unique in the global namespace.'
+                  }
                 >
-                  <Input
-                    value={name}
-                    onChange={({ detail }) => {
-                      setName(detail.value)
-                      setNameError('')
-                    }}
-                    placeholder="my-bucket"
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{ flex: 1 }}>
+                      <Input
+                        value={name}
+                        onChange={({ detail }) => {
+                          setName(detail.value)
+                          setNameError('')
+                        }}
+                        placeholder="my-bucket"
+                      />
+                    </div>
+                    {suffix && <Box variant="span" color="text-body-secondary">{suffix}</Box>}
+                  </div>
                 </FormField>
               </SpaceBetween>
             </Container>

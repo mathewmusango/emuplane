@@ -47,6 +47,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
 import buckets  # noqa: E402  (local module: the console's bucket create)
+import signed  # noqa: E402  (local module: the root-signed calls)
 import mail  # noqa: E402  (local module: the one outbound message)
 from dynamo import DynamoError  # noqa: E402
 from backends import profile  # noqa: E402
@@ -2210,42 +2211,17 @@ def signed_rest(
     body: str = "",
     extra_headers: dict | None = None,
 ) -> tuple[int, str]:
-    """Generic REST-JSON call (Lambda, API Gateway, ...) as the account root.
+    """A generic REST call (S3, Lambda, API Gateway, ...) as the account root.
 
-    `extra_headers` carries the few S3 create-time headers (`x-amz-object-ownership`,
-    object lock) that only exist on the request itself; the four this function
-    signs and sizes are never taken from the caller.
+    The signing itself lives in `signed.py`, so the S3 create sequence can be
+    exercised on a real socket without a store behind it.
     """
     node = primary_node()
     if node is None:
         return 0, "emulator is not registered"
-    url = urlsplit(node["endpoint"])
-    host = f"{url.hostname}:{url.port or 80}"
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-    data = (body or "").encode()
-    headers = {
-        "Host": host,
-        "Authorization": (
-            f"AWS4-HMAC-SHA256 Credential={account}/{stamp}/{region}/{service}"
-            "/aws4_request, SignedHeaders=host, Signature=local"
-        ),
-        "x-amz-date": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
-        "Content-Length": str(len(data)),
-    }
-    if data:
-        headers["Content-Type"] = "application/xml" if service == "s3" else "application/json"
-    for name, value in (extra_headers or {}).items():
-        if name.lower() not in ("host", "authorization", "content-length", "content-type"):
-            headers[name] = value
-    conn = http.client.HTTPConnection(url.hostname, url.port or 80, timeout=10)
-    try:
-        conn.request(method, path, body=data or None, headers=headers)
-        response = conn.getresponse()
-        return response.status, response.read().decode(errors="replace")
-    except OSError as exc:
-        return 0, str(exc)
-    finally:
-        conn.close()
+    return signed.request(
+        node["endpoint"], service, account, region, method, path, body, extra_headers
+    )
 
 
 def signed_s3(
@@ -3904,6 +3880,11 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if not name:
                 return self._json(400, {"error": "a bucket name is required"})
+            # The suffix of the Account Regional namespace is added server-side,
+            # so the name the registry claims is the name the bucket gets.
+            name, problem = buckets.resolve_name(payload, region)
+            if problem:
+                return self._json(400, {"error": problem})
             # The name is claimed before the emulator sees it, exactly as the
             # gateway claims it, so a taken name gets one answer from both paths.
             entry = bucket_owner(name)

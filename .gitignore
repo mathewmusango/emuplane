@@ -5,6 +5,13 @@ __pycache__/
 *.pyc
 .ruff
 .ruff_cache/
+# Installed dependencies, and the `tests/node_modules` symlink that lets the
+# console suite resolve them from outside `web/`. A symlink is not a directory,
+# so the trailing-slash pattern alone would miss it.
+node_modules/
+tests/node_modules
+# pytest's own cache, from `python3 -m pytest tests`.
+.pytest_cache/
 
 qa/
 addons/

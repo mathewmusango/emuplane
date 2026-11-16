@@ -18,6 +18,7 @@ services:
     volumes:
       - ./web/dist:/app/static:ro,Z
       - ./control/app.py:/app/app.py:ro,Z
+      - ./control/buckets.py:/app/buckets.py:ro,Z
       - ./control/console.py:/app/console.py:ro,Z
       - ./control/dynamo.py:/app/dynamo.py:ro,Z
       - ./control/store.py:/app/store.py:ro,Z

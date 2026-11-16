@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -31,8 +32,14 @@ export default defineConfig({
     },
   },
   test: {
+    // One test tree for the whole repository: `tests/web` for the console,
+    // `tests/s3` for the Python side. This config stays in `web/` because that is
+    // where the dependencies are installed, and `tests/node_modules` points back
+    // here so the suite resolves them from outside the package.
+    root: fileURLToPath(new URL('..', import.meta.url)),
+    include: ['tests/web/**/*.test.{js,jsx}'],
     environment: 'jsdom',
-    setupFiles: ['./test/setup.js'],
+    setupFiles: [fileURLToPath(new URL('../tests/web/setup.js', import.meta.url))],
   },
   server: {
     port: 5173,

@@ -33,6 +33,12 @@ PUBLIC_ACCESS = (
 
 MAX_TAGS = 50
 
+# Namespaces: AWS's global one, and the account-scoped one whose names carry the
+# account, the region and `-an` — that suffix is what makes the name unique
+# without being global.
+NAMESPACE_GLOBAL = "global"
+NAMESPACE_REGIONAL = "regional"
+
 # S3's own naming rules, mirrored so the page can answer before the round trip.
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
 IP_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
@@ -66,6 +72,40 @@ def valid_name(name: str) -> bool:
     return bool(
         NAME_RE.match(name) and ".." not in name and not IP_RE.match(name)
     )
+
+
+def regional_suffix(account: str, region: str) -> str:
+    """The Account Regional namespace suffix: `<account>-<region>-an`.
+
+    `test` in the armchair's account and region is created as
+    `test.344381301567-us-east-1-an`, which is the name AWS gives it.
+    """
+    return f"{account}-{region}-an"
+
+
+def resolve_name(payload: dict, region: str) -> tuple[str, str]:
+    """The name this request creates, and why it cannot be one.
+
+    The suffix is appended here rather than typed by the caller: a name that
+    already ends with it is not suffixed twice, so a retry after a failure, or a
+    pasted full name, still means one bucket.
+    """
+    base = str(payload.get("bucket") or "").strip()
+    if str(payload.get("namespace") or NAMESPACE_GLOBAL) != NAMESPACE_REGIONAL:
+        return (base, "") if valid_name(base) else ("", NAME_HELP)
+    suffix = "." + regional_suffix(str(payload.get("account") or ""), region)
+    if base.endswith(suffix):
+        base = base[: -len(suffix)]
+    if not valid_name(base):
+        return "", NAME_HELP
+    name = base + suffix
+    if len(name) > 63:
+        return "", (
+            "A name in the Account Regional namespace takes the suffix "
+            f"{suffix}, so at most {63 - len(suffix)} characters are left for "
+            "the name itself."
+        )
+    return name, ""
 
 
 def _versioning() -> str:
@@ -118,11 +158,11 @@ def _detail(text: str, status: int) -> str:
     return (text or "").strip()[:200] or f"HTTP {status}"
 
 
-def _options(payload: dict) -> dict:
+def _options(payload: dict, region: str) -> dict:
     """The form's values, checked once, in the shape the calls below need."""
-    bucket = str(payload.get("bucket") or "").strip()
-    if not valid_name(bucket):
-        raise ValueError(NAME_HELP)
+    bucket, problem = resolve_name(payload, region)
+    if problem:
+        raise ValueError(problem)
     ownership = str(payload.get("ownership") or OWNERSHIP[0])
     if ownership not in OWNERSHIP:
         raise ValueError(f"unknown object ownership: {ownership}")
@@ -163,7 +203,7 @@ def create(region: str, payload: dict, s3) -> dict:
     saying otherwise would send the operator looking for a name that is taken.
     """
     try:
-        options = _options(payload)
+        options = _options(payload, region)
     except ValueError as exc:
         return {"ok": False, "status": 400, "error": str(exc)}
 

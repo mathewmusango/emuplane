@@ -9,10 +9,29 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **One test tree, and S3's create proven over the wire.** `tests/` holds both
+  suites: `tests/web` is the console's Vitest suite (moved out of `web/test`, and
+  `tests/node_modules` lets it resolve the console's dependencies from there) and
+  `tests/s3` is pytest, which `scripts/qa_check.py --tests` now runs beside it.
+  The S3 tests drive `control/buckets.create` with the control's own
+  `signed.request` against a stand-in HTTP server that hands every request to the
+  emulator's `handle_request`, then read the settings back **through the API** —
+  `?location`, `?ownershipControls`, `?versioning`, `?object-lock`,
+  `?publicAccessBlock`, `?tagging`, `?encryption`. Every combination of region ×
+  Object Ownership × Block Public Access × versioning × tags × encryption ×
+  Object Lock × namespace is covered — 576 buckets, none of them deleted — plus a
+  test pinning the signing-region check that refused create before it named its
+  region.
+- **The Account Regional namespace is real, not a disabled radio.** Choosing it
+  appends `.<account>-<region>-an`, so `test` is created as
+  `test.344381301567-us-east-1-an`. The suffix is added server-side and never
+  twice, the page previews it beside the name field, and the name is held to 63
+  characters minus the suffix. Directory bucket types stay unavailable: the
+  emulator serves general purpose buckets in the global namespace only.
 - **Creating a bucket is its own page, the way the console does it.** `/s3/create`
-  carries that form: AWS Region, bucket type and namespace (General purpose and
-  Global namespace are the only ones this backend serves — the others are shown
-  and say why), the bucket name with S3's own rules answered before the round
+  carries that form: AWS Region, bucket type (general purpose is all this
+  backend serves, and Directory says so), the bucket namespace, the bucket name
+  with S3's own rules answered before the round
   trip, Object Ownership, Block Public Access (the master checkbox and its four
   settings), Bucket Versioning, up to 50 tags, default encryption (SSE-S3 /
   SSE-KMS / DSSE-KMS plus the bucket key) and Object Lock under *Advanced
@@ -96,6 +115,18 @@ the minor number is bumped by hand, patch releases are the bot's.
   chooser moves off the S3 page (the bar's services menu is how you switch), and
   the API explorer is gone from the S3 page — its table carries the actions. The
   explorer stays on the services whose tables have no actions of their own.
+- **The signed client is its own module.** `control/signed.py` holds the
+  SigV4-shaped request the control makes as an account root (a credential name
+  and `Signature=local` — the gateway's own property), so the create sequence can
+  be exercised on a socket without a store behind it. `app.signed_rest` keeps its
+  signature and delegates.
+- **The new modules ship.** `Dockerfile` and `compose.dev.yml` copy and mount
+  `control/*.py` one by one, so `buckets.py` and `signed.py` were added to both —
+  the image cannot import a module its `COPY` line omits, and the dev overlay
+  mounts only what it lists.
+- **Local runtime state is ignored.** `.gitignore` covers `node_modules/`,
+  `tests/node_modules` (a symlink is not a directory, so the trailing-slash
+  pattern alone misses it) and `.pytest_cache/`.
 - **The service nav names the service.** *Amazon S3* sits at the top of the S3
   sidebar, above *Buckets* — the console's own nav header — and `/s3/create`
   keeps the service nav instead of falling back to the global one. The section

@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { BrowserRouter, useLocation } from 'react-router-dom'
 import { MemoryRouter } from 'react-router-dom'
-import { SessionProvider } from '../src/context'
-import App from '../src/App'
-import Dashboard from '../src/pages/Dashboard'
-import Resources from '../src/pages/Resources'
-import Settings from '../src/pages/Settings'
-import About from '../src/pages/About'
+import { SessionProvider } from '../../web/src/context'
+import App from '../../web/src/App'
+import Dashboard from '../../web/src/pages/Dashboard'
+import Resources from '../../web/src/pages/Resources'
+import Settings from '../../web/src/pages/Settings'
+import About from '../../web/src/pages/About'
 
 const META = {
   product: 'Emuplane',
