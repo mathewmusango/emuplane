@@ -47,5 +47,3 @@ bearer token is minted once with `./scripts/token.sh`.
 - [S3](/docs/guides/s3) — the pages, and what each one is allowed to claim.
 - [S3 coverage](/docs/reference/s3-coverage) — every operation, and whether the
   console can show or do it.
-- [MiniStack and the fork](/docs/comparison/ministack-and-the-fork) — what this
-  project changes about the emulator it runs on, and why.

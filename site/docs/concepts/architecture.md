@@ -105,7 +105,7 @@ second account is a console action plus a client credential.
 | --- | --- | --- |
 | Region | the SigV4 scope (`.../us-west-1/s3/aws4_request`), else the backend's own region setting | the per-account opt-in, from the supported set |
 | Account | the access key, else the backend's own account setting | the control's account store |
-| State | partitioned per account; per region for S3 on the reference fork | the emulator image |
+| State | partitioned per account and per region for S3 | the emulator image |
 
 The emulator is never published on the host: the control reaches it at
 `EP_BACKEND_URL`, which on a shared compose network is the emulator's service name.

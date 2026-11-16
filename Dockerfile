@@ -1,4 +1,4 @@
-# Emuplane: the console, the control API and the AWS gateway in one image.
+# Emuplane: the console, the control API and the Emulator gateway in one image.
 #   podman build -t localhost/emuplane:dev .
 
 # Base images are pinned by index digest; `renovate.json` moves them.

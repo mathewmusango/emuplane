@@ -28,7 +28,7 @@ body {
   }
 }
 
-/* Brand palette, taken from Emuplane's own mark: navy ink, royal blue, sky, orange. Cloudscape publishes its tokens on `body` inside an `@layer`, so an unlayered override here wins without `!important` and without forking the component library. Each mode is declared separately: the light link colour is unreadable on the dark surface, which is why the dark block repeats it. */
+/* Brand palette from Emuplane's mark; unlayered, so it wins over Cloudscape's @layer tokens. */
 body:not(.awsui-dark-mode) {
   --color-background-button-primary-default: #ff8a1f;
   --color-background-button-primary-hover: #ef700a;

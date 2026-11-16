@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The backends Emuplane can front, each a profile — a name, a port and its quirks — never a fork of the code."""
+"""The backends Emuplane can front, each a profile — a name, a port and its quirks — never a variant of the code."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ PROFILES: dict[str, Backend] = {
     "ministack": Backend(
         "ministack",
         title="MiniStack",
-        note="S3 state is account-scoped and the fork serves every region.",
+        note="S3 state is account-scoped, and every region is served by one endpoint.",
     ),
     "floci": Backend(
         "floci",

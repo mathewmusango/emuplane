@@ -13,9 +13,8 @@ moment.
 - **Account root keys are accepted with any secret, by design.** A 12-digit
   access key is that account's root; only issued `AKIA…` keys are verified by IAM.
   The control's own tokens authenticate the console, not AWS.
-- **S3 buckets are region-scoped** on the reference emulator fork: `ListBuckets`
-  answers per region, and a request signed for the wrong region gets the `301`
-  AWS returns.
+- **S3 buckets are region-scoped**: `ListBuckets` answers per region, and a request
+  signed for the wrong region gets the `301` AWS returns.
 - **The emulator is a local lab.** Nothing here is a substitute for a real AWS
   account, and no credential leaves the host.
 

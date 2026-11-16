@@ -36,6 +36,5 @@ module.exports = {
         'reference/limits',
       ],
     },
-    'comparison/ministack-and-the-fork',
   ],
 }

@@ -88,10 +88,6 @@ const config = {
           title: 'Reference',
           items: [
             { label: 'S3 coverage', to: '/docs/reference/s3-coverage' },
-            {
-              label: 'MiniStack and the fork',
-              to: '/docs/comparison/ministack-and-the-fork',
-            },
           ],
         },
       ],

@@ -53,8 +53,8 @@ hand-rolled primitives are added. Each page owns its fetching and passes plain p
   until enrolment exists — `POST /api/auth/mfa` answers `501`.
 - **TypeScript is incremental.** `api.ts` and `types.ts` are typed and `allowJs` is
   on; a file migrates by being renamed and kept green under `npm run typecheck`.
-- **Forks are not build inputs.** The Cloudscape packages are forked under the same
-  account so a patch can be carried, but everything installs from npm.
+- **The Cloudscape packages have mirrors under the same account**, but everything
+  installs from npm.
 
 ## References
 

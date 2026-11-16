@@ -88,12 +88,10 @@ More: [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-start
 A backend is a **profile** in [`control/backends.py`](control/backends.py): a display
 name, a default port and the quirks worth knowing. `EP_BACKEND` selects it and
 `EP_BACKEND_URL` is the connection string, so changing backend is a `.env` change,
-not a fork of this repository.
+not a copy of this repository.
 
 The reference backend is [MiniStack](https://github.com/ministackorg/ministack), run
-as its published image. An earlier fork of it is archived, and kept because it
-records three S3 bugs worth reporting — [what it changed, and what the measurements
-showed](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
+as its published image: `ministackorg/ministack:1.5.41-full`.
 
 ## Layout
 
