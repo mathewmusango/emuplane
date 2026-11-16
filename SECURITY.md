@@ -34,8 +34,6 @@ Discussions. Any other question about the model — how a rule is meant to behav
 why something is refused — is welcome in
 [Discussions](https://github.com/mathewmusango/emuplane/discussions).
 
-Only test a deployment you own or have written permission to test.
-
 A report is easiest to act on with the version or commit, what you did, what
 happened and what you expected.
 
