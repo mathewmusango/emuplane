@@ -42,6 +42,31 @@ pull request carries only the code. Anything fork-specific lives in
 `README.fork.md`: the S3 scoping, tenancy and regions, accounts and keys, usage,
 and how the image is built and tagged.
 
+## Compatibility with MiniStack
+
+The fork is upstream `v1.5.40` plus one patch, so everything a client sees stays
+the same:
+
+- **Same API and ports.** Every service, operation and wire shape is upstream's;
+  nothing is renamed and no endpoint moves.
+- **Same configuration.** The emulator's own variables keep their names and
+  meanings — `AUTH`, `PERSIST_STATE`, `S3_PERSIST`, `MINISTACK_REGION` and the
+  rest.
+- **Same image shape.** Built from upstream's `Dockerfile.full`, so the `-full`
+  suffix keeps the pin a drop-in for upstream's own tag.
+- **Same duplicate-name behaviour.** AWS's rule for an owner re-create is
+  untouched: `200` in us-east-1 with the ACLs reset,
+  `BucketAlreadyOwnedByYou` elsewhere.
+- **One visible difference.** S3 state is region-scoped. A client that stays in
+  one region sees no change at all.
+
+| S3 behaviour | Plain MiniStack | The fork |
+| --- | --- | --- |
+| A bucket belongs to | the account, in every region | exactly one account and region |
+| `ListBuckets` | every bucket in the account | the signing region's buckets |
+| Wrong-region request | reaches the bucket | `301 PermanentRedirect` with `x-amz-bucket-region` |
+| State | shared namespace | one record under `(account, region, name)` |
+
 ## How the differences are verified
 
 A difference is only recorded here once it has been observed, twice:

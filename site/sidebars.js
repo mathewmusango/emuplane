@@ -21,9 +21,20 @@ module.exports = {
     },
     {
       type: 'category',
+      label: 'Operations',
+      collapsed: false,
+      items: ['operations/runbook', 'operations/image-and-versions'],
+    },
+    {
+      type: 'category',
       label: 'Reference',
       collapsed: false,
-      items: ['reference/control-api', 'reference/s3-coverage'],
+      items: [
+        'reference/control-api',
+        'reference/s3-coverage',
+        'reference/configuration',
+        'reference/limits',
+      ],
     },
     'comparison/ministack-and-the-fork',
   ],

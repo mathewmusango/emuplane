@@ -82,3 +82,47 @@ hoping. Two consequences follow, and both are deliberate:
 Nothing in Emuplane talks to real AWS. There is no egress rule, no credential
 store and no forwarding to a public endpoint; the only outbound call the code
 makes is the optional password-reset mail.
+
+## Topology
+
+```mermaid
+flowchart LR
+    client[AWS client / terraform] -->|gateway| control[emuplane]
+    control -->|"every region, every account"| node[the emulator]
+    browser[browser] -->|console + control API| control
+```
+
+**There is exactly one emulator, and that is the whole point.** The emulator is a
+single process in which each request carries a region (from the SigV4 credential
+scope) and an account (from the access key), with state partitioned by both.
+Regions and accounts are *configuration*, not containers: adding a region or a
+second account is a console action plus a client credential.
+
+| What | Where it comes from | Configured by |
+| --- | --- | --- |
+| Region | the SigV4 scope (`.../us-west-1/s3/aws4_request`), else the backend's own region setting | the per-account opt-in, from the supported set |
+| Account | the access key, else the backend's own account setting | the control's account store |
+| State | partitioned per account; per region for S3 on the reference fork | the emulator image |
+
+The emulator is never published on the host: the control reaches it at
+`EP_BACKEND_URL`, which on a shared compose network is the emulator's service name.
+
+## What the gateway adds
+
+Beyond the region rule, the control keeps **one account-wide bucket-name
+registry**, keyed by name, so a name cannot exist in two accounts or two regions —
+AWS keeps S3 names unique partition-wide.
+
+- `CreateBucket` is **reserved atomically** and recorded against the requesting
+  account; a second claim gets `409 BucketAlreadyExists`, whichever account or
+  region asks. The one exception is the owner re-creating a bucket in its own
+  region: that request is forwarded so the emulator answers AWS's `200` or
+  `BucketAlreadyOwnedByYou`.
+- `DeleteBucket` on success releases the name.
+- The registry is rebuilt from the emulator's `ListBuckets` at startup, on
+  `POST /api/refresh`, and by the poller. An inventory that cannot be read is kept
+  and marked stale rather than dropped.
+
+If the emulator is down the gateway answers `503 ServiceUnavailable` instead of
+hanging. A region the instance advertises is enabled on first use and recorded
+against the account; a region it does not advertise is always refused.
