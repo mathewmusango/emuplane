@@ -293,6 +293,13 @@ class Accounts:
                             }
                         )
                     changed = True
+            # A principal is stored under one normalised key, whatever case it was created with.
+            for account in self.accounts.values():
+                users = account.get("users") or {}
+                normalised = {self._key(name): user for name, user in users.items()}
+                if normalised != users:
+                    account["users"] = normalised
+                    changed = True
             if changed:
                 self._save()
 

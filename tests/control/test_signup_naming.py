@@ -122,3 +122,28 @@ def test_two_signups_are_two_accounts(console):
     one = _meta(console, first)["me"]
     two = _meta(console, second)["me"]
     assert one["account"] != two["account"]
+
+
+def test_a_legacy_principal_key_is_normalised_when_the_account_is_loaded(control):
+    """Accounts written before the rule existed carry the name as it was typed."""
+    import store
+
+    account_id = "123456789012"
+    legacy = {
+        "account_id": account_id,
+        "alias": "legacy-mixed",
+        "root": "legacy-mixed",
+        "created_at": "2026-01-01 00:00:00Z",
+        "regions": ["us-east-1"],
+        "auto_regions": [],
+        "global_admin": False,
+        "default_admin": False,
+        "disabled": False,
+        "users": {"Mixed.Case": {"username": "Mixed.Case", "role": "root"}},
+    }
+    store.Store.tables.setdefault("accounts", {})[account_id] = json.dumps(legacy)
+
+    account = control.ACCOUNTS.by_ref(account_id)
+    assert account is not None
+    assert "mixed.case" in account["users"]
+    assert account["users"]["mixed.case"]["username"] == "Mixed.Case"
