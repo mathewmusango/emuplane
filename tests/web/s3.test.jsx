@@ -199,6 +199,23 @@ describe('s3', () => {
     }
   })
 
+  it('keeps the S3 tabs as children of S3, each saying what it can do', async () => {
+    pinRegion('us-east-1')
+    renderAt(<App />, ['/s3/home?region=us-east-1'])
+    expect(await screen.findAllByText('General purpose buckets')).toBeTruthy()
+
+    // The nav's other tabs are S3 pages, not services of their own.
+    for (const [tab, heading] of [
+      ['File systems', 'File systems'],
+      ['Table buckets', 'Table buckets'],
+      ['Directory buckets', 'Directory buckets'],
+    ]) {
+      fireEvent.click(screen.getByRole('link', { name: tab }))
+      expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeTruthy()
+      expect(screen.getAllByText('Amazon S3').length).toBeGreaterThan(0)
+    }
+  })
+
   it('sends a service the console does not serve back to the services page', async () => {
     // `/s3files/home` and `/s3tables/home` answer `unknown service` upstream; the
     // catch-all route must not render a page for them.

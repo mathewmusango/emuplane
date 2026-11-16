@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Services from './pages/Services'
 import Resources from './pages/Resources'
 import CreateBucket from './pages/CreateBucket'
+import S3Section from './pages/S3Section'
 import Settings from './pages/Settings'
 import About from './pages/About'
 import SignIn from './pages/SignIn'
@@ -29,6 +30,13 @@ export default function App() {
             with the region, ownership, access, versioning, tags, encryption and
             Object Lock, applied in a single request. */}
         <Route path="/s3/create" element={<CreateBucket />} />
+        {/* S3 Tables and S3 Files are children of S3 in the console, so their
+            pages hang off the S3 nav rather than existing as services of their
+            own (`/s3tables/home` and friends are not pages). */}
+        <Route path="/s3/directory-buckets" element={<S3Section section="directory-buckets" />} />
+        <Route path="/s3/table-buckets" element={<S3Section section="table-buckets" />} />
+        <Route path="/s3/vector-buckets" element={<S3Section section="vector-buckets" />} />
+        <Route path="/s3/files" element={<S3Section section="files" />} />
         <Route path="/:service/home" element={<Resources />} />
         <Route path="/resources/:service" element={<ServiceRedirect />} />
         <Route path="/settings" element={<Settings />} />

@@ -352,10 +352,17 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **A service the console does not serve is no longer a page.** `/:service/home`
   is a catch-all, so `/s3files/home` and `/s3tables/home` rendered the shell with
   `unknown service` under it — the answer `/api/browse` gives them, and the one
-  any invented name gets. The page now sends the caller to *All services* as soon
-  as the catalogue says the name is not one of the twelve the console serves, and
-  the sidebar's *File systems*, *Directory buckets*, *Table buckets* and *Vector
-  buckets* stay inert labels, as they were.
+  any invented name gets. Those names are not services, so the route sends the
+  caller to *All services* as soon as the catalogue says the name is not one of
+  the twelve the console serves.
+- **S3's other tabs are children of S3.** *Directory buckets*, *Table buckets*,
+  *Vector buckets* and *File systems* were inert labels under *Amazon S3* in the
+  sidebar. They are pages of S3 now — `/s3/directory-buckets`,
+  `/s3/table-buckets`, `/s3/vector-buckets`, `/s3/files` — reached from that
+  sidebar, keeping the *Amazon S3* header and its own nav, and each says what this
+  instance can do with it: the directory and vector bucket types are not served by
+  the emulator at all, while S3 Tables and S3 Files *are* served by its own APIs
+  and the console has no table or file-system view yet.
 - **The S3 table reports each bucket's own region.** `_annotate` stamped every S3
   row with the region being queried, which was true only while `ListBuckets`
   answered per region. The fork's listing is account-global (AWS parity), so every

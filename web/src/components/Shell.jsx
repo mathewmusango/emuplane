@@ -104,10 +104,11 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
   }
 
   // On `/<service>/home` the sidebar is the service's own: what it lists here is
-  // what this console can actually do with it. The create page belongs to that
-  // nav too, so the service does not disappear mid-flow.
+  // what this console can actually do with it. S3 hangs more pages off that nav
+  // (create, and the bucket types and files tabs), and they all belong to it.
   const serviceHome = (() => {
     const parts = location.pathname.split('/').filter(Boolean)
+    if (parts[0] === 's3') return 's3'
     return parts.length === 2 && (parts[1] === 'home' || parts[1] === 'create')
       ? parts[0]
       : ''
@@ -126,16 +127,16 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
               text: 'General purpose buckets',
               href: serviceBase,
             },
-            { type: 'link', text: 'Directory buckets', href: '#', disabled: true },
-            { type: 'link', text: 'Table buckets', href: '#', disabled: true },
-            { type: 'link', text: 'Vector buckets', href: '#', disabled: true },
+            { type: 'link', text: 'Directory buckets', href: '/s3/directory-buckets' },
+            { type: 'link', text: 'Table buckets', href: '/s3/table-buckets' },
+            { type: 'link', text: 'Vector buckets', href: '/s3/vector-buckets' },
           ],
         },
         {
           type: 'section',
           text: 'Files',
           items: [
-            { type: 'link', text: 'File systems', href: '#', disabled: true },
+            { type: 'link', text: 'File systems', href: '/s3/files' },
           ],
         },
         { type: 'divider' },
@@ -220,7 +221,15 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
                 ? { text: serviceLongName(serviceHome), href: serviceBase }
                 : undefined
             }
-            activeHref={serviceHome ? serviceBase : activeHref || location.pathname}
+            activeHref={
+              serviceHome === 's3'
+                ? location.pathname === '/s3/create'
+                  ? serviceBase
+                  : location.pathname
+                : serviceHome
+                  ? serviceBase
+                  : activeHref || location.pathname
+            }
             items={serviceHome ? serviceNav() : navItems()}
             onFollow={({ detail }) => {
               if (detail.href.startsWith('http') || detail.href === '#') return
