@@ -199,6 +199,25 @@ describe('s3', () => {
     }
   })
 
+  it('sends a service the console does not serve back to the services page', async () => {
+    // `/s3files/home` and `/s3tables/home` answer `unknown service` upstream; the
+    // catch-all route must not render a page for them.
+    const Probe = () => {
+      const where = useLocation()
+      return <div data-testid="location">{where.pathname}</div>
+    }
+    renderAt(
+      <>
+        <App />
+        <Probe />
+      </>,
+      ['/s3files/home?region=us-east-1'],
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('location').textContent).toBe('/services'),
+    )
+  })
+
   it('opens the create page from the table', async () => {
     pinRegion('us-east-1')
     renderAt(<App />, ['/s3/home?region=us-east-1'])

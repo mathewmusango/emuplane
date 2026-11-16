@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams, useLocation, Navigate } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Badge from '@cloudscape-design/components/badge'
 import Box from '@cloudscape-design/components/box'
@@ -107,6 +107,10 @@ export default function Resources() {
 
   const spec = catalogue?.services?.[service]
   const operations = spec?.operations || []
+  // `/:service/home` is a catch-all: any name renders. Only a service the
+  // catalogue reports is a page — `/s3files/home`, `/s3tables/home` and the rest
+  // of the upstream catalogue answer `unknown service` and are not ours to show.
+  const unknown = Boolean(catalogue) && !spec
 
   useEffect(() => {
     setOperation(operations[0] || null)
@@ -115,6 +119,9 @@ export default function Resources() {
   }, [service, catalogue])
 
   const load = useCallback(async () => {
+    // A phantom service is redirected the moment the catalogue answers, so this
+    // still runs once for it; gating on `catalogue` here would refetch every real
+    // page a second time when the catalogue lands.
     if (!account) return
     setLoading(true)
     try {
@@ -636,6 +643,12 @@ export default function Resources() {
       }
     />
   )
+
+  if (unknown) {
+    // Nothing to read, no actions to offer: send the caller to the services that
+    // do exist rather than leaving a page-shaped error behind.
+    return <Navigate to="/services" replace />
+  }
 
   return (
     <Shell

@@ -349,6 +349,13 @@ the minor number is bumped by hand, patch releases are the bot's.
   purpose buckets* and *All AWS Regions* — driving the same all-regions fetch.
 ### Fixed
 
+- **A service the console does not serve is no longer a page.** `/:service/home`
+  is a catch-all, so `/s3files/home` and `/s3tables/home` rendered the shell with
+  `unknown service` under it — the answer `/api/browse` gives them, and the one
+  any invented name gets. The page now sends the caller to *All services* as soon
+  as the catalogue says the name is not one of the twelve the console serves, and
+  the sidebar's *File systems*, *Directory buckets*, *Table buckets* and *Vector
+  buckets* stay inert labels, as they were.
 - **The S3 table reports each bucket's own region.** `_annotate` stamped every S3
   row with the region being queried, which was true only while `ListBuckets`
   answered per region. The fork's listing is account-global (AWS parity), so every
