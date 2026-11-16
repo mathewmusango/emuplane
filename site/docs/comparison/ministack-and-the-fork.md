@@ -143,13 +143,21 @@ image remains pinned to it and the probes above are recorded rather than the
 conclusions alone.
 
 **Restart, tested the same day.** Upstream was run with `PERSIST_STATE=1` and
-`S3_PERSIST=1` onto an empty directory, a bucket and an object were written, the
-container was stopped and started, and the object read back intact — `GET` 200 with
-the original body, `HEAD` on the bucket 200, state under `<account>/` on disk. The
-fork's `keep one record per bucket when objects load before metadata` fix did not
-reproduce in that shape. It is a load-order bug, so one bucket and one object is
-weak evidence rather than proof; a second run with several buckets would be the
-thing to try before relying on upstream for persisted state.
+`S3_PERSIST=1` onto an empty directory and written to twice: first one bucket with
+one object, then four buckets across two regions with two objects each — eight
+objects, the shape that would expose a load-order bug.
+
+```
+created buckets: persist-alpha us-east-1 · persist-bravo us-east-1
+                 persist-delta us-west-2 · persist-zulu us-west-2
+stop → start
+list after restart: 200, nothing missing
+HEAD every bucket: 200 · GET every object: 200 with its own body
+```
+
+So the fork's `keep one record per bucket when objects load before metadata` fix did
+not reproduce on upstream 1.5.40, including the multi-bucket case. State was written
+under `<account>/` on the volume and reloaded from it, not held in memory.
 
 ## Running against upstream
 
