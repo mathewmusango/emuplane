@@ -10,6 +10,12 @@ Three sources, no hand-maintained list:
   * the emuplane tests — the map below, kept honest by hand because a test name
     cannot be derived from an operation name.
 
+A fourth column of knowledge is the pages: an operation a console page performs
+(`PAGES` below) is not a catalogue action, and without saying so the table would
+read as though nobody in emuplane does it. The guess that an action id is a
+substring of an operation was wrong (`delete-bucket` inside
+`DeleteBucketEncryption`), so both maps are explicit.
+
 Everything not in the map is reachable through the gateway and covered only by
 the emulator's own suite: that is the point of the last column.
 
@@ -86,6 +92,26 @@ ACTION_OPERATIONS = {
 # Operations a console page performs — a page, not an `/api/exec` action, so the
 # catalogue does not list them and the column would read as gateway-only.
 PAGES = {
+    "ListBuckets": "Buckets page",
+    "GetObject": "Bucket page (Objects)",
+    "ListObjectVersions": "Bucket page (Configuration documents)",
+    "GetBucketVersioning": "Bucket page (Properties)",
+    "PutBucketVersioning": "Bucket page (Properties, Edit)",
+    "GetBucketEncryption": "Bucket page (Properties)",
+    "GetBucketTagging": "Bucket page (Properties)",
+    "GetPublicAccessBlock": "Bucket page (Permissions)",
+    "PutPublicAccessBlock": "Bucket page (Permissions, Save)",
+    "GetBucketLifecycleConfiguration": "Bucket page (Configuration documents)",
+    "GetBucketCors": "Bucket page (Configuration documents)",
+    "GetBucketAcl": "Bucket page (Configuration documents)",
+    "GetBucketPolicy": "Bucket page (Configuration documents)",
+    "GetBucketNotificationConfiguration": "Bucket page (Configuration documents)",
+    "GetBucketLogging": "Bucket page (Configuration documents)",
+    "GetBucketReplication": "Bucket page (Configuration documents)",
+    "PutBucketEncryption": "Create page (default encryption)",
+    "PutBucketTagging": "Create page (tags)",
+    "PutObjectLockConfiguration": "Create page (Object Lock)",
+    "GetObjectLockConfiguration": "Create page (Copy settings)",
     "CreateAccessPoint": "Access Points page",
     "GetAccessPoint": "Access Points page",
     "ListAccessPoints": "Access Points page",
