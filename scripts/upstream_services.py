@@ -5,8 +5,8 @@ The upstream "Supported Services" tables are the source of truth for what the
 emulator can do; `control/console.py` is the source of truth for what our
 console can do. This merges both into:
 
-  docs/SERVICES.md   human summary + per-service operation list
-  docs/services.json machine-readable copy for the UI/roadmap
+  my-docs/SERVICES.md   human summary + per-service operation list
+  my-docs/services.json machine-readable copy for the UI/roadmap
 
 Usage:
   python3 scripts/upstream_services.py                 # fetch upstream README
@@ -94,7 +94,7 @@ def main() -> int:
         return 1
 
     catalogue = load_catalogue()
-    docs = ROOT / "docs"
+    docs = ROOT / "my-docs"
     docs.mkdir(exist_ok=True)
 
     payload = {}
@@ -164,7 +164,7 @@ def main() -> int:
         lines.append("")
 
     (docs / "SERVICES.md").write_text("\n".join(lines), encoding="utf-8")
-    print(f"wrote {len(rows)} services, {total_ops} operations -> docs/SERVICES.md")
+    print(f"wrote {len(rows)} services, {total_ops} operations -> my-docs/SERVICES.md")
     return 0
 
 

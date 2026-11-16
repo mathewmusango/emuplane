@@ -15,7 +15,7 @@ web/node_modules/.vite/
 web/coverage/
 
 addons/
-docs/
+my-docs/
 qa/
 web/README.md
 web/test/

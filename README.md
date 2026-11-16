@@ -571,7 +571,7 @@ redirects into the service URL.
   `logs`, `secretsmanager`, `ssm`, `kinesis`, `stepfunctions`; every other service
   stays browsable (read-only). Coverage against the 101 upstream services and
   2,519 operations is generated locally by `scripts/upstream_services.py` into the
-  gitignored `docs/` folder.
+  gitignored `my-docs/` folder.
 - **Resource tabs** — a service whose browse returns several kinds shows one tab
   per kind (IAM users/roles/groups/policies, EC2 instances/security groups/key
   pairs, and so on), each with its own count.
@@ -761,7 +761,7 @@ that clears its registry entries and starts the next scan clean.
 - [`control/app.py`](control/app.py) — gateway, console pages, control API.
 - [`control/console.py`](control/console.py) — the GUI action catalogue and the
   AWS calls each operation maps to.
-- `docs/` — **my notes, not committed** (gitignored): product positioning, the deferred-feature roadmap, and the generated coverage report from `scripts/upstream_services.py`.
+- `my-docs/` — **my notes, not committed** (gitignored): product positioning, the deferred-feature roadmap, and the generated coverage report from `scripts/upstream_services.py`.
 - [`web/`](web/) — the React + Cloudscape console (its own README), including the
   five sign-in screens in `web/src/pages/SignIn.jsx`.
 - [`scripts/qa_check.py`](scripts/qa_check.py) — QA gate: secrets, Python compile, and the signed-off markers from a **local** `qa/tasks.json` (gitignored).
@@ -782,7 +782,7 @@ that clears its registry entries and starts the next scan clean.
 - [`control/mail.py`](control/mail.py) — the one outbound message (a reset link),
   standard-library SMTP only; it reads `EP_MAIL_*` and never logs a credential.
 - [`scripts/profile-login.sh`](scripts/profile-login.sh) — capture a real Firefox
-  (Gecko) profile of a page load into `docs/profile.json`, to open at
+  (Gecko) profile of a page load into `my-docs/profile.json`, to open at
   <https://profiler.firefox.com> with "Load a profile from file".
 - [`bootstrap/template.yml`](bootstrap/template.yml) and
   [`bootstrap/apply.py`](bootstrap/apply.py) — the CloudFormation stack that owns

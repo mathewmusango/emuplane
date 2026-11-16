@@ -56,7 +56,7 @@ Mapped from [Cloudscape patterns](https://cloudscape.design/patterns/):
 
 Service coverage against the upstream catalogue (101 services, 2,519
 operations) is generated locally by `scripts/upstream_services.py` into the
-gitignored `docs/` folder.
+gitignored `my-docs/` folder.
 
 Deliberately deferred: configurable dashboard (`board-components`), saved filter
 sets, help panel, multi-step create wizard, split view and an unsaved-changes

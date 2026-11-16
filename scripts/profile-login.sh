@@ -22,14 +22,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 url=${1:-http://127.0.0.1:4570/login}
-out=${2:-docs/profile.json}
+out=${2:-my-docs/profile.json}
 
 # The profile directory must exist and carry the CA pref, or Firefox exits
 # before loading anything.
 profile=$(mktemp -d)
 printf 'user_pref("security.enterprise_roots.enabled", true);\n' > "$profile/user.js"
-mkdir -p "$(dirname "$out")" docs
-shot="$PWD/docs/profile-shot.png"
+mkdir -p "$(dirname "$out")" "my-docs"
+shot="$PWD/my-docs/profile-shot.png"
 
 MOZ_PROFILER_STARTUP=1 \
 MOZ_PROFILER_STARTUP_INTERVAL=1 \
