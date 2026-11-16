@@ -28,20 +28,24 @@ LABEL org.opencontainers.image.title="emuplane" \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# The runtime id is fixed, so a mount, a policy or a log line can name it.
+RUN addgroup -S -g 10001 emuplane \
+    && adduser -S -D -H -u 10001 -G emuplane emuplane
+
 WORKDIR /app
 
 # The built console first, so editing `control/` only rewrites the layer after it.
-COPY --from=web /src/dist /app/static
-COPY control/app.py control/accesspoints.py control/buckets.py control/console.py \
-     control/dynamo.py control/signed.py \
+COPY --chown=10001:10001 --from=web /src/dist /app/static
+COPY --chown=10001:10001 control/app.py control/accesspoints.py control/buckets.py \
+     control/console.py control/dynamo.py control/signed.py \
      control/s3extra.py control/store.py control/api_token.py control/password.py \
      control/backends.py control/mail.py /app/
 # The first-setup job and the stack it applies.
-COPY bootstrap /app/bootstrap
+COPY --chown=10001:10001 bootstrap /app/bootstrap
 
 # The control API, and the AWS gateway that fronts the emulator.
 EXPOSE 8080 8081
 
 # Declared in docker-compose.yml, because podman's OCI format ignores HEALTHCHECK.
-# Root on purpose: the control state is a host bind mount.
+USER 10001:10001
 CMD ["python", "/app/app.py"]

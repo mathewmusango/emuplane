@@ -47,6 +47,13 @@ services:
     environment:
       <<: *runtime
     command: ["python", "/app/bootstrap/apply.py"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   emuplane:
     image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:latest}"
@@ -58,6 +65,14 @@ services:
       - "127.0.0.1:${EP_PUBLISHED_GATEWAY_PORT:-4571}:${EP_GATEWAY_PORT:-8081}"
     # No volumes: the console is stateless, and the control's state lives in the
     # backend's DynamoDB. Nothing here needs a host directory.
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test:
         - CMD-SHELL

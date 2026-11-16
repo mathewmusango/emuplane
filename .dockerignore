@@ -3,12 +3,20 @@
 .gitignore
 .env
 *.bak
+*.log
 Dockerfile
 .dockerignore
 README.md
-__pycache__/
-*.pyc
 
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+tests/
+scripts/
+
+node_modules/
 web/node_modules/
 web/dist/
 web/node_modules/.vite/

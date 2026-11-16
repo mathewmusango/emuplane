@@ -35,8 +35,10 @@ host and nothing has to be built there.
   either cache ships in the image.
 - The healthcheck lives in `docker-compose.yml`, because podman's default OCI image
   format ignores `HEALTHCHECK`.
-- The process runs as root on purpose: the dev overlay bind-mounts host files, and
-  rootless podman maps those to the container's root.
+- The container runs as uid **10001** on a **read-only** root filesystem, with
+  `/tmp` on a tmpfs, every capability dropped and `no-new-privileges`, plus
+  `init: true` so signals are forwarded and children reaped. Nothing needs a
+  writable layer: all state is in the emulator.
 
 ## The bootstrap stack
 
