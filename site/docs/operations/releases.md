@@ -112,6 +112,19 @@ What a release carries, besides the notes and the image:
 `workflow_dispatch` is exempt from the `GITHUB_TOKEN` recursion rule, which is why
 the tagging run can start the release itself without a personal token.
 
+### Closing an issue is what puts it in a release
+
+`release.py` reads the issues **closed** since the last tag, so the order matters —
+and closing an issue starts no workflow, so the plan has to be started by hand:
+
+1. Push `main`. The plan runs on that push, finds nothing closed, and says so.
+2. Close what shipped: `gh issue close 1 2 … 30 -c "Shipped in the initial import."`
+3. Start the plan: `gh workflow run release-plan.yml`.
+4. Merge the pull request it opens; the tag and the image follow.
+
+For every release after the first, the push that closes the last issue is enough —
+or dispatch the plan when the issue was closed without a push.
+
 ## The release units
 
 One release touches several artefacts, and they must not drift apart. A unit that
