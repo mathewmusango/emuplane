@@ -116,6 +116,47 @@ sources of truth for one decision — and a `fix:` commit closing a `removed` is
 would compute the wrong number. Issues are the unit here, so they decide the
 version too. The tag is still cut by hand, which is what the release guard checks.
 
+## Automating the release
+
+Most of it already is. On a merge to `main`, one command says what the closed
+issues mean:
+
+```bash
+GITHUB_TOKEN=… python3 scripts/release.py
+# {"action": "release", "level": "patch", "version": "1.4.3", "count": 2}
+```
+
+The action comes from the repository's policy in `.github/changelog.json`, which
+ships as `"auto": ["patch"]`:
+
+| Result | Meaning |
+| --- | --- |
+| `nothing` | nothing changelog-worthy was closed; do not release |
+| `release` | a patch: the section can be written, committed and tagged unattended |
+| `pull-request` | a minor or major: open the release PR and let a person merge it |
+
+A patch is a bug fix or a security fix — the behaviour the project already claimed,
+restored. A minor adds behaviour and a major removes it, and those are the two a
+person should read before they publish. Set `"auto": ["patch", "minor", "major"]`
+to remove the human entirely.
+
+## The two things that stop it being fully unattended
+
+Neither is a preference; both are mechanics.
+
+1. **A tag pushed with `GITHUB_TOKEN` does not start another workflow.** GitHub
+   suppresses recursive runs, so a workflow that tags cannot rely on the
+   tag-triggered `release.yml` to build the image. Either the same run calls the
+   release jobs, or the tag is pushed with a GitHub App or a personal token.
+2. **A bot commit to `main` collides with a PR-gated branch.** This repository
+   releases by committing the section and tagging that commit, so `main` must
+   accept a direct push from CI. If you gate `main` behind a pull request, the
+   release PR is the only route that works.
+
+So pick one pair: *direct push + tag in the same run* (fully unattended, `main`
+stays open to CI), or *release PR* (one merge per release, `main` can be gated).
+The script supports both; the workflow wiring is the difference.
+
 ## Writing a bullet that reads well
 
 The default bullet is the issue title. When the title is written for the tracker

@@ -127,23 +127,29 @@ def parse_version(text: str) -> tuple[int, int, int]:
 BUMP_RANK = {"patch": 1, "minor": 2, "major": 3}
 
 
+def bump_level(issues: list[dict], config: dict) -> str | None:
+    """The highest bump the issues imply, or None when none of them is changelog material."""
+    level: str | None = None
+    for issue in issues:
+        if issue.get("state_reason") == "not_planned":
+            continue
+        title = section_for(issue, config)
+        section = next((s for s in config.get("sections", []) if s["title"] == title), None)
+        wanted = str((section or {}).get("bump") or "").lower()
+        if wanted not in BUMP_RANK:
+            continue
+        if level is None or BUMP_RANK[wanted] > BUMP_RANK[level]:
+            level = wanted
+    return level
+
+
 def next_version(current: str, issues: list[dict], config: dict) -> str:
     """The version the closed issues imply: the highest `bump` any of them carries.
 
     Below 1.0.0 a `major` bump moves the minor number: SemVer reserves the leading
     number for the first stable API, so a breaking change is a 0.y step.
     """
-    level = "patch"
-    for issue in issues:
-        if issue.get("state_reason") == "not_planned":
-            continue
-        title = section_for(issue, config)
-        section = next(
-            (s for s in config.get("sections", []) if s["title"] == title), None
-        )
-        wanted = str((section or {}).get("bump") or "patch").lower()
-        if BUMP_RANK.get(wanted, 1) > BUMP_RANK[level]:
-            level = wanted
+    level = bump_level(issues, config) or "patch"
     major, minor, patch = parse_version(current)
     if major == 0 and level == "major":
         level = "minor"

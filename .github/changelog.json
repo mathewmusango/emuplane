@@ -18,5 +18,6 @@
     "wontfix"
   ],
   "exclude_color": "ededed",
-  "unlabelled": "Changed"
+  "unlabelled": "Changed",
+  "policy": { "auto": ["patch"] }
 }
