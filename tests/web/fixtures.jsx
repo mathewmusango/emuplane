@@ -138,7 +138,34 @@ export const RESPONSES = {
     binary: false,
     size: 24,
     content_type: 'text/csv',
+    etag: 'd41d8cd98f00b204e9800998ecf8427e',
+    last_modified: 'Mon, 16 Nov 2026 13:06:12 GMT',
+    truncated: false,
     region: 'us-east-1',
+  },
+  // HeadBucket: the bucket's own region, which may not be the one asked with.
+  '/api/s3/bucket-head': (url) => {
+    const bucket = new URL(url, 'http://console').searchParams.get('bucket') || ''
+    return {
+      ok: true,
+      exists: true,
+      status: 200,
+      region: bucket.startsWith('west') ? 'us-west-2' : 'us-east-1',
+    }
+  },
+  '/api/s3/bucket-documents': {
+    ok: true,
+    bucket: 'logs-bucket',
+    documents: {
+      lifecycle: null,
+      cors: null,
+      policy: '<Policy><Statement><Effect>Allow</Effect></Statement></Policy>',
+      acl: null,
+      logging: null,
+      notifications: null,
+      replication: null,
+      versions: null,
+    },
   },
   '/api/s3/table-buckets': {
     ok: true,

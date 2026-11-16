@@ -41,7 +41,7 @@ TARGET = ROOT / "S3.md"
 COVERED = {
     "CreateBucket": "tests/s3/test_create.py, tests/control/test_gateway.py, tests/control/test_parity.py",
     "DeleteBucket": "tests/control/test_gateway.py, tests/control/test_parity.py",
-    "HeadBucket": "tests/control/test_gateway.py (301 path)",
+    "HeadBucket": "tests/control/test_gateway.py (301 path), tests/s3/test_objects.py, tests/control/test_api.py",
     "ListBuckets": "tests/control/test_api.py (via /api/browse), tests/control/test_parity.py",
     "PutObject": "tests/control/test_api.py, tests/s3/test_objects.py, tests/control/test_parity.py, tests/control/test_object_upload.py",
     "DeleteObjects": "tests/s3/test_objects.py (Empty)",
@@ -66,7 +66,7 @@ COVERED = {
     "GetBucketNotificationConfiguration": "tests/s3/test_objects.py (documents)",
     "GetBucketLogging": "tests/s3/test_objects.py (documents)",
     "GetBucketReplication": "tests/s3/test_objects.py (documents)",
-    "HeadObject": "tests/control/test_gateway.py (301 path)",
+    "HeadObject": "tests/control/test_gateway.py (301 path), tests/s3/test_objects.py (HEAD first), tests/control/test_api.py",
     "CreateAccessPoint": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
     "GetAccessPoint": "tests/s3/test_access_points.py (row details)",
     "ListAccessPoints": "tests/s3/test_access_points.py, tests/control/test_access_point_api.py",
@@ -93,7 +93,9 @@ ACTION_OPERATIONS = {
 # catalogue does not list them and the column would read as gateway-only.
 PAGES = {
     "ListBuckets": "Buckets page",
+    "HeadBucket": "Bucket page (region check)",
     "GetObject": "Bucket page (Objects)",
+    "HeadObject": "Bucket page (Objects)",
     "ListObjectVersions": "Bucket page (Configuration documents)",
     "GetBucketVersioning": "Bucket page (Properties)",
     "PutBucketVersioning": "Bucket page (Properties, Edit)",
@@ -130,8 +132,10 @@ GUI = {
     "CreateBucket": "Buckets page › Create bucket",
     "DeleteBucket": "Buckets page › Delete",
     "ListBuckets": "Buckets page › table",
+    "HeadBucket": "Bucket page (HeadBucket decides the region)",
     "PutObject": "Bucket page › Objects › Upload",
     "GetObject": "Bucket page › Objects › open",
+    "HeadObject": "Bucket page › Objects › open (size, ETag, last modified)",
     "DeleteObject": "Bucket page › Objects › open › Delete",
     "DeleteObjects": "Buckets page › Empty",
     "ListObjects v1/v2": "Bucket page › Objects",

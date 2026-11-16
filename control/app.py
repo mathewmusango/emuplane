@@ -3422,6 +3422,39 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200,
                 {"account": target["account_id"], "region": region, "counts": counts},
             )
+        if path == "/api/s3/bucket-head":
+            # HeadBucket: the page asks where this bucket really is before it
+            # reads anything, so a bookmarked link works from any region.
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            bucket = (params.get("bucket") or [""])[0].strip()
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket:
+                return self._json(400, {"error": "a bucket is required"})
+            result = buckets.head_bucket(
+                bucket,
+                lambda method, target_path: signed_rest_raw(
+                    "s3", target["account_id"], region, method, target_path
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 502,
+                # `region` is the bucket's own answer; the one the page asked with
+                # is echoed separately so the two cannot be confused.
+                dict(result, account=target["account_id"], requested_region=region),
+            )
         if path in ("/api/s3/bucket-documents", "/api/s3/object", "/api/s3/object-download"):
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()

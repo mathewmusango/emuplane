@@ -508,6 +508,97 @@ describe('s3', () => {
     expect(within(dialog).getByText(/2026-01-01,10/)).toBeTruthy()
   })
 
+  it('shows what only a HeadObject knows about an object', async () => {
+    pinRegion('us-east-1')
+    await openBucket()
+    fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'reports/2026.csv' })
+    expect(within(dialog).getByText('d41d8cd98f00b204e9800998ecf8427e')).toBeTruthy()
+    expect(within(dialog).getByText('Mon, 16 Nov 2026 13:06:12 GMT')).toBeTruthy()
+    expect(within(dialog).getByText('text/csv')).toBeTruthy()
+    expect(within(dialog).getByText('24 B')).toBeTruthy()
+  })
+
+  it('shows the configuration documents the bucket holds', async () => {
+    pinRegion('us-east-1')
+    await openBucket()
+    fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+    expect(await screen.findByText(/<Policy><Statement>/)).toBeTruthy()
+  })
+
+  it('opens a bucket from a link that names no region, by asking where it lives', async () => {
+    pinRegion('us-west-2')
+    const listed = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        if (String(url).split('?')[0] === '/api/s3/objects') listed.push(String(url))
+        return base(url, options)
+      }),
+    )
+    try {
+      const Probe = () => {
+        const where = useLocation()
+        return <div data-testid="location">{where.pathname + where.search}</div>
+      }
+      renderAt(
+        <>
+          <App />
+          <Probe />
+        </>,
+        ['/s3/buckets/logs-bucket'],
+      )
+
+      await screen.findByText('reports/2026.csv')
+      // HeadBucket said us-east-1, so the list is read there and the URL follows.
+      expect(listed[0]).toContain('region=us-east-1')
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe(
+          '/s3/buckets/logs-bucket?region=us-east-1',
+        ),
+      )
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('says so when the bucket is not there, instead of an empty table', async () => {
+    pinRegion('us-east-1')
+    const listed = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        const path = String(url).split('?')[0]
+        if (path === '/api/s3/bucket-head') {
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              JSON.stringify({
+                ok: true,
+                exists: false,
+                status: 404,
+                region: 'us-east-1',
+              }),
+          }
+        }
+        if (path === '/api/s3/objects') listed.push(String(url))
+        return base(url, options)
+      }),
+    )
+    try {
+      renderAt(<App />, ['/s3/buckets/ghost-bucket?region=us-east-1'])
+      expect(await screen.findByText('This bucket does not exist')).toBeTruthy()
+      // Nothing is read from a bucket that is not there.
+      expect(listed).toEqual([])
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('deletes one object from its view, after confirming', async () => {
     pinRegion('us-east-1')
     const sent = []

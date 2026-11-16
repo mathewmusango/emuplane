@@ -4,6 +4,7 @@ import type {
   AccessPointResult,
   ActionCatalogue,
   ActionResult,
+  BucketHead,
 
   BrowseResult,
   BucketSettings,
@@ -171,6 +172,11 @@ export const api = {
   bucketSettings: (account: string, region: string, bucket: string) =>
     request<BucketSettings>(
       `/api/s3/bucket-settings?${query({ account, region, bucket })}`,
+    ),
+  /** HeadBucket: does it exist, and where does it really live? */
+  headBucket: (account: string, region: string, bucket: string) =>
+    request<BucketHead>(
+      `/api/s3/bucket-head?${query({ account, region, bucket })}`,
     ),
   // S3's other tabs are other APIs: S3 Tables and S3 Files.
   s3TableBuckets: (account: string, region: string) =>

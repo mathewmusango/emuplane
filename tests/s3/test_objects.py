@@ -150,6 +150,76 @@ def test_bytes_without_a_type_are_not_shown_as_text(s3_endpoint):
     assert read["binary"] is True and read["body"] is None
 
 
+def test_reading_a_binary_object_never_downloads_it(s3_endpoint):
+    """HeadObject first: the type, size and ETag are headers, so the bytes stay put."""
+    client = _client(s3_endpoint)
+    _create(client, "head-first-bucket")
+    assert buckets.put_object(
+        "head-first-bucket", "pixel.png", PNG, client, content_type="image/png"
+    )["ok"]
+
+    seen = []
+
+    def raw(method, path):
+        seen.append(method)
+        return signed.request_bytes(s3_endpoint, "s3", ACCOUNT, "us-east-1", method, path)
+
+    read = buckets.read_object("head-first-bucket", "pixel.png", raw)
+    assert read["ok"] and read["binary"] is True
+    assert read["size"] == len(PNG)
+    assert read["etag"] and read["last_modified"]
+    assert seen == ["HEAD"]
+
+
+def test_reading_a_text_object_heads_then_gets(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "head-then-get-bucket")
+    assert buckets.put_object("head-then-get-bucket", "note.txt", "hello", client)["ok"]
+
+    seen = []
+
+    def raw(method, path):
+        seen.append(method)
+        return signed.request_bytes(s3_endpoint, "s3", ACCOUNT, "us-east-1", method, path)
+
+    read = buckets.read_object("head-then-get-bucket", "note.txt", raw)
+    assert read["body"] == "hello" and read["binary"] is False
+    assert read["etag"] and read["truncated"] is False
+    assert seen == ["HEAD", "GET"]
+
+
+def test_head_bucket_says_where_a_bucket_lives(s3_endpoint):
+    here = _client(s3_endpoint)
+    _create(here, "head-here-bucket")
+    west = buckets.create(
+        "us-west-2",
+        {"account": ACCOUNT, "bucket": "head-west-bucket", "block_public_access": None},
+        _client(s3_endpoint, region="us-west-2"),
+    )
+    assert west["ok"], west.get("error")
+
+    def head(name):
+        return buckets.head_bucket(
+            name,
+            lambda method, path: signed.request_bytes(
+                s3_endpoint, "s3", ACCOUNT, "us-east-1", method, path
+            ),
+        )
+
+    assert head("head-here-bucket") == {
+        "ok": True,
+        "exists": True,
+        "status": 200,
+        "region": "us-east-1",
+    }
+    # A bucket in another region answers 301 and names it.
+    away = head("head-west-bucket")
+    assert away["exists"] is True and away["status"] == 301
+    assert away["region"] == "us-west-2"
+    # A 404 is a name that is not there at all.
+    assert head("head-no-such-bucket")["exists"] is False
+
+
 def test_the_configuration_documents_are_what_s3_has(s3_endpoint):
     client = _client(s3_endpoint)
     _create(client, "documents-bucket")

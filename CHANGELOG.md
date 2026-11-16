@@ -9,6 +9,19 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **A bucket link works from any region.** The bucket page asks `HeadBucket`
+  before it reads anything: the answer says whether the name exists and, from
+  `x-amz-bucket-region`, where the bucket really lives — including the 301 that
+  names it. The page then writes that region into the URL, so a pasted or
+  bookmarked `/s3/buckets/<name>` opens correctly and is right the next time;
+  nothing is listed for a name that is not there, and the page says so instead
+  of showing an empty table.
+- **An object is HEADed before it is read, and shows what only a HEAD knows.**
+  `GetObject` is preceded by `HeadObject`, so a typed-binary object is never
+  downloaded just to be thrown away, and the object view carries size, type,
+  **ETag** and last-modified above the body — none of which a GET's bytes carry.
+  A textual or untyped object is then GET-ed and decoded as before, and the view
+  says when it is showing only the first 20 000 characters.
 - **A file can be uploaded from the operator's filesystem.** The bucket page's
   *Upload* modal takes a file (choose or drop) and sends its bytes as the body to
   `POST /api/s3/object-upload`, with the browser's content type — no base64
@@ -182,6 +195,12 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **The bucket page's configuration documents are read again.** The section
+  rendered a `documents` state that nothing filled, so lifecycle, CORS, policy,
+  ACL, logging, notifications, replication and the version listing showed as
+  *Nothing configured* for every bucket — eight reads the console never made. It
+  fetches `/api/s3/bucket-documents` once the region is known, and a failed read
+  is an error rather than an empty state.
 - **Clicking an object key opens it again.** `BucketDetail` rendered the key as a
   button that called `openObject`, which no longer existed — every click on an
   object name threw instead of opening it. The function is back, now carrying the

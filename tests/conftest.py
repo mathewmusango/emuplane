@@ -127,7 +127,16 @@ def s3_endpoint(emulator):
                 if key.lower() == "content-length":
                     continue
                 self.send_header(key, value)
-            self.send_header("Content-Length", str(len(out_body)))
+            # A HEAD answers with no body but the same Content-Length the GET would
+            # have: the size of the object is the whole point of asking.
+            length = str(len(out_body))
+            if method == "HEAD":
+                length = (
+                    out_headers.get("Content-Length")
+                    or out_headers.get("content-length")
+                    or "0"
+                )
+            self.send_header("Content-Length", length)
             self.end_headers()
             if method != "HEAD" and out_body:
                 self.wfile.write(out_body)

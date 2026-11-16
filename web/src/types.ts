@@ -150,8 +150,26 @@ export interface ObjectContent {
   binary: boolean
   size: number
   content_type: string
+  /** From HeadObject: a GET's bytes cannot carry them. */
+  etag: string
+  last_modified: string
+  /** True when the text shown is the first 20 000 characters. */
+  truncated: boolean
   account?: string
   region?: string
+  error?: string
+}
+
+/** HeadBucket: whether a name exists, and the region it lives in. */
+export interface BucketHead {
+  ok: boolean
+  exists: boolean
+  status?: number
+  /** The bucket's own region, from `x-amz-bucket-region`. */
+  region: string
+  /** The region the page asked with, which may not be the right one. */
+  requested_region?: string
+  account?: string
   error?: string
 }
 

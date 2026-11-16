@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import Alert from '@cloudscape-design/components/alert'
 import Box from '@cloudscape-design/components/box'
 import Button from '@cloudscape-design/components/button'
+import ColumnLayout from '@cloudscape-design/components/column-layout'
 import Container from '@cloudscape-design/components/container'
 import ContentLayout from '@cloudscape-design/components/content-layout'
 import FileUpload from '@cloudscape-design/components/file-upload'
@@ -28,19 +29,30 @@ import { Shell } from '../components/Shell'
 // One file per request, the same ceiling the control enforces.
 const MAX_UPLOAD = 25 * 1024 * 1024
 
-const megabytes = (bytes) =>
-  bytes >= 1024 * 1024
-    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
-    : `${Math.max(Math.round(bytes / 1024), 1)} KB`
+const dash = '\u2014'
+
+const formatSize = (bytes) => {
+  if (!bytes) return '0 B'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
+}
 
 export default function BucketDetail() {
   const { name = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { account, region: sessionRegion } = useSession()
 
-  const region = searchParams.get('region') || sessionRegion
+  // The URL names a region, but a bookmarked or pasted link may be missing it or
+  // carrying the bar's region for a bucket that lives elsewhere. HeadBucket
+  // answers where the bucket really is, and the page reads nothing until it does.
+  const requested = searchParams.get('region') || sessionRegion
+  const [bucketRegion, setBucketRegion] = useState('')
+  const [headMissing, setHeadMissing] = useState(false)
+  const region = bucketRegion || requested
   const created = location.state?.created || ''
 
   const [objects, setObjects] = useState([])
@@ -58,12 +70,43 @@ export default function BucketDetail() {
   const [settings, setSettings] = useState(null)
   const [settingsError, setSettingsError] = useState('')
   const [documents, setDocuments] = useState({})
+  const [documentsError, setDocumentsError] = useState('')
   const [objectView, setObjectView] = useState(null)
   const [objectError, setObjectError] = useState('')
   const [deletingObject, setDeletingObject] = useState(null)
 
+  useEffect(() => {
+    if (!account || !name) return undefined
+    let live = true
+    api
+      .headBucket(account, requested, name)
+      .then((answer) => {
+        if (!live) return
+        if (!answer?.ok) {
+          setBucketRegion(requested)
+          return
+        }
+        setHeadMissing(!answer.exists)
+        setBucketRegion(answer.region || requested)
+      })
+      .catch(() => {
+        // A head that fails leaves the page where the URL pointed: the list below
+        // reports the real problem.
+        if (live) setBucketRegion(requested)
+      })
+    return () => {
+      live = false
+    }
+  }, [account, requested, name])
+
+  // The address bar follows the bucket, so the link is right the next time.
+  useEffect(() => {
+    if (!bucketRegion || bucketRegion === requested) return
+    setSearchParams({ region: bucketRegion }, { replace: true })
+  }, [bucketRegion, requested, setSearchParams])
+
   const loadObjects = useCallback(async () => {
-    if (!account) return
+    if (!account || !bucketRegion || headMissing) return
     setLoading(true)
     try {
       const payload = await api.s3Objects(account, region, name, prefix)
@@ -75,14 +118,14 @@ export default function BucketDetail() {
     } finally {
       setLoading(false)
     }
-  }, [account, region, name, prefix])
+  }, [account, region, name, prefix, bucketRegion, headMissing])
 
   useEffect(() => {
     loadObjects()
   }, [loadObjects])
 
   useEffect(() => {
-    if (!account) return undefined
+    if (!account || !bucketRegion || headMissing) return undefined
     let live = true
     api
       .bucketSettings(account, region, name)
@@ -97,7 +140,7 @@ export default function BucketDetail() {
     return () => {
       live = false
     }
-  }, [account, region, name])
+  }, [account, region, name, bucketRegion, headMissing])
 
   const upload = async () => {
     setSaving(true)
@@ -107,7 +150,7 @@ export default function BucketDetail() {
       if (chosen) {
         if (chosen.size > MAX_UPLOAD) {
           throw new Error(
-            `${chosen.name} is ${megabytes(chosen.size)}; this console uploads up to ${megabytes(MAX_UPLOAD)} in one request.`,
+            `${chosen.name} is ${formatSize(chosen.size)}; this console uploads up to ${formatSize(MAX_UPLOAD)} in one request.`,
           )
         }
         // The file's bytes are the body, and its type is stored with it, so a PNG
@@ -144,6 +187,28 @@ export default function BucketDetail() {
       setObjectError(err.message)
     }
   }
+
+  // The eight documents the bucket page displays: each is its own GET, and a
+  // failure is an error rather than "nothing configured".
+  useEffect(() => {
+    if (!account || !bucketRegion || headMissing) return undefined
+    let live = true
+    api
+      .bucketDocuments(account, region, name)
+      .then((answer) => {
+        if (!live) return
+        setDocuments(answer.documents || {})
+        setDocumentsError('')
+      })
+      .catch((err) => {
+        if (!live) return
+        setDocuments({})
+        setDocumentsError(err.message)
+      })
+    return () => {
+      live = false
+    }
+  }, [account, region, name, bucketRegion, headMissing])
 
   const removeObject = async () => {
     if (!deletingObject) return
@@ -360,20 +425,26 @@ export default function BucketDetail() {
         }
       >
         <SpaceBetween size="s">
-          {Object.entries(documents).filter(([, xml]) => xml).length === 0 ? (
-            <Box color="text-body-secondary">
-              Nothing configured beyond the settings above.
-            </Box>
-          ) : (
-            Object.entries(documents)
-              .filter(([, xml]) => xml)
-              .map(([label, xml]) => (
-                <div key={label}>
-                  <Box variant="awsui-key-label">{label}</Box>
-                  <pre className="result-body">{xml}</pre>
-                </div>
-              ))
+          {documentsError && (
+            <Alert type="error" header="Could not read these documents">
+              {documentsError}
+            </Alert>
           )}
+          {!documentsError &&
+            (Object.entries(documents).filter(([, xml]) => xml).length === 0 ? (
+              <Box color="text-body-secondary">
+                Nothing configured beyond the settings above.
+              </Box>
+            ) : (
+              Object.entries(documents)
+                .filter(([, xml]) => xml)
+                .map(([label, xml]) => (
+                  <div key={label}>
+                    <Box variant="awsui-key-label">{label}</Box>
+                    <pre className="result-body">{xml}</pre>
+                  </div>
+                ))
+            ))}
         </SpaceBetween>
       </Container>
     </SpaceBetween>
@@ -452,13 +523,21 @@ export default function BucketDetail() {
       ]}
     >
       <ContentLayout header={<Header variant="h1">{name}</Header>}>
-        <Tabs
-          tabs={[
-            { id: 'objects', label: 'Objects', content: objectsTab },
-            { id: 'properties', label: 'Properties', content: propertiesTab },
-            { id: 'permissions', label: 'Permissions', content: permissionsTab },
-          ]}
-        />
+        {headMissing ? (
+          <Alert type="error" header="This bucket does not exist">
+            S3 answered that <strong>{name}</strong> is not there in{' '}
+            {regionName(region)} <span className="mono">{region}</span>. The name may have
+            been deleted, or it may belong to the wrong region.
+          </Alert>
+        ) : (
+          <Tabs
+            tabs={[
+              { id: 'objects', label: 'Objects', content: objectsTab },
+              { id: 'properties', label: 'Properties', content: propertiesTab },
+              { id: 'permissions', label: 'Permissions', content: permissionsTab },
+            ]}
+          />
+        )}
         <Modal
           visible={Boolean(objectView) || Boolean(objectError)}
           onDismiss={() => {
@@ -494,16 +573,44 @@ export default function BucketDetail() {
         >
           {objectError ? (
             <Alert type="error">{objectError}</Alert>
-          ) : objectView?.binary ? (
-            <SpaceBetween size="m">
-              <Alert type="info" header="This object is not text">
-                It is stored as <span className="mono">{objectView.content_type}</span> (
-                {megabytes(objectView.size)}), so the page offers it as a download rather
-                than showing bytes that would not mean anything.
-              </Alert>
-            </SpaceBetween>
           ) : (
-            <pre className="result-body">{objectView?.body}</pre>
+            <SpaceBetween size="m">
+              {/* What only HeadObject knows: a GET's bytes carry none of it. */}
+              <ColumnLayout columns={4} variant="text-grid">
+                <div>
+                  <Box variant="awsui-key-label">Size</Box>
+                  {formatSize(objectView?.size)}
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">Type</Box>
+                  <span className="mono">{objectView?.content_type}</span>
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">ETag</Box>
+                  <span className="mono">{objectView?.etag || dash}</span>
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">Last modified</Box>
+                  {objectView?.last_modified || dash}
+                </div>
+              </ColumnLayout>
+              {objectView?.binary ? (
+                <Alert type="info" header="This object is not text">
+                  It is stored as <span className="mono">{objectView.content_type}</span>, so
+                  the page offers it as a download rather than showing bytes that would not
+                  mean anything.
+                </Alert>
+              ) : (
+                <SpaceBetween size="xs">
+                  <pre className="result-body">{objectView?.body}</pre>
+                  {objectView?.truncated && (
+                    <Box color="text-body-secondary" fontSize="body-s">
+                      Showing the first 20 000 characters. Download to see all of it.
+                    </Box>
+                  )}
+                </SpaceBetween>
+              )}
+            </SpaceBetween>
           )}
         </Modal>
         <Modal
@@ -577,7 +684,7 @@ export default function BucketDetail() {
               accept="*/*"
               showFileSize
               showFileLastModified
-              constraintText={`One file, up to ${megabytes(MAX_UPLOAD)}. The file's own type is stored with it.`}
+              constraintText={`One file, up to ${formatSize(MAX_UPLOAD)}. The file's own type is stored with it.`}
               i18nStrings={{
                 uploadButtonText: () => 'Choose file',
                 dropzoneText: () => 'Drop a file here, or choose one',

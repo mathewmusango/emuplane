@@ -107,6 +107,78 @@ def test_the_child_listings_answer(console):
         assert isinstance(body["items"], list)
 
 
+def test_bucket_head_says_where_the_bucket_is(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="head-api-bucket"))[0] == 200
+
+    status, body = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-head?account={ACCOUNT}&region=us-east-1&bucket=head-api-bucket",
+    )
+    assert status == 200, body
+    assert body["exists"] is True and body["region"] == "us-east-1"
+
+
+def test_bucket_head_names_the_region_a_pasted_link_forgot(console):
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/buckets",
+        page(bucket="head-api-west-bucket", region="us-west-2"),
+    )
+    assert status == 200, body
+
+    status, body = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-head?account={ACCOUNT}&region=us-east-1&bucket=head-api-west-bucket",
+    )
+    assert status == 200, body
+    assert body["exists"] is True and body["region"] == "us-west-2"
+
+
+def test_bucket_head_reports_a_name_that_is_not_there(console):
+    status, body = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-head?account={ACCOUNT}&region=us-east-1&bucket=head-api-nowhere",
+    )
+    assert status == 200, body
+    assert body["exists"] is False
+
+
+def test_an_object_read_carries_what_only_a_head_knows(
+    console,
+):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="head-api-objects"))[0] == 200
+    assert (
+        api(
+            console,
+            "POST",
+            "/api/s3/object",
+            {
+                "account": ACCOUNT,
+                "region": "us-east-1",
+                "bucket": "head-api-objects",
+                "key": "notes/head.txt",
+                "body": "read me",
+            },
+        )[0]
+        == 200
+    )
+
+    status, body = api(
+        console,
+        "GET",
+        f"/api/s3/object?account={ACCOUNT}&region=us-east-1&bucket=head-api-objects&key=notes/head.txt",
+    )
+    assert status == 200, body
+    assert body["body"] == "read me"
+    assert body["etag"] and body["last_modified"]
+    assert body["size"] == len("read me")
+    assert body["content_type"] == "text/plain"
+
+
 def test_an_object_written_through_the_gateway_is_readable_in_the_console(
     console, gateway
 ):

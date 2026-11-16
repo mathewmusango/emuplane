@@ -499,44 +499,75 @@ def read_documents(bucket: str, call) -> dict:
     return {"ok": True, "bucket": bucket, "documents": found}
 
 
+def head_bucket(bucket: str, call) -> dict:
+    """HeadBucket: does `bucket` exist, and where does it live?
+
+    S3 answers a bucket in another region with 301 and names the right region in
+    `x-amz-bucket-region`; a 404 is a name that is not there at all. The body of a
+    HEAD is empty by definition, so there is no error document to read.
+    """
+    status, headers, _ = call("HEAD", _bucket_path(bucket))
+    region = (headers.get("x-amz-bucket-region") or "").strip()
+    if 200 <= status < 400:
+        return {"ok": True, "exists": True, "status": status, "region": region}
+    if status == 404:
+        return {"ok": True, "exists": False, "status": status, "region": region}
+    return {"ok": False, "status": status or 502, "error": f"HTTP {status}"}
+
+
 def read_object(bucket: str, key: str, call) -> dict:
     """GetObject as content: text when it decodes, a download when it does not.
 
-    `call(method, path)` answers `(status, headers, bytes)` — the bytes matter,
-    because decoding them is what tells a text object from a binary one. A PNG
-    decoded as text is a page of replacement characters, and showing that is
-    worse than offering the file.
+    `call(method, path)` answers `(status, headers, bytes)`. HeadObject goes
+    first, because the type, the size and the ETag are headers: a PNG is then
+    never downloaded just to be thrown away, and the page can show what only a
+    HEAD knows. The GET follows only when the bytes have to be read — a textual
+    type, or one that says nothing either way.
     """
-    status, headers, data = call(
-        "GET", _bucket_path(bucket) + "/" + quote(key, safe="/")
-    )
+    path = _bucket_path(bucket) + "/" + quote(key, safe="/")
+    status, headers, _ = call("HEAD", path)
     if not 200 <= status < 300:
-        return {
-            "ok": False,
-            "status": status or 502,
-            "error": _detail(data.decode(errors="replace"), status),
-        }
+        return {"ok": False, "status": status or 502, "error": _head_failure(status)}
 
     kind = (headers.get("content-type") or "").split(";")[0].strip()
+    try:
+        size = int(headers.get("content-length") or 0)
+    except ValueError:
+        size = 0
+    meta = {
+        "key": key,
+        "size": size,
+        "content_type": kind or "application/octet-stream",
+        "etag": (headers.get("etag") or "").strip('"'),
+        "last_modified": headers.get("last-modified") or "",
+    }
+    if kind.lower() not in UNKNOWN_TYPES and not _textual(kind):
+        return {"ok": True, "status": status, "body": None, "binary": True, **meta}
+
+    status, _headers, data = call("GET", path)
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "error": _head_failure(status)}
     text = None
-    # A type that names itself textual gets a decode; a type that says nothing
-    # either way is decided by the bytes. Control characters mean binary even when
-    # the decode succeeds — a NUL is not something to put in a page.
-    if not (kind.lower() not in UNKNOWN_TYPES and not _textual(kind)):
-        try:
-            text = data.decode("utf-8")
-        except UnicodeDecodeError:
-            text = None
-        if text is not None and any(
-            character < " " and character not in "\t\n\r" for character in text[:4096]
-        ):
-            text = None
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        text = None
+    if text is not None and any(
+        character < " " and character not in "\t\n\r" for character in text[:4096]
+    ):
+        text = None
     return {
         "ok": True,
         "status": status,
-        "key": key,
         "body": None if text is None else text[:20000],
         "binary": text is None,
-        "size": len(data),
-        "content_type": kind or "application/octet-stream",
+        "truncated": text is not None and len(text) > 20000,
+        **meta,
     }
+
+
+def _head_failure(status: int) -> str:
+    """A HEAD carries no body, so the status is all there is to name."""
+    if status == 404:
+        return "NoSuchKey: The specified key does not exist."
+    return f"HTTP {status or 'unknown'}"
