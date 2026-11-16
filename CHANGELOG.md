@@ -103,6 +103,18 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **The create page takes its region from the top bar.** The *AWS Region* select
+  is gone from General configuration: the region is the console's own, picked in
+  the bar and written under the heading as text, so the form cannot disagree with
+  the rest of the page. The Account Regional namespace suffix follows that
+  selection — change the region in the bar and `.<account>-<region>-an` changes
+  with it — and `buckets.resolve_name` refuses a regional name without a 12-digit
+  account instead of composing a name that only looks regional.
+- **The S3 tests are their own suite.** `tests/web/s3.test.jsx` holds the page's
+  console tests — the table and its region column, the create page, *Empty*,
+  *Delete*, the region picker and the namespace suffix — over shared fixtures in
+  `tests/web/fixtures.jsx`, while `tests/s3/` grew a tag-escaping round trip and
+  the regional-account rule.
 - **The S3 page is one flat table, the way the console shows it.** *Buckets* is
   the heading; *General purpose buckets* is the table, listing every bucket in
   every enabled region with **Name / AWS Region / Creation date** (region display

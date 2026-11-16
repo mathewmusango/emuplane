@@ -1,0 +1,156 @@
+// Shared fixtures for the console suite: one API picture, one fetch stub.
+//
+// Both `smoke.test.jsx` (console-wide behaviour) and `s3.test.jsx` (the S3 page)
+// read from here, so the two files describe the same instance.
+
+import { vi } from 'vitest'
+import { render } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { SessionProvider } from '../../web/src/context'
+
+export const META = {
+  product: 'Emuplane',
+  backend: 'MiniStack',
+  backend_id: 'ministack',
+  backend_logo: '/backends/ministack.png',
+  api_version: 'v1',
+  emulator_version: '1.5.37',
+  me: { user: 'mathewmusango', account: '111111111111', alias: 'mathewmusango', role: 'root' },
+  accounts: [
+    { account_id: '111111111111', alias: 'mathewmusango', users: 1 },
+    { account_id: '161418427515', alias: 'musangomathew', users: 1 },
+  ],
+  platform_admin: true,
+  regions: ['us-east-1', 'us-west-2'],
+  all_regions: ['us-east-1', 'us-west-2'],
+  gateway: 'https://ministack.example.com',
+  console: 'https://ministack-control.example.com',
+  uptime_seconds: 60,
+}
+
+export const ACTIONS = {
+  services: {
+    s3: {
+      description: 'Buckets and objects.',
+      operations: [
+        {
+          id: 'create-bucket',
+          label: 'Create bucket',
+          cli: 'aws s3 mb s3://<bucket>',
+          params: [{ name: 'Bucket', label: 'Bucket name', required: true, type: 'text' }],
+        },
+      ],
+    },
+  },
+  groups: [{ label: 'Core', services: ['s3'] }],
+}
+
+export const RESPONSES = {
+  '/api/meta': META,
+  '/api/auth/login': {
+    ok: true,
+    token: 'login-token',
+    mfa_required: false,
+    user: 'root@example.com',
+    account: '111111111111',
+    alias: 'mathewmusango',
+    role: 'root',
+  },
+  '/api/auth/mfa': { ok: true },
+  '/api/auth/remember': {
+    ok: true,
+    token: 'test-token',
+    user: 'mathewmusango',
+    account: '111111111111',
+    alias: 'mathewmusango',
+    role: 'root',
+  },
+  '/api/services': { s3: { emuplane: true } },
+  '/api/actions': ACTIONS,
+  '/api/users': [
+    {
+      account_id: '111111111111',
+      alias: 'mathewmusango',
+      name: 'Mathew Musango',
+      regions: ['us-east-1'],
+      global_admin: true,
+      default_admin: false,
+      disabled: false,
+      users: [{ username: 'mathewmusango', role: 'root' }],
+    },
+  ],
+  '/api/nodes': [],
+  '/api/settings': { signup_enabled: true },
+  '/api/accounts/me': {
+    user: 'mathewmusango',
+    account: '111111111111',
+    alias: 'mathewmusango',
+    role: 'root',
+    name: 'Mathew Musango',
+    email: 'mathew@example.com',
+  },
+  '/api/credentials': {
+    account: '111111111111',
+    user: 'mathewmusango',
+    max_keys: 2,
+    keys: [
+      {
+        name: 'laptop-cli',
+        access_key_id: 'AKIDEXAMPLE00000001',
+        masked: 'AKIA••••••••MPLE',
+        masked_secret: '••••••••••••',
+        created_at: '2026-11-05 09:00:00Z',
+      },
+      {
+        name: 'ci-pipeline',
+        access_key_id: 'AKIDEXAMPLE00000002',
+        masked: 'AKIA••••••••MPLE',
+        masked_secret: '••••••••••••',
+        created_at: '2026-11-05 10:00:00Z',
+      },
+    ],
+  },
+  '/api/browse': {
+    account: '111111111111',
+    region: 'us-east-1',
+    regions: ['us-east-1', 'us-west-2'],
+    service: 's3',
+    resources: [
+      {
+        name: 'logs-bucket',
+        kind: 'bucket',
+        region: 'us-east-1',
+        owner: { account: '111111111111', user: 'mathewmusango' },
+        detail: {},
+      },
+    ],
+  },
+  '/api/s3/objects': {
+    bucket: 'logs-bucket',
+    objects: [
+      { key: 'reports/2026.csv', size: '12', modified: '2026-11-04T00:00:00Z' },
+    ],
+  },
+}
+
+/** Install the fetch stub the console talks to. Returns nothing usable; the
+ *  stub answers every path from `RESPONSES` with a 200. */
+export const installFetch = () =>
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url) => {
+      const path = String(url).split('?')[0]
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify(RESPONSES[path] ?? {}),
+      }
+    }),
+  )
+
+export const renderAt = (element, entries = ['/']) =>
+  render(
+    <MemoryRouter initialEntries={entries}>
+      <SessionProvider>{element}</SessionProvider>
+    </MemoryRouter>,
+  )

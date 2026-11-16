@@ -174,6 +174,37 @@ def test_every_option_combination(payload, expected, s3):
     assert (_field(body, "BucketKeyEnabled") == "true") == encryption.startswith("aws:kms")
 
 
+def test_the_regional_namespace_needs_the_account():
+    """The suffix is the account and the region; without them it composes a name
+    that only looks regional."""
+    payload = {"account": "", "bucket": "test", "namespace": "regional"}
+    assert buckets.resolve_name(payload, "us-east-1") == (
+        "",
+        "The Account Regional namespace needs the 12-digit account id.",
+    )
+    payload["account"] = "11111111111"
+    assert buckets.resolve_name(payload, "us-east-1")[1]
+
+
+def test_tags_with_xml_characters_round_trip(s3):
+    """A tag is escaped on the way out and comes back as typed."""
+    client = s3(ACCOUNT, "us-east-1")
+    result = buckets.create(
+        "us-east-1",
+        {
+            "account": ACCOUNT,
+            "bucket": "escaped-tags-bucket",
+            "tags": [{"Key": "team<&>", "Value": "a & b <c>"}],
+        },
+        client,
+    )
+    assert result["ok"], result.get("error")
+
+    status, body = client("GET", "/escaped-tags-bucket?tagging")
+    assert status == 200
+    assert _tags(body) == {"team<&>": "a & b <c>"}
+
+
 def test_the_emulator_checks_the_signing_region(s3):
     """The check that refused the console's create before it named its region."""
     client = s3(ACCOUNT, "us-west-2")

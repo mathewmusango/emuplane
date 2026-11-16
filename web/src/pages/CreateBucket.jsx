@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Box from '@cloudscape-design/components/box'
@@ -13,7 +13,6 @@ import FormField from '@cloudscape-design/components/form-field'
 import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
 import RadioGroup from '@cloudscape-design/components/radio-group'
-import Select from '@cloudscape-design/components/select'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import { api } from '../api'
 import { useSession } from '../context'
@@ -70,10 +69,11 @@ const allPublic = (value) =>
 
 export default function CreateBucket() {
   const navigate = useNavigate()
-  const { meta, account, region: sessionRegion, setRegion } = useSession()
+  // The region is the console's own: it comes from the bar's picker, and this
+  // page follows it — including into the namespace suffix — rather than offering
+  // a second control that could disagree with it.
+  const { account, region } = useSession()
 
-  const regions = meta?.regions?.length ? meta.regions : [sessionRegion]
-  const [region, setFormRegion] = useState(sessionRegion)
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState('')
   const [namespace, setNamespace] = useState('global')
@@ -87,15 +87,6 @@ export default function CreateBucket() {
   const [objectLock, setObjectLock] = useState('disable')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-
-  const regionOptions = useMemo(
-    () =>
-      regions.map((code) => ({
-        label: `${regionName(code)} ${code}`,
-        value: code,
-      })),
-    [regions],
-  )
 
   const backToBuckets = () => navigate(`/s3/home?region=${region}`)
 
@@ -151,8 +142,8 @@ export default function CreateBucket() {
         setError(result?.error || 'Could not create the bucket.')
         return
       }
-      // The page's region is where the bucket now lives, so the app follows it.
-      setRegion(region)
+      // The bucket landed in the region the bar is showing, so the list is that
+      // region's view of the account.
       navigate(`/s3/home?region=${region}`, {
         state: { created: result.bucket || name.trim() },
       })
@@ -204,17 +195,12 @@ export default function CreateBucket() {
 
             <Container header={<Header variant="h2">General configuration</Header>}>
               <SpaceBetween size="l">
-                <FormField label="AWS Region">
-                  <Select
-                    selectedOption={
-                      regionOptions.find((option) => option.value === region) || null
-                    }
-                    onChange={({ detail }) => detail.selectedOption?.value
-                      && setFormRegion(detail.selectedOption.value)}
-                    options={regionOptions}
-                    ariaLabel="AWS Region"
-                  />
-                </FormField>
+                <Box color="text-body-secondary">
+                  Region <strong>{regionName(region)}</strong>{' '}
+                  <span className="mono">{region}</span> — picked in the region
+                  menu at the top of the console, and the one this bucket is
+                  created in.
+                </Box>
 
                 <FormField
                   label="Bucket type"

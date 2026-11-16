@@ -42,6 +42,7 @@ NAMESPACE_REGIONAL = "regional"
 # S3's own naming rules, mirrored so the page can answer before the round trip.
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
 IP_RE = re.compile(r"^\d{1,3}(\.\d{1,3}){3}$")
+ACCOUNT_RE = re.compile(r"^\d{12}$")
 
 NAME_HELP = (
     "Bucket names must be 3 to 63 characters: lowercase letters, digits, dots "
@@ -93,7 +94,12 @@ def resolve_name(payload: dict, region: str) -> tuple[str, str]:
     base = str(payload.get("bucket") or "").strip()
     if str(payload.get("namespace") or NAMESPACE_GLOBAL) != NAMESPACE_REGIONAL:
         return (base, "") if valid_name(base) else ("", NAME_HELP)
-    suffix = "." + regional_suffix(str(payload.get("account") or ""), region)
+    account = str(payload.get("account") or "").strip()
+    if not ACCOUNT_RE.match(account):
+        # The suffix *is* the account and region; without one it would compose a
+        # name that looks regional and is not.
+        return "", "The Account Regional namespace needs the 12-digit account id."
+    suffix = "." + regional_suffix(account, region)
     if base.endswith(suffix):
         base = base[: -len(suffix)]
     if not valid_name(base):
