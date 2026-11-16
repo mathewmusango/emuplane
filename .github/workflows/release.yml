@@ -51,3 +51,38 @@ jobs:
     permissions:
       contents: write
     uses: mathewmusango/my-workflows/.github/workflows/release-github.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+
+  artifacts:
+    needs: [image, release]
+    permissions:
+      contents: write
+      packages: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: The image this tag published
+        id: image
+        run: echo "ref=ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Sign in to the registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: The image's SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ steps.image.outputs.ref }}
+          format: spdx-json
+          output-file: emuplane-${{ github.ref_name }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Checksums and the digest the tag resolves to
+        run: |
+          set -euo pipefail
+          sha256sum "emuplane-$GITHUB_REF_NAME.spdx.json" > SHA256SUMS
+          docker buildx imagetools inspect "${{ steps.image.outputs.ref }}" \
+            --format '{{.Manifest.Digest}}' > IMAGE-DIGEST
+          cat SHA256SUMS IMAGE-DIGEST
+      - name: Attach them to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh release upload "$GITHUB_REF_NAME"
+          "emuplane-$GITHUB_REF_NAME.spdx.json" SHA256SUMS IMAGE-DIGEST --clobber

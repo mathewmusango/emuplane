@@ -101,6 +101,14 @@ flowchart LR
    and it runs; the guard refuses a tag that is not the tip of `main`, or one with no
    section in `CHANGELOG.md`.
 
+What a release carries, besides the notes and the image:
+
+| Asset | What it is |
+| --- | --- |
+| `emuplane-vX.Y.Z.spdx.json` | the image's SBOM, generated with syft from the published image |
+| `SHA256SUMS` | its digest, so a reader can check what they downloaded |
+| `IMAGE-DIGEST` | the registry digest the tag resolves to — pin this, not the tag |
+
 `workflow_dispatch` is exempt from the `GITHUB_TOKEN` recursion rule, which is why
 the tagging run can start the release itself without a personal token.
 
