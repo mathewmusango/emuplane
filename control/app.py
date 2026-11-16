@@ -3455,7 +3455,13 @@ class ControlHandler(BaseHTTPRequestHandler):
                 # is echoed separately so the two cannot be confused.
                 dict(result, account=target["account_id"], requested_region=region),
             )
-        if path in ("/api/s3/bucket-documents", "/api/s3/object", "/api/s3/object-download"):
+        if path in (
+            "/api/s3/bucket-documents",
+            "/api/s3/object",
+            "/api/s3/object-download",
+            "/api/s3/object-meta",
+            "/api/s3/object-annotation",
+        ):
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
             region = (params.get("region") or [DEFAULT_REGION])[0]
@@ -3488,6 +3494,36 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if not key:
                 return self._json(400, {"error": "a key is required"})
+            if path.endswith("object-meta"):
+                # The reads beside an object: its tag set, its annotations and the
+                # two Object Lock states, each its own GET on the object's path.
+                result = buckets.read_object_meta(
+                    bucket,
+                    key,
+                    lambda method, target_path: signed_rest(
+                        "s3", target["account_id"], region, method, target_path
+                    ),
+                )
+                return self._json(
+                    200, dict(result, account=target["account_id"], region=region)
+                )
+            if path.endswith("object-annotation"):
+                # GetObjectAnnotation: one annotation's own content.
+                annotation = (params.get("name") or [""])[0].strip()
+                if not annotation:
+                    return self._json(400, {"error": "an annotation name is required"})
+                result = buckets.read_annotation(
+                    bucket,
+                    key,
+                    annotation,
+                    lambda method, target_path: signed_rest(
+                        "s3", target["account_id"], region, method, target_path
+                    ),
+                )
+                return self._json(
+                    200 if result.get("ok") else 404,
+                    dict(result, account=target["account_id"], region=region),
+                )
             if path.endswith("object-download"):
                 # The object as a file: the console shows text inline and offers
                 # this for everything else, so a PNG is not a page of mojibake.

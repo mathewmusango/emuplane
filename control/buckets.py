@@ -747,3 +747,92 @@ def _head_failure(status: int) -> str:
     if status == 404:
         return "NoSuchKey: The specified key does not exist."
     return f"HTTP {status or 'unknown'}"
+
+
+# The reads that live beside an object rather than in it. Each is its own GET on
+# the object's own path, and each answers something that is a state rather than a
+# failure: no tags and no annotations are empty answers, and Object Lock says it
+# is not configured in its own code.
+def _annotation_rows(xml: str) -> list[dict]:
+    root = _root(xml)
+    if root is None:
+        return []
+    rows = []
+    for element in root.iter():
+        if _local(element) != "AnnotationEntry":
+            continue
+        pair = {_local(child): child.text for child in list(element)}
+        rows.append(
+            {
+                "name": pair.get("AnnotationName") or "",
+                "size": pair.get("Size") or "0",
+                "modified": pair.get("LastModified") or "",
+                "etag": pair.get("ETag") or "",
+            }
+        )
+    return rows
+
+
+def _code(xml: str) -> str:
+    found = _CODE_RE.search(xml or "")
+    return found.group(1) if found else ""
+
+
+# A bucket without Object Lock refuses the read outright; one with Object Lock
+# but no retention on this object answers 404 with the same code. Neither is an
+# error the page should shout about, so both are reported as "not configured" and
+# only a real failure keeps its message.
+_LOCK_ABSENT = ("NoSuchObjectLockConfiguration", "InvalidRequest", "ObjectLockConfigurationNotFoundError")
+
+
+def read_object_meta(bucket: str, key: str, call) -> dict:
+    """GetObjectTagging, ListObjectAnnotations, GetObjectRetention, GetObjectLegalHold.
+
+    `call(method, path)` answers `(status, body)`. Everything here is a state
+    beside the object, so a read that reports "not configured" comes back as
+    empty with no error, and `errors` only carries what genuinely failed.
+    """
+    path = _bucket_path(bucket) + "/" + quote(key, safe="/")
+    found: dict = {"bucket": bucket, "key": key, "errors": {}}
+
+    status, body = call("GET", path + "?tagging")
+    found["tags"] = _tags(body) if 200 <= status < 300 else []
+    if not 200 <= status < 300:
+        found["errors"]["tags"] = _detail(body, status)
+
+    status, body = call("GET", path + "?annotation")
+    found["annotations"] = _annotation_rows(body) if 200 <= status < 300 else []
+    if not 200 <= status < 300:
+        found["errors"]["annotations"] = _detail(body, status)
+
+    for label, suffix in (("retention", "?retention"), ("legal_hold", "?legal-hold")):
+        status, body = call("GET", path + suffix)
+        if 200 <= status < 300 and _configured(body):
+            found[label] = body
+        else:
+            found[label] = None
+            if not 200 <= status < 300 and _code(body) not in _LOCK_ABSENT:
+                found["errors"][label] = _detail(body, status)
+    return {"ok": True, "status": 200, **found}
+
+
+def read_annotation(bucket: str, key: str, name: str, call) -> dict:
+    """GetObjectAnnotation: one annotation's own content, which is text."""
+    path = (
+        _bucket_path(bucket)
+        + "/"
+        + quote(key, safe="/")
+        + "?annotation&annotationName="
+        + quote(name, safe="")
+    )
+    status, body = call("GET", path)
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "key": key, "name": name, "body": body}
+    return {
+        "ok": False,
+        "status": status or 502,
+        "bucket": bucket,
+        "key": key,
+        "name": name,
+        "error": _detail(body, status),
+    }

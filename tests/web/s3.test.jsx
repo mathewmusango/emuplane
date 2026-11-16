@@ -708,6 +708,55 @@ describe('s3', () => {
     }
   })
 
+  it("shows an object's tags, annotations and Object Lock state, each read on its own", async () => {
+    pinRegion('us-east-1')
+    await openBucket()
+    fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+    await screen.findByRole('dialog', { name: 'reports/2026.csv' })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Tags' }))
+    expect(await screen.findByText('stage')).toBeTruthy()
+    expect(screen.getByText('prod')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Annotations' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'note' }))
+    // GetObjectAnnotation reads one annotation's own content.
+    expect(await screen.findByText('the note')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Object Lock' }))
+    expect(await screen.findByText('This object has no retention set.')).toBeTruthy()
+    expect(screen.getByText('This object is not under a legal hold.')).toBeTruthy()
+  })
+
+  it('never dresses a failed object read up as an empty state', async () => {
+    pinRegion('us-east-1')
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        if (String(url).split('?')[0] === '/api/s3/object-meta') {
+          return {
+            ok: false,
+            status: 503,
+            text: async () => JSON.stringify({ error: 'S3 refused the read' }),
+          }
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+      await screen.findByRole('dialog', { name: 'reports/2026.csv' })
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Tags' }))
+      expect(await screen.findByText('S3 refused the read')).toBeTruthy()
+      expect(screen.queryByText('This object has no tags.')).toBeNull()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('opens a bucket from a link that names no region, by asking where it lives', async () => {
     pinRegion('us-west-2')
     const listed = []

@@ -188,6 +188,25 @@ export const RESPONSES = {
       },
     ],
   },
+  '/api/s3/object-meta': {
+    ok: true,
+    status: 200,
+    bucket: 'logs-bucket',
+    key: 'reports/2026.csv',
+    tags: [{ Key: 'stage', Value: 'prod' }],
+    annotations: [
+      { name: 'note', size: '8', modified: '2026-11-16T13:06:12Z', etag: 'abc123' },
+    ],
+    retention: null,
+    legal_hold: null,
+    errors: {},
+  },
+  '/api/s3/object-annotation': {
+    ok: true,
+    status: 200,
+    name: 'note',
+    body: 'the note',
+  },
   '/api/s3/file-systems': {
     ok: true,
     status: 200,

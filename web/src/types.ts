@@ -160,6 +160,42 @@ export interface ObjectContent {
   error?: string
 }
 
+/** One of an object's annotations, as ListObjectAnnotations lists it. */
+export interface ObjectAnnotationRow {
+  name: string
+  size: string
+  modified: string
+  etag: string
+}
+
+/**
+ * The reads that live beside an object: its tag set, its annotations and the two
+ * Object Lock states. An unset subresource is not an error, so `errors` carries
+ * only what genuinely failed.
+ */
+export interface ObjectMeta {
+  ok: boolean
+  bucket: string
+  key: string
+  tags: BucketTag[]
+  annotations: ObjectAnnotationRow[]
+  /** The retention and legal-hold documents as S3 answers them; null when unset. */
+  retention: string | null
+  legal_hold: string | null
+  errors: Record<string, string>
+  account?: string
+  region?: string
+  error?: string
+}
+
+/** GetObjectAnnotation: one annotation's own content, which is text. */
+export interface ObjectAnnotation {
+  ok: boolean
+  name: string
+  body: string
+  error?: string
+}
+
 /** HeadBucket: whether a name exists, and the region it lives in. */
 export interface BucketHead {
   ok: boolean

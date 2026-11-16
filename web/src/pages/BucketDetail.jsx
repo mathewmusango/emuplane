@@ -92,6 +92,10 @@ export default function BucketDetail() {
   const [documentError, setDocumentError] = useState('')
   const [objectView, setObjectView] = useState(null)
   const [objectError, setObjectError] = useState('')
+  const [objectMeta, setObjectMeta] = useState(null)
+  const [objectMetaError, setObjectMetaError] = useState('')
+  const [annotation, setAnnotation] = useState(null)
+  const [annotationError, setAnnotationError] = useState('')
   const [deletingObject, setDeletingObject] = useState(null)
   const [copying, setCopying] = useState(null)
   const [copyTo, setCopyTo] = useState(null)
@@ -207,12 +211,35 @@ export default function BucketDetail() {
 
   const openObject = async (key) => {
     setObjectError('')
+    setObjectMeta(null)
+    setObjectMetaError('')
+    setAnnotation(null)
+    setAnnotationError('')
     try {
       const answer = await api.readObject(account, region, name, key)
       setObjectView(answer)
     } catch (err) {
       setObjectView(null)
       setObjectError(err.message)
+      return
+    }
+    // The reads beside the object follow it: its tags, its annotations and the two
+    // Object Lock states are all reads on the same path, and their failure is not
+    // the object failing to open.
+    try {
+      setObjectMeta(await api.objectMeta(account, region, name, key))
+    } catch (err) {
+      setObjectMetaError(err.message)
+    }
+  }
+
+  const openAnnotation = async (annotationName) => {
+    setAnnotation(null)
+    setAnnotationError('')
+    try {
+      setAnnotation(await api.objectAnnotation(account, region, name, objectView.key, annotationName))
+    } catch (err) {
+      setAnnotationError(err.message)
     }
   }
 
@@ -1030,6 +1057,167 @@ export default function BucketDetail() {
     </Container>
   )
 
+  // The reads that sit beside an object rather than in it. Each is its own GET, so
+  // a failure names the read that failed instead of hiding the whole tab.
+  const metaFailed = (label) => {
+    const reason = objectMeta?.errors?.[label]
+    return reason ? (
+      <Alert type="error" header={`Could not read the object's ${label.replace('_', ' ')}`}>
+        {reason}
+      </Alert>
+    ) : null
+  }
+
+  const objectContent = objectError ? (
+    <Alert type="error">{objectError}</Alert>
+  ) : (
+    <SpaceBetween size="m">
+      {/* What only HeadObject knows: a GET's bytes carry none of it. */}
+      <ColumnLayout columns={4} variant="text-grid">
+        <div>
+          <Box variant="awsui-key-label">Size</Box>
+          {formatSize(objectView?.size)}
+        </div>
+        <div>
+          <Box variant="awsui-key-label">Type</Box>
+          <span className="mono">{objectView?.content_type}</span>
+        </div>
+        <div>
+          <Box variant="awsui-key-label">ETag</Box>
+          <span className="mono">{objectView?.etag || dash}</span>
+        </div>
+        <div>
+          <Box variant="awsui-key-label">Last modified</Box>
+          {objectView?.last_modified || dash}
+        </div>
+      </ColumnLayout>
+      {objectView?.binary ? (
+        <Alert type="info" header="This object is not text">
+          It is stored as <span className="mono">{objectView.content_type}</span>, so the page
+          offers it as a download rather than showing bytes that would not mean anything.
+        </Alert>
+      ) : (
+        <SpaceBetween size="xs">
+          <pre className="result-body">{objectView?.body}</pre>
+          {objectView?.truncated && (
+            <Box color="text-body-secondary" fontSize="body-s">
+              Showing the first 20 000 characters. Download to see all of it.
+            </Box>
+          )}
+        </SpaceBetween>
+      )}
+    </SpaceBetween>
+  )
+
+  const objectTab = objectError ? null : (
+    <Tabs
+      tabs={[
+        { id: 'content', label: 'Content', content: objectContent },
+        {
+          id: 'tags',
+          label: 'Tags',
+          content: objectMetaError ? (
+            <Alert type="error" header="Could not read this object's tags">
+              {objectMetaError}
+            </Alert>
+          ) : (
+            <SpaceBetween size="m">
+              {metaFailed('tags')}
+              {(objectMeta?.tags || []).length === 0 && !objectMeta?.errors?.tags ? (
+                <Box color="text-body-secondary">This object has no tags.</Box>
+              ) : (
+                <Table
+                  items={objectMeta?.tags || []}
+                  trackBy="Key"
+                  columnDefinitions={[
+                    { id: 'key', header: 'Key', cell: (tag) => tag.Key },
+                    { id: 'value', header: 'Value', cell: (tag) => tag.Value },
+                  ]}
+                />
+              )}
+            </SpaceBetween>
+          ),
+        },
+        {
+          id: 'annotations',
+          label: 'Annotations',
+          content: objectMetaError ? (
+            <Alert type="error" header="Could not read this object's annotations">
+              {objectMetaError}
+            </Alert>
+          ) : (
+            <SpaceBetween size="m">
+              {metaFailed('annotations')}
+              {annotationError && <Alert type="error">{annotationError}</Alert>}
+              {(objectMeta?.annotations || []).length === 0 && !objectMeta?.errors?.annotations ? (
+                <Box color="text-body-secondary">This object has no annotations.</Box>
+              ) : (
+                <Table
+                  items={objectMeta?.annotations || []}
+                  trackBy="name"
+                  columnDefinitions={[
+                    {
+                      id: 'name',
+                      header: 'Name',
+                      cell: (row) => (
+                        <Button variant="inline-link" onClick={() => openAnnotation(row.name)}>
+                          {row.name}
+                        </Button>
+                      ),
+                    },
+                    {
+                      id: 'size',
+                      header: 'Size',
+                      width: 110,
+                      cell: (row) => formatSize(Number(row.size)),
+                    },
+                    { id: 'modified', header: 'Last modified', cell: (row) => row.modified },
+                  ]}
+                />
+              )}
+              {annotation && (
+                <div>
+                  <Box variant="awsui-key-label">{annotation.name}</Box>
+                  <pre className="result-body">{annotation.body}</pre>
+                </div>
+              )}
+            </SpaceBetween>
+          ),
+        },
+        {
+          id: 'object-lock',
+          label: 'Object Lock',
+          content: objectMetaError ? (
+            <Alert type="error" header="Could not read this object's Object Lock state">
+              {objectMetaError}
+            </Alert>
+          ) : (
+            <SpaceBetween size="m">
+              {metaFailed('retention')}
+              {metaFailed('legal_hold')}
+              <div>
+                <Box variant="awsui-key-label">Retention</Box>
+                {objectMeta?.retention ? (
+                  <pre className="result-body">{objectMeta.retention}</pre>
+                ) : (
+                  <Box color="text-body-secondary">This object has no retention set.</Box>
+                )}
+              </div>
+              <div>
+                <Box variant="awsui-key-label">Legal hold</Box>
+                {objectMeta?.legal_hold ? (
+                  <pre className="result-body">{objectMeta.legal_hold}</pre>
+                ) : (
+                  <Box color="text-body-secondary">This object is not under a legal hold.</Box>
+                )}
+              </div>
+            </SpaceBetween>
+          ),
+        },
+      ]}
+    />
+  )
+
   return (
     <Shell
       breadcrumbs={[
@@ -1062,6 +1250,10 @@ export default function BucketDetail() {
           onDismiss={() => {
             setObjectView(null)
             setObjectError('')
+            setObjectMeta(null)
+            setObjectMetaError('')
+            setAnnotation(null)
+            setAnnotationError('')
           }}
           header={objectView ? objectView.key : 'Could not read this object'}
           size="large"
@@ -1105,47 +1297,7 @@ export default function BucketDetail() {
             ) : undefined
           }
         >
-          {objectError ? (
-            <Alert type="error">{objectError}</Alert>
-          ) : (
-            <SpaceBetween size="m">
-              {/* What only HeadObject knows: a GET's bytes carry none of it. */}
-              <ColumnLayout columns={4} variant="text-grid">
-                <div>
-                  <Box variant="awsui-key-label">Size</Box>
-                  {formatSize(objectView?.size)}
-                </div>
-                <div>
-                  <Box variant="awsui-key-label">Type</Box>
-                  <span className="mono">{objectView?.content_type}</span>
-                </div>
-                <div>
-                  <Box variant="awsui-key-label">ETag</Box>
-                  <span className="mono">{objectView?.etag || dash}</span>
-                </div>
-                <div>
-                  <Box variant="awsui-key-label">Last modified</Box>
-                  {objectView?.last_modified || dash}
-                </div>
-              </ColumnLayout>
-              {objectView?.binary ? (
-                <Alert type="info" header="This object is not text">
-                  It is stored as <span className="mono">{objectView.content_type}</span>, so
-                  the page offers it as a download rather than showing bytes that would not
-                  mean anything.
-                </Alert>
-              ) : (
-                <SpaceBetween size="xs">
-                  <pre className="result-body">{objectView?.body}</pre>
-                  {objectView?.truncated && (
-                    <Box color="text-body-secondary" fontSize="body-s">
-                      Showing the first 20 000 characters. Download to see all of it.
-                    </Box>
-                  )}
-                </SpaceBetween>
-              )}
-            </SpaceBetween>
-          )}
+          {objectTab}
         </Modal>
         <Modal
           visible={Boolean(documentEdit)}

@@ -17,7 +17,9 @@ import type {
   MeResult,
   NewAccessKeyResult,
   NodeRow,
+  ObjectAnnotation,
   ObjectContent,
+  ObjectMeta,
   ObjectsResult,
   ProvisionResult,
   RegionResult,
@@ -210,6 +212,22 @@ export const api = {
   readObject: (account: string, region: string, bucket: string, key: string) =>
     request<ObjectContent>(
       `/api/s3/object?${query({ account, region, bucket, key })}`,
+    ),
+  /** The reads beside an object: tags, annotations, retention, legal hold. */
+  objectMeta: (account: string, region: string, bucket: string, key: string) =>
+    request<ObjectMeta>(
+      `/api/s3/object-meta?${query({ account, region, bucket, key })}`,
+    ),
+  /** GetObjectAnnotation: one annotation's own content. */
+  objectAnnotation: (
+    account: string,
+    region: string,
+    bucket: string,
+    key: string,
+    name: string,
+  ) =>
+    request<ObjectAnnotation>(
+      `/api/s3/object-annotation?${query({ account, region, bucket, key, name })}`,
     ),
   bucketSettings: (account: string, region: string, bucket: string) =>
     request<BucketSettings>(

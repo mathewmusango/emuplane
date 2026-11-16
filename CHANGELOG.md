@@ -9,6 +9,17 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **The reads beside an object are shown.** The object view is tabbed now —
+  *Content*, *Tags*, *Annotations*, *Object Lock* — and each tab is its own read on
+  the object's own path: `GetObjectTagging` for the tag set,
+  `ListObjectAnnotations` for the annotation rows (opening one runs
+  `GetObjectAnnotation`), and `GetObjectRetention` + `GetObjectLegalHold` for the
+  two lock states. An unset one is a state, not a failure: Object Lock that is not
+  configured, an empty tag set and no annotations all read as themselves, while a
+  read that genuinely failed names the read and the reason. `GET
+  /api/s3/object-meta` answers the four in one call and `GET
+  /api/s3/object-annotation` answers one annotation's content. S3.md counts five
+  more operations shown: 52 of 84, and 28 of the 35 reads.
 - **The bucket page carries the console's tabs.** *Objects*, *Properties*,
   *Permissions*, *Management*, *File systems* and *Access Points*, laid out the way
   AWS lays them out: each configuration document sits on the tab that owns it —
