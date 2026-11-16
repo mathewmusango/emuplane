@@ -22,8 +22,8 @@ image=${EP_IMAGE:-}
 if [ -z "$image" ]; then
   image=$(sed -n 's/^EP_IMAGE=//p' .env 2>/dev/null)
 fi
-if [ -z "$image" ] && [ -f compose.yml ]; then
-  image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' compose.yml | head -n 1)
+if [ -z "$image" ] && [ -f compose.lab.yml ]; then
+  image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' compose.lab.yml | head -n 1)
 fi
 image=${image:-localhost/emuplane:dev}
 

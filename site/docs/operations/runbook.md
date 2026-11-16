@@ -22,6 +22,9 @@ The first run creates `.env` from `.env.example` (mode `0600`). No credential is
 seeded: the API bearer token is minted on demand by `./scripts/token.sh` and
 stored as a hash, so `.env` carries no secret at all.
 
+`docker-compose.yml` is the product's own definition; `up.sh` layers an untracked
+`compose.lab.yml` over it for a deployment's image, names, routes and network.
+
 ## The image
 
 Two stages: Node builds `web/dist`, then the Python stage copies it and the

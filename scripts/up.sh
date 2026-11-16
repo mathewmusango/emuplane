@@ -43,9 +43,9 @@ if podman container exists "$host" 2>/dev/null; then
   fi
 fi
 
-# docker-compose.yml is generic; an untracked overlay (compose.yml, or EP_OVERLAY) adds names, routes, network, mounts and the project name, so -p is explicit.
+# docker-compose.yml is generic; an untracked overlay (compose.lab.yml, or EP_OVERLAY) adds names, routes, network, mounts and the project name, so -p is explicit.
 overlay=$(sed -n 's/^EP_OVERLAY=//p' .env)
-overlay=${overlay:-compose.yml}
+overlay=${overlay:-compose.lab.yml}
 project=$(sed -n 's/^EP_PROJECT_NAME=//p' .env)
 if [ -z "$project" ] && [ -f "$overlay" ]; then
   project=$(sed -n 's/^name: *//p' "$overlay" | head -n 1)
