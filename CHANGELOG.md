@@ -9,6 +9,16 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **The bucket page carries the console's tabs.** *Objects*, *Properties*,
+  *Permissions*, *Management*, *File systems* and *Access Points*, laid out the way
+  AWS lays them out: each configuration document sits on the tab that owns it —
+  logging, notifications and the version listing on *Properties*; bucket policy,
+  ACL and CORS on *Permissions*; lifecycle and replication on *Management* — and a
+  failed read is reported on whichever tab it touches instead of leaving the cards
+  looking unconfigured. *File systems* and *Access Points* list the ones attached
+  to this bucket alone, and a listing that could not be read says so rather than
+  reading as none. A document with a `DELETE` behind it carries a *Delete* on its
+  card, which asks first — it is not the editor with a different footer.
 - **Every operation now has a test.** `tests/s3/test_operations.py` drives the
   37 operations the console does not: the remaining bucket-configuration writes
   (logging, notifications via EventBridge, replication), multipart upload from

@@ -33,9 +33,6 @@ const MAX_UPLOAD = 25 * 1024 * 1024
 
 const dash = '\u2014'
 
-// The one document that is a listing rather than a setting says so, since it sits
-// in a section named for configuration.
-const DOCUMENT_LABELS = { versions: 'versions (ListObjectVersions)' }
 
 // The console's three encryption choices, as the create page offers them.
 const ENCRYPTION = [
@@ -101,6 +98,10 @@ export default function BucketDetail() {
   const [copyKey, setCopyKey] = useState('')
   const [copyError, setCopyError] = useState('')
   const [allBuckets, setAllBuckets] = useState([])
+  const [files, setFiles] = useState([])
+  const [filesError, setFilesError] = useState('')
+  const [points, setPoints] = useState([])
+  const [pointsError, setPointsError] = useState('')
 
   useEffect(() => {
     if (!account || !name) return undefined
@@ -241,10 +242,11 @@ export default function BucketDetail() {
       ? '{\n  "Version": "2012-10-17",\n  "Statement": []\n}'
       : `<${meta.root} xmlns="http://s3.amazonaws.com/doc/2006-03-01/">\n</${meta.root}>`
 
-  const openDocument = (label) => {
+  const openDocument = (label, title) => {
     setDocumentError('')
     setDocumentEdit({
       label,
+      title,
       meta: editable[label],
       text: documents[label] || templateFor(editable[label] || { kind: 'xml', root: label }),
     })
@@ -431,6 +433,12 @@ export default function BucketDetail() {
               width: 230,
             },
             { id: 'size', header: 'Size', cell: (item) => item.size, width: 110 },
+            {
+              id: 'storage',
+              header: 'Storage class',
+              cell: (item) => item.storage || 'STANDARD',
+              width: 160,
+            },
           ]}
           empty={
             <Box textAlign="center">
@@ -447,6 +455,106 @@ export default function BucketDetail() {
     </Container>
   )
 
+  // The two child listings the bucket page shows for this bucket alone: S3 Files
+  // and the access points attached to it.
+  useEffect(() => {
+    if (!account || !bucketRegion || headMissing) return undefined
+    let live = true
+    api
+      .s3FileSystems(account, region)
+      .then((answer) => {
+        if (!live) return
+        setFiles((answer.items || []).filter((row) => row.bucket === name))
+        setFilesError('')
+      })
+      .catch((err) => {
+        if (live) setFilesError(err.message)
+      })
+    api
+      .accessPoints(account, region, 'general')
+      .then((answer) => {
+        if (!live) return
+        // The listing is account-wide; this tab is about one bucket's points.
+        setPoints((answer.access_points || []).filter((row) => row.bucket === name))
+        setPointsError('')
+      })
+      .catch((err) => {
+        if (live) setPointsError(err.message)
+      })
+    return () => {
+      live = false
+    }
+  }, [account, region, name, bucketRegion, headMissing])
+
+  // One card per subresource, the way the console lays them out: the document as
+  // S3 answers it, with the control that writes it.
+  const documentCard = (label, title, description) => {
+    const meta = editable[label] || {}
+    const aclLocked = label === 'acl' && settings?.ownership === 'BucketOwnerEnforced'
+    return (
+      <Container
+        key={label}
+        header={
+          <Header
+            variant="h2"
+            description={description}
+            actions={
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button
+                  ariaLabel={`Edit ${label}`}
+                  disabled={aclLocked}
+                  onClick={() => openDocument(label, title)}
+                >
+                  Edit
+                </Button>
+                {documents[label] && meta.delete && (
+                  <Button
+                    ariaLabel={`Delete ${label}`}
+                    loading={saving}
+                    onClick={() => {
+                      setDocumentError('')
+                      setDocumentEdit({
+                        label,
+                        title,
+                        meta,
+                        text: documents[label],
+                        deleting: true,
+                      })
+                    }}
+                  >
+                    Delete
+                  </Button>
+                )}
+              </SpaceBetween>
+            }
+          >
+            {title}
+          </Header>
+        }
+      >
+        {aclLocked && (
+          <Box color="text-body-secondary" fontSize="body-s">
+            ACLs are disabled for this bucket (Object Ownership: bucket owner enforced),
+            so S3 refuses to change this policy.
+          </Box>
+        )}
+        {documents[label] ? (
+          <pre className="result-body">{documents[label]}</pre>
+        ) : (
+          <Box color="text-body-secondary">Not configured.</Box>
+        )}
+      </Container>
+    )
+  }
+
+  // A failed read is not the same as an empty document, so every tab that renders
+  // one says the read failed rather than letting the cards look unconfigured.
+  const documentsAlert = (
+    <Alert type="error" header="Could not read this bucket's configuration">
+      {documentsError}
+    </Alert>
+  )
+
   const propertiesTab = (
     <SpaceBetween size="l">
       {settingsError && (
@@ -454,6 +562,7 @@ export default function BucketDetail() {
           {settingsError}
         </Alert>
       )}
+      {documentsError && documentsAlert}
       <Container header={<Header variant="h2">Bucket overview</Header>}>
         <SpaceBetween size="xs">
           <Box>
@@ -681,69 +790,28 @@ export default function BucketDetail() {
           />
         )}
       </Container>
+      {documentCard(
+        'logging',
+        'Server access logging',
+        "Log requests for access to your bucket.",
+      )}
+      {documentCard(
+        'notifications',
+        'Event notifications',
+        'Send a notification when specific events occur in your bucket.',
+      )}
       <Container
         header={
-          <Header
-            variant="h2"
-            description="Each subresource S3 holds for this bucket, as S3 answers it. Edit one to write it back; a document S3 reports as empty is not configured."
-          >
-            Configuration documents
+          <Header variant="h2" description="Every version of every object in this bucket.">
+            Versions
           </Header>
         }
       >
-        <SpaceBetween size="m">
-          {documentsError && (
-            <Alert type="error" header="Could not read these documents">
-              {documentsError}
-            </Alert>
-          )}
-          {!documentsError &&
-            Object.keys(editable).map((label) => {
-              // Object Ownership decides whether S3 will take an ACL at all: with
-              // "bucket owner enforced" the bucket does not allow ACLs, so the row
-              // says that instead of offering an edit that can only fail.
-              const aclLocked = label === 'acl' && settings?.ownership === 'BucketOwnerEnforced'
-              return (
-                <div key={label}>
-                  <Header
-                    variant="h3"
-                    actions={
-                      <Button
-                        ariaLabel={`Edit ${label}`}
-                        disabled={aclLocked}
-                        onClick={() => openDocument(label)}
-                      >
-                        Edit
-                      </Button>
-                    }
-                  >
-                    {DOCUMENT_LABELS[label] || label}
-                  </Header>
-                  {aclLocked && (
-                    <Box color="text-body-secondary" fontSize="body-s">
-                      ACLs are disabled for this bucket (Object Ownership: bucket owner
-                      enforced), so S3 refuses to change this policy.
-                    </Box>
-                  )}
-                  {documents[label] ? (
-                    <pre className="result-body">{documents[label]}</pre>
-                  ) : (
-                    <Box color="text-body-secondary">Not configured.</Box>
-                  )}
-                </div>
-              )
-            })}
-          {!documentsError && (
-            <div>
-              <Header variant="h3">versions (ListObjectVersions)</Header>
-              {documents.versions ? (
-                <pre className="result-body">{documents.versions}</pre>
-              ) : (
-                <Box color="text-body-secondary">Not configured.</Box>
-              )}
-            </div>
-          )}
-        </SpaceBetween>
+        {documents.versions ? (
+          <pre className="result-body">{documents.versions}</pre>
+        ) : (
+          <Box color="text-body-secondary">No versions to list.</Box>
+        )}
       </Container>
     </SpaceBetween>
   )
@@ -809,7 +877,157 @@ export default function BucketDetail() {
           ? 'ACLs enabled — bucket owner preferred'
           : 'ACLs disabled — bucket owner enforced'}
       </Alert>
+
+      {documentsError && documentsAlert}
+      {documentCard(
+        'policy',
+        'Bucket policy',
+        'The bucket policy, written in JSON, provides access to the objects stored in the bucket.',
+      )}
+      {documentCard(
+        'acl',
+        'Access control list (ACL)',
+        'Grant basic read/write permissions to other AWS accounts.',
+      )}
+      {documentCard(
+        'cors',
+        'Cross-origin resource sharing (CORS)',
+        'The CORS configuration defines how client web applications in one domain interact with resources in another.',
+      )}
     </SpaceBetween>
+  )
+
+  const managementTab = (
+    <SpaceBetween size="l">
+      {documentsError && documentsAlert}
+      {documentCard(
+        'lifecycle',
+        'Lifecycle configuration',
+        'A lifecycle configuration is a set of rules that define actions that S3 applies to a group of objects.',
+      )}
+      {documentCard(
+        'replication',
+        'Replication rules',
+        'Replication rules define what S3 applies to objects when it copies them to another bucket.',
+      )}
+    </SpaceBetween>
+  )
+
+  const fileSystemsTab = (
+    <Container
+      header={
+        <Header
+          variant="h2"
+          counter={`(${files.length})`}
+          description="File systems give S3 data file-level access; this lists the ones mounted on this bucket."
+        >
+          File systems
+        </Header>
+      }
+    >
+      <SpaceBetween size="m">
+        {filesError && (
+          <Alert type="error" header="Could not read the file systems">
+            {filesError}
+          </Alert>
+        )}
+        <Table
+          items={files}
+          trackBy="fileSystemId"
+          columnDefinitions={[
+            {
+              id: 'id',
+              header: 'File system ID',
+              cell: (item) => <span className="mono">{item.fileSystemId}</span>,
+            },
+            { id: 'name', header: 'Name', cell: (item) => item.name || dash },
+            { id: 'status', header: 'Status', cell: (item) => item.status, width: 140 },
+          ]}
+          empty={
+            filesError ? (
+              <Box textAlign="center" color="text-body-secondary">
+                The listing could not be read, so this is not a count of zero.
+              </Box>
+            ) : (
+              <Box textAlign="center">
+                <SpaceBetween size="xs">
+                  <Box color="text-body-secondary">
+                    You don&apos;t have any file systems in this bucket.
+                  </Box>
+                  <Button variant="link" onClick={() => navigate('/s3/files')}>
+                    All file systems
+                  </Button>
+                </SpaceBetween>
+              </Box>
+            )
+          }
+        />
+      </SpaceBetween>
+    </Container>
+  )
+
+  const accessPointsTab = (
+    <Container
+      header={
+        <Header
+          variant="h2"
+          counter={`(${points.length})`}
+          description="Access points are named network endpoints attached to this bucket."
+          actions={
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="primary"
+                onClick={() => navigate(`/s3/access-points/create?region=${region}`)}
+              >
+                Create access point
+              </Button>
+            </SpaceBetween>
+          }
+        >
+          Access Points for general purpose buckets
+        </Header>
+      }
+    >
+      <SpaceBetween size="m">
+        {pointsError && (
+          <Alert type="error" header="Could not read the access points">
+            {pointsError}
+          </Alert>
+        )}
+        <Table
+          items={points}
+          trackBy={(row) => row.arn || row.name}
+          columnDefinitions={[
+            { id: 'name', header: 'Name', cell: (row) => row.name },
+            { id: 'type', header: 'Data source type', cell: () => 'Bucket', width: 150 },
+            {
+              id: 'alias',
+              header: 'Access Point alias',
+              cell: (row) => <span className="mono">{row.alias || dash}</span>,
+            },
+            { id: 'origin', header: 'Network origin', cell: (row) => row.network_origin, width: 150 },
+          ]}
+          empty={
+            pointsError ? (
+              <Box textAlign="center" color="text-body-secondary">
+                The listing could not be read, so this is not a count of zero.
+              </Box>
+            ) : (
+              <Box textAlign="center">
+                <SpaceBetween size="xs">
+                  <Box color="text-body-secondary">
+                    You don&apos;t have any access points on this bucket.
+                  </Box>
+                  <Button variant="link" onClick={() => navigate('/s3/access-points')}>
+                    All access points
+                  </Button>
+                </SpaceBetween>
+              </Box>
+            )
+          }
+        />
+      </SpaceBetween>
+    </Container>
   )
 
   return (
@@ -833,6 +1051,9 @@ export default function BucketDetail() {
               { id: 'objects', label: 'Objects', content: objectsTab },
               { id: 'properties', label: 'Properties', content: propertiesTab },
               { id: 'permissions', label: 'Permissions', content: permissionsTab },
+              { id: 'management', label: 'Management', content: managementTab },
+              { id: 'files', label: 'File systems', content: fileSystemsTab },
+              { id: 'access-points', label: 'Access Points', content: accessPointsTab },
             ]}
           />
         )}
@@ -929,45 +1150,64 @@ export default function BucketDetail() {
         <Modal
           visible={Boolean(documentEdit)}
           onDismiss={() => setDocumentEdit(null)}
-          header={`Edit ${documentEdit?.label || ''}`}
-          size="large"
+          header={
+            `${documentEdit?.deleting ? 'Delete' : 'Edit'} ${documentEdit?.title || ''}`.trim()
+          }
+          size={documentEdit?.deleting ? 'medium' : 'large'}
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
                 <Button variant="link" onClick={() => setDocumentEdit(null)}>
                   Cancel
                 </Button>
-                {documents[documentEdit?.label] && documentEdit?.meta?.delete && (
-                  <Button loading={saving} onClick={clearDocument}>
-                    Remove document
+                {documentEdit?.deleting ? (
+                  <Button variant="primary" loading={saving} onClick={clearDocument}>
+                    Delete
                   </Button>
+                ) : (
+                  <>
+                    {documents[documentEdit?.label] && documentEdit?.meta?.delete && (
+                      <Button loading={saving} onClick={clearDocument}>
+                        Remove document
+                      </Button>
+                    )}
+                    <Button
+                      variant="primary"
+                      loading={saving}
+                      disabled={!documentEdit?.text?.trim()}
+                      onClick={saveDocument}
+                    >
+                      Save
+                    </Button>
+                  </>
                 )}
-                <Button
-                  variant="primary"
-                  loading={saving}
-                  disabled={!documentEdit?.text?.trim()}
-                  onClick={saveDocument}
-                >
-                  Save
-                </Button>
               </SpaceBetween>
             </Box>
           }
         >
           <SpaceBetween size="m">
             {documentError && <Alert type="error">{documentError}</Alert>}
-            <Box color="text-body-secondary" fontSize="body-s">
-              {documentEdit?.meta?.kind === 'json'
-                ? 'The bucket policy is a JSON document with a Statement.'
-                : `S3 takes this document as XML with a <${documentEdit?.meta?.root || ''}> root.`}
-            </Box>
-            <Textarea
-              value={documentEdit?.text || ''}
-              onChange={({ detail }) =>
-                setDocumentEdit((open) => ({ ...open, text: detail.value }))
-              }
-              rows={14}
-            />
+            {documentEdit?.deleting ? (
+              <Box>
+                S3 will answer <strong>{documentEdit?.title}</strong> as not configured from
+                now on. The objects in the bucket are not touched.
+              </Box>
+            ) : (
+              <>
+                <Box color="text-body-secondary" fontSize="body-s">
+                  {documentEdit?.meta?.kind === 'json'
+                    ? 'The bucket policy is a JSON document with a Statement.'
+                    : `S3 takes this document as XML with a <${documentEdit?.meta?.root || ''}> root.`}
+                </Box>
+                <Textarea
+                  value={documentEdit?.text || ''}
+                  onChange={({ detail }) =>
+                    setDocumentEdit((open) => ({ ...open, text: detail.value }))
+                  }
+                  rows={14}
+                />
+              </>
+            )}
           </SpaceBetween>
         </Modal>
         <Modal

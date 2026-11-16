@@ -520,17 +520,27 @@ describe('s3', () => {
     expect(within(dialog).getByText('24 B')).toBeTruthy()
   })
 
-  it('shows every document, and does not dress an unset one up as configuration', async () => {
+  it('shows each document on the tab that owns it, and says so when one is unset', async () => {
     pinRegion('us-east-1')
     await openBucket()
+
     fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
-    expect(await screen.findByText(/<Policy><Statement>/)).toBeTruthy()
-    // Every document has a row, because every one can be written...
-    expect(screen.getByText('logging')).toBeTruthy()
-    // ...but one S3 reports as empty says so instead of showing an element.
-    expect(screen.getAllByText('Not configured.').length).toBeGreaterThan(0)
+    expect(await screen.findByText('Server access logging')).toBeTruthy()
+    expect(screen.getByText('Event notifications')).toBeTruthy()
     // The one listing in the section says what it is.
-    expect(screen.getByText('versions (ListObjectVersions)')).toBeTruthy()
+    expect(screen.getByText(/ListVersionsResult/)).toBeTruthy()
+    // ...but a document S3 reports as empty says so instead of showing an element.
+    expect(screen.getAllByText('Not configured.').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }))
+    expect(await screen.findByText('Bucket policy')).toBeTruthy()
+    expect(screen.getByText(/<Policy><Statement>/)).toBeTruthy()
+    expect(screen.getByText('Access control list (ACL)')).toBeTruthy()
+    expect(screen.getByText('Cross-origin resource sharing (CORS)')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Management' }))
+    expect(await screen.findByText('Lifecycle configuration')).toBeTruthy()
+    expect(screen.getByText('Replication rules')).toBeTruthy()
   })
 
   it('writes a configuration document from its editor', async () => {
@@ -543,10 +553,10 @@ describe('s3', () => {
       '</CORSConfiguration>'
     try {
       await openBucket()
-      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }))
       fireEvent.click(await screen.findByRole('button', { name: 'Edit cors' }))
 
-      const dialog = await screen.findByRole('dialog', { name: 'Edit cors' })
+      const dialog = await screen.findByRole('dialog', { name: /Edit Cross-origin/ })
       fireEvent.change(within(dialog).getByRole('textbox'), {
         target: { value: cors },
       })
@@ -570,10 +580,10 @@ describe('s3', () => {
     const base = stubOnce('/api/s3/bucket-document', { ok: true, status: 200 }, sent)
     try {
       await openBucket()
-      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }))
       fireEvent.click(await screen.findByRole('button', { name: 'Edit policy' }))
 
-      const dialog = await screen.findByRole('dialog', { name: 'Edit policy' })
+      const dialog = await screen.findByRole('dialog', { name: /Edit Bucket policy/ })
       fireEvent.click(within(dialog).getByRole('button', { name: 'Remove document' }))
 
       await waitFor(() => expect(sent.length).toBe(1))
@@ -582,6 +592,117 @@ describe('s3', () => {
         document: 'policy',
         action: 'clear',
       })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('deletes a configuration document from its card, after a confirmation', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-document', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete policy' }))
+
+      // The card's Delete asks first: it is not the editor with a different footer.
+      const dialog = await screen.findByRole('dialog', { name: 'Delete Bucket policy' })
+      expect(within(dialog).queryByRole('textbox')).toBeNull()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        document: 'policy',
+        action: 'clear',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it("lists only this bucket's file systems", async () => {
+    pinRegion('us-east-1')
+    const base = stubOnce(
+      '/api/s3/file-systems',
+      {
+        ok: true,
+        status: 200,
+        items: [
+          { fileSystemId: 'fs-this-bucket', bucket: 'logs-bucket', status: 'available' },
+          { fileSystemId: 'fs-other-bucket', bucket: 'west-bucket', status: 'available' },
+        ],
+      },
+      [],
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'File systems' }))
+      expect(await screen.findByText('fs-this-bucket')).toBeTruthy()
+      expect(screen.queryByText('fs-other-bucket')).toBeNull()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it("lists only this bucket's access points", async () => {
+    pinRegion('us-east-1')
+    const point = (name, bucket) => ({
+      name,
+      alias: `${name}-alias`,
+      arn: `arn:aws:s3:us-east-1:111111111111:accesspoint/${name}`,
+      network_origin: 'Internet',
+      vpc_id: '',
+      created: '2026-11-16T09:00:00Z',
+      status: 'READY',
+      bucket,
+      buckets: [],
+      region: 'us-east-1',
+    })
+    const base = stubOnce(
+      '/api/s3/access-points',
+      {
+        ok: true,
+        status: 200,
+        section: 'general',
+        region: 'us-east-1',
+        access_points: [point('this-point', 'logs-bucket'), point('other-point', 'west-bucket')],
+      },
+      [],
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Access Points' }))
+      expect(await screen.findByText('this-point')).toBeTruthy()
+      expect(screen.queryByText('other-point')).toBeNull()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('does not let a failed child listing read as nothing here', async () => {
+    pinRegion('us-east-1')
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        if (String(url).split('?')[0] === '/api/s3/file-systems') {
+          return {
+            ok: false,
+            status: 503,
+            text: async () => JSON.stringify({ error: 'S3 Files is not configured' }),
+          }
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'File systems' }))
+      expect(await screen.findByText('S3 Files is not configured')).toBeTruthy()
+      // An unread listing is not an empty one.
+      expect(screen.queryByText(/don\u2019t have any file systems/)).toBeNull()
     } finally {
       vi.stubGlobal('fetch', base)
     }
@@ -816,7 +937,7 @@ describe('s3', () => {
     })
     try {
       await openBucket()
-      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }))
       const edit = await screen.findByRole('button', { name: 'Edit acl' })
       expect(edit.disabled).toBe(true)
       expect(screen.getByText(/ACLs are disabled for this bucket/)).toBeTruthy()
