@@ -59,8 +59,8 @@ the name the console shows, its default port and a note on what to expect from i
 `EP_BACKEND` picks the profile, `EP_BACKEND_URL` is where it lives, and changing
 backends is configuration rather than a fork.
 
-The reference backend is a fork of MiniStack with S3 region isolation —
-[why, and what differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
+The reference backend is [this fork of MiniStack](https://github.com/mathewmusango/ministack-upstream)
+with S3 region isolation, on `main` — [why, and what differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
 
 ## Layout
 
@@ -77,4 +77,6 @@ The reference backend is a fork of MiniStack with S3 region isolation —
 
 - [MiniStack documentation](https://ministack.org/docs/)
 - [MiniStack on GitHub](https://github.com/ministackorg/ministack)
+- [The emulator fork this project runs](https://github.com/mathewmusango/ministack-upstream)
+  (`main`)
 - [StackPort (UI inspiration)](https://github.com/DaviReisVieira/stackport)

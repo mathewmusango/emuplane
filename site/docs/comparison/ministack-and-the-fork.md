@@ -3,8 +3,10 @@ title: MiniStack and the fork
 ---
 
 Emuplane runs on an AWS emulator, and the reference emulator is [MiniStack](https://ministack.org).
-This project tracks a **fork** of it: a small set of changes the console needs,
-kept deliberately narrow so the rest stays upstream's code.
+This project tracks a **fork** of it —
+[mathewmusango/ministack-upstream](https://github.com/mathewmusango/ministack-upstream),
+built from upstream `v1.5.40` with its S3 work on `main`: a small set of changes
+the console needs, kept deliberately narrow so the rest stays upstream's code.
 
 ## Why a fork at all
 
