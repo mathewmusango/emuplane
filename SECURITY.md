@@ -51,15 +51,8 @@ happened and what you expected.
 - A gateway rule that can be bypassed: a resource in a region the account has not
   enabled, or one name claimed by two accounts.
 
-## Out of scope
-
-- Exposing the deployment to the internet without an authenticating proxy in front.
-- The emulator's own behaviour where Emuplane is not involved — report those
-  upstream.
-- The absence of signature verification, described above: it is the design, and
-  the lab is sized to it.
-- Anything that depends on the operator having published the deployment, or having
-  put a credential somewhere this repository says not to.
+Where the emulator itself is wrong, rather than what Emuplane does with it, the
+report belongs to the emulator's project.
 
 ## Supported versions
 
