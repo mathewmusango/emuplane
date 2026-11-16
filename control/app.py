@@ -2637,6 +2637,11 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             user = USERS.find_by_email(identifier)
             if user is None:
+                # An account provisioned without an address signs in by its account name.
+                account = ACCOUNTS.by_ref(identifier)
+                if account is not None:
+                    user = USERS.get(account["account_id"], "root")
+            if user is None:
                 time.sleep(0.4)
                 return self._json(
                     401, {"error": "That email address and password do not match."}

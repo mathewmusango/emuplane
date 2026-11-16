@@ -152,6 +152,28 @@ def test_an_iam_user_signs_in_with_the_account_and_the_name(console):
     assert body["role"] == "iam"
 
 
+def test_an_account_without_an_address_signs_in_by_its_name(console):
+    """A provisioned account may carry no email, so its name is the way in."""
+    import store
+
+    _s, _t, cookie = _signup(console, "ivy@example.com", "ivy-account")
+    account = _meta(console, cookie)["me"]["account"]
+    key = f"{account}/root"
+    row = json.loads(store.Store.tables["users"][key])
+    row["email"] = ""
+    store.Store.tables["users"][key] = json.dumps(row)
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/auth/login",
+        {"mode": "root", "email": "ivy-account", "password": PASSWORD},
+    )
+    assert status == 200, body
+    assert body["user"] == "root"
+    assert body["alias"] == "ivy-account"
+
+
 def test_a_legacy_credential_row_is_rekeyed_by_account(control):
     """Rows written before the account was part of the key are read once and rewritten."""
     import store
