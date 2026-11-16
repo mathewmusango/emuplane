@@ -5,7 +5,7 @@ x-runtime: &runtime
   TZ: "${TZ:-Africa/Nairobi}"
   # The backend profile (control/backends.py) and its connection string.
   EP_BACKEND: "${EP_BACKEND:-generic}"
-  EP_BACKEND_URL: "${EP_BACKEND_URL:?set EP_BACKEND_URL, or run scripts/up.sh which derives it}"
+  EP_BACKEND_URL: "${EP_BACKEND_URL:?set EP_BACKEND_URL in .env to the backend's endpoint}"
   # Empty means "use the profile's name, else the URL's host".
   EP_BACKEND_NAME: "${EP_BACKEND_NAME:-}"
   EP_CONSOLE_URL: "${EP_CONSOLE_URL:?set EP_CONSOLE_URL}"
@@ -46,6 +46,9 @@ services:
   emuplane:
     image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:latest}"
     restart: "no"
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
     environment:
       <<: *runtime
     ports:

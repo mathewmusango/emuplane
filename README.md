@@ -28,12 +28,17 @@ Currently tested on MiniStack only; the others are profiles, not verified
 targets.
 
 ```bash
-./scripts/up.sh
+cp .env.example .env        # set EP_BACKEND_URL to the backend's endpoint
+podman-compose up -d        # or: docker compose up -d
 ```
 
-The first run creates `.env` from `.env.example`, applies the CloudFormation stack
-that owns the control's DynamoDB tables, pulls the image and starts the console on
-`http://localhost:4570`.
+`bootstrap` runs first and applies the CloudFormation stack that owns the control's
+DynamoDB tables; the console then answers on `http://localhost:4570`.
+
+`./scripts/up.sh` is the maintainer's wrapper over the same two files: it derives
+`EP_BACKEND_URL` from `EP_BACKEND_CONTAINER` and `EP_BACKEND_PORT`, creates the lab
+network, pulls the image when it is missing, runs the bootstrap job explicitly and
+waits for `/health`. `--pull`, `--build` and `--dev` are its own.
 
 Nothing is seeded: create the first account at `/signup`. The API bearer token is
 optional: mint one with `./scripts/token.sh` when something other than the console

@@ -13,13 +13,15 @@ compose file in its own repository, and `up.sh` refuses to start without it.
 ## Start
 
 ```bash
-./scripts/up.sh           # .env, pull the published image, apply the control stack, start
-./scripts/up.sh --pull    # refresh the tag, for when `latest` has moved
-./scripts/up.sh --dev     # as above, with the console and the control source mounted
-./scripts/up.sh --build   # a maintainer: build from this checkout instead of pulling
+cp .env.example .env        # EP_BACKEND_URL, EP_CONSOLE_URL, EP_GATEWAY_URL
+podman-compose up -d        # bootstrap first, then the control
 ```
 
-The first run creates `.env` from `.env.example` (mode `0600`). No credential is
+`./scripts/up.sh` is the maintainer's wrapper over the same two compose files: it
+derives `EP_BACKEND_URL` from `EP_BACKEND_CONTAINER` and `EP_BACKEND_PORT` when that
+is empty, creates the lab network, pulls the image when it is missing, runs the
+bootstrap job explicitly and waits for `/health`. The first run creates `.env` from
+`.env.example` (mode `0600`) when it is missing. No credential is
 seeded: the API bearer token is minted on demand by `./scripts/token.sh` and
 stored as a hash, so `.env` carries no secret at all.
 
@@ -49,12 +51,13 @@ host and nothing has to be built there.
 
 ## The bootstrap stack
 
-Before the console starts, `up.sh` runs the `bootstrap` service
-(`bootstrap/apply.py`), which applies `bootstrap/template.yml` as the
-CloudFormation stack `emuplane`. That stack owns the eleven DynamoDB tables the
-control keeps its own state in.
+Before the console starts, the `bootstrap` service (`bootstrap/apply.py`) applies
+`bootstrap/template.yml` as the CloudFormation stack `emuplane`. That stack owns the
+eleven DynamoDB tables the control keeps its own state in.
 
-- The job is idempotent: an existing stack is left alone.
+- Compose orders it: `emuplane` declares `depends_on: bootstrap:
+  service_completed_successfully`, so a plain `up -d` is enough.
+- `up.sh` runs it explicitly first, and is idempotent either way.
 - **The control refuses to serve when a table is missing**, naming it and this
   command, rather than starting and failing on the first sign-in.
 - Tables that predate the stack are reported, not adopted — CloudFormation cannot
