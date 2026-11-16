@@ -54,6 +54,19 @@ python3 scripts/changelog.py --version v0.2.0 --check
 Both rules are `scripts/triage.py`, tested in `tests/changelog/`, so the regex lives
 in one place rather than in the workflow YAML.
 
+## Creating the labels
+
+`.github/changelog.json` is the source of truth for both the gates and the
+sections, so the repository's labels are derived from it:
+
+```bash
+python3 scripts/changelog.py --create-labels --dry-run   # say what is missing
+python3 scripts/changelog.py --create-labels             # create it, leaving the rest alone
+```
+
+It is idempotent: a label that already exists is never touched, so colours edited
+in the GitHub UI survive. It needs an authenticated `gh` and nothing else.
+
 ## Writing a bullet that reads well
 
 The default bullet is the issue title. When the title is written for the tracker

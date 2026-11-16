@@ -116,6 +116,61 @@ def check(text: str, version: str) -> int:
     return 1
 
 
+def label_plan(config: dict) -> list[dict]:
+    """Every label the two gates depend on, with the colour and description `gh` is given."""
+    plan: list[dict] = []
+    for section in config.get("sections", []):
+        for name in section.get("labels", []):
+            plan.append(
+                {
+                    "name": name,
+                    "color": str(section.get("color") or "ededed").lstrip("#"),
+                    "description": f"Changelog: {section['title']}",
+                }
+            )
+    for name in config.get("exclude_labels", []):
+        plan.append(
+            {
+                "name": name,
+                "color": str(config.get("exclude_color") or "ededed").lstrip("#"),
+                "description": "Not in the changelog",
+            }
+        )
+    return plan
+
+
+def gh(arguments: list[str]) -> str:
+    """One `gh` call, answered as stdout; a failure is reported rather than swallowed."""
+    finished = subprocess.run(["gh", *arguments], capture_output=True, text=True)
+    if finished.returncode != 0:
+        raise SystemExit(f"gh {' '.join(arguments)} failed: {finished.stderr.strip()}")
+    return finished.stdout
+
+
+def sync_labels(repo: str, plan: list[dict], dry_run: bool = False, runner=gh) -> tuple[int, int]:
+    """Create the labels the repository does not have yet, and leave the rest alone."""
+    existing = json.loads(runner(["label", "list", "--repo", repo, "--limit", "400", "--json", "name"]))
+    held = {str(label.get("name", "")).lower() for label in existing}
+    created = 0
+    for label in plan:
+        if label["name"].lower() in held:
+            continue
+        if dry_run:
+            print(f"would create {label['name']} ({label['color']}): {label['description']}")
+            continue
+        runner(
+            [
+                "label", "create", label["name"],
+                "--repo", repo,
+                "--color", label["color"],
+                "--description", label["description"],
+            ]
+        )
+        created += 1
+    present = sum(1 for label in plan if label["name"].lower() in held)
+    return created, present
+
+
 def repo_slug(explicit: str = "") -> str:
     if explicit:
         return explicit
@@ -171,15 +226,32 @@ def fetch_issues(repo: str, since: str, token: str) -> list[dict]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--version", required=True, help="the tag this release is, e.g. v0.2.0")
+    parser.add_argument("--version", default="", help="the tag this release is, e.g. v0.2.0")
     parser.add_argument("--since", default="", help="ISO date to count from; defaults to the last tag")
     parser.add_argument("--repo", default="", help="owner/name; defaults to origin")
     parser.add_argument("--date", default=date.today().isoformat(), help="the release date in the heading")
     parser.add_argument("--write", action="store_true", help="insert the section into CHANGELOG.md")
     parser.add_argument("--check", action="store_true", help="fail when the section is missing")
+    parser.add_argument(
+        "--create-labels",
+        action="store_true",
+        help="create the labels the gates need, from .github/changelog.json",
+    )
+    parser.add_argument("--dry-run", action="store_true", help="say what --create-labels would do")
     args = parser.parse_args()
 
+    if args.create_labels:
+        plan = label_plan(load_config())
+        created, present = sync_labels(repo_slug(args.repo), plan, dry_run=args.dry_run)
+        if args.dry_run:
+            print(f"{len(plan) - present} label(s) missing, {present} already there")
+        else:
+            print(f"{created} label(s) created, {present} already there")
+        return 0
+
     text = FILE.read_text(encoding="utf-8")
+    if not args.version:
+        raise SystemExit("--version is required unless --create-labels is used")
     if args.check:
         return check(text, args.version)
 

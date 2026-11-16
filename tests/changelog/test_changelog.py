@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -117,3 +118,44 @@ def test_check_reports_the_missing_section(capsys):
 
     assert changelog.check(text + "## [v0.2.0] - 2026-11-16\n", "v0.2.0") == 0
     assert "has a section for v0.2.0" in capsys.readouterr().out
+
+
+def test_the_label_plan_covers_every_gate_label(config):
+    plan = changelog.label_plan(config)
+    named = {label["name"] for label in plan}
+    assert {"added", "bug", "security", "chore", "skip-changelog"} <= named
+    added = next(label for label in plan if label["name"] == "added")
+    assert added["color"] == "0e8a16"
+    assert added["description"] == "Changelog: Added"
+
+
+def test_sync_creates_only_what_is_missing(config):
+    calls = []
+
+    def runner(arguments):
+        calls.append(arguments)
+        if arguments[:2] == ["label", "list"]:
+            return json.dumps([{"name": "added"}, {"name": "bug"}])
+        return ""
+
+    created, present = changelog.sync_labels("o/r", changelog.label_plan(config), runner=runner)
+
+    assert created == len(changelog.label_plan(config)) - 2
+    assert present == 2
+    assert not any("added" in call for call in calls if call[:2] == ["label", "create"])
+
+
+def test_a_dry_run_creates_nothing(config):
+    calls = []
+
+    def runner(arguments):
+        calls.append(arguments)
+        return json.dumps([])
+
+    created, present = changelog.sync_labels(
+        "o/r", changelog.label_plan(config), dry_run=True, runner=runner
+    )
+
+    assert created == 0
+    assert present == 0
+    assert not any(call[:2] == ["label", "create"] for call in calls)
