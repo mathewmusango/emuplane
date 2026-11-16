@@ -40,6 +40,9 @@ DynamoDB tables; the console then answers on `http://localhost:4570`.
 network, pulls the image when it is missing, runs the bootstrap job explicitly and
 waits for `/health`. `--pull`, `--build` and `--dev` are its own.
 
+More: [Quickstart](https://mathewmusango.github.io/emuplane/docs/getting-started/quickstart)
+— the emulator first, then the first account and the first bucket.
+
 Nothing is seeded: create the first account at `/signup`. The API bearer token is
 optional: mint one with `./scripts/token.sh` when something other than the console
 needs the control API.
@@ -61,6 +64,9 @@ aws s3 ls
 The host ports bind `127.0.0.1` and the backend is never published — a client wants
 the gateway, never the emulator. An issued `AKIA…` key is verified; the 12-digit
 account id is that account's root and is accepted with any secret.
+
+More: [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-started/access)
+— the per-command form, the region rule, and the two kinds of key.
 
 ## Documentation
 
@@ -99,6 +105,9 @@ differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-
 | [`bootstrap/`](bootstrap) | the CloudFormation template and init job for the control's tables |
 | [`scripts/`](scripts) | `up.sh`, `build.sh`, `token.sh`, `qa_check.py` |
 | [`docker-compose.yml`](docker-compose.yml) | the container contract |
+
+More: [Runbook](https://mathewmusango.github.io/emuplane/docs/operations/runbook)
+— starting, operating, removing, and the dev loop.
 
 ## References
 
