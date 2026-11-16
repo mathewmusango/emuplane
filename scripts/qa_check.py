@@ -136,13 +136,28 @@ def test_python() -> list[str]:
     return [] if result.returncode == 0 else ["python test suite failed"]
 
 
+def coverage() -> list[str]:
+    """`S3.md` is generated, so a stale one is a failure, not a nuisance.
+
+    It needs the emulator checkout (its README is the operation list); without
+    that sibling the check says so and passes.
+    """
+    readme = ROOT.parent / "ministack-src" / "README.md"
+    script = ROOT / "scripts" / "s3_coverage.py"
+    if not readme.is_file() or not script.is_file():
+        print("ministack-src is not checked out: skipped the S3.md check")
+        return []
+    result = subprocess.run([sys.executable, str(script), "--check"], cwd=ROOT)
+    return [] if result.returncode == 0 else ["S3.md is out of date: run scripts/s3_coverage.py"]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tests", action="store_true")
     args = parser.parse_args()
 
     manifest = load()
-    problems = verify(manifest) + security() + compile_python()
+    problems = verify(manifest) + security() + compile_python() + coverage()
     if args.tests:
         result = subprocess.run(["npm", "test", "--silent"], cwd=ROOT / "web")
         if result.returncode != 0:

@@ -9,6 +9,25 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **The gateway and the control API are tested, not assumed.** `tests/control/`
+  imports `app.py` against an in-memory `store.Store` — the same string-per-key
+  contract DynamoDB has — seeds two accounts and a bearer token, and runs the real
+  `ControlHandler` and `GatewayHandler` on ephemeral ports. Through the gateway,
+  with a SigV4-shaped `Authorization` header: a create is forwarded and the name
+  claimed, another account's name is `409`, a region outside the catalogue is
+  `403`, a catalogue region is enabled on first use, a request signed for the
+  wrong region answers `301` with `x-amz-bucket-region`, a delete releases the
+  claim, and an unknown access key never becomes an account. Through the API: the
+  create endpoint's `400`/`403`/`409`, the composed regional name, `/api/browse`
+  reporting each bucket's own region, both child listings, and an object written
+  through the gateway being readable in `/api/s3/objects`.
+- **`S3.md` records what is covered, and by whom.** `scripts/s3_coverage.py`
+  generates it from the emulator's own `| **S3** |` operation row and
+  `control/console.py`, plus a hand-kept map of the operations an emuplane test
+  exercises: 84 operations, 5 console actions, 17 with an emuplane test, the rest
+  gateway-only. It is not hand-edited — `scripts/qa_check.py` runs
+  `s3_coverage.py --check` and fails when the file drifts (skipped with a note
+  where the emulator checkout is absent).
 - **One test tree, and S3's create proven over the wire.** `tests/` holds both
   suites: `tests/web` is the console's Vitest suite (moved out of `web/test`, and
   `tests/node_modules` lets it resolve the console's dependencies from there) and
