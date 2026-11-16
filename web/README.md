@@ -78,10 +78,10 @@ without waiting upstream, but **forks are not build inputs**:
 
 ## Tracking
 
-S3 parity against the upstream operation list is tracked for the public on the
-[emuplane project board](https://github.com/users/mathewmusango/projects/10), one
-draft issue per operation. The ledger the build reads is the maintainer's working
-note: `scripts/s3_coverage.py` writes `my-docs/S3.md`, publishes
+S3 parity against the upstream operation list is tracked for the public on this
+repository's [project board](https://github.com/mathewmusango/emuplane/projects/11),
+one draft issue per operation. The ledger the build reads is the maintainer's
+working note: `scripts/s3_coverage.py` writes `my-docs/S3.md`, publishes
 [the coverage page](/docs/reference/s3-coverage), and `tests/s3/test_ledger.py`
 refuses a regression. Implementation stays in `control/` and `web/`.
 
