@@ -54,13 +54,15 @@ needs the control API.
 
 ## The emulator is a separate project
 
-A backend is a **profile** in [`control/backends.py`](control/backends.py): an id,
-the name the console shows, its default port and a note on what to expect from it.
-`EP_BACKEND` picks the profile, `EP_BACKEND_URL` is where it lives, and changing
-backends is configuration rather than a fork.
+A backend is a **profile** in [`control/backends.py`](control/backends.py): a display
+name, a default port and the quirks worth knowing. `EP_BACKEND` selects it and
+`EP_BACKEND_URL` is the connection string, so changing backend is a `.env` change,
+not a fork of this repository.
 
 The reference backend is [this fork of MiniStack](https://github.com/mathewmusango/ministack-upstream)
-with S3 region isolation, on `main` — [why, and what differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
+with S3 region isolation, on `main`, published as
+`ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full` — [why, and what
+differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
 
 ## Layout
 
@@ -78,7 +80,4 @@ with S3 region isolation, on `main` — [why, and what differs](https://mathewmu
 - [MiniStack documentation](https://ministack.org/docs/)
 - [MiniStack on GitHub](https://github.com/ministackorg/ministack) — the fork is
   upstream `v1.5.40` plus one patch
-- [The emulator fork this project runs](https://github.com/mathewmusango/ministack-upstream)
-  (`main`), published as
-  `ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full`
 - [StackPort (UI inspiration)](https://github.com/DaviReisVieira/stackport)
