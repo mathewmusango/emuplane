@@ -21,7 +21,7 @@ export const META = {
   regions: ['us-east-1', 'us-west-2'],
   all_regions: ['us-east-1', 'us-west-2'],
   gateway: 'https://ministack.example.com',
-  console: 'https://ministack-control.example.com',
+  console: 'https://emuplane.example.com',
   uptime_seconds: 60,
 }
 

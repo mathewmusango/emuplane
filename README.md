@@ -106,7 +106,7 @@ follows the newest tag. Nothing is tagged yet — `0.1.0` is the first.
 
 ```mermaid
 flowchart LR
-    client[AWS client / terraform] -->|4571 gateway| control[ministack-control]
+    client[AWS client / terraform] -->|4571 gateway| control[emuplane]
     control -->|"every region, every account"| node[ministack<br/>the emulator]
     browser[browser] -->|"4570 console + API"| control
 ```
@@ -747,9 +747,9 @@ another.
 
 ```sh
 ./scripts/up.sh                                   # start (pulls the image)
-podman-compose -p ministack-control -f docker-compose.yml ps
-podman-compose -p ministack-control -f docker-compose.yml logs -f
-podman-compose -p ministack-control -f docker-compose.yml down
+podman-compose -p emuplane -f docker-compose.yml ps
+podman-compose -p emuplane -f docker-compose.yml logs -f
+podman-compose -p emuplane -f docker-compose.yml down
 ```
 
 This stops/starts the **control plane** only. The emulator runs from its own

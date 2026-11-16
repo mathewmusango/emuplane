@@ -3,7 +3,7 @@
 
 The control stores itself in the emulator it fronts — one DynamoDB table per store. Those
 are **provisioned, not conjured**: this job applies `template.yml` as the stack
-`ministack-control`, and `control/store.py` only *verifies* the tables before the
+`emuplane`, and `control/store.py` only *verifies* the tables before the
 API serves. A fresh install therefore has an explicit, reviewable definition of
 its own schema instead of the application inventing one at boot.
 

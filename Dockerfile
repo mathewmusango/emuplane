@@ -1,7 +1,7 @@
 # MiniStack control plane: the React console, the control API and the AWS
 # gateway in one image.
 #
-#   podman build -t localhost/ministack-control:dev .
+#   podman build -t localhost/emuplane:dev .
 #
 # Base images are pinned by **index digest** (multi-arch) so a rebuild resolves
 # to the same bytes; `renovate.json` is what should move them.
@@ -32,9 +32,9 @@ RUN --mount=type=cache,target=/src/node_modules/.vite,sharing=locked \
 
 FROM docker.io/library/python:3.13-alpine@sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8
 
-LABEL org.opencontainers.image.title="ministack-control" \
+LABEL org.opencontainers.image.title="emuplane" \
       org.opencontainers.image.description="MiniStack console, control API and AWS gateway" \
-      org.opencontainers.image.source="https://github.com/mathewmusango/ministack-control" \
+      org.opencontainers.image.source="https://github.com/mathewmusango/emuplane" \
       org.opencontainers.image.licenses="MIT"
 
 # No .pyc files in the image, and logs stream out unbuffered.

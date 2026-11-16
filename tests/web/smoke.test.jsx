@@ -122,7 +122,7 @@ describe('console', () => {
 
   it('renders the endpoints without the mode, login or references rows', async () => {
     renderAt(<About />)
-    expect(await screen.findByText('https://ministack-control.example.com')).toBeTruthy()
+    expect(await screen.findByText('https://emuplane.example.com')).toBeTruthy()
     expect(screen.getByText('https://ministack.example.com')).toBeTruthy()
     expect(screen.queryByText('Mode')).toBeNull()
     expect(screen.queryByText('Login')).toBeNull()

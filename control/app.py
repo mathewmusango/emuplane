@@ -2487,7 +2487,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 "<!doctype html><meta charset=utf-8><title>Emuplane</title>"
                 "<body style='font:15px system-ui;padding:2rem;background:#0f1b2d;color:#e6edf7'>"
                 "<h1>Console not built</h1><p>Run <code>npm install &amp;&amp; npm run build</code>"
-                " in <code>services/ministack-control/web</code>, then restart this container.</p>"
+                " in <code>services/emuplane/web</code>, then restart this container.</p>"
                 "<p>The server-rendered pages are still at <a style='color:#7cc4ff' href='/classic'>/classic</a>.</p>",
                 503,
             )
