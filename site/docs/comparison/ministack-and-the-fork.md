@@ -91,10 +91,37 @@ A difference is only recorded here once it has been observed, twice:
 This is part of the release checklist, not an occasional audit: a release whose
 parity run has not been done is not released.
 
+## Measured, 2026-11-17
+
+Both images were run side by side, each on its own port with `AUTH=true`, and asked
+the same questions with raw signed requests. The account id in the credential was
+the only thing that varied per request.
+
+| Probe | upstream `1.5.40-full` | fork `1.5.40-fork.3-full` |
+| --- | --- | --- |
+| `CreateBucket` in us-west-2 with a `LocationConstraint` | 200 | 200 |
+| `ListBuckets` signed for us-east-1, after a bucket in each region | sees both | sees both |
+| `HEAD` a us-west-2 bucket signed for us-east-1 | `301` + `x-amz-bucket-region` | same |
+| **Same name created in a second region** | **200 — re-owned** | **409 — refused** |
+| Same name created by a second account | 409 | 409 |
+| A second account listing or reading the first's bucket | cannot list, `403` on read | same |
+
+So upstream 1.5.40 already redirects across regions, lists account-wide and keeps
+accounts apart. **The only difference these probes found is the rename case** —
+upstream lets a bucket name be re-used in another region, the fork refuses it —
+which is the isolation the fork's patch adds, and it is narrower than the summary
+table above suggests.
+
+Emuplane itself ran against upstream without a change: `bootstrap/apply.py` created
+the eleven tables, the control came up read-only as uid 10001, and the gateway
+served `CreateBucket`, `ListBuckets`, cross-region `301` and duplicate-name `409`
+through the same routes it uses against the fork. The earlier set of probes looked
+identical through the gateway because the gateway answers the redirect itself — the
+emulators only look different when probed directly.
+
 :::note
-The parity run for the current version is **outstanding**. The differences above
-are the fork's documented intent; the per-release verification table gets its
-first row with the next release.
+The parity run for the current release is **outstanding** in the release notes; this
+section records one dated experiment, not a per-release table.
 :::
 
 ## Running against upstream
