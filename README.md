@@ -79,6 +79,5 @@ differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-
 ## References
 
 - [MiniStack documentation](https://ministack.org/docs/)
-- [MiniStack on GitHub](https://github.com/ministackorg/ministack) — the fork is
-  upstream `v1.5.40` plus one patch
+- [MiniStack on GitHub](https://github.com/ministackorg/ministack)
 - [StackPort (UI inspiration)](https://github.com/DaviReisVieira/stackport)
