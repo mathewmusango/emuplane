@@ -52,6 +52,15 @@ COVERED = {
     "GetPublicAccessBlock": "tests/s3/test_create.py",
     "GetObjectLockConfiguration": "tests/s3/test_create.py",
     "PutObjectLockConfiguration": "tests/s3/test_create.py (at create)",
+    "ListObjectVersions": "tests/s3/test_objects.py",
+    "GetBucketLifecycleConfiguration": "tests/s3/test_objects.py (documents)",
+    "GetBucketCors": "tests/s3/test_objects.py (documents)",
+    "GetBucketAcl": "tests/s3/test_objects.py (documents)",
+    "GetBucketPolicy": "tests/s3/test_objects.py (documents)",
+    "GetBucketNotificationConfiguration": "tests/s3/test_objects.py (documents)",
+    "GetBucketLogging": "tests/s3/test_objects.py (documents)",
+    "GetBucketReplication": "tests/s3/test_objects.py (documents)",
+    "HeadObject": "tests/control/test_gateway.py (301 path)",
 }
 
 GROUPS = [
