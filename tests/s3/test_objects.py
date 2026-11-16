@@ -220,6 +220,91 @@ def test_head_bucket_says_where_a_bucket_lives(s3_endpoint):
     assert head("head-no-such-bucket")["exists"] is False
 
 
+def test_the_first_listing_answers_too(s3_endpoint):
+    """ListObjects v1: the same bucket asked for without `list-type=2`."""
+    client = _client(s3_endpoint)
+    _create(client, "list-v1-bucket")
+    assert buckets.put_object("list-v1-bucket", "one.txt", "x", client)["ok"]
+
+    status, body = client("GET", "/list-v1-bucket")
+    assert status == 200
+    assert "ListBucketResult" in body
+    assert "one.txt" in body and "<Contents>" in body
+
+
+def test_copying_an_object_copies_its_bytes(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "copy-source-bucket")
+    _create(client, "copy-destination-bucket")
+    assert buckets.put_object("copy-source-bucket", "notes/one.txt", "copied text", client)[
+        "ok"
+    ]
+
+    copied = buckets.copy_object(
+        "copy-source-bucket",
+        "notes/one.txt",
+        "copy-destination-bucket",
+        "archive/one.txt",
+        client,
+    )
+    assert copied["ok"], copied.get("error")
+    assert copied["etag"]
+
+    status, body = client("GET", "/copy-destination-bucket/archive/one.txt")
+    assert status == 200
+    assert body == "copied text"
+
+
+def test_a_copy_into_the_same_bucket_names_its_own_key(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "copy-in-place-bucket")
+    assert buckets.put_object("copy-in-place-bucket", "one.txt", "same bucket", client)["ok"]
+
+    copied = buckets.copy_object(
+        "copy-in-place-bucket", "one.txt", "copy-in-place-bucket", "two.txt", client
+    )
+    assert copied["ok"], copied.get("error")
+    assert client("GET", "/copy-in-place-bucket/two.txt")[1] == "same bucket"
+
+
+def test_copying_a_missing_source_is_refused(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "copy-missing-source-bucket")
+    _create(client, "copy-missing-dest-bucket")
+
+    refused = buckets.copy_object(
+        "copy-missing-source-bucket",
+        "nope.txt",
+        "copy-missing-dest-bucket",
+        "whatever.txt",
+        client,
+    )
+    assert refused["ok"] is False
+    assert refused["status"] == 404
+
+
+def test_default_encryption_can_be_changed_after_create(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "encryption-edit-bucket")
+
+    edited = buckets.update_settings(
+        "encryption-edit-bucket", {"encryption": "aws:kms", "bucket_key": True}, client
+    )
+    assert edited["ok"], edited.get("error")
+
+    settings = buckets.read_settings(
+        "encryption-edit-bucket", lambda method, path: client(method, path)
+    )["settings"]
+    assert settings["encryption"] == "aws:kms"
+    assert settings["bucket_key"] is True
+
+
+def test_an_unknown_encryption_is_refused_before_the_call(s3_endpoint):
+    refused = buckets.update_settings("any-bucket", {"encryption": "rot13"}, _client(s3_endpoint))
+    assert refused["ok"] is False
+    assert "unknown encryption" in refused["error"]
+
+
 def test_the_configuration_documents_are_what_s3_has(s3_endpoint):
     client = _client(s3_endpoint)
     _create(client, "documents-bucket")

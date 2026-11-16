@@ -397,6 +397,39 @@ def put_object(bucket: str, key: str, body, call, content_type: str = "") -> dic
     return {"ok": False, "status": status or 502, "error": _detail(text, status)}
 
 
+def copy_object(
+    source_bucket: str,
+    key: str,
+    destination_bucket: str,
+    destination_key: str,
+    call,
+) -> dict:
+    """CopyObject: a PUT to the destination, with the source named in a header.
+
+    The request is addressed to the *destination*, so `call` must be signed for
+    the destination's region; the source is named, not reached, which is what lets
+    a copy cross a bucket or a region.
+    """
+    source = "/" + quote(source_bucket, safe="") + "/" + quote(key, safe="/")
+    status, text = call(
+        "PUT",
+        _bucket_path(destination_bucket) + "/" + quote(destination_key, safe="/"),
+        "",
+        {"x-amz-copy-source": source},
+    )
+    if 200 <= status < 300:
+        return {
+            "ok": True,
+            "status": status,
+            "bucket": source_bucket,
+            "key": key,
+            "destination": destination_bucket,
+            "destination_key": destination_key,
+            "etag": _field(text, "ETag"),
+        }
+    return {"ok": False, "status": status or 502, "error": _detail(text, status)}
+
+
 def update_settings(bucket: str, payload: dict, call) -> dict:
     """The properties a bucket page can edit, each its own subresource call."""
     path = _bucket_path(bucket)
@@ -418,6 +451,17 @@ def update_settings(bucket: str, payload: dict, call) -> dict:
                 "Block Public Access",
                 "?publicAccessBlock",
                 _public_access({name: bool(flags.get(name)) for name in PUBLIC_ACCESS}),
+            )
+        )
+    if payload.get("encryption") is not None:
+        algorithm = str(payload["encryption"])
+        if algorithm not in ENCRYPTION:
+            return {"ok": False, "status": 400, "error": f"unknown encryption: {algorithm}"}
+        steps.append(
+            (
+                "Default encryption",
+                "?encryption",
+                _encryption(algorithm, bool(payload.get("bucket_key"))),
             )
         )
     if payload.get("tags") is not None:

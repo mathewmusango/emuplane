@@ -9,6 +9,18 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **An object can be copied.** The object view's *Copy* opens a destination
+  bucket picker (the account's buckets, each with its region) and a destination
+  key, and runs `CopyObject` — a `PUT` to the destination carrying
+  `x-amz-copy-source`, so the call is signed where the destination lives and a
+  copy may cross a bucket or a region. The destination is `HeadBucket`-ed first:
+  a bucket that is not there answers `BucketNotFound`, not a redirect the page
+  cannot act on.
+- **Default encryption is editable.** *Properties → Default encryption → Edit*
+  changes SSE-S3, SSE-KMS or DSSE-KMS and the bucket key through
+  `PUT ?encryption`; before this, encryption could only be chosen at create. The
+  versioning *Edit* beside it already existed and had no test — both now have one
+  from each end (wire, control API, and a console test that clicks the control).
 - **A bucket link works from any region.** The bucket page asks `HeadBucket`
   before it reads anything: the answer says whether the name exists and, from
   `x-amz-bucket-region`, where the bucket really lives — including the 301 that
@@ -195,6 +207,14 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **`S3.md` is guarded by a test, not by discipline.** `tests/s3/test_ledger.py`
+  fails when an operation the emulator advertises has no row, when a row names a
+  test file that is not there, when an operation claims a console surface without
+  naming a test, or when any of the three headline counts (tested, shown, reads
+  shown) falls below its pinned floor. Generation already caught a stale table;
+  this catches the two things that actually happened here — a row whose proof was
+  deleted, and a count that walked backwards when a control was removed. Raising
+  a floor is part of closing an operation.
 - **The bucket page's configuration documents are read again.** The section
   rendered a `documents` state that nothing filled, so lifecycle, CORS, policy,
   ACL, logging, notifications, replication and the version listing showed as

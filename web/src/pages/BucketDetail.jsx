@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import Alert from '@cloudscape-design/components/alert'
 import Box from '@cloudscape-design/components/box'
 import Button from '@cloudscape-design/components/button'
+import Checkbox from '@cloudscape-design/components/checkbox'
 import ColumnLayout from '@cloudscape-design/components/column-layout'
 import Container from '@cloudscape-design/components/container'
 import ContentLayout from '@cloudscape-design/components/content-layout'
@@ -11,6 +12,7 @@ import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
 import Modal from '@cloudscape-design/components/modal'
 import RadioGroup from '@cloudscape-design/components/radio-group'
+import Select from '@cloudscape-design/components/select'
 import Textarea from '@cloudscape-design/components/textarea'
 import Toggle from '@cloudscape-design/components/toggle'
 import SpaceBetween from '@cloudscape-design/components/space-between'
@@ -30,6 +32,16 @@ import { Shell } from '../components/Shell'
 const MAX_UPLOAD = 25 * 1024 * 1024
 
 const dash = '\u2014'
+
+// The console's three encryption choices, as the create page offers them.
+const ENCRYPTION = [
+  ['AES256', 'Amazon S3 managed keys (SSE-S3)'],
+  ['aws:kms', 'AWS Key Management Service keys (SSE-KMS)'],
+  ['aws:kms:dsse', 'Dual-layer server-side encryption (DSSE-KMS)'],
+]
+
+// The bucket picker's options for a copy: every bucket the account has, each
+// with the region it lives in, because a copy is addressed to the destination.
 
 const formatSize = (bytes) => {
   if (!bytes) return '0 B'
@@ -66,6 +78,8 @@ export default function BucketDetail() {
   const [uploadError, setUploadError] = useState('')
   const [saving, setSaving] = useState(false)
   const [versioningEdit, setVersioningEdit] = useState(null)
+  const [encryptionEdit, setEncryptionEdit] = useState(null)
+  const [bucketKeyEdit, setBucketKeyEdit] = useState(false)
   const [accessEdit, setAccessEdit] = useState(null)
   const [settings, setSettings] = useState(null)
   const [settingsError, setSettingsError] = useState('')
@@ -74,6 +88,11 @@ export default function BucketDetail() {
   const [objectView, setObjectView] = useState(null)
   const [objectError, setObjectError] = useState('')
   const [deletingObject, setDeletingObject] = useState(null)
+  const [copying, setCopying] = useState(null)
+  const [copyTo, setCopyTo] = useState(null)
+  const [copyKey, setCopyKey] = useState('')
+  const [copyError, setCopyError] = useState('')
+  const [allBuckets, setAllBuckets] = useState([])
 
   useEffect(() => {
     if (!account || !name) return undefined
@@ -209,6 +228,48 @@ export default function BucketDetail() {
       live = false
     }
   }, [account, region, name, bucketRegion, headMissing])
+
+  // The copy destination list is read when the copy form opens, not on every view
+  // of the bucket page.
+  useEffect(() => {
+    if (!copying || !account) return undefined
+    let live = true
+    api
+      .browse(account, 'all', 's3')
+      .then((payload) => {
+        if (live) setAllBuckets(payload.resources || [])
+      })
+      .catch(() => {
+        if (live) setAllBuckets([])
+      })
+    return () => {
+      live = false
+    }
+  }, [copying, account])
+
+  const copyObject = async () => {
+    if (!copying || !copyTo) return
+    setSaving(true)
+    setCopyError('')
+    try {
+      const answer = await api.copyObject({
+        account,
+        region,
+        bucket: name,
+        key: copying,
+        destination: copyTo.value,
+        destination_region: copyTo.region || region,
+        destination_key: copyKey.trim() || copying,
+      })
+      if (!answer.ok) throw new Error(answer.error || 'Could not copy the object.')
+      setCopying(null)
+      await loadObjects()
+    } catch (err) {
+      setCopyError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const removeObject = async () => {
     if (!deletingObject) return
@@ -359,6 +420,7 @@ export default function BucketDetail() {
             </StatusIndicator>
             {versioningEdit === null ? (
               <Button
+                ariaLabel="Edit bucket versioning"
                 onClick={() => setVersioningEdit(Boolean(settings?.versioning))}
               >
                 Edit
@@ -387,11 +449,55 @@ export default function BucketDetail() {
       </Container>
 
       <Container header={<Header variant="h2">Default encryption</Header>}>
-        <Box>
-          <Box variant="awsui-key-label">Encryption type</Box>
-          {settings?.encryption || 'AES256'}
-          {settings?.bucket_key ? ' · bucket key enabled' : ''}
-        </Box>
+        {encryptionEdit === null ? (
+          <SpaceBetween size="s">
+            <Box>
+              <Box variant="awsui-key-label">Encryption type</Box>
+              {settings?.encryption || 'AES256'}
+              {settings?.bucket_key ? ' · bucket key enabled' : ''}
+            </Box>
+            <Box>
+              <Button
+                ariaLabel="Edit default encryption"
+                onClick={() => {
+                  setEncryptionEdit(settings?.encryption || 'AES256')
+                  setBucketKeyEdit(Boolean(settings?.bucket_key))
+                }}
+              >
+                Edit
+              </Button>
+            </Box>
+          </SpaceBetween>
+        ) : (
+          <SpaceBetween size="m">
+            <RadioGroup
+              value={encryptionEdit}
+              onChange={({ detail }) => setEncryptionEdit(detail.value)}
+              items={ENCRYPTION.map(([value, label]) => ({ value, label }))}
+            />
+            <Checkbox
+              checked={bucketKeyEdit}
+              disabled={!encryptionEdit.startsWith('aws:kms')}
+              onChange={({ detail }) => setBucketKeyEdit(detail.checked)}
+            >
+              Bucket Key
+            </Checkbox>
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button
+                variant="primary"
+                loading={saving}
+                onClick={() =>
+                  save({ encryption: encryptionEdit, bucket_key: bucketKeyEdit })
+                }
+              >
+                Save
+              </Button>
+              <Button variant="link" onClick={() => setEncryptionEdit(null)}>
+                Cancel
+              </Button>
+            </SpaceBetween>
+          </SpaceBetween>
+        )}
       </Container>
 
       <Container
@@ -566,6 +672,21 @@ export default function BucketDetail() {
                   >
                     Delete
                   </Button>
+                  <Button
+                    onClick={() => {
+                      setCopying(objectView.key)
+                      setCopyKey(objectView.key)
+                      setCopyError('')
+                      setCopyTo({
+                        label: `${name} · ${region}`,
+                        value: name,
+                        region,
+                      })
+                      setObjectView(null)
+                    }}
+                  >
+                    Copy
+                  </Button>
                 </SpaceBetween>
               </Box>
             ) : undefined
@@ -612,6 +733,57 @@ export default function BucketDetail() {
               )}
             </SpaceBetween>
           )}
+        </Modal>
+        <Modal
+          visible={Boolean(copying)}
+          onDismiss={() => setCopying(null)}
+          header="Copy object"
+          footer={
+            <Box float="right">
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button variant="link" onClick={() => setCopying(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  loading={saving}
+                  disabled={!copyTo || !copyKey.trim()}
+                  onClick={copyObject}
+                >
+                  Copy
+                </Button>
+              </SpaceBetween>
+            </Box>
+          }
+        >
+          <SpaceBetween size="m">
+            {copyError && <Alert type="error">{copyError}</Alert>}
+            <Box>
+              Copying <span className="mono">{copying}</span> from <strong>{name}</strong>.
+            </Box>
+            <Box>
+              <Box variant="awsui-key-label">Destination bucket</Box>
+              <Select
+                selectedOption={copyTo}
+                onChange={({ detail }) => setCopyTo(detail.selectedOption)}
+                options={allBuckets.map((row) => ({
+                  label: `${row.name} · ${row.region || region}`,
+                  value: row.name,
+                  region: row.region || region,
+                }))}
+                placeholder="Choose bucket"
+                empty="No buckets in this account"
+              />
+            </Box>
+            <Box>
+              <Box variant="awsui-key-label">Destination key</Box>
+              <Input
+                value={copyKey}
+                onChange={({ detail }) => setCopyKey(detail.value)}
+                placeholder={`copies/${copying || ''}`}
+              />
+            </Box>
+          </SpaceBetween>
         </Modal>
         <Modal
           visible={Boolean(deletingObject)}

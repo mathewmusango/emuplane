@@ -160,7 +160,19 @@ export const api = {
     versioning?: boolean
     block_public_access?: Record<string, boolean>
     tags?: { Key: string; Value: string }[]
+    encryption?: string
+    bucket_key?: boolean
   }) => request<ActionResult>('/api/s3/bucket-settings-edit', { method: 'POST', body: payload }),
+  /** CopyObject: a PUT to the destination, with the source named in a header. */
+  copyObject: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    destination: string
+    destination_region?: string
+    destination_key?: string
+  }) => request<ActionResult>('/api/s3/object-copy', { method: 'POST', body: payload }),
   bucketDocuments: (account: string, region: string, bucket: string) =>
     request<{ ok: boolean; documents: Record<string, string | null> }>(
       `/api/s3/bucket-documents?${query({ account, region, bucket })}`,

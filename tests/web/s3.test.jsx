@@ -599,6 +599,84 @@ describe('s3', () => {
     }
   })
 
+  it('copies an object into a bucket, addressed to the destination', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/object-copy', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+      const view = await screen.findByRole('dialog', { name: 'reports/2026.csv' })
+      fireEvent.click(within(view).getByRole('button', { name: 'Copy' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Copy object' })
+      fireEvent.change(within(dialog).getByDisplayValue('reports/2026.csv'), {
+        target: { value: 'archive/2026.csv' },
+      })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Copy' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        bucket: 'logs-bucket',
+        key: 'reports/2026.csv',
+        destination: 'logs-bucket',
+        destination_key: 'archive/2026.csv',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('enables versioning from the bucket page', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-settings-edit', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Edit bucket versioning' }),
+      )
+      fireEvent.click(screen.getByLabelText('Disable'))
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        region: 'us-east-1',
+        versioning: false,
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('changes the default encryption from the bucket page', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-settings-edit', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Edit default encryption' }),
+      )
+      fireEvent.click(screen.getByLabelText(/Dual-layer/))
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        encryption: 'aws:kms:dsse',
+        bucket_key: true,
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('deletes one object from its view, after confirming', async () => {
     pinRegion('us-east-1')
     const sent = []

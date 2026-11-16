@@ -179,6 +179,144 @@ def test_an_object_read_carries_what_only_a_head_knows(
     assert body["content_type"] == "text/plain"
 
 
+def test_an_object_is_copied_to_another_bucket(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="copy-api-source"))[0] == 200
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="copy-api-destination"))[0] == 200
+    assert (
+        api(
+            console,
+            "POST",
+            "/api/s3/object",
+            {
+                "account": ACCOUNT,
+                "region": "us-east-1",
+                "bucket": "copy-api-source",
+                "key": "notes/one.txt",
+                "body": "copied through the console",
+            },
+        )[0]
+        == 200
+    )
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-copy",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "copy-api-source",
+            "key": "notes/one.txt",
+            "destination": "copy-api-destination",
+            "destination_key": "archive/one.txt",
+        },
+    )
+    assert status == 200, body
+    assert body["destination"] == "copy-api-destination"
+    assert body["destination_key"] == "archive/one.txt"
+    assert body["etag"]
+
+    status, copied = api(
+        console,
+        "GET",
+        f"/api/s3/object?account={ACCOUNT}&region=us-east-1&bucket=copy-api-destination&key=archive/one.txt",
+    )
+    assert status == 200, copied
+    assert copied["body"] == "copied through the console"
+
+
+def test_a_copy_to_a_missing_bucket_is_refused(console):
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-copy",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "copy-api-source",
+            "key": "notes/one.txt",
+            "destination": "copy-api-nowhere",
+            "destination_key": "x.txt",
+        },
+    )
+    assert status == 400
+    assert "BucketNotFound" in body["error"]
+
+
+def test_versioning_can_be_enabled_and_suspended_from_the_bucket_page(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="settings-api-bucket"))[0] == 200
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-settings-edit",
+        {"account": ACCOUNT, "region": "us-east-1", "bucket": "settings-api-bucket", "versioning": True},
+    )
+    assert status == 200, body
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-settings?account={ACCOUNT}&region=us-east-1&bucket=settings-api-bucket",
+    )
+    assert read["settings"]["versioning"] is True
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-settings-edit",
+        {"account": ACCOUNT, "region": "us-east-1", "bucket": "settings-api-bucket", "versioning": False},
+    )
+    assert status == 200, body
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-settings?account={ACCOUNT}&region=us-east-1&bucket=settings-api-bucket",
+    )
+    assert read["settings"]["versioning"] is False
+
+
+def test_default_encryption_can_be_changed_from_the_bucket_page(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="settings-api-crypt"))[0] == 200
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-settings-edit",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "settings-api-crypt",
+            "encryption": "aws:kms",
+            "bucket_key": True,
+        },
+    )
+    assert status == 200, body
+
+    _, read = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-settings?account={ACCOUNT}&region=us-east-1&bucket=settings-api-crypt",
+    )
+    assert read["settings"]["encryption"] == "aws:kms"
+    assert read["settings"]["bucket_key"] is True
+
+
+def test_an_unknown_encryption_is_refused_by_the_bucket_page(console):
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/bucket-settings-edit",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": "settings-api-crypt",
+            "encryption": "rot13",
+        },
+    )
+    assert status == 400
+    assert "unknown encryption" in body["error"]
+
+
 def test_an_object_written_through_the_gateway_is_readable_in_the_console(
     console, gateway
 ):

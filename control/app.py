@@ -4288,6 +4288,69 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region, bucket=bucket),
             )
+        if path == "/api/s3/object-copy":
+            # CopyObject is a PUT to the destination, so the call is signed where
+            # the destination lives - HeadBucket says where that is.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "").strip()
+            destination = str(payload.get("destination") or "").strip()
+            destination_key = str(payload.get("destination_key") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket or not key or not destination:
+                return self._json(
+                    400, {"error": "a source bucket and key, and a destination bucket, are required"}
+                )
+            destination_key = destination_key or key
+            where = buckets.head_bucket(
+                destination,
+                lambda method, target_path: signed_rest_raw(
+                    "s3", target["account_id"], region, method, target_path
+                ),
+            )
+            if not where.get("ok"):
+                return self._json(502, {"error": where.get("error", "could not place the destination")})
+            if not where.get("exists"):
+                return self._json(
+                    400, {"error": f"BucketNotFound: {destination} does not exist"}
+                )
+            destination_region = where.get("region") or region
+            result = buckets.copy_object(
+                bucket,
+                key,
+                destination,
+                destination_key,
+                lambda method, target_path, body, headers=None: signed_rest(
+                    "s3",
+                    target["account_id"],
+                    destination_region,
+                    method,
+                    target_path,
+                    body,
+                    headers,
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(
+                    result,
+                    account=target["account_id"],
+                    region=destination_region,
+                ),
+            )
         if path == "/api/s3/empty":
             payload = self._body()
             info = self._caller()
