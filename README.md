@@ -34,8 +34,9 @@ The first run creates `.env` from `.env.example`, applies the CloudFormation sta
 that owns the control's DynamoDB tables, pulls the image and starts the console on
 `http://localhost:4570`.
 
-Nothing is seeded: create the first account at `/signup` and mint the
-deployment's API token with `./scripts/token.sh`.
+Nothing is seeded: create the first account at `/signup`. The API bearer token is
+optional — mint it with `./scripts/token.sh` when a script, rather than a browser,
+needs the control API.
 
 ## Documentation
 

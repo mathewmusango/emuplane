@@ -48,6 +48,7 @@ Mail is optional, for the password-reset link:
 
 ## Nothing secret in `.env`
 
-There is no seeded account and no pre-set token. Accounts come from sign-up, and
-the bearer token is minted once by `./scripts/token.sh`, printed once and stored
-only as a SHA-256 hash in the settings store.
+There is no seeded account and no pre-set token. Accounts come from sign-up. The
+bearer token is optional: `./scripts/token.sh` mints one when a script needs the
+control API, prints it once, and stores only a SHA-256 hash in the settings
+store.

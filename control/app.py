@@ -34,7 +34,7 @@ from store import Store, StoreNotProvisioned  # noqa: E402
 # No database file: control-plane documents live in the emulator's DynamoDB (control/store.py), whose tables Layer 0 creates.
 EP_PORT = int(os.environ.get("EP_PORT", "8080"))
 GATEWAY_PORT = int(os.environ.get("EP_GATEWAY_PORT", "8081"))
-# The API bearer token lives in the settings store as a SHA-256 digest (control/token.py mints it), never in `.env`.
+# The API bearer token lives in the settings store as a SHA-256 digest (control/api_token.py mints it), never in `.env`.
 TOKEN_KEY = "admin_token"
 
 
