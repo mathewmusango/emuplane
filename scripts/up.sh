@@ -57,12 +57,20 @@ if [ -n "$overlay" ] && [ -f "$overlay" ]; then
   compose+=(-f "$overlay")
 fi
 
-# `--dev` (or EP_DEV=1) mounts the built console and the control source: a change costs a vite build or a restart.
+# `--dev` (or EP_DEV=1) mounts the console and the control source: a change costs a vite build or a restart.
 if [ "${1:-}" = "--dev" ] || [ "${EP_DEV:-}" = "1" ]; then
-  if [ ! -f compose.dev.yml ]; then
-    echo "compose.dev.yml is missing; cannot apply the dev overlay" >&2
-    exit 1
-  fi
+  # Generated and ignored: the module list is read from disk, so a new control/*.py needs no edit here.
+  {
+    echo "services:"
+    echo "  emuplane:"
+    echo "    volumes:"
+    if [ -d web/dist ]; then
+      echo "      - ./web/dist:/app/static:ro,Z"
+    fi
+    for module in control/*.py; do
+      echo "      - ./${module}:/app/${module##*/}:ro,Z"
+    done
+  } > compose.dev.yml
   compose+=(-f compose.dev.yml)
   echo "dev overlay: console and control source are mounted, not baked"
 fi

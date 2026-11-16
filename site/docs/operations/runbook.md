@@ -93,10 +93,10 @@ tables to it again.
 ## The dev loop
 
 `./scripts/up.sh --dev` mounts the control source and the built console into the
-container, so a change costs no image build. The mounts live in a separate
-`compose.dev.yml` because `docker-compose.yml` must work for someone who has the
-image and no source checkout — a mount there would shadow the baked code with host
-paths that do not exist.
+container, so a change costs no image build. The overlay it applies
+(`compose.dev.yml`) is generated on the spot from `control/*.py` and `web/dist`,
+and ignored — the mounts cannot live in `docker-compose.yml`, which has to work for
+someone who has the image and no source checkout.
 
 | Change | What to do |
 | --- | --- |

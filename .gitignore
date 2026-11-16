@@ -1,5 +1,6 @@
 .env
 /compose.lab.yml
+/compose.dev.yml
 *.bak
 __pycache__/
 *.pyc
