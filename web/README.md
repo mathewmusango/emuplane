@@ -78,16 +78,18 @@ without waiting upstream, but **forks are not build inputs**:
 
 ## Tracking
 
-S3 parity against the upstream operation list is tracked on the `ministack` GitHub
-project board (#10) as one draft issue per operation. Implementation stays in
-`control/` and `web/`.
+S3 parity against the upstream operation list is tracked on the maintainer's GitHub
+project board (number 10), one draft issue per operation. The ledger the build reads
+is generated rather than maintained: `scripts/s3_coverage.py` writes `my-docs/S3.md`
+and the published page, and `tests/s3/test_ledger.py` refuses a regression.
+Implementation stays in `control/` and `web/`.
 
 ## Upstream
 
 The console is a candidate answer to
 [ministackorg/ministack#314](https://github.com/ministackorg/ministack/issues/314)
 ("Web UI"), where a Cloudscape-based console was explicitly requested. This
-repository is private, so replying needs a public write-up or demo repo first.
+repository is public, so the write-up can point at the console and these docs.
 
 ## Layout
 
