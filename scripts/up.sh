@@ -4,9 +4,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# `up.sh --build` rebuilds the image first (cached, so a no-change rebuild costs a few seconds).
-if [ "${1:-}" = "--build" ]; then
-  shift
+# Flags: `--build` rebuilds for a maintainer, `--pull` refreshes a published image, `--dev` mounts the source.
+build=0
+pull=0
+dev=${EP_DEV:-0}
+for argument in "$@"; do
+  case "$argument" in
+    --build) build=1 ;;
+    --pull) pull=1 ;;
+    --dev) dev=1 ;;
+    *) echo "unknown option: $argument (try --build, --pull or --dev)" >&2; exit 2 ;;
+  esac
+done
+if [ "$build" = "1" ]; then
   ./scripts/build.sh
 fi
 
@@ -58,7 +68,7 @@ if [ -n "$overlay" ] && [ -f "$overlay" ]; then
 fi
 
 # `--dev` (or EP_DEV=1) mounts the console and the control source: a change costs a vite build or a restart.
-if [ "${1:-}" = "--dev" ] || [ "${EP_DEV:-}" = "1" ]; then
+if [ "$dev" = "1" ]; then
   # Generated and ignored: the module list is read from disk, so a new control/*.py needs no edit here.
   {
     echo "services:"
@@ -73,6 +83,19 @@ if [ "${1:-}" = "--dev" ] || [ "${EP_DEV:-}" = "1" ]; then
   } > compose.dev.yml
   compose+=(-f compose.dev.yml)
   echo "dev overlay: console and control source are mounted, not baked"
+fi
+
+# An end user pulls the published image; only a maintainer builds one (`--build`).
+image=$(sed -n 's/^EP_IMAGE=//p' .env)
+if [ -z "$image" ] && [ -f "$overlay" ]; then
+  image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' "$overlay" | head -n 1)
+fi
+image=${image:-ghcr.io/mathewmusango/emuplane:latest}
+if [ "$build" = "0" ]; then
+  if [ "$pull" = "1" ] || ! podman image exists "$image"; then
+    echo "pulling $image"
+    "${compose[@]}" pull
+  fi
 fi
 
 # The overlay declares the network it joins, so read the name there; EP_NETWORK overrides, and up.sh creates it if missing.

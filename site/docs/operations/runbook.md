@@ -13,9 +13,10 @@ compose file in its own repository, and `up.sh` refuses to start without it.
 ## Start
 
 ```bash
-./scripts/up.sh           # .env, apply the control stack, pull the image, start
-./scripts/up.sh --dev     # the same, with the console and control source mounted
-./scripts/up.sh --build   # rebuild the image first
+./scripts/up.sh           # .env, pull the published image, apply the control stack, start
+./scripts/up.sh --pull    # refresh the tag, for when `latest` has moved
+./scripts/up.sh --dev     # as above, with the console and the control source mounted
+./scripts/up.sh --build   # a maintainer: build from this checkout instead of pulling
 ```
 
 The first run creates `.env` from `.env.example` (mode `0600`). No credential is
