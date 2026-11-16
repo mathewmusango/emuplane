@@ -2238,12 +2238,19 @@ def signed_s3(
 
 
 def is_console_route(path: str) -> bool:
-    """The console's own paths beyond the flat `SPA_ROUTES`: a service's home
-    (`/<service>/home`) and the pages that hang off it (`/s3/create`)."""
+    """The console's own paths beyond the flat `SPA_ROUTES`.
+
+    A service's home (`/<service>/home`) and the pages that sit beside it
+    (`/<service>/create`), plus every page S3 hangs off its own nav — the create
+    form and the bucket-type and files tabs — which the client router resolves
+    and whose unknown names it redirects away from.
+    """
     parts = [part for part in path.split("/") if part]
-    if len(parts) != 2:
+    if not parts:
         return False
-    return parts[1] == "home" or (parts[0] == "s3" and parts[1] == "create")
+    if parts[0] == "s3" and len(parts) <= 2:
+        return True
+    return len(parts) == 2 and parts[1] in ("home", "create")
 
 
 def static_asset(url_path: str) -> tuple[bytes, str] | None:

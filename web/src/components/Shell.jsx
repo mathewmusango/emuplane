@@ -127,9 +127,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
               text: 'General purpose buckets',
               href: serviceBase,
             },
-            { type: 'link', text: 'Directory buckets', href: '/s3/directory-buckets' },
             { type: 'link', text: 'Table buckets', href: '/s3/table-buckets' },
-            { type: 'link', text: 'Vector buckets', href: '/s3/vector-buckets' },
           ],
         },
         {

@@ -355,13 +355,12 @@ the minor number is bumped by hand, patch releases are the bot's.
   any invented name gets. Those names are not services, so the route sends the
   caller to *All services* as soon as the catalogue says the name is not one of
   the twelve the console serves.
-- **S3's other tabs are children of S3.** *Directory buckets*, *Table buckets*,
-  *Vector buckets* and *File systems* were inert labels under *Amazon S3* in the
-  sidebar. They are pages of S3 now — `/s3/directory-buckets`,
-  `/s3/table-buckets`, `/s3/vector-buckets`, `/s3/files` — reached from that
-  sidebar, keeping the *Amazon S3* header and its own nav. The directory and
-  vector bucket types are not served by the emulator, and those two pages say so;
-  the other two list what the emulator holds.
+- **S3's other tabs are children of S3 — and only the ones the backend backs.**
+  *Table buckets* and *File systems* are pages of S3
+  (`/s3/table-buckets`, `/s3/files`), reached from the *Amazon S3* sidebar, which
+  keeps its header and its own nav. *Directory buckets* and *Vector buckets* are
+  not tabs at all: this emulator serves neither S3 Express One Zone nor S3
+  Vectors, and an empty tab for them said less than their absence does.
 - **Table buckets and File systems list what the emulator holds.**
   `GET /api/s3/table-buckets` and `GET /api/s3/file-systems`
   (`control/s3extra.py`) ask the emulator's own S3 Tables (`GET /buckets`) and S3

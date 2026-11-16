@@ -13,24 +13,11 @@ import { useSession } from '../context'
 import { regionName } from '../regionNames'
 import { Shell } from '../components/Shell'
 
-// The S3 console's other tabs. They are children of S3 — the sidebar keeps them
-// under *Buckets* and *Files* — and each either lists the resources its own API
-// serves or says plainly that this instance has nothing there.
+// The S3 console's other tabs, and only the ones this emulator backs: S3 Tables
+// and S3 Files are separate APIs on the same instance. Directory buckets (S3
+// Express One Zone) and vector buckets have no backend here, so they are not
+// tabs at all rather than empty ones.
 const SECTIONS = {
-  'directory-buckets': {
-    title: 'Directory buckets',
-    summary:
-      'Directory buckets (S3 Express One Zone) use a single Availability Zone and their own storage class.',
-    note: 'This emulator serves general purpose buckets only, so there are no directory buckets to list.',
-    tone: 'info',
-  },
-  'vector-buckets': {
-    title: 'Vector buckets',
-    summary:
-      'Vector buckets hold embeddings for similarity search and are addressed through the S3 Vectors API.',
-    note: 'The emulator does not serve S3 Vectors, so there are no vector buckets to list.',
-    tone: 'info',
-  },
   'table-buckets': {
     title: 'Table buckets',
     summary:
@@ -90,13 +77,13 @@ export default function S3Section({ section }) {
   const detail = SECTIONS[section]
 
   const [rows, setRows] = useState([])
-  const [loading, setLoading] = useState(Boolean(detail?.source))
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!detail?.source || !account) return undefined
+    if (!account) return undefined
     let live = true
-    const read = detail.source === 'tables' ? api.s3TableBuckets : api.s3FileSystems
+    const read = section === 'table-buckets' ? api.s3TableBuckets : api.s3FileSystems
     setLoading(true)
     read(account, region)
       .then((answer) => {
@@ -115,7 +102,7 @@ export default function S3Section({ section }) {
     return () => {
       live = false
     }
-  }, [detail?.source, account, region])
+  }, [section, account, region])
 
   if (!detail) return null
 
@@ -136,32 +123,24 @@ export default function S3Section({ section }) {
       >
         <Container>
           <SpaceBetween size="m">
-            {detail.source ? (
-              <>
-                {error && (
-                  <Alert type="error" header="Could not read this listing">
-                    {error}
-                  </Alert>
-                )}
-                <Table
-                  items={rows}
-                  loading={loading}
-                  loadingText={`Reading ${detail.title.toLowerCase()}`}
-                  columnDefinitions={detail.columns}
-                  trackBy={(item) => item.arn || item.fileSystemId || item.name}
-                  header={
-                    <Header counter={`(${rows.length})`}>{detail.title}</Header>
-                  }
-                  empty={
-                    <Box textAlign="center" color="text-body-secondary">
-                      No {detail.title.toLowerCase()} in this account and region.
-                    </Box>
-                  }
-                />
-              </>
-            ) : (
-              <Alert type={detail.tone}>{detail.note}</Alert>
+            {error && (
+              <Alert type="error" header="Could not read this listing">
+                {error}
+              </Alert>
             )}
+            <Table
+              items={rows}
+              loading={loading}
+              loadingText={`Reading ${detail.title.toLowerCase()}`}
+              columnDefinitions={detail.columns}
+              trackBy={(item) => item.arn || item.fileSystemId || item.name}
+              header={<Header counter={`(${rows.length})`}>{detail.title}</Header>}
+              empty={
+                <Box textAlign="center" color="text-body-secondary">
+                  No {detail.title.toLowerCase()} in this account and region.
+                </Box>
+              }
+            />
             <Box color="text-body-secondary" fontSize="body-s">
               Region <strong>{regionName(region)}</strong>{' '}
               <span className="mono">{region}</span>

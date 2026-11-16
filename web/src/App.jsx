@@ -32,10 +32,9 @@ export default function App() {
         <Route path="/s3/create" element={<CreateBucket />} />
         {/* S3 Tables and S3 Files are children of S3 in the console, so their
             pages hang off the S3 nav rather than existing as services of their
-            own (`/s3tables/home` and friends are not pages). */}
-        <Route path="/s3/directory-buckets" element={<S3Section section="directory-buckets" />} />
+            own (`/s3tables/home` and friends are not pages). Directory and vector
+            buckets are not pages at all: this emulator serves neither. */}
         <Route path="/s3/table-buckets" element={<S3Section section="table-buckets" />} />
-        <Route path="/s3/vector-buckets" element={<S3Section section="vector-buckets" />} />
         <Route path="/s3/files" element={<S3Section section="files" />} />
         <Route path="/:service/home" element={<Resources />} />
         <Route path="/resources/:service" element={<ServiceRedirect />} />

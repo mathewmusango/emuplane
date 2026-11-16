@@ -199,16 +199,19 @@ describe('s3', () => {
     }
   })
 
-  it('keeps the S3 tabs as children of S3, each saying what it can do', async () => {
+  it('keeps the supported S3 tabs as children of S3', async () => {
     pinRegion('us-east-1')
     renderAt(<App />, ['/s3/home?region=us-east-1'])
     expect(await screen.findAllByText('General purpose buckets')).toBeTruthy()
+
+    // Only the tabs this emulator backs are here at all: S3 Tables and S3 Files.
+    expect(screen.queryByRole('link', { name: 'Directory buckets' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Vector buckets' })).toBeNull()
 
     // The nav's other tabs are S3 pages, not services of their own.
     for (const [tab, heading] of [
       ['File systems', 'File systems'],
       ['Table buckets', 'Table buckets'],
-      ['Directory buckets', 'Directory buckets'],
     ]) {
       fireEvent.click(screen.getByRole('link', { name: tab }))
       expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeTruthy()
