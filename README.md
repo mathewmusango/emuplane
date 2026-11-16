@@ -3,6 +3,7 @@
 <p align="center">Backend gateway · Accounts, logins and access keys · Console and control API</p>
 
 <p align="center">
+  <a href="https://mathewmusango.github.io/emuplane/"><img src="https://img.shields.io/badge/docs-emuplane-blue" alt="Documentation"></a>
   <a href="https://github.com/mathewmusango/emuplane/actions/workflows/release.yml"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/release.yml/badge.svg" alt="Release"></a>
   <a href="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml/badge.svg" alt="Semgrep"></a>
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
@@ -11,6 +12,8 @@
 </p>
 
 ---
+
+**Documentation** — <https://mathewmusango.github.io/emuplane/>: quickstart, architecture, tenancy, the S3 pages, the control API and the S3 coverage ledger, versioned per release.
 
 ## Why Emuplane?
 
