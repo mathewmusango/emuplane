@@ -2514,9 +2514,11 @@ def _annotate(
 ) -> list[dict]:
     """Attach the region and owner metadata every row carries.
 
-    S3 rows carry no region of their own: ``ListBuckets`` answers per region on
-    the fork image, so the queried region is the bucket's home. Owner metadata
-    still comes from the name registry.
+    The registry is the only thing that knows where a bucket actually lives: the
+    fork's ``ListBuckets`` is account-global, as AWS's is, so every enabled
+    region answers with every bucket and the queried region says nothing about a
+    bucket's own. The queried region stays the fallback for a name the registry
+    has never seen.
     """
     for row in rows:
         claim = _bucket_claim(row["name"]) if service == "s3" else {}
@@ -2525,10 +2527,7 @@ def _annotate(
         if entry.get("user"):
             owner["user"] = entry["user"]
             owner["at"] = entry.get("at", "")
-        if service == "s3":
-            row["region"] = region
-        else:
-            row["region"] = claim.get("region") or region
+        row["region"] = claim.get("region") or region
         row["owner"] = owner
         row["detail"] = dict(row.get("detail") or {})
     return rows

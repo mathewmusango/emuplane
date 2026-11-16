@@ -123,7 +123,9 @@ the minor number is bumped by hand, patch releases are the bot's.
 - **The new modules ship.** `Dockerfile` and `compose.dev.yml` copy and mount
   `control/*.py` one by one, so `buckets.py` and `signed.py` were added to both —
   the image cannot import a module its `COPY` line omits, and the dev overlay
-  mounts only what it lists.
+  mounts only what it lists. A control that is missing one of them answers 404 to
+  the route that needs it, which is what "Could not create the bucket: not found"
+  was.
 - **Local runtime state is ignored.** `.gitignore` covers `node_modules/`,
   `tests/node_modules` (a symlink is not a directory, so the trailing-slash
   pattern alone misses it) and `.pytest_cache/`.
@@ -335,6 +337,14 @@ the minor number is bumped by hand, patch releases are the bot's.
   purpose buckets* and *All AWS Regions* — driving the same all-regions fetch.
 ### Fixed
 
+- **The S3 table reports each bucket's own region.** `_annotate` stamped every S3
+  row with the region being queried, which was true only while `ListBuckets`
+  answered per region. The fork's listing is account-global (AWS parity), so every
+  enabled region answers with every bucket, the first pass wins the dedupe, and
+  buckets created in `us-east-2` or `us-west-2` were listed as `us-east-1`. The
+  registry's own region is authoritative now, with the queried region kept as the
+  fallback for a name it has never seen. Verified on the live instance: a bucket
+  created in each enabled region lists with the region it was made in.
 - **Creating a bucket works in every region, not only `us-east-1`.** AWS accepts
   an omitted `CreateBucketConfiguration` only on the global `us-east-1` endpoint;
   a regional endpoint requires the constraint and otherwise refuses with

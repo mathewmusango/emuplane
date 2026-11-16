@@ -20,6 +20,7 @@ services:
       - ./control/app.py:/app/app.py:ro,Z
       - ./control/buckets.py:/app/buckets.py:ro,Z
       - ./control/console.py:/app/console.py:ro,Z
+      - ./control/signed.py:/app/signed.py:ro,Z
       - ./control/dynamo.py:/app/dynamo.py:ro,Z
       - ./control/store.py:/app/store.py:ro,Z
       - ./control/api_token.py:/app/api_token.py:ro,Z
