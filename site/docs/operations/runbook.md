@@ -22,6 +22,22 @@ The first run creates `.env` from `.env.example` (mode `0600`). No credential is
 seeded: the API bearer token is minted on demand by `./scripts/token.sh` and
 stored as a hash, so `.env` carries no secret at all.
 
+## The image
+
+Two stages: Node builds `web/dist`, then the Python stage copies it and the
+control source, so the image is self-contained — nothing is bind-mounted from the
+host and nothing has to be built there.
+
+- Base images are pinned by **index digest** — multi-arch, so a rebuild resolves
+  to the same bytes. `renovate.json` is what moves them.
+- npm's cache and Vite's transform cache are build mounts rather than layers, so
+  unchanged modules are neither re-downloaded nor re-transformed, and nothing from
+  either cache ships in the image.
+- The healthcheck lives in `docker-compose.yml`, because podman's default OCI image
+  format ignores `HEALTHCHECK`.
+- The process runs as root on purpose: the dev overlay bind-mounts host files, and
+  rootless podman maps those to the container's root.
+
 ## The bootstrap stack
 
 Before the console starts, `up.sh` runs the `bootstrap` service
