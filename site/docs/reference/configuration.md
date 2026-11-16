@@ -29,7 +29,7 @@ That split is the porting contract:
 | `EP_GATEWAY_PORT` | `8081` | gateway port inside the container |
 | `EP_STORE_ACCOUNT` | `111111111111` | account the control reads its own DynamoDB tables as |
 | `EP_STORE_REGION` | `us-east-1` | region those tables live in |
-| `EP_STORE_URL` | empty | override the store's endpoint |
+| `EP_STORE_URL` | empty | where the control's own tables live; **empty means `EP_BACKEND_URL`**, so repointing the backend moves the accounts with it |
 | `EP_POLL_SECONDS` | `10` | seconds between emulator health polls |
 | `EP_SESSION_SECONDS` | `28800` | session lifetime, extended on activity |
 | `EP_RECENT_LIMIT` | `5` | services under **Recently visited** |
