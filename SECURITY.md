@@ -34,14 +34,10 @@ Discussions. Any other question about the model — how a rule is meant to behav
 why something is refused — is welcome in
 [Discussions](https://github.com/mathewmusango/emuplane/discussions).
 
-Only test a deployment you own or have written permission to test. The public
-instance is a demonstration, not a target: a scan of it is noise, and a finding
-there is still welcome through the routes above.
+Only test a deployment you own or have written permission to test.
 
 A report is easiest to act on with the version or commit, what you did, what
-happened and what you expected. This is a single-maintainer project: reports are
-acknowledged as soon as they are read, and fixes ship in the next release rather
-than on a contractual timeline.
+happened and what you expected.
 
 ## In scope
 

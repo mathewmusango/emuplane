@@ -50,6 +50,25 @@ emulator. Reset the emulator from the dashboard, or
 There is nothing to back up on the host: the console is stateless and the control
 state lives in the emulator's DynamoDB.
 
+### Removing it, and what survives
+
+`down` removes the containers and nothing else. Emuplane keeps no volume, so it
+holds no state to rescue — everything it knows belongs to the emulator:
+
+| What | Where it lives |
+| --- | --- |
+| Accounts, users, keys, sessions, reset tokens, settings | the emulator's DynamoDB (`state`) |
+| Buckets and objects | the emulator's S3 store (`s3`) |
+| The deployment's own configuration | `.env` in this repository |
+
+So removing Emuplane is reversible: start it again against the same emulator and
+every account, key and bucket is still there. Removing the **emulator** is the
+irreversible act. Back up its two data directories first — `/var/lib/ministack/state`
+and `/var/lib/ministack/s3` inside the container, host bind mounts or a volume in
+practice — or accept that the accounts and their buckets go with it. A fresh
+emulator comes back empty, and the next `./scripts/up.sh` applies the control's
+tables to it again.
+
 ## The dev loop
 
 `./scripts/up.sh --dev` mounts the control source and the built console into the

@@ -12,7 +12,8 @@
 
 ---
 
-Emuplane is not an emulator. It is what you put in front of one — [MiniStack](https://github.com/ministackorg/ministack),
+Emuplane is not an emulator, and not a replacement for AWS. It is what you put in
+front of one — [MiniStack](https://github.com/ministackorg/ministack),
 [LocalStack](https://github.com/localstack/localstack), [Floci](https://github.com/floci-io/floci) or
 [moto](https://github.com/getmoto/moto).
 
