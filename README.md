@@ -44,6 +44,24 @@ Nothing is seeded: create the first account at `/signup`. The API bearer token i
 optional: mint one with `./scripts/token.sh` when something other than the console
 needs the control API.
 
+## Accessing it
+
+| What | On the host | In the compose network | Behind a proxy |
+| --- | --- | --- | --- |
+| Console and control API | `http://localhost:4570/` | `http://emuplane:8080` | `EP_CONSOLE_URL` |
+| AWS gateway | `http://localhost:4571` | `http://emuplane:8081` | `EP_GATEWAY_URL` |
+
+```bash
+export AWS_ENDPOINT_URL=http://localhost:4571
+export AWS_ACCESS_KEY_ID=<the key id from the console>
+export AWS_SECRET_ACCESS_KEY=<the secret, shown once>
+aws s3 ls
+```
+
+The host ports bind `127.0.0.1` and the backend is never published — a client wants
+the gateway, never the emulator. An issued `AKIA…` key is verified; the 12-digit
+account id is that account's root and is accepted with any secret.
+
 ## Documentation
 
 | Page | What it covers |
