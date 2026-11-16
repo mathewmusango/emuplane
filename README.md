@@ -330,7 +330,7 @@ login form any more; `/signin` remains as an alias for the same screens.
 The code screen appears **only when the server says the principal owes a code**
 (`mfa_required`). Enrolment does not exist yet, so that answer is false for every
 account and the third screen is not reached; `POST /api/auth/mfa` answers `501`
-until enrolment lands (ARCHITECTURE.md slice 3b).
+until enrolment lands (substrate slice 3b).
 
 The control seeds **nothing** from `.env`. Every account is created by sign-up,
 and each one is the root of its own tenancy — there is no account above another.

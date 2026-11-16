@@ -22,3 +22,5 @@ site/.npm-cache/
 qa/
 addons/
 my-docs/
+# Internal design notes: cells, router, break-glass. Not for a public repo.
+ARCHITECTURE.md
