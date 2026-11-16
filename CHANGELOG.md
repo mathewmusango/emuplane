@@ -9,6 +9,16 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **S3's operations are proven from both ends.** `tests/control/test_parity.py`
+  writes with the control's own signed client straight at the emulator — the
+  path a foreign client takes, with no gateway and no claim recorded — and then
+  reads, lists or reverses the same thing through the console API; and it writes
+  through the console and checks the emulator. A bucket or object made on one
+  side must be visible, readable and reversible from the other. Nothing created
+  is cleaned up: the buckets and objects stay for the next run and for the
+  operator, except in the cases that *are* a delete, which remove what they made.
+  The slice starts with the five core operations: create-bucket, delete-bucket,
+  list-objects, put-object, delete-object.
 - **Access points have their own page, through S3 Control.** `Amazon S3 →
   Access management and security → Access Points` lists the account's access
   points for the page's region and creates, deletes and edits policy on them:
@@ -159,6 +169,20 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **A bucket created outside the console is located by asking S3.**
+  `ListBuckets` is account-global and says nothing about a bucket's region, and
+  a bucket made straight on the emulator has no claim either, so `/api/browse`
+  stamped it with whichever region was being queried — a us-west-2 bucket made
+  by `aws s3 mb` showed up under us-east-1. Rows without a claim now ask
+  `GetBucketLocation`, which answers whatever region it is signed for and
+  returns an empty constraint for us-east-1; the queried region is the fallback
+  only when even that cannot answer. The parity suite found this.
+- **`S3.md` shows what the console cannot do yet.** Each operation row gained a
+  *Shown in the console* column, and a *GET operations* checklist lists every
+  `Get`/`List`/`Head`/`Describe` with the page that shows it or an empty box:
+  21 of 35 are shown today. 35 of the 84 operations have a console surface at
+  all, and 37 have an emuplane test. That makes "close S3" a list rather than a
+  search.
 - **Every S3 console page opens by its URL.** The SPA gate admitted only two
   segments under `/s3/`, so a reload of a bucket page (`/s3/buckets/<name>`) or a
   pasted access point link answered `404 not found`. It now admits any depth: the

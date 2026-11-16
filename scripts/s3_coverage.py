@@ -39,15 +39,15 @@ TARGET = ROOT / "S3.md"
 # gateway-only: the emulator's own `tests/test_s3.py` covers it, emuplane does
 # not look.
 COVERED = {
-    "CreateBucket": "tests/s3/test_create.py, tests/control/test_gateway.py",
-    "DeleteBucket": "tests/control/test_gateway.py",
+    "CreateBucket": "tests/s3/test_create.py, tests/control/test_gateway.py, tests/control/test_parity.py",
+    "DeleteBucket": "tests/control/test_gateway.py, tests/control/test_parity.py",
     "HeadBucket": "tests/control/test_gateway.py (301 path)",
-    "ListBuckets": "tests/control/test_api.py (via /api/browse)",
-    "PutObject": "tests/control/test_api.py, tests/s3/test_objects.py",
+    "ListBuckets": "tests/control/test_api.py (via /api/browse), tests/control/test_parity.py",
+    "PutObject": "tests/control/test_api.py, tests/s3/test_objects.py, tests/control/test_parity.py",
     "DeleteObjects": "tests/s3/test_objects.py (Empty)",
-    "GetObject": "tests/s3/test_objects.py",
-    "ListObjects v1/v2": "tests/control/test_api.py (v2)",
-    "DeleteObject": "tests/web/s3.test.jsx (Empty loop), tests/s3/test_catalogue.py",
+    "GetObject": "tests/s3/test_objects.py, tests/control/test_parity.py",
+    "ListObjects v1/v2": "tests/control/test_api.py (v2), tests/control/test_parity.py",
+    "DeleteObject": "tests/web/s3.test.jsx (Empty loop), tests/s3/test_catalogue.py, tests/control/test_parity.py",
     "GetBucketVersioning": "tests/s3/test_create.py",
     "PutBucketVersioning": "tests/s3/test_create.py",
     "GetBucketEncryption": "tests/s3/test_create.py",
@@ -122,6 +122,55 @@ PAGES = {
     "ListMultiRegionAccessPoints": "Access Points page (Multi-Region tab)",
     "ListAccessPointsForObjectLambda": "Access Points page (Object Lambda tab)",
 }
+
+# Operation -> where the console shows or performs it. A row with an entry is
+# reachable from the GUI; a row without one is gateway-only, and the point of the
+# column is that the gap is visible per operation rather than inferred.
+GUI = {
+    "CreateBucket": "Buckets page › Create bucket",
+    "DeleteBucket": "Buckets page › Delete",
+    "ListBuckets": "Buckets page › table",
+    "PutObject": "Bucket page › Objects › Upload",
+    "GetObject": "Bucket page › Objects › open",
+    "DeleteObject": "Buckets page › Empty",
+    "DeleteObjects": "Buckets page › Empty",
+    "ListObjects v1/v2": "Bucket page › Objects",
+    "ListObjectVersions": "Bucket page › Configuration documents",
+    "GetBucketVersioning": "Bucket page › Properties",
+    "PutBucketVersioning": "Bucket page › Properties › Edit",
+    "GetBucketEncryption": "Bucket page › Properties",
+    "PutBucketEncryption": "Create bucket page",
+    "GetBucketTagging": "Bucket page › Properties",
+    "PutBucketTagging": "Create bucket page › Tags",
+    "GetPublicAccessBlock": "Bucket page › Permissions",
+    "PutPublicAccessBlock": "Bucket page › Permissions › Save",
+    "GetObjectLockConfiguration": "Create bucket page › Copy settings",
+    "PutObjectLockConfiguration": "Create bucket page › Object Lock",
+    "GetBucketLifecycleConfiguration": "Bucket page › Configuration documents",
+    "GetBucketCors": "Bucket page › Configuration documents",
+    "GetBucketAcl": "Bucket page › Configuration documents",
+    "GetBucketPolicy": "Bucket page › Configuration documents",
+    "GetBucketNotificationConfiguration": "Bucket page › Configuration documents",
+    "GetBucketLogging": "Bucket page › Configuration documents",
+    "GetBucketReplication": "Bucket page › Configuration documents",
+    "CreateAccessPoint": "Access Points page › Create access point",
+    "GetAccessPoint": "Access Points page › row details",
+    "ListAccessPoints": "Access Points page › General purpose buckets",
+    "DeleteAccessPoint": "Access Points page › Delete",
+    "PutAccessPointPolicy": "Access Points page › Edit policy",
+    "GetAccessPointPolicy": "Access Points page › Edit policy",
+    "DeleteAccessPointPolicy": "Access Points page › Remove policy",
+    "ListMultiRegionAccessPoints": "Access Points page › Multi-Region",
+    "ListAccessPointsForObjectLambda": "Access Points page › Object Lambda",
+}
+
+# What counts as a read: the operations a page has to be able to show.
+READ_PREFIXES = ("Get", "List", "Head", "Describe")
+
+
+def is_read(operation: str) -> bool:
+    return operation.startswith(READ_PREFIXES)
+
 
 GROUPS = [
     (
@@ -232,12 +281,20 @@ def render() -> str:
         f"- Operations upstream advertises: **{len(operations)}**",
         f"- Console actions (`/api/exec`, the create page): **{len(actions)}**",
         f"- Operations with an emuplane test: **{len([o for o in operations if o in COVERED])}**",
+        f"- Operations shown in the console: **{len([o for o in operations if o in GUI])}**",
+        f"- GET operations (Get/List/Head/Describe) shown in the console: "
+        f"**{len([o for o in operations if is_read(o) and o in GUI])}** of "
+        f"**{len([o for o in operations if is_read(o)])}**",
         "- Reachable through the gateway, tested by the emulator only: the rest",
         "",
         "The gateway is a passthrough: an operation without an entry in the last",
         "column is not untested — the emulator's own `tests/test_s3.py` covers this",
         "surface, and emuplane simply does not look at it. That is a different",
         "claim from \"nobody tests it\".",
+        "",
+        "The *Shown in the console* column is the other half of the claim: an",
+        "operation with an em dash there is reachable over the wire but nowhere in",
+        "the console, which is what closing S3 has to remove.",
         "",
     ]
     if ungrouped:
@@ -251,8 +308,8 @@ def render() -> str:
             "",
             f"## {title}",
             "",
-            "| Operation | Console action | Emuplane test |",
-            "| --- | --- | --- |",
+            "| Operation | Console action | Shown in the console | Emuplane test |",
+            "| --- | --- | --- | --- |",
         ]
         for name in listed:
             owned = [
@@ -262,7 +319,26 @@ def render() -> str:
                 owned.append(PAGES[name])
             action = ", ".join(owned)
             test = COVERED.get(name, "—")
-            lines.append(f"| `{name}` | {action or '—'} | {test} |")
+            lines.append(
+                f"| `{name}` | {action or '—'} | {GUI.get(name, '—')} | {test} |"
+            )
+
+    lines += [
+        "",
+        "## GET operations",
+        "",
+        "Every read operation, and where the console shows it. A box left unticked",
+        "is an operation the emulator answers and the console cannot display.",
+        "",
+    ]
+    for name in operations:
+        if not is_read(name):
+            continue
+        shown = GUI.get(name)
+        lines.append(
+            f"- [{'x' if shown else ' '}] `{name}`"
+            + (f" — {shown}" if shown else " — not shown")
+        )
 
     lines += [
         "",

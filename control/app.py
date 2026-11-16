@@ -2542,16 +2542,34 @@ def _bucket_claim(name: str) -> dict:
         return dict(REGISTRY.buckets.get(name) or {})
 
 
+def _bucket_location(account: str, region: str, name: str) -> str:
+    """Where a bucket really lives, asked of S3 itself.
+
+    `ListBuckets` is account-global and says nothing about a bucket's region, and
+    a bucket created straight on the emulator has no claim either. `GetBucketLocation`
+    answers whatever region it is signed for, and an empty constraint is us-east-1
+    — which is what AWS returns for it, not a guess.
+    """
+    status, body = signed_s3(account, region, "GET", "/" + quote(name) + "?location")
+    if not 200 <= status < 300:
+        return ""
+    found = re.search(
+        r"<LocationConstraint[^>]*>([^<]+)</LocationConstraint>", body or ""
+    )
+    return found.group(1).strip() if found else "us-east-1"
+
+
 def _annotate(
     service: str, account: str, region: str, rows: list[dict]
 ) -> list[dict]:
     """Attach the region and owner metadata every row carries.
 
-    The registry is the only thing that knows where a bucket actually lives: the
-    fork's ``ListBuckets`` is account-global, as AWS's is, so every enabled
-    region answers with every bucket and the queried region says nothing about a
-    bucket's own. The queried region stays the fallback for a name the registry
-    has never seen.
+    The registry is the only thing that knows where a bucket this console created
+    lives: the fork's ``ListBuckets`` is account-global, as AWS's is, so every
+    enabled region answers with every bucket and the queried region says nothing
+    about a bucket's own. A bucket with no claim — one made straight on the
+    emulator — is located by asking S3 (`GetBucketLocation`); the queried region
+    stays the fallback for a name even that cannot answer for.
     """
     for row in rows:
         claim = _bucket_claim(row["name"]) if service == "s3" else {}
@@ -2561,6 +2579,8 @@ def _annotate(
             owner["user"] = entry["user"]
             owner["at"] = entry.get("at", "")
         row["region"] = claim.get("region") or region
+        if service == "s3" and not claim.get("region"):
+            row["region"] = _bucket_location(account, region, row["name"]) or row["region"]
         row["owner"] = owner
         row["detail"] = dict(row.get("detail") or {})
     return rows
