@@ -124,6 +124,17 @@ export interface ObjectsResult {
   objects: ObjectRow[]
 }
 
+/** A listing from one of S3's child APIs (S3 Tables, S3 Files). */
+export interface S3ChildListing {
+  ok: boolean
+  status?: number
+  items: Record<string, unknown>[]
+  error?: string
+  account?: string
+  region?: string
+  service?: string
+}
+
 export interface BucketTag {
   Key: string
   Value: string

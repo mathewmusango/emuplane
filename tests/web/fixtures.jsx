@@ -131,6 +131,30 @@ export const RESPONSES = {
       { key: 'reports/2026.csv', size: '12', modified: '2026-11-04T00:00:00Z' },
     ],
   },
+  '/api/s3/table-buckets': {
+    ok: true,
+    status: 200,
+    items: [
+      {
+        arn: 'arn:aws:s3tables:us-east-1:111111111111:bucket/analytics-tables',
+        name: 'analytics-tables',
+        createdAt: '2026-11-16T09:00:00Z',
+      },
+    ],
+  },
+  '/api/s3/file-systems': {
+    ok: true,
+    status: 200,
+    items: [
+      {
+        fileSystemId: 'fs-0123456789abcdef',
+        name: '',
+        bucket: 'logs-bucket',
+        status: 'available',
+        creationTime: 1794822084,
+      },
+    ],
+  },
 }
 
 /** Install the fetch stub the console talks to. Returns nothing usable; the

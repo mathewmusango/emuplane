@@ -359,10 +359,17 @@ the minor number is bumped by hand, patch releases are the bot's.
   *Vector buckets* and *File systems* were inert labels under *Amazon S3* in the
   sidebar. They are pages of S3 now — `/s3/directory-buckets`,
   `/s3/table-buckets`, `/s3/vector-buckets`, `/s3/files` — reached from that
-  sidebar, keeping the *Amazon S3* header and its own nav, and each says what this
-  instance can do with it: the directory and vector bucket types are not served by
-  the emulator at all, while S3 Tables and S3 Files *are* served by its own APIs
-  and the console has no table or file-system view yet.
+  sidebar, keeping the *Amazon S3* header and its own nav. The directory and
+  vector bucket types are not served by the emulator, and those two pages say so;
+  the other two list what the emulator holds.
+- **Table buckets and File systems list what the emulator holds.**
+  `GET /api/s3/table-buckets` and `GET /api/s3/file-systems`
+  (`control/s3extra.py`) ask the emulator's own S3 Tables (`GET /buckets`) and S3
+  Files (`GET /file-systems`) APIs through the same root-signed client, and the
+  console renders the answer as a table. A refusal, or a body that is not the JSON
+  those APIs document, is an error on the page — never an empty table that would
+  read as "you have none". Verified live: both answer `200` with an empty list on
+  an instance that has never created one.
 - **The S3 table reports each bucket's own region.** `_annotate` stamped every S3
   row with the region being queried, which was true only while `ListBuckets`
   answered per region. The fork's listing is account-global (AWS parity), so every

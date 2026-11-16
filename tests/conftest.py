@@ -13,6 +13,7 @@ skip when it is not checked out.
 from __future__ import annotations
 
 import asyncio
+import re
 import sys
 import threading
 import types
@@ -49,7 +50,23 @@ def emulator():
 
 @pytest.fixture(scope="session")
 def s3_endpoint(emulator):
-    """An HTTP endpoint that speaks the emulator's S3 surface."""
+    """An HTTP endpoint that speaks the emulator's S3 surface — and the two APIs
+    the console's other S3 tabs ask (S3 Tables, S3 Files), chosen by the service
+    name in the credential scope, exactly as the emulator routes them."""
+
+    handlers = {"s3": emulator}
+    for name in ("s3tables", "s3files"):
+        try:
+            handlers[name] = __import__(
+                f"ministack.services.{name}", fromlist=["handle_request"]
+            )
+        except ImportError:  # pragma: no cover - an older emulator checkout
+            pass
+
+    def route(headers: dict):
+        auth = headers.get("authorization", "")
+        match = re.search(r"Credential=[^/]+/\d{8}/[^/]+/([^/]+)/aws4_request", auth)
+        return handlers.get(match.group(1) if match else "s3", emulator)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):  # keep the test output readable
@@ -62,7 +79,7 @@ def s3_endpoint(emulator):
             headers = {key.lower(): value for key, value in self.headers.items()}
             query = parse_qs(split.query, keep_blank_values=True)
             status, out_headers, out_body = asyncio.run(
-                emulator.handle_request(method, split.path, headers, body, query)
+                route(headers).handle_request(method, split.path, headers, body, query)
             )
             # Handlers return the body as bytes or, for a stored document, as the
             # text they hold; the ASGI layer encodes, and so does this.

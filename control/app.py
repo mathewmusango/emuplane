@@ -48,6 +48,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
 import buckets  # noqa: E402  (local module: the console's bucket create)
 import signed  # noqa: E402  (local module: the root-signed calls)
+import s3extra  # noqa: E402  (local module: S3 Tables / S3 Files listings)
 import mail  # noqa: E402  (local module: the one outbound message)
 from dynamo import DynamoError  # noqa: E402
 from backends import profile  # noqa: E402
@@ -3351,6 +3352,41 @@ class ControlHandler(BaseHTTPRequestHandler):
                     "prefix": prefix,
                     "objects": objects,
                 },
+            )
+        if path in ("/api/s3/table-buckets", "/api/s3/file-systems"):
+            # S3's other tabs are other APIs; the console asks them directly.
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            section = (
+                "table-buckets" if path.endswith("table-buckets") else "file-systems"
+            )
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            result = s3extra.list_items(
+                section,
+                lambda service, method, target_path: signed_rest(
+                    service, target["account_id"], region, method, target_path
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 502,
+                dict(
+                    result,
+                    account=target["account_id"],
+                    region=region,
+                    service=section,
+                ),
             )
         if path == "/api/browse":
             params = parse_qs(urlsplit(self.path).query)

@@ -15,6 +15,7 @@ import type {
   ObjectsResult,
   ProvisionResult,
   RegionResult,
+  S3ChildListing,
   SettingsResult,
   SignInResult,
   UpdateMeResult,
@@ -102,6 +103,11 @@ export const api = {
     ),
   createBucket: (payload: CreateBucketOptions) =>
     request<CreateBucketResult>('/api/s3/buckets', { method: 'POST', body: payload }),
+  // S3's other tabs are other APIs: S3 Tables and S3 Files.
+  s3TableBuckets: (account: string, region: string) =>
+    request<S3ChildListing>(`/api/s3/table-buckets?${query({ account, region })}`),
+  s3FileSystems: (account: string, region: string) =>
+    request<S3ChildListing>(`/api/s3/file-systems?${query({ account, region })}`),
   exec: (payload: {
     account: string
     region: string

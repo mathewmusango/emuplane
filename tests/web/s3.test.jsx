@@ -216,6 +216,21 @@ describe('s3', () => {
     }
   })
 
+  it('lists S3 table buckets from the S3 Tables API', async () => {
+    pinRegion('us-east-1')
+    renderAt(<App />, ['/s3/table-buckets?region=us-east-1'])
+    expect(await screen.findByText('analytics-tables')).toBeTruthy()
+    expect(screen.getAllByText('Amazon S3').length).toBeGreaterThan(0)
+  })
+
+  it('lists file systems from the S3 Files API', async () => {
+    pinRegion('us-east-1')
+    renderAt(<App />, ['/s3/files?region=us-east-1'])
+    expect((await screen.findAllByText('fs-0123456789abcdef')).length).toBeGreaterThan(0)
+    expect(screen.getByText('available')).toBeTruthy()
+    expect(screen.getByText('logs-bucket')).toBeTruthy()
+  })
+
   it('sends a service the console does not serve back to the services page', async () => {
     // `/s3files/home` and `/s3tables/home` answer `unknown service` upstream; the
     // catch-all route must not render a page for them.
