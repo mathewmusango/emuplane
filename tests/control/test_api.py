@@ -317,6 +317,24 @@ def test_an_unknown_encryption_is_refused_by_the_bucket_page(console):
     assert "unknown encryption" in body["error"]
 
 
+def test_the_bucket_page_offers_the_documents_s3_answers(console):
+    assert api(console, "POST", "/api/s3/buckets", page(bucket="documents-api-bucket"))[0] == 200
+
+    status, body = api(
+        console,
+        "GET",
+        f"/api/s3/bucket-documents?account={ACCOUNT}&region=us-east-1&bucket=documents-api-bucket",
+    )
+    assert status == 200, body
+    documents = body["documents"]
+    # The ACL exists on every bucket; logging and notifications are answered as
+    # empty elements, which is the same state as not configured.
+    assert documents["acl"] and "AccessControlPolicy" in documents["acl"]
+    assert documents["logging"] is None
+    assert documents["notifications"] is None
+    assert documents["lifecycle"] is None
+
+
 def test_an_object_written_through_the_gateway_is_readable_in_the_console(
     console, gateway
 ):

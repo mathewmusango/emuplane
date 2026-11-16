@@ -164,7 +164,7 @@ export const RESPONSES = {
       logging: null,
       notifications: null,
       replication: null,
-      versions: null,
+      versions: '<ListVersionsResult><Name>logs-bucket</Name></ListVersionsResult>',
     },
   },
   '/api/s3/table-buckets': {

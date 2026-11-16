@@ -521,6 +521,10 @@ def empty_bucket(bucket: str, call) -> dict:
 # The bucket configuration S3 answers as documents. The console shows them as
 # they come: parsing every one into a form would be a UI project per subresource,
 # and the GETs are the part people ask for.
+#
+# `versions` is the exception in kind: it is a listing (ListObjectVersions), not a
+# setting, and it sits here because it is the version of the data rather than of
+# the configuration.
 DOCUMENTS = {
     "lifecycle": "?lifecycle",
     "cors": "?cors",
@@ -533,13 +537,28 @@ DOCUMENTS = {
 }
 
 
+def _configured(xml: str) -> bool:
+    """Whether a document says anything.
+
+    S3 answers an unset subresource with an empty element —
+    `<BucketLoggingStatus />`, `<NotificationConfiguration />` — not with a 404.
+    Printing that as configuration is worse than printing nothing: it reads as
+    though something is switched on. A document with no children and no text is
+    the same state as a 404, and is reported the same way.
+    """
+    root = _root(xml)
+    if root is None:
+        return True  # not XML this module can judge: show it rather than hide it
+    return bool(list(root)) or bool((root.text or "").strip())
+
+
 def read_documents(bucket: str, call) -> dict:
-    """Each configuration document S3 has for `bucket`, or None where it has none."""
+    """Each document S3 has for `bucket`, or None where it has none at all."""
     path = _bucket_path(bucket)
     found = {}
     for label, suffix in DOCUMENTS.items():
         status, body = call("GET", path + suffix)
-        found[label] = body if 200 <= status < 300 else None
+        found[label] = body if 200 <= status < 300 and _configured(body) else None
     return {"ok": True, "bucket": bucket, "documents": found}
 
 

@@ -207,6 +207,13 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **An unset subresource is no longer shown as configuration.** S3 answers a
+  logging or notification configuration with an empty element, not a 404, and
+  the page printed it as though something were switched on. A document with no
+  children and no text is now reported the same way as a 404 — *not configured*
+  — and only documents that say something are shown. The version listing keeps
+  its own label, since it is the version of the data rather than of the
+  configuration.
 - **`S3.md` is guarded by a test, not by discipline.** `tests/s3/test_ledger.py`
   fails when an operation the emulator advertises has no row, when a row names a
   test file that is not there, when an operation claims a console surface without

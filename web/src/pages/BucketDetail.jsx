@@ -33,6 +33,10 @@ const MAX_UPLOAD = 25 * 1024 * 1024
 
 const dash = '\u2014'
 
+// The one document that is a listing rather than a setting says so, since it sits
+// in a section named for configuration.
+const DOCUMENT_LABELS = { versions: 'versions (ListObjectVersions)' }
+
 // The console's three encryption choices, as the create page offers them.
 const ENCRYPTION = [
   ['AES256', 'Amazon S3 managed keys (SSE-S3)'],
@@ -524,7 +528,7 @@ export default function BucketDetail() {
         header={
           <Header
             variant="h2"
-            description="The configuration S3 holds for this bucket, exactly as it answers."
+            description="What S3 answers for this bucket's subresources, exactly as it answers them. A subresource S3 reports as empty is not configured, and is not shown here."
           >
             Configuration documents
           </Header>
@@ -546,7 +550,7 @@ export default function BucketDetail() {
                 .filter(([, xml]) => xml)
                 .map(([label, xml]) => (
                   <div key={label}>
-                    <Box variant="awsui-key-label">{label}</Box>
+                    <Box variant="awsui-key-label">{DOCUMENT_LABELS[label] || label}</Box>
                     <pre className="result-body">{xml}</pre>
                   </div>
                 ))

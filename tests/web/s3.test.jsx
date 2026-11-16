@@ -525,6 +525,10 @@ describe('s3', () => {
     await openBucket()
     fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
     expect(await screen.findByText(/<Policy><Statement>/)).toBeTruthy()
+    // A subresource S3 reports as empty is not configuration and is not shown.
+    expect(screen.queryByText('logging')).toBeNull()
+    // The one listing in the section says what it is.
+    expect(screen.getByText('versions (ListObjectVersions)')).toBeTruthy()
   })
 
   it('opens a bucket from a link that names no region, by asking where it lives', async () => {

@@ -305,6 +305,28 @@ def test_an_unknown_encryption_is_refused_before_the_call(s3_endpoint):
     assert "unknown encryption" in refused["error"]
 
 
+def test_an_unset_subresource_is_reported_as_not_configured():
+    """S3 answers an unset subresource with an empty element, not a 404: showing
+    that as configuration reads as though something were switched on."""
+    answers = {
+        "?logging": '<BucketLoggingStatus xmlns="http://s3.amazonaws.com/doc/2006-03-01/" />',
+        "?acl": (
+            '<AccessControlPolicy xmlns="http://s3.amazonaws.com/doc/2006-03-01/">'
+            "<Owner><ID>abc</ID></Owner></AccessControlPolicy>"
+        ),
+    }
+
+    def call(_method, path):
+        suffix = "?" + path.partition("?")[2]
+        return 200, answers.get(suffix, '<Unset xmlns="x" />')
+
+    documents = buckets.read_documents("documents-unit-bucket", call)["documents"]
+    assert documents["logging"] is None
+    assert documents["notifications"] is None
+    assert documents["acl"] is not None
+    assert "AccessControlPolicy" in documents["acl"]
+
+
 def test_the_configuration_documents_are_what_s3_has(s3_endpoint):
     client = _client(s3_endpoint)
     _create(client, "documents-bucket")
@@ -317,5 +339,8 @@ def test_the_configuration_documents_are_what_s3_has(s3_endpoint):
     assert documents["lifecycle"] is None
     assert documents["policy"] is None
     assert documents["cors"] is None
+    # ...including the ones S3 answers with an empty element rather than a 404.
+    assert documents["logging"] is None
+    assert documents["notifications"] is None
     # ...while the version listing exists and lists the key.
     assert documents["versions"] and "one.txt" in documents["versions"]
