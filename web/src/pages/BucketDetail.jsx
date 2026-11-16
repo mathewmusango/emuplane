@@ -7,6 +7,10 @@ import Container from '@cloudscape-design/components/container'
 import ContentLayout from '@cloudscape-design/components/content-layout'
 import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
+import Modal from '@cloudscape-design/components/modal'
+import RadioGroup from '@cloudscape-design/components/radio-group'
+import Textarea from '@cloudscape-design/components/textarea'
+import Toggle from '@cloudscape-design/components/toggle'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import StatusIndicator from '@cloudscape-design/components/status-indicator'
 import Table from '@cloudscape-design/components/table'
@@ -33,8 +37,17 @@ export default function BucketDetail() {
   const [prefix, setPrefix] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [newKey, setNewKey] = useState('')
+  const [newBody, setNewBody] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [versioningEdit, setVersioningEdit] = useState(null)
+  const [accessEdit, setAccessEdit] = useState(null)
   const [settings, setSettings] = useState(null)
   const [settingsError, setSettingsError] = useState('')
+  const [documents, setDocuments] = useState({})
+  const [objectView, setObjectView] = useState(null)
+  const [objectError, setObjectError] = useState('')
 
   const loadObjects = useCallback(async () => {
     if (!account) return
@@ -73,6 +86,36 @@ export default function BucketDetail() {
     }
   }, [account, region, name])
 
+  const upload = async () => {
+    setSaving(true)
+    try {
+      await api.putObject({ account, region, bucket: name, key: newKey, body: newBody })
+      setUploading(false)
+      setNewKey('')
+      setNewBody('')
+      await loadObjects()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const save = async (change) => {
+    setSaving(true)
+    try {
+      await api.editBucketSettings({ account, region, bucket: name, ...change })
+      const answer = await api.bucketSettings(account, region, name)
+      setSettings(answer.settings || null)
+      setVersioningEdit(null)
+      setAccessEdit(null)
+    } catch (err) {
+      setSettingsError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const kind = (key) => (key.endsWith('/') ? 'Folder' : 'Object')
 
   const objectsTab = (
@@ -83,7 +126,12 @@ export default function BucketDetail() {
           counter={`(${objects.length})`}
           description="Objects are the fundamental entities stored in Amazon S3."
           actions={
-            <Button iconName="refresh" ariaLabel="Refresh" onClick={loadObjects} />
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button iconName="refresh" ariaLabel="Refresh" onClick={loadObjects} />
+              <Button variant="primary" onClick={() => setUploading(true)}>
+                Upload
+              </Button>
+            </SpaceBetween>
           }
         >
           Objects
@@ -114,7 +162,11 @@ export default function BucketDetail() {
             {
               id: 'key',
               header: 'Name',
-              cell: (item) => <span className="mono">{item.key}</span>,
+              cell: (item) => (
+                <Button variant="inline-link" onClick={() => openObject(item.key)}>
+                  {item.key}
+                </Button>
+              ),
               sortingField: 'key',
             },
             { id: 'type', header: 'Type', cell: (item) => kind(item.key), width: 110 },
@@ -170,9 +222,36 @@ export default function BucketDetail() {
       <Container header={<Header variant="h2">Bucket Versioning</Header>}>
         <Box>
           <Box variant="awsui-key-label">Bucket Versioning</Box>
-          <StatusIndicator type={settings?.versioning ? 'success' : 'stopped'}>
-            {settings?.versioning ? 'Enabled' : 'Disabled'}
-          </StatusIndicator>
+          <SpaceBetween size="s">
+            <StatusIndicator type={settings?.versioning ? 'success' : 'stopped'}>
+              {settings?.versioning ? 'Enabled' : 'Disabled'}
+            </StatusIndicator>
+            {versioningEdit === null ? (
+              <Button
+                onClick={() => setVersioningEdit(Boolean(settings?.versioning))}
+              >
+                Edit
+              </Button>
+            ) : (
+              <SpaceBetween direction="horizontal" size="xs">
+                <RadioGroup
+                  value={versioningEdit ? 'enable' : 'disable'}
+                  onChange={({ detail }) => setVersioningEdit(detail.value === 'enable')}
+                  items={[
+                    { value: 'disable', label: 'Disable' },
+                    { value: 'enable', label: 'Enable' },
+                  ]}
+                />
+                <Button
+                  variant="primary"
+                  loading={saving}
+                  onClick={() => save({ versioning: versioningEdit })}
+                >
+                  Save
+                </Button>
+              </SpaceBetween>
+            )}
+          </SpaceBetween>
         </Box>
       </Container>
 
@@ -204,6 +283,33 @@ export default function BucketDetail() {
           />
         )}
       </Container>
+      <Container
+        header={
+          <Header
+            variant="h2"
+            description="The configuration S3 holds for this bucket, exactly as it answers."
+          >
+            Configuration documents
+          </Header>
+        }
+      >
+        <SpaceBetween size="s">
+          {Object.entries(documents).filter(([, xml]) => xml).length === 0 ? (
+            <Box color="text-body-secondary">
+              Nothing configured beyond the settings above.
+            </Box>
+          ) : (
+            Object.entries(documents)
+              .filter(([, xml]) => xml)
+              .map(([label, xml]) => (
+                <div key={label}>
+                  <Box variant="awsui-key-label">{label}</Box>
+                  <pre className="result-body">{xml}</pre>
+                </div>
+              ))
+          )}
+        </SpaceBetween>
+      </Container>
     </SpaceBetween>
   )
 
@@ -234,22 +340,32 @@ export default function BucketDetail() {
                 : 'Off'}
             </StatusIndicator>
           </Box>
-          <Table
-            items={Object.entries(settings?.block_public_access || {}).map(
-              ([name_, value]) => ({ name: name_, value }),
+          <SpaceBetween size="s">
+            {Object.entries(accessEdit ?? settings?.block_public_access ?? {}).map(
+              ([setting, value]) => (
+                <Toggle
+                  key={setting}
+                  checked={Boolean(value)}
+                  onChange={({ detail }) =>
+                    setAccessEdit({
+                      ...(accessEdit ?? settings?.block_public_access ?? {}),
+                      [setting]: detail.checked,
+                    })
+                  }
+                >
+                  {setting}
+                </Toggle>
+              ),
             )}
-            trackBy="name"
-            columnDefinitions={[
-              { id: 'name', header: 'Individual setting', cell: (item) => item.name },
-              {
-                id: 'value',
-                header: 'State',
-                cell: (item) => (item.value ? 'On' : 'Off'),
-                width: 120,
-              },
-            ]}
-            empty={<Box color="text-body-secondary">No configuration on this bucket.</Box>}
-          />
+            <Button
+              variant="primary"
+              loading={saving}
+              disabled={accessEdit === null}
+              onClick={() => save({ block_public_access: accessEdit })}
+            >
+              Save
+            </Button>
+          </SpaceBetween>
         </SpaceBetween>
       </Container>
 
@@ -277,6 +393,62 @@ export default function BucketDetail() {
             { id: 'permissions', label: 'Permissions', content: permissionsTab },
           ]}
         />
+        <Modal
+          visible={Boolean(objectView) || Boolean(objectError)}
+          onDismiss={() => {
+            setObjectView(null)
+            setObjectError('')
+          }}
+          header={objectView ? objectView.key : 'Could not read this object'}
+          size="large"
+        >
+          {objectError ? (
+            <Alert type="error">{objectError}</Alert>
+          ) : (
+            <pre className="result-body">{objectView?.body}</pre>
+          )}
+        </Modal>
+        <Modal
+          visible={uploading}
+          onDismiss={() => setUploading(false)}
+          header="Upload object"
+          footer={
+            <Box float="right">
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button variant="link" onClick={() => setUploading(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  loading={saving}
+                  disabled={!newKey.trim()}
+                  onClick={upload}
+                >
+                  Upload
+                </Button>
+              </SpaceBetween>
+            </Box>
+          }
+        >
+          <SpaceBetween size="m">
+            <Box>
+              <Box variant="awsui-key-label">Object key</Box>
+              <Input
+                value={newKey}
+                onChange={({ detail }) => setNewKey(detail.value)}
+                placeholder="reports/2026.csv"
+              />
+            </Box>
+            <Box>
+              <Box variant="awsui-key-label">Content</Box>
+              <Textarea
+                value={newBody}
+                onChange={({ detail }) => setNewBody(detail.value)}
+                placeholder="contents"
+              />
+            </Box>
+          </SpaceBetween>
+        </Modal>
       </ContentLayout>
     </Shell>
   )

@@ -104,6 +104,31 @@ export const api = {
     ),
   createBucket: (payload: CreateBucketOptions) =>
     request<CreateBucketResult>('/api/s3/buckets', { method: 'POST', body: payload }),
+  putObject: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    body: string
+  }) => request<ActionResult>('/api/s3/object', { method: 'POST', body: payload }),
+  emptyBucket: (payload: { account: string; region: string; bucket: string }) =>
+    request<ActionResult>('/api/s3/empty', { method: 'POST', body: payload }),
+  editBucketSettings: (payload: {
+    account: string
+    region: string
+    bucket: string
+    versioning?: boolean
+    block_public_access?: Record<string, boolean>
+    tags?: { Key: string; Value: string }[]
+  }) => request<ActionResult>('/api/s3/bucket-settings-edit', { method: 'POST', body: payload }),
+  bucketDocuments: (account: string, region: string, bucket: string) =>
+    request<{ ok: boolean; documents: Record<string, string | null> }>(
+      `/api/s3/bucket-documents?${query({ account, region, bucket })}`,
+    ),
+  readObject: (account: string, region: string, bucket: string, key: string) =>
+    request<{ ok: boolean; key: string; body: string }>(
+      `/api/s3/object?${query({ account, region, bucket, key })}`,
+    ),
   bucketSettings: (account: string, region: string, bucket: string) =>
     request<BucketSettings>(
       `/api/s3/bucket-settings?${query({ account, region, bucket })}`,

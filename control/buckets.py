@@ -34,6 +34,9 @@ PUBLIC_ACCESS = (
 
 MAX_TAGS = 50
 
+# A listing is capped, so emptying re-lists after each pass; this bounds the loop.
+EMPTY_PASSES = 100
+
 # Namespaces: AWS's global one, and the account-scoped one whose names carry the
 # account, the region and `-an` — that suffix is what makes the name unique
 # without being global.
@@ -343,3 +346,127 @@ def create(region: str, payload: dict, s3) -> dict:
             }
 
     return {"ok": True, "status": 200, "bucket": bucket, "created": True}
+
+
+def _bucket_path(bucket: str) -> str:
+    return "/" + quote(bucket, safe="")
+
+
+def put_object(bucket: str, key: str, body: str, call) -> dict:
+    """PutObject: the key is percent-encoded, the body is what was typed."""
+    status, text = call(
+        "PUT", _bucket_path(bucket) + "/" + quote(key, safe="/"), body
+    )
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "key": key}
+    return {"ok": False, "status": status or 502, "error": _detail(text, status)}
+
+
+def update_settings(bucket: str, payload: dict, call) -> dict:
+    """The properties a bucket page can edit, each its own subresource call."""
+    path = _bucket_path(bucket)
+    steps: list[tuple[str, str, str]] = []
+    if "versioning" in payload:
+        status = "Enabled" if payload.get("versioning") else "Suspended"
+        steps.append(
+            (
+                "Bucket versioning",
+                "?versioning",
+                f'<VersioningConfiguration xmlns="{S3_NS}"><Status>{status}</Status>'
+                "</VersioningConfiguration>",
+            )
+        )
+    if payload.get("block_public_access") is not None:
+        flags = payload["block_public_access"] or {}
+        steps.append(
+            (
+                "Block Public Access",
+                "?publicAccessBlock",
+                _public_access({name: bool(flags.get(name)) for name in PUBLIC_ACCESS}),
+            )
+        )
+    if payload.get("tags") is not None:
+        tags = [
+            (str((tag or {}).get("Key") or "").strip(), str((tag or {}).get("Value") or ""))
+            for tag in payload["tags"]
+        ]
+        if any(not key for key, _ in tags):
+            return {"ok": False, "status": 400, "error": "every tag needs a key"}
+        steps.append(("Tags", "?tagging", _tagging(tags)))
+    if not steps:
+        return {"ok": False, "status": 400, "error": "nothing to update"}
+
+    for label, suffix, body in steps:
+        status, text = call("PUT", path + suffix, body)
+        if not 200 <= status < 300:
+            return {
+                "ok": False,
+                "status": status or 502,
+                "error": f"{label} failed: {_detail(text, status)}",
+            }
+    return {"ok": True, "status": 200, "bucket": bucket}
+
+
+def empty_bucket(bucket: str, call) -> dict:
+    """Empty a bucket with DeleteObjects, 1000 keys a request.
+
+    One call per up-to-1000 keys instead of one per key, and re-listing until the
+    bucket answers with nothing: a listing is capped, so one pass can stop short.
+    """
+    path = _bucket_path(bucket)
+    removed = 0
+    for _pass in range(EMPTY_PASSES):
+        status, body = call("GET", path + "?list-type=2")
+        if not 200 <= status < 300:
+            return {"ok": False, "status": status, "error": _detail(body, status)}
+        keys = [html.unescape(key) for key in re.findall(r"<Key>(.*?)</Key>", body, re.S)]
+        if not keys:
+            return {"ok": True, "status": 200, "removed": removed}
+        payload = (
+            f'<Delete xmlns="{S3_NS}"><Quiet>true</Quiet>'
+            + "".join(f"<Object><Key>{html.escape(key)}</Key></Object>" for key in keys)
+            + "</Delete>"
+        )
+        status, text = call("POST", path + "?delete", payload)
+        if not 200 <= status < 300:
+            return {
+                "ok": False,
+                "status": status or 502,
+                "removed": removed,
+                "error": _detail(text, status),
+            }
+        removed += len(keys)
+    return {"ok": False, "status": 500, "removed": removed, "error": "the bucket never emptied"}
+
+
+# The bucket configuration S3 answers as documents. The console shows them as
+# they come: parsing every one into a form would be a UI project per subresource,
+# and the GETs are the part people ask for.
+DOCUMENTS = {
+    "lifecycle": "?lifecycle",
+    "cors": "?cors",
+    "policy": "?policy",
+    "acl": "?acl",
+    "logging": "?logging",
+    "notifications": "?notification",
+    "replication": "?replication",
+    "versions": "?versions",
+}
+
+
+def read_documents(bucket: str, call) -> dict:
+    """Each configuration document S3 has for `bucket`, or None where it has none."""
+    path = _bucket_path(bucket)
+    found = {}
+    for label, suffix in DOCUMENTS.items():
+        status, body = call("GET", path + suffix)
+        found[label] = body if 200 <= status < 300 else None
+    return {"ok": True, "bucket": bucket, "documents": found}
+
+
+def read_object(bucket: str, key: str, call) -> dict:
+    """GetObject, as text: the console is a lab reader, not a download manager."""
+    status, body = call("GET", _bucket_path(bucket) + "/" + quote(key, safe="/"))
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+    return {"ok": True, "status": status, "key": key, "body": body[:20000]}

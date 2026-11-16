@@ -3317,6 +3317,39 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200,
                 {"account": target["account_id"], "region": region, "counts": counts},
             )
+        if path in ("/api/s3/bucket-documents", "/api/s3/object"):
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            bucket = (params.get("bucket") or [""])[0].strip()
+            key = (params.get("key") or [""])[0]
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket:
+                return self._json(400, {"error": "a bucket is required"})
+            client = lambda method, target_path: signed_rest(
+                "s3", target["account_id"], region, method, target_path
+            )
+            if path.endswith("bucket-documents"):
+                result = buckets.read_documents(bucket, client)
+            else:
+                if not key:
+                    return self._json(400, {"error": "a key is required"})
+                result = buckets.read_object(bucket, key, client)
+            return self._json(
+                200 if result.get("ok") else 404,
+                dict(result, account=target["account_id"], region=region),
+            )
         if path == "/api/s3/bucket-settings":
             # The create page's "copy settings from an existing bucket".
             params = parse_qs(urlsplit(self.path).query)
@@ -3944,6 +3977,85 @@ class ControlHandler(BaseHTTPRequestHandler):
                     "region": DEFAULT_REGION,
                     "regions": ACCOUNTS.regions_of(account_obj),
                 },
+            )
+        if path == "/api/s3/object":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket or not key:
+                return self._json(400, {"error": "a bucket and a key are required"})
+            result = buckets.put_object(
+                bucket,
+                key,
+                str(payload.get("body") or ""),
+                lambda method, target_path, body: signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/empty":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket:
+                return self._json(400, {"error": "a bucket is required"})
+            result = buckets.empty_bucket(
+                bucket,
+                lambda method, target_path, body="": signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/bucket-settings-edit":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket:
+                return self._json(400, {"error": "a bucket is required"})
+            result = buckets.update_settings(
+                bucket,
+                payload,
+                lambda method, target_path, body="": signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/buckets":
             # The console's create page: one request that applies the whole form.

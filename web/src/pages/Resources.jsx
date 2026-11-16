@@ -191,35 +191,25 @@ export default function Resources() {
 
   // Emptying is the console's own loop: the catalogue has no single call for it,
   // so each listed object goes through `delete-object`.
+  // Emptying is one DeleteObjects request per listing, not one call per key.
   const emptyBucket = async () => {
     if (!confirmingEmpty) return
     const { name, region: targetRegion } = confirmingEmpty
     setBusy(true)
-    let removed = 0
     try {
-      for (let pass = 0; pass < EMPTY_PASSES; pass += 1) {
-        const listing = await api.s3Objects(account, targetRegion, name)
-        const keys = (listing.objects || []).map((item) => item.key)
-        if (keys.length === 0) break
-        for (const key of keys) {
-          const answer = await api.exec({
-            account,
-            region: targetRegion,
-            service: 's3',
-            operation: 'delete-object',
-            params: { Bucket: name, Key: key },
-          })
-          if (!answer.ok) {
-            throw new Error(answer.error || `Could not delete ${key}.`)
-          }
-          removed += 1
-        }
-      }
-      addFlash('success', `Bucket ${name} emptied (${removed} objects deleted).`)
+      const answer = await api.emptyBucket({
+        account,
+        region: targetRegion,
+        bucket: name,
+      })
+      addFlash(
+        'success',
+        `Bucket ${name} emptied (${answer.removed ?? 0} objects deleted).`,
+      )
       setConfirmingEmpty(null)
       load()
     } catch (err) {
-      addFlash('error', `${err.message}${removed ? ` (${removed} already deleted)` : ''}`)
+      addFlash('error', err.message)
     } finally {
       setBusy(false)
     }

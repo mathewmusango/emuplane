@@ -9,6 +9,16 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **Objects can be written, opened and listed in bulk, and the bucket's documents
+  are visible.** The bucket page uploads (`POST /api/s3/object` → `PutObject`,
+  the key percent-encoded), opens any object in place (`GetObject`, shown as
+  text), and list-page *Empty* is now one `DeleteObjects` request per 1000 keys
+  (`POST /api/s3/empty`) instead of a call per object. *Properties* gained
+  **Edit** for Versioning and a *Configuration documents* section that shows what
+  S3 holds for lifecycle, CORS, policy, ACL, logging, notifications, replication
+  and the version listing — exactly as the API answers them; *Permissions* gained
+  toggles for the four Block Public Access settings with a Save. Tags editing is
+  not there yet.
 - **Copy settings from an existing bucket.** The create page's *Copy settings
   from an existing bucket - optional* picker lists the account's buckets (every
   region, since a bucket's settings belong to the bucket) and reads the chosen

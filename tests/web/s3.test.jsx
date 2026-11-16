@@ -405,36 +405,16 @@ describe('s3', () => {
     ).toBeTruthy()
   })
 
-  it('empties a selected bucket, but only once its name is typed', async () => {
-    const deleted = []
-    const listing = RESPONSES['/api/s3/objects']
-    const base = globalThis.fetch
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url, options = {}) => {
-        if (String(url).split('?')[0] === '/api/exec') {
-          deleted.push(JSON.parse(options.body))
-          // Empty from here on, so the re-listing loop stops after one pass.
-          RESPONSES['/api/s3/objects'] = { bucket: 'logs-bucket', objects: [] }
-          return {
-            ok: true,
-            status: 200,
-            text: async () => JSON.stringify({ ok: true, status: 200, body: '' }),
-          }
-        }
-        return base(url, options)
-      }),
-    )
+  it('empties a selected bucket with one batch call, once its name is typed', async () => {
+    const sent = []
+    const base = stubOnce('/api/s3/empty', { ok: true, status: 200, removed: 1 }, sent)
     try {
       renderAt(<Resources />)
       await screen.findAllByText('General purpose buckets')
-      // Cloudscape keeps a closed modal in the DOM, so the header action is the
-      // first of the two buttons named Empty.
       const empty = screen.getAllByRole('button', { name: 'Empty' })[0]
       expect(empty.disabled).toBe(true)
 
       fireEvent.click(screen.getAllByRole('radio')[0])
-      expect(empty.disabled).toBe(false)
       fireEvent.click(empty)
 
       const dialog = await screen.findByRole('dialog', { name: 'Empty bucket?' })
@@ -443,19 +423,16 @@ describe('s3', () => {
       fireEvent.change(within(dialog).getByRole('textbox'), {
         target: { value: 'logs-bucket' },
       })
-      expect(confirm.disabled).toBe(false)
       fireEvent.click(confirm)
 
-      await waitFor(() => expect(deleted.length).toBe(1))
-      expect(deleted[0]).toMatchObject({
-        service: 's3',
-        operation: 'delete-object',
+      // DeleteObjects through the control, not one call per key.
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
         region: 'us-east-1',
-        params: { Bucket: 'logs-bucket', Key: 'reports/2026.csv' },
       })
-      expect(await screen.findByText(/Bucket logs-bucket emptied/)).toBeTruthy()
+      expect(await screen.findByText(/Bucket logs-bucket emptied \(1 objects deleted\)/)).toBeTruthy()
     } finally {
-      RESPONSES['/api/s3/objects'] = listing
       vi.stubGlobal('fetch', base)
     }
   })
