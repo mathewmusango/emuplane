@@ -90,10 +90,10 @@ name, a default port and the quirks worth knowing. `EP_BACKEND` selects it and
 `EP_BACKEND_URL` is the connection string, so changing backend is a `.env` change,
 not a fork of this repository.
 
-The reference backend is [this fork of MiniStack](https://github.com/mathewmusango/ministack-upstream)
-with S3 region isolation, published as
-`ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full` — [why, and what
-differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
+The reference backend is [MiniStack](https://github.com/ministackorg/ministack), run
+as its published image. An earlier fork of it is archived, and kept because it
+records three S3 bugs worth reporting — [what it changed, and what the measurements
+showed](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
 
 ## Layout
 

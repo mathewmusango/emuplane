@@ -2,20 +2,20 @@
 title: MiniStack and the fork
 ---
 
-Emuplane runs on an AWS emulator, and the reference emulator is [MiniStack](https://ministack.org).
-This project tracks a **fork** of it —
-[mathewmusango/ministack-upstream](https://github.com/mathewmusango/ministack-upstream),
-built from upstream `v1.5.40`, the version it is forked from, with its S3 work on
-`main`: a small set of changes
-the console needs, kept deliberately narrow so the rest stays upstream's code.
+Emuplane runs on an AWS emulator, and the reference emulator is [MiniStack](https://ministack.org) —
+upstream's own image, unchanged.
 
-The image the reference deployment runs is
-`ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full` — the `v1.5.40-fork.3`
-release, `-full` being the Debian/glibc variant, named to drop in for upstream's
-own `<version>-full` tags.
+**The fork is archived.** [mathewmusango/ministack-upstream](https://github.com/mathewmusango/ministack-upstream)
+was `v1.5.40` plus a small S3 patch, and it ran the reference deployment until
+2026-11-17. It is kept read-only because those changes are three real bugs worth
+reporting upstream, not because anything here depends on them: the suite passes
+identically on both, and the one behaviour that still differs is answered by the
+gateway before a client sees it (both measured below).
 
-The fork's own notes are in `README.fork.md`, beside the code the image is built
-from.
+The image the reference deployment runs is `ministackorg/ministack:1.5.41-full`,
+`-full` being upstream's Debian/glibc variant. The archived fork's image,
+`ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full`, still pulls and still
+works; nothing new is built from it.
 
 ## Why a fork at all
 
