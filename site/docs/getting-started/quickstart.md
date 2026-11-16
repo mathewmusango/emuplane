@@ -108,6 +108,7 @@ console; you need one when something other than a browser calls the control API.
 
 ## Where next
 
+- [Accessing it: the console and the CLI](/docs/getting-started/access)
 - [The console, page by page](/docs/getting-started/console)
 - [Accounts, regions and keys](/docs/concepts/tenancy)
 - [What the gateway enforces](/docs/concepts/architecture)

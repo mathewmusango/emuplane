@@ -5,7 +5,7 @@ module.exports = {
       type: 'category',
       label: 'Getting started',
       collapsed: false,
-      items: ['getting-started/quickstart', 'getting-started/console'],
+      items: ['getting-started/quickstart', 'getting-started/access', 'getting-started/console'],
     },
     {
       type: 'category',
