@@ -2,8 +2,11 @@
 
 ## Why
 
+Closes #
+
 ## Checks
 
-- [ ] `./scripts/up.sh` starts and `/health` answers
-- [ ] `cd web && npm test`
-- [ ] `git tag` not touched unless this is a release
+- [ ] `python3 scripts/qa_check.py --tests`
+- [ ] `cd web && npx tsc --noEmit && npm test`
+- [ ] `npm --prefix site run build`
+- [ ] `CHANGELOG.md` is untouched — a release pull request writes it

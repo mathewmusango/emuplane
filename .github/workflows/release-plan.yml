@@ -1,22 +1,24 @@
-name: "Release: now"
+name: "Release: plan"
 
-# Press to release. The version comes from the closed issues, so no tag is typed.
+# A release is prepared as a pull request, on a branch the bot owns. The version
+# comes from the closed issues, so nothing is typed.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      force:
-        description: Allow a minor or a major, which the policy leaves to a pull request
-        type: boolean
-        default: false
 
 permissions:
   contents: write
-  actions: write
+  pull-requests: write
+
+concurrency:
+  group: release-plan
+  cancel-in-progress: true
 
 jobs:
-  release:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -32,15 +34,10 @@ jobs:
           version=$(python3 -c "import json; print(json.load(open('decision.json'))['version'])")
           echo "action=$action" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
-      - name: Refuse what the policy leaves to a person
-        if: steps.decide.outputs.action == 'pull-request' && inputs.force == false
-        run: |
-          echo "::error::${{ steps.decide.outputs.tag }} is a minor or a major. Merge a release pull request, or press again with force."
-          exit 1
       - name: Say there is nothing to release
         if: steps.decide.outputs.action == 'nothing'
         run: echo "::notice::No closed issue since the last release is changelog material."
-      - name: Write the section, unless it is already there
+      - name: Write the section on a release branch
         if: steps.decide.outputs.action != 'nothing'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,25 +45,33 @@ jobs:
           set -euo pipefail
           tag="${{ steps.decide.outputs.tag }}"
           if python3 scripts/changelog.py --version "$tag" --check; then
-            echo "CHANGELOG.md already carries $tag"
-          else
-            python3 scripts/changelog.py --version "$tag" --write
+            echo "::notice::$tag is already in CHANGELOG.md"
+            exit 0
           fi
-      - name: Commit, tag and push
-        if: steps.decide.outputs.action != 'nothing'
-        run: |
-          set -euo pipefail
-          tag="${{ steps.decide.outputs.tag }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if ! git diff --quiet; then
-            git commit -am "Release $tag"
-            git push
-          fi
-          git tag -a "$tag" -m "Release $tag"
-          git push origin "$tag"
-      - name: Start the release at the tag
+          git switch --create "release/$tag"
+          python3 scripts/changelog.py --version "$tag" --write
+          git commit --all --message "Release $tag"
+          git push --force origin "HEAD:refs/heads/release/$tag"
+      - name: Open or update the release pull request
         if: steps.decide.outputs.action != 'nothing'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run release.yml --ref "${{ steps.decide.outputs.tag }}"
+        run: |
+          set -euo pipefail
+          tag="${{ steps.decide.outputs.tag }}"
+          python3 - "$tag" > body.md <<'PY'
+          import pathlib, re, sys
+
+          tag = sys.argv[1]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          found = re.search(rf"^## \[{re.escape(tag)}\].*?(?=^## \[|\Z)", text, re.M | re.S)
+          print(found.group(0).strip() if found else "")
+          PY
+          if gh pr list --head "release/$tag" --json number --jq 'length' | grep -qv '^0$'; then
+            gh pr edit "release/$tag" --body-file body.md
+          else
+            gh pr create --base main --head "release/$tag" \
+              --title "Release $tag" --body-file body.md
+          fi
