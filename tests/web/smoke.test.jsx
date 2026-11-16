@@ -4,11 +4,17 @@ import App from '../../web/src/App'
 import Dashboard from '../../web/src/pages/Dashboard'
 import Settings from '../../web/src/pages/Settings'
 import About from '../../web/src/pages/About'
+import SignIn from '../../web/src/pages/SignIn'
 import { RESPONSES, installFetch, renderAt } from './fixtures'
 
 beforeEach(installFetch)
 
 describe('console', () => {
+  it('offers the password reset link before a user type is chosen', () => {
+    renderAt(<SignIn />, ['/login'])
+    const link = screen.getByText('Forgot password?').closest('a')
+    expect(link.getAttribute('href')).toBe('/forgot')
+  })
   it('renders the dashboard shell with the account and region', async () => {
     renderAt(<App />)
     expect(await screen.findByText('Services answering')).toBeTruthy()

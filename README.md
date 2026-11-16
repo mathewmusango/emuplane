@@ -60,7 +60,7 @@ name, a default port and the quirks worth knowing. `EP_BACKEND` selects it and
 not a fork of this repository.
 
 The reference backend is [this fork of MiniStack](https://github.com/mathewmusango/ministack-upstream)
-with S3 region isolation, on `main`, published as
+with S3 region isolation, published as
 `ghcr.io/mathewmusango/ministack-upstream:1.5.40-fork.3-full` — [why, and what
 differs](https://mathewmusango.github.io/emuplane/docs/comparison/ministack-and-the-fork).
 

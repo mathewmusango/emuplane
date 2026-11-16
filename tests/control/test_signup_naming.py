@@ -65,7 +65,7 @@ def _user(host: str, account: str, username: str, email: str = ""):
         {
             "account": account,
             "username": username,
-            "email": email or f"{username}@example.com",
+            "email": email or f"{username}@{account}.example.com",
             "password": PASSWORD,
             "role": "iam",
         },
@@ -150,6 +150,37 @@ def test_an_iam_user_signs_in_with_the_account_and_the_name(console):
     assert status == 200, body
     assert body["user"] == "worker"
     assert body["role"] == "iam"
+
+
+def test_an_email_address_signs_in_one_principal_only(console):
+    assert _signup(console, "jane@example.com", "jane-one")[0] == 302
+    before = _accounts(console)
+
+    status, text, cookie = _signup(console, "jane@example.com", "jane-two")
+    assert status == 400
+    assert "already belongs" in text
+    assert cookie == ""
+    assert _accounts(console) == before
+
+
+def test_two_users_in_one_account_cannot_share_an_address(console):
+    _s, _t, cookie = _signup(console, "kate@example.com", "kate-account")
+    account = _meta(console, cookie)["me"]["account"]
+    assert _user(console, account, "first", "team@example.com")[0] == 200
+
+    status, body = _user(console, account, "second", "team@example.com")
+    assert status == 409
+    assert "already belongs" in body["error"]
+
+
+def test_a_shared_address_matches_neither_principal(console, control):
+    """A store written before addresses were unique must not resolve to a guess."""
+    _s, _t, cookie = _signup(console, "shared@example.com", "shared-one")
+    assert _meta(console, cookie)["me"]["alias"] == "shared-one"
+    control.USERS.create("twin", "shared@example.com", PASSWORD, "999999999999", "iam")
+
+    assert control.USERS.find_by_email("shared@example.com") is None
+    assert len(control.USERS.all_by_email("shared@example.com")) == 2
 
 
 def test_an_account_without_an_address_signs_in_by_its_name(console):

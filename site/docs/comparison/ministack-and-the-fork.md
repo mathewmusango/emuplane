@@ -14,10 +14,8 @@ The image the reference deployment runs is
 release, `-full` being the Debian/glibc variant, named to drop in for upstream's
 own `<version>-full` tags.
 
-The fork's own notes are in `README.fork.md`, carried on
-[`feat/s3-region-scoped-state`](https://github.com/mathewmusango/ministack-upstream/tree/feat/s3-region-scoped-state).
-The S3 patch itself is on `main`, so read that branch for the notes and `main` for
-the code.
+The fork's own notes are in `README.fork.md`, beside the code the image is built
+from.
 
 ## Why a fork at all
 

@@ -16,6 +16,9 @@ rather than implying otherwise.
   authorisation rule, not an authenticator.
 - One account cannot see another's state. The deployment bearer token is the only
   cross-tenant caller, and it belongs to an operator, not to a login.
+- An email address belongs to exactly one principal, so a password reset resolves
+  to one account rather than to the first row that happens to match. The reset
+  answer is the same whether or not the address exists.
 
 Deploy it on a lab network, or behind an authenticating proxy. Emuplane exposed
 directly to the internet is a configuration choice, not a supported deployment.
@@ -31,6 +34,10 @@ Discussions. Any other question about the model — how a rule is meant to behav
 why something is refused — is welcome in
 [Discussions](https://github.com/mathewmusango/emuplane/discussions).
 
+Only test a deployment you own or have written permission to test. The public
+instance is a demonstration, not a target: a scan of it is noise, and a finding
+there is still welcome through the routes above.
+
 A report is easiest to act on with the version or commit, what you did, what
 happened and what you expected. This is a single-maintainer project: reports are
 acknowledged as soon as they are read, and fixes ship in the next release rather
@@ -43,6 +50,8 @@ than on a contractual timeline.
 - Path traversal in the console's static serving or in an object download.
 - Script injection in the server-rendered sign-in, reset or error pages.
 - A password-reset link that works twice, or outlives `EP_RESET_SECONDS`.
+- A reset or sign-up route that reveals whether an address, an account or a user
+  exists.
 - A gateway rule that can be bypassed: a resource in a region the account has not
   enabled, or one name claimed by two accounts.
 

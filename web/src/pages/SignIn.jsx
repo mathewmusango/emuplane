@@ -381,6 +381,9 @@ export default function SignIn() {
                   Create account
                 </Button>
               </div>
+              <div className="signin__forgot">
+                <a href="/forgot">Forgot password?</a>
+              </div>
             </SpaceBetween>
           </Form>
         </form>

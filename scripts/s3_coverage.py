@@ -455,9 +455,24 @@ def block(page: str) -> str:
     return page.partition(BEGIN)[2].partition(END)[0].strip()
 
 
+def missing_tests() -> list[str]:
+    """The test paths the map names that are no longer on disk, so a rename cannot pass unnoticed."""
+    named = set()
+    for value in COVERED.values():
+        named.update(re.findall(r"tests/[\w/]+\.\w+(?:\.\w+)*", value))
+    return sorted(path for path in named if not (ROOT / path).is_file())
+
+
 def main() -> int:
     text = render()
     if "--check" in sys.argv[1:]:
+        stale = missing_tests()
+        if stale:
+            print(
+                "the map names tests that do not exist: " + ", ".join(stale),
+                file=sys.stderr,
+            )
+            return 1
         current = block(PAGE.read_text(encoding="utf-8")) if PAGE.is_file() else ""
         if current != published(text):
             print(

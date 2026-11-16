@@ -635,15 +635,29 @@ class UserStore:
     def get(self, account_id: str, username: str) -> dict | None:
         return self._reload().get(self._key(account_id, username))
 
-    def find_by_email(self, email: str) -> dict | None:
-        """The principal whose address matches, case-insensitively; no address means no match."""
+    def all_by_email(self, email: str) -> list[dict]:
+        """Every principal holding this address; two means a store that predates the rule."""
         wanted = (email or "").strip().lower()
         if not wanted:
-            return None
-        for user in self._reload().values():
-            if (user.get("email") or "").strip().lower() == wanted:
-                return user
-        return None
+            return []
+        return [
+            user
+            for user in self._reload().values()
+            if (user.get("email") or "").strip().lower() == wanted
+        ]
+
+    def find_by_email(self, email: str) -> dict | None:
+        """The one principal whose address matches; an address two principals hold matches neither."""
+        matches = self.all_by_email(email)
+        return matches[0] if len(matches) == 1 else None
+
+    def email_taken(self, account_id: str, username: str, email: str) -> bool:
+        """Is this address already spoken for by a principal other than the one named?"""
+        mine = self._key(account_id, username)
+        return any(
+            self._key(other.get("account_id", ""), other.get("username", "")) != mine
+            for other in self.all_by_email(email)
+        )
 
     def exists(self, account_id: str, username: str) -> bool:
         return self._key(account_id, username) in self._reload()
@@ -2766,6 +2780,11 @@ class ControlHandler(BaseHTTPRequestHandler):
             errors["email"] = "An email address is required."
         elif not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
             errors["email"] = "That email address does not look right."
+        elif USERS.all_by_email(email):
+            errors["email"] = (
+                "That email address already belongs to a principal. One address, one "
+                "sign-in."
+            )
         if len(password) < 8:
             errors["password"] = "Password must be at least 8 characters."
         elif password != confirm:
@@ -2986,7 +3005,14 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._page(
                 self._forgot_page(problem="An email address is required."), 400
             )
-        user = USERS.find_by_email(email)
+        matches = USERS.all_by_email(email)
+        if len(matches) > 1:
+            # Two principals on one address is a store written before addresses had to be unique.
+            print(
+                f"control: {len(matches)} principals share an address; no reset mailed",
+                flush=True,
+            )
+        user = matches[0] if len(matches) == 1 else None
         if user is not None:
             token = mint_reset(user["username"], user.get("account_id", ""))
             link = f"{CONSOLE_URL}/reset?token={token}"
@@ -3919,6 +3945,10 @@ class ControlHandler(BaseHTTPRequestHandler):
                 return self._json(
                     400, {"error": "that email address does not look right"}
                 )
+            if email and USERS.email_taken(account["account_id"], username, email):
+                return self._json(
+                    409, {"error": "that email address already belongs to a principal"}
+                )
             USERS.update_email(account["account_id"], username, email)
         if name is not None:
             ACCOUNTS.set_name(account["account_id"], str(name).strip())
@@ -4003,6 +4033,10 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if USERS.exists(target["account_id"], username):
                 return self._json(409, {"error": "that username is already taken"})
+            if email and USERS.email_taken(target["account_id"], username, email):
+                return self._json(
+                    409, {"error": "that email address already belongs to a principal"}
+                )
             principal = ACCOUNTS.add_principal(target["account_id"], username, role)
             if principal is None:
                 return self._json(409, {"error": "that username is already taken"})
@@ -4603,6 +4637,10 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
                 return self._json(400, {"error": "that email address does not look right"})
+            if email and USERS.all_by_email(email):
+                return self._json(
+                    400, {"error": "that email address already belongs to a principal"}
+                )
             if len(password) < 8:
                 return self._json(
                     400, {"error": "password must be at least 8 characters"}
