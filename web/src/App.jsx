@@ -5,6 +5,7 @@ import Services from './pages/Services'
 import Resources from './pages/Resources'
 import CreateBucket from './pages/CreateBucket'
 import S3Section from './pages/S3Section'
+import BucketDetail from './pages/BucketDetail'
 import Settings from './pages/Settings'
 import About from './pages/About'
 import SignIn from './pages/SignIn'
@@ -36,6 +37,8 @@ export default function App() {
             buckets are not pages at all: this emulator serves neither. */}
         <Route path="/s3/table-buckets" element={<S3Section section="table-buckets" />} />
         <Route path="/s3/files" element={<S3Section section="files" />} />
+        {/* One bucket is its own page, with the tabs this instance backs. */}
+        <Route path="/s3/buckets/:name" element={<BucketDetail />} />
         <Route path="/:service/home" element={<Resources />} />
         <Route path="/resources/:service" element={<ServiceRedirect />} />
         <Route path="/settings" element={<Settings />} />

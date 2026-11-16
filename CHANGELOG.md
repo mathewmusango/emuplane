@@ -133,6 +133,14 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **A bucket is a page of its own.** Clicking a bucket name opens
+  `/s3/buckets/<name>`, laid out like the console: *Objects* (prefix filter,
+  Name / Type / Last modified / Size, refresh, and the console's empty state),
+  *Properties* (region, ARN, creation date, versioning, default encryption, tags —
+  read through `/api/s3/bucket-settings`) and *Permissions* (Block Public Access
+  and Object Ownership). Metrics, Management, Metadata, File systems and Access
+  Points are not tabs: this console has nothing to back them. The inline
+  "Bucket objects (0)" panel on the list page is gone with it.
 - **No bucket-type choice on create.** *Directory* buckets are not served by the
   emulator, so the radio group that offered them is gone rather than sitting there
   with one live option and one disabled one.

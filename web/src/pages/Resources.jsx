@@ -94,9 +94,6 @@ export default function Resources() {
   const [regions, setRegions] = useState([])
   // The bucket whose objects are shown, with the region it lives in: a bucket
   // is signed for its own region, never the page's.
-  const [bucket, setBucket] = useState(null)
-  const [objects, setObjects] = useState([])
-  const [objectsLoading, setObjectsLoading] = useState(false)
   const [selected, setSelected] = useState([])
   const [confirmingDelete, setConfirmingDelete] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -162,8 +159,6 @@ export default function Resources() {
   }, [catalogue])
 
   useEffect(() => {
-    setBucket(null)
-    setObjects([])
     setSelected([])
   }, [service])
 
@@ -222,30 +217,11 @@ export default function Resources() {
       }
       addFlash('success', `Bucket ${name} emptied (${removed} objects deleted).`)
       setConfirmingEmpty(null)
-      if (bucket?.name === name) setObjects([])
       load()
     } catch (err) {
       addFlash('error', `${err.message}${removed ? ` (${removed} already deleted)` : ''}`)
     } finally {
       setBusy(false)
-    }
-  }
-
-  const openBucket = async (row) => {
-    const target = {
-      name: row.name,
-      region: row.region || region,
-    }
-    setBucket(target)
-    setObjectsLoading(true)
-    try {
-      const payload = await api.s3Objects(account, target.region, target.name)
-      setObjects(payload.objects || [])
-    } catch (err) {
-      addFlash('error', err.message)
-      setObjects([])
-    } finally {
-      setObjectsLoading(false)
     }
   }
 
@@ -485,7 +461,12 @@ export default function Resources() {
           header: 'Name',
           cell: (item) =>
             service === 's3' ? (
-              <Button variant="inline-link" onClick={() => openBucket(item)}>
+              <Button variant="inline-link" onClick={() =>
+                  navigate(
+                    `/s3/buckets/${item.name}?region=${item.region || region}`,
+                    { state: { created: item.detail?.created } },
+                  )
+                }>
                 {item.name}
               </Button>
             ) : (
@@ -530,24 +511,6 @@ export default function Resources() {
                   ]
                     .filter(Boolean)
                     .join(' · '),
-              },
-            ]),
-        ...(service === 's3'
-          ? []
-          : [
-              {
-                id: 'open',
-                header: '',
-                cell: (item) =>
-                  item.kind === 'bucket' ? (
-                    <Button
-                      variant="inline-link"
-                      onClick={() => openBucket(item)}
-                    >
-                      Open
-                    </Button>
-                  ) : null,
-                width: 90,
               },
             ]),
       ]}
@@ -727,58 +690,6 @@ export default function Resources() {
           )}
 
           {resourceTable}
-
-          {bucket && (
-            <Container
-              header={
-                <Header
-                  variant="h2"
-                  counter={`(${objects.length})`}
-                  description={`Objects in ${bucket.name} \u00b7 ${bucket.region}`}
-                  actions={
-                    <Button
-                      variant="link"
-                      onClick={() => {
-                        setBucket(null)
-                        setObjects([])
-                      }}
-                    >
-                      Close
-                    </Button>
-                  }
-                >
-                  Bucket objects
-                </Header>
-              }
-            >
-              <Table
-                items={objects}
-                loading={objectsLoading}
-                loadingText="Reading objects"
-                trackBy="key"
-                columnDefinitions={[
-                  {
-                    id: 'key',
-                    header: 'Key',
-                    cell: (item) => <span className="mono">{item.key}</span>,
-                    sortingField: 'key',
-                  },
-                  { id: 'size', header: 'Size', cell: (item) => item.size, width: 110 },
-                  {
-                    id: 'modified',
-                    header: 'Last modified',
-                    cell: (item) => item.modified,
-                    width: 230,
-                  },
-                ]}
-                empty={
-                  <Box textAlign="center" color="text-body-secondary">
-                    No objects in this bucket.
-                  </Box>
-                }
-              />
-            </Container>
-          )}
 
           {/* S3's actions are the table's own (Empty / Delete / Create bucket);
               the API explorer stays on the services that have no table actions. */}

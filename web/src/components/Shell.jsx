@@ -222,9 +222,9 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
             }
             activeHref={
               serviceHome === 's3'
-                ? location.pathname === '/s3/create'
-                  ? serviceBase
-                  : location.pathname
+                ? ['/s3/table-buckets', '/s3/files'].includes(location.pathname)
+                  ? location.pathname
+                  : serviceBase
                 : serviceHome
                   ? serviceBase
                   : activeHref || location.pathname

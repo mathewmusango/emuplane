@@ -50,12 +50,18 @@ describe('s3', () => {
     expect(screen.getAllByText('us-east-1').length).toBeGreaterThan(0)
   })
 
-  it('opens a bucket and lists its objects', async () => {
-    renderAt(<Resources />)
-    await screen.findAllByText('General purpose buckets')
-    // The bucket name is the link into the bucket, as in the console.
+  it('opens a bucket on its own page, with its objects', async () => {
+    pinRegion('us-east-1')
+    renderAt(<App />, ['/s3/home?region=us-east-1'])
+    expect(await screen.findAllByText('General purpose buckets')).toBeTruthy()
+
+    // The bucket name is the link into the bucket's page, as in the console.
     fireEvent.click(await screen.findByRole('button', { name: 'logs-bucket' }))
     expect(await screen.findByText('reports/2026.csv')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /Objects/ })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Properties' })).toBeTruthy()
+    // No inline panel on the list page any more.
+    expect(screen.queryByText('Bucket objects')).toBeNull()
   })
 
   it("reads an object listing in the bucket's own region", async () => {
@@ -80,7 +86,7 @@ describe('s3', () => {
       ],
     }
     try {
-      renderAt(<Resources />)
+      renderAt(<App />, ['/s3/home?region=us-east-1'])
       await screen.findAllByText('General purpose buckets')
       fireEvent.click(await screen.findByRole('button', { name: 'west-bucket' }))
 
