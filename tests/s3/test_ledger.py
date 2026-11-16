@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-LEDGER = ROOT / "S3.md"
+LEDGER = ROOT / "site" / "docs" / "reference" / "s3-coverage.md"
 README = ROOT.parent / "ministack-src" / "README.md"
 
 # Today's numbers, pinned. Raising them is the point of closing an operation.

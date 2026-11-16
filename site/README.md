@@ -14,7 +14,7 @@ npm run build     # the static site, in build/
 | Page | Generated from | Command |
 | --- | --- | --- |
 | `docs/reference/control-api.md` | the control's route dispatcher | `npm run api` |
-| `docs/reference/s3-coverage.md` | the S3 coverage ledger | `npm run s3:coverage` |
+| `docs/reference/s3-coverage.md` | the S3 coverage ledger | `npm run s3:coverage` (`../scripts/s3_coverage.py`) |
 
 Both read the repository this directory lives in; CI re-runs them and fails on a diff.
 

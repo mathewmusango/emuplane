@@ -10,7 +10,8 @@
     "clear": "docusaurus clear",
     "write-translations": "docusaurus write-translations",
     "version": "docusaurus docs:version",
-    "api": "python3 scripts/api_reference.py"
+    "api": "python3 scripts/api_reference.py",
+    "s3:coverage": "python3 ../scripts/s3_coverage.py"
   },
   "dependencies": {
     "@docusaurus/core": "^3.0.0",

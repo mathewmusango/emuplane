@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Write `S3.md`: what S3 offers, and who tests each part of it — `--check` fails when the file is stale."""
+"""Write the S3 coverage ledger: what S3 offers, and who tests each part of it.
+
+The full ledger is a working note (`my-docs/S3.md`, ignored); the published page
+`site/docs/reference/s3-coverage.md` carries the tables, and `--check` fails when
+that page is stale.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +15,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 EMULATOR = ROOT.parent / "ministack-src"
 README = EMULATOR / "README.md"
-TARGET = ROOT / "S3.md"
+LEDGER = ROOT / "my-docs" / "S3.md"
+PAGE = ROOT / "site" / "docs" / "reference" / "s3-coverage.md"
+BEGIN = "<!-- coverage:begin -->"
+END = "<!-- coverage:end -->"
+SKIP = {"Console actions"}
+SEPARATOR = "| --- | --- | --- | --- |"
 
 # Operation -> the emuplane test that exercises it; everything else is gateway-only, covered by the emulator's suite.
 COVERED = {
@@ -417,17 +427,56 @@ def render() -> str:
     return "\n".join(lines)
 
 
+def published(text: str) -> str:
+    """The part of the ledger the documentation page carries."""
+    kept: list[str] = []
+    section = ""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            section = line[3:].strip()
+            if section in SKIP:
+                continue
+            kept += ["", "##" + line[2:], ""]
+        elif section in SKIP:
+            continue
+        elif line.startswith("- ") and "**" in line:
+            kept.append(line)
+        elif line.startswith("| `") or line.startswith("| Operation") or line == SEPARATOR:
+            kept.append(line)
+        elif line.startswith("- [x]") or line.startswith("- [ ]"):
+            kept.append(line)
+    return "\n".join(kept).strip()
+
+
+def block(page: str) -> str:
+    """The generated block of the documentation page."""
+    if BEGIN not in page or END not in page:
+        raise SystemExit(f"s3_coverage: {PAGE} has no generated block markers")
+    return page.partition(BEGIN)[2].partition(END)[0].strip()
+
+
 def main() -> int:
     text = render()
     if "--check" in sys.argv[1:]:
-        current = TARGET.read_text(encoding="utf-8") if TARGET.is_file() else ""
-        if current != text:
-            print("S3.md is out of date: re-run scripts/s3_coverage.py", file=sys.stderr)
+        current = block(PAGE.read_text(encoding="utf-8")) if PAGE.is_file() else ""
+        if current != published(text):
+            print(
+                f"{PAGE.relative_to(ROOT)} is out of date: run scripts/s3_coverage.py",
+                file=sys.stderr,
+            )
             return 1
-        print("S3.md is current")
+        print("S3 coverage is current")
         return 0
-    TARGET.write_text(text, encoding="utf-8")
-    print(f"wrote {TARGET.relative_to(ROOT)}")
+
+    LEDGER.parent.mkdir(parents=True, exist_ok=True)
+    LEDGER.write_text(text, encoding="utf-8")
+    page = PAGE.read_text(encoding="utf-8")
+    head, _, rest = page.partition(BEGIN)
+    _, _, tail = rest.partition(END)
+    PAGE.write_text(
+        head + BEGIN + "\n\n" + published(text) + "\n\n" + END + tail, encoding="utf-8"
+    )
+    print(f"wrote {LEDGER.relative_to(ROOT)} and {PAGE.relative_to(ROOT)}")
     return 0
 
 

@@ -18,7 +18,7 @@ The table is generated in the implementation repository and copied here, so what
 you read is what the ledger says:
 
 ```bash
-npm run s3:coverage   # reads <control>/S3.md
+npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 ```
 
 <!-- coverage:begin -->
