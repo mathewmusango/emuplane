@@ -124,6 +124,23 @@ export interface ObjectsResult {
   objects: ObjectRow[]
 }
 
+/** One bucket's settings, shaped like the create form (copy-settings). */
+export interface BucketSettings {
+  ok: boolean
+  bucket: string
+  settings: {
+    ownership: string
+    block_public_access: Record<string, boolean>
+    versioning: boolean
+    tags: BucketTag[]
+    encryption: string
+    bucket_key: boolean
+    object_lock: boolean
+  }
+  account?: string
+  region?: string
+}
+
 /** A listing from one of S3's child APIs (S3 Tables, S3 Files). */
 export interface S3ChildListing {
   ok: boolean

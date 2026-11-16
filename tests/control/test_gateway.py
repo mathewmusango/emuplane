@@ -75,7 +75,7 @@ def test_a_delete_releases_the_name(control, gateway):
 def test_an_unknown_access_key_does_not_become_an_account(control, gateway):
     """The 12-digit account is the root; a key that is not one is looked up, and
     an unknown key resolves to no account rather than to itself."""
-    key = "AKIAEXAMPLE000000000"
+    key = "AKIDEXAMPLE000000000"
     assert not control.ACCOUNTS.account_for_key(key)
 
     status, _headers, _body = s3(gateway, "PUT", "/gw-unknown-key", account=key)

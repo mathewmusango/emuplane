@@ -8,6 +8,7 @@ import { api } from '../api'
 import { useThemeMode } from './themeToggle'
 import TopBar from './TopBar'
 import { serviceLabel, serviceLongName } from '../serviceLabels'
+import { serviceHref } from '../serviceRoutes'
 import ServicesMenu from './ServicesMenu'
 
 const navItems = () => [
@@ -193,7 +194,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         serviceNames={serviceNames}
         servicesOpen={servicesOpen}
         onToggleServices={() => setServicesOpen((open) => !open)}
-        onPickService={(name) => go(`/${name}/home`)}
+        onPickService={(name) => go(serviceHref(name))}
         onNavigate={go}
         dark={dark}
         onToggleTheme={toggleTheme}
@@ -204,7 +205,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
           names={serviceNames}
           account={account}
           onClose={() => setServicesOpen(false)}
-          onPick={(name) => go(`/resources/${name}`)}
+          onPick={(name) => go(serviceHref(name))}
         />
       )}
 

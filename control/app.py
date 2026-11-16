@@ -3317,6 +3317,35 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200,
                 {"account": target["account_id"], "region": region, "counts": counts},
             )
+        if path == "/api/s3/bucket-settings":
+            # The create page's "copy settings from an existing bucket".
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            bucket = (params.get("bucket") or [""])[0].strip()
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket:
+                return self._json(400, {"error": "a bucket name is required"})
+            result = buckets.read_settings(
+                bucket,
+                lambda method, target_path: signed_rest(
+                    "s3", target["account_id"], region, method, target_path
+                ),
+            )
+            return self._json(
+                200, dict(result, account=target["account_id"], region=region)
+            )
         if path == "/api/s3/objects":
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()

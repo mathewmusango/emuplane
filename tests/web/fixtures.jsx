@@ -155,6 +155,24 @@ export const RESPONSES = {
       },
     ],
   },
+  '/api/s3/bucket-settings': {
+    ok: true,
+    bucket: 'logs-bucket',
+    settings: {
+      ownership: 'BucketOwnerPreferred',
+      block_public_access: {
+        BlockPublicAcls: false,
+        IgnorePublicAcls: true,
+        BlockPublicPolicy: true,
+        RestrictPublicBuckets: true,
+      },
+      versioning: true,
+      tags: [{ Key: 'team', Value: 'platform' }],
+      encryption: 'aws:kms',
+      bucket_key: true,
+      object_lock: false,
+    },
+  },
 }
 
 /** Install the fetch stub the console talks to. Returns nothing usable; the

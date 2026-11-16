@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Box from '@cloudscape-design/components/box'
@@ -13,6 +13,7 @@ import FormField from '@cloudscape-design/components/form-field'
 import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
 import RadioGroup from '@cloudscape-design/components/radio-group'
+import Select from '@cloudscape-design/components/select'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import { api } from '../api'
 import { useSession } from '../context'
@@ -85,10 +86,60 @@ export default function CreateBucket() {
   const [encryption, setEncryption] = useState('AES256')
   const [bucketKey, setBucketKey] = useState('enable')
   const [objectLock, setObjectLock] = useState('disable')
+  const [sourceBuckets, setSourceBuckets] = useState([])
+  const [copyFrom, setCopyFrom] = useState(null)
+  const [copyError, setCopyError] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   const backToBuckets = () => navigate(`/s3/home?region=${region}`)
+
+  // The buckets on offer for "copy settings": the account's own, every region,
+  // because the reader is per bucket and each row carries where it lives.
+  useEffect(() => {
+    if (!account) return undefined
+    let live = true
+    api
+      .browse(account, 'all', 's3')
+      .then((payload) => {
+        if (live) setSourceBuckets(payload.resources || [])
+      })
+      .catch(() => {
+        if (live) setSourceBuckets([])
+      })
+    return () => {
+      live = false
+    }
+  }, [account])
+
+  const bucketOptions = sourceBuckets.map((row) => ({
+    label: `${row.name} \u00b7 ${row.region || region}`,
+    value: row.name,
+    region: row.region || region,
+  }))
+
+  // Copying is a convenience, not a transaction: whatever cannot be read keeps
+  // the form's default. Object Lock is deliberately not copied — once a bucket
+  // has it, it cannot be turned off.
+  const copySettings = async (option) => {
+    setCopyFrom(option)
+    setCopyError('')
+    if (!option) return
+    try {
+      const answer = await api.bucketSettings(account, option.region || region, option.value)
+      const copy = answer.settings || {}
+      setOwnership(copy.ownership || 'BucketOwnerEnforced')
+      const flags = copy.block_public_access || {}
+      setPublicAccess({ ...allPublic(false), ...flags })
+      setBlockAll(PUBLIC_ACCESS.every(([field]) => Boolean(flags[field])))
+      setVersioning(copy.versioning ? 'enable' : 'disable')
+      setTags((copy.tags || []).map((tag) => ({ Key: tag.Key || '', Value: tag.Value || '' })))
+      setEncryption(copy.encryption || 'AES256')
+      setBucketKey(copy.bucket_key ? 'enable' : 'disable')
+    } catch (err) {
+      setCopyError(err.message)
+    }
+  }
 
   // The Account Regional namespace appends `<account>-<region>-an` to the name;
   // the backend appends it too, and that is the name the bucket gets.
@@ -203,30 +254,6 @@ export default function CreateBucket() {
                 </Box>
 
                 <FormField
-                  label="Bucket type"
-                  description="General purpose buckets are the original S3 bucket type, and the only one this backend serves."
-                >
-                  <RadioGroup
-                    value="general"
-                    onChange={() => {}}
-                    items={[
-                      {
-                        value: 'general',
-                        label: 'General purpose',
-                        description:
-                          'Recommended for most use cases and access patterns. Allows a mix of storage classes that redundantly store objects across multiple Availability Zones.',
-                      },
-                      {
-                        value: 'directory',
-                        label: 'Directory',
-                        description: 'Not available on this backend.',
-                        disabled: true,
-                      },
-                    ]}
-                  />
-                </FormField>
-
-                <FormField
                   label="Bucket namespace"
                   description="Choose the namespace where you want to create your bucket."
                 >
@@ -272,6 +299,20 @@ export default function CreateBucket() {
                     </div>
                     {suffix && <Box variant="span" color="text-body-secondary">{suffix}</Box>}
                   </div>
+                </FormField>
+
+                <FormField
+                  label="Copy settings from an existing bucket - optional"
+                  description="Only the bucket settings below are copied. Object Lock is not: once a bucket has it, it cannot be turned off."
+                  errorText={copyError}
+                >
+                  <Select
+                    selectedOption={copyFrom}
+                    onChange={({ detail }) => copySettings(detail.selectedOption || null)}
+                    options={bucketOptions}
+                    placeholder="Choose bucket"
+                    ariaLabel="Copy settings from an existing bucket"
+                  />
                 </FormField>
               </SpaceBetween>
             </Container>

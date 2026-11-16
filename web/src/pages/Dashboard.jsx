@@ -18,6 +18,7 @@ import { useRecent } from '../prefs'
 import { Shell, loadCatalogue } from '../components/Shell'
 import { ServiceIcon } from '../serviceIcons'
 import { serviceLabel } from '../serviceLabels'
+import { serviceHref } from '../serviceRoutes'
 
 // Console Home is a grid of widgets rather than one fixed page: the layout the
 // visitor settles on is remembered, and "Reset to default layout" brings every
@@ -155,10 +156,10 @@ export default function Dashboard() {
       {names.map((name) => (
         <li key={name}>
           <a
-            href={`/${name}/home`}
+            href={serviceHref(name)}
             onClick={(event) => {
               event.preventDefault()
-              navigate(`/${name}/home`)
+              navigate(serviceHref(name))
             }}
           >
             <ServiceIcon name={name} size={18} />

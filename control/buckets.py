@@ -15,6 +15,7 @@ from __future__ import annotations
 import html
 import re
 from urllib.parse import quote
+from xml.etree import ElementTree
 
 S3_NS = "http://s3.amazonaws.com/doc/2006-03-01/"
 
@@ -200,6 +201,90 @@ def _options(payload: dict, region: str) -> dict:
             else {name: bool(public.get(name, True)) for name in PUBLIC_ACCESS}
         ),
     }
+
+
+def _local(element) -> str:
+    return element.tag.rsplit("}", 1)[-1]
+
+
+def _root(xml: str):
+    try:
+        return ElementTree.fromstring(xml)
+    except ElementTree.ParseError:
+        return None
+
+
+def _field(xml: str, name: str) -> str | None:
+    """The text of the first `name` element anywhere in a document."""
+    root = _root(xml)
+    if root is None:
+        return None
+    for element in root.iter():
+        if _local(element) == name:
+            return element.text
+    return None
+
+
+def _flags(xml: str) -> dict:
+    root = _root(xml)
+    return {} if root is None else {_local(child): child.text == "true" for child in list(root)}
+
+
+def _tags(xml: str) -> list[dict]:
+    root = _root(xml)
+    if root is None:
+        return []
+    found = []
+    for element in root.iter():
+        if _local(element) != "Tag":
+            continue
+        pair = {_local(child): child.text for child in list(element)}
+        found.append({"Key": pair.get("Key") or "", "Value": pair.get("Value") or ""})
+    return found
+
+
+def read_settings(bucket: str, call) -> dict:
+    """The create form's settings, read back from `bucket`.
+
+    `call(method, path)` is the root-signed client. Best effort per setting: a
+    subresource this bucket does not have keeps the form's default rather than
+    failing the whole copy — copying is a convenience, not a transaction.
+    """
+    path = "/" + quote(bucket, safe="")
+    settings = {
+        "ownership": OWNERSHIP[0],
+        "block_public_access": {name: False for name in PUBLIC_ACCESS},
+        "versioning": False,
+        "tags": [],
+        "encryption": ENCRYPTION[0],
+        "bucket_key": False,
+        "object_lock": False,
+    }
+
+    def get(suffix: str) -> str:
+        status, body = call("GET", path + suffix)
+        return body if 200 <= status < 300 else ""
+
+    ownership = _field(get("?ownershipControls"), "ObjectOwnership")
+    if ownership in OWNERSHIP:
+        settings["ownership"] = ownership
+
+    flags = _flags(get("?publicAccessBlock"))
+    if flags:
+        settings["block_public_access"] = {
+            name: bool(flags.get(name)) for name in PUBLIC_ACCESS
+        }
+
+    settings["versioning"] = _field(get("?versioning"), "Status") == "Enabled"
+    settings["tags"] = _tags(get("?tagging"))
+
+    encryption = _field(get("?encryption"), "SSEAlgorithm")
+    if encryption in ENCRYPTION:
+        settings["encryption"] = encryption
+    settings["bucket_key"] = _field(get("?encryption"), "BucketKeyEnabled") == "true"
+    settings["object_lock"] = _field(get("?object-lock"), "ObjectLockEnabled") == "Enabled"
+
+    return {"ok": True, "bucket": bucket, "settings": settings}
 
 
 def create(region: str, payload: dict, s3) -> dict:

@@ -234,9 +234,34 @@ describe('s3', () => {
     expect(screen.getByText('logs-bucket')).toBeTruthy()
   })
 
+  it('sends S3 Files and S3 Tables to their S3 pages, not to a service of their own', async () => {
+    pinRegion('us-east-1')
+    const Probe = () => {
+      const where = useLocation()
+      return <div data-testid="location">{where.pathname}</div>
+    }
+
+    // The name alone resolves to S3's own page.
+    for (const [from, to] of [
+      ['/s3tables/home', '/s3/table-buckets'],
+      ['/s3files/home', '/s3/files'],
+    ]) {
+      const view = renderAt(
+        <>
+          <App />
+          <Probe />
+        </>,
+        [from],
+      )
+      await waitFor(() =>
+        expect(screen.getByTestId('location').textContent).toBe(to),
+      )
+      view.unmount()
+    }
+  })
+
   it('sends a service the console does not serve back to the services page', async () => {
-    // `/s3files/home` and `/s3tables/home` answer `unknown service` upstream; the
-    // catch-all route must not render a page for them.
+    // A name no service answers for: the catch-all route must not render a page.
     const Probe = () => {
       const where = useLocation()
       return <div data-testid="location">{where.pathname}</div>
@@ -246,11 +271,33 @@ describe('s3', () => {
         <App />
         <Probe />
       </>,
-      ['/s3files/home?region=us-east-1'],
+      ['/banana/home?region=us-east-1'],
     )
     await waitFor(() =>
       expect(screen.getByTestId('location').textContent).toBe('/services'),
     )
+  })
+
+  it('offers the account\u2019s buckets for copying their settings', async () => {
+    pinRegion('us-east-1')
+    renderAt(<App />, ['/s3/create'])
+    // The control is there and reads the account's buckets; the copy itself is
+    // covered by control/buckets.py's round trip (tests/s3) and on the live
+    // instance, because Cloudscape's dropdown does not open under jsdom.
+    expect(
+      await screen.findByText('Copy settings from an existing bucket - optional'),
+    ).toBeTruthy()
+    expect(
+      screen.getAllByRole('button').some((b) => b.textContent.trim() === 'Choose bucket'),
+    ).toBe(true)
+  })
+
+  it('has no bucket-type choice, because there is only one type', async () => {
+    pinRegion('us-east-1')
+    renderAt(<App />, ['/s3/create'])
+    await screen.findByText('General configuration')
+    expect(screen.queryByText('Bucket type')).toBeNull()
+    expect(screen.queryByText('Directory')).toBeNull()
   })
 
   it('opens the create page from the table', async () => {

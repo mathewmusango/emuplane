@@ -296,3 +296,58 @@ def test_a_follow_up_failure_still_reports_the_bucket_created():
     assert result["created"] is True
     assert "Tags failed" in result["error"]
     assert "bad tag" in result["error"]
+
+
+def test_a_bucket_reads_back_as_the_copy_settings_form_shows_it(s3):
+    """The create page's copy-settings reads the subresources it writes."""
+    client = s3(ACCOUNT, "us-east-1")
+    created = buckets.create(
+        "us-east-1",
+        {
+            "account": ACCOUNT,
+            "bucket": "copy-source-bucket",
+            "ownership": "BucketOwnerPreferred",
+            "block_public_access": {
+                **{name: True for name in buckets.PUBLIC_ACCESS},
+                "BlockPublicPolicy": False,
+            },
+            "versioning": True,
+            "tags": [{"Key": "team", "Value": "platform"}],
+            "encryption": "aws:kms",
+            "bucket_key": True,
+        },
+        client,
+    )
+    assert created["ok"], created.get("error")
+
+    read = buckets.read_settings(
+        "copy-source-bucket", lambda method, path: client(method, path)
+    )
+    settings = read["settings"]
+    assert settings["ownership"] == "BucketOwnerPreferred"
+    assert settings["block_public_access"]["BlockPublicPolicy"] is False
+    assert settings["block_public_access"]["BlockPublicAcls"] is True
+    assert settings["versioning"] is True
+    assert settings["tags"] == [{"Key": "team", "Value": "platform"}]
+    assert settings["encryption"] == "aws:kms"
+    assert settings["bucket_key"] is True
+    assert settings["object_lock"] is False
+
+
+def test_a_bucket_with_no_settings_reads_back_the_form_defaults(s3):
+    client = s3(ACCOUNT, "us-east-1")
+    assert buckets.create(
+        "us-east-1", {"account": ACCOUNT, "bucket": "plain-settings-bucket"}, client
+    )["ok"]
+
+    read = buckets.read_settings(
+        "plain-settings-bucket", lambda method, path: client(method, path)
+    )
+    settings = read["settings"]
+    assert settings["ownership"] == "BucketOwnerEnforced"
+    assert settings["block_public_access"] == {
+        name: False for name in buckets.PUBLIC_ACCESS
+    }
+    assert settings["versioning"] is False
+    assert settings["tags"] == []
+    assert settings["encryption"] == "AES256"

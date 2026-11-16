@@ -31,6 +31,7 @@ import { regionName } from '../regionNames'
 import { ServiceIcon } from '../serviceIcons'
 import { serviceLabel, serviceLongName } from '../serviceLabels'
 import { Shell, loadCatalogue } from '../components/Shell'
+import { SERVICE_ROUTES } from '../serviceRoutes'
 
 const FIELD_DEFAULTS = (fields) =>
   Object.fromEntries((fields || []).map((item) => [item.name, item.default || '']))
@@ -645,9 +646,9 @@ export default function Resources() {
   )
 
   if (unknown) {
-    // Nothing to read, no actions to offer: send the caller to the services that
-    // do exist rather than leaving a page-shaped error behind.
-    return <Navigate to="/services" replace />
+    // A name the console does not serve is either another service's child — S3
+    // Tables and S3 Files are pages of S3 — or nothing to show at all.
+    return <Navigate to={SERVICE_ROUTES[service] || '/services'} replace />
   }
 
   return (

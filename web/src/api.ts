@@ -3,6 +3,7 @@ import type {
   ActionResult,
 
   BrowseResult,
+  BucketSettings,
   CountsResult,
   CreateBucketOptions,
   CreateBucketResult,
@@ -103,6 +104,10 @@ export const api = {
     ),
   createBucket: (payload: CreateBucketOptions) =>
     request<CreateBucketResult>('/api/s3/buckets', { method: 'POST', body: payload }),
+  bucketSettings: (account: string, region: string, bucket: string) =>
+    request<BucketSettings>(
+      `/api/s3/bucket-settings?${query({ account, region, bucket })}`,
+    ),
   // S3's other tabs are other APIs: S3 Tables and S3 Files.
   s3TableBuckets: (account: string, region: string) =>
     request<S3ChildListing>(`/api/s3/table-buckets?${query({ account, region })}`),

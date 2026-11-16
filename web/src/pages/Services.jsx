@@ -28,6 +28,7 @@ import {
 import { useSession } from '../context'
 import { useFavorites } from '../prefs'
 import { serviceLabel } from '../serviceLabels'
+import { serviceHref } from '../serviceRoutes'
 import { ServiceIcon } from '../serviceIcons'
 import { groupByCategory } from '../serviceCatalogue'
 import { Shell, loadCatalogue } from '../components/Shell'
@@ -78,7 +79,7 @@ export default function Services() {
     return groupByCategory(names)
   }, [catalogue])
 
-  const open = (name) => navigate(`/${name}/home`)
+  const open = (name) => navigate(serviceHref(name))
 
   return (
     <Shell
@@ -129,7 +130,7 @@ export default function Services() {
                           className="services-group__icon"
                         />
                         <Link
-                          href={`/${name}/home`}
+                          href={serviceHref(name)}
                           onFollow={(event) => {
                             event.preventDefault()
                             open(name)

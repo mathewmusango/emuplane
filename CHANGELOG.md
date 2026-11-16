@@ -9,6 +9,17 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **Copy settings from an existing bucket.** The create page's *Copy settings
+  from an existing bucket - optional* picker lists the account's buckets (every
+  region, since a bucket's settings belong to the bucket) and reads the chosen
+  one back through `GET /api/s3/bucket-settings`
+  (`buckets.read_settings`): Object Ownership, Block Public Access, versioning,
+  tags, default encryption and the bucket key. Object Lock is deliberately not
+  copied — once a bucket has it, it cannot be turned off. A subresource the source
+  does not have keeps the form's default, because copying is a convenience, not a
+  transaction. Verified live: reading `s3opt-all-on-1217` returned exactly what it
+  was created with, and creating `s3opt-copied-settings` from that answer answered
+  `200`.
 - **The gateway and the control API are tested, not assumed.** `tests/control/`
   imports `app.py` against an in-memory `store.Store` — the same string-per-key
   contract DynamoDB has — seeds two accounts and a bearer token, and runs the real
@@ -122,6 +133,14 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **No bucket-type choice on create.** *Directory* buckets are not served by the
+  emulator, so the radio group that offered them is gone rather than sitting there
+  with one live option and one disabled one.
+- **S3 Tables and S3 Files open their S3 pages wherever they are listed.**
+  *All services*, the services menu and the dashboard all built links as
+  `/<service>/home`, which for these two named a page that does not exist.
+  `web/src/serviceRoutes.js` maps them to `/s3/table-buckets` and `/s3/files`, and
+  `/s3tables/home` / `/s3files/home` redirect there instead of to *All services*.
 - **The create page takes its region from the top bar.** The *AWS Region* select
   is gone from General configuration: the region is the console's own, picked in
   the bar and written under the heading as text, so the form cannot disagree with
