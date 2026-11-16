@@ -139,13 +139,38 @@ def coverage() -> list[str]:
     )
 
 
+def docs_assets() -> list[str]:
+    """Every image the documentation names must be a file the site can serve."""
+    problems = []
+    docs = ROOT / "site" / "docs"
+    static = ROOT / "site" / "static"
+    mark = static / "img" / "mark.png"
+    if docs.is_dir() and not mark.is_file():
+        problems.append("site/static/img/mark.png is missing: run npm --prefix site run build")
+    for page in sorted(docs.rglob("*.md*")) if docs.is_dir() else []:
+        text = page.read_text(encoding="utf-8", errors="ignore")
+        for reference in re.findall(r"!\[[^\]]*\]\(([^)\s]+)", text):
+            if reference.startswith(("http://", "https://", "data:")):
+                continue
+            target = (
+                static / reference.lstrip("/")
+                if reference.startswith("/")
+                else page.parent / reference
+            )
+            if not target.is_file():
+                problems.append(
+                    f"{page.relative_to(ROOT).as_posix()} shows {reference}, which is not a file"
+                )
+    return problems
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tests", action="store_true")
     args = parser.parse_args()
 
     manifest = load()
-    problems = verify(manifest) + security() + compile_python() + coverage()
+    problems = verify(manifest) + security() + compile_python() + coverage() + docs_assets()
     if args.tests:
         result = subprocess.run(["npm", "test", "--silent"], cwd=ROOT / "web")
         if result.returncode != 0:
