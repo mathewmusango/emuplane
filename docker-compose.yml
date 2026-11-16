@@ -1,15 +1,9 @@
 name: emuplane
 
-# The container contract: exactly these variables, and only these, are what the
-# control reads at runtime. A Kubernetes deployment sets the same set (a ConfigMap
-# built from an env file works verbatim); every ${...} below falls back to the
-# value the code itself defaults to, so an orchestrator may supply only what it
-# needs. Deployment-side knobs (the compose overlay: image, network, container
-# names, host ports) never reach the container.
+# The container contract: these variables, and only these, reach the control.
 x-runtime: &runtime
   TZ: "${TZ:-Africa/Nairobi}"
-  # Which backend family this is (profile name from control/backends.py) and the
-  # connection string to it. The URL is the only thing that has to be right.
+  # The backend profile (control/backends.py) and its connection string.
   EP_BACKEND: "${EP_BACKEND:-generic}"
   EP_BACKEND_URL: "${EP_BACKEND_URL:?set EP_BACKEND_URL, or run scripts/up.sh which derives it}"
   # Empty means "use the profile's name, else the URL's host".
@@ -24,9 +18,7 @@ x-runtime: &runtime
   EP_STORE_ACCOUNT: "${EP_STORE_ACCOUNT:-111111111111}"
   EP_STORE_REGION: "${EP_STORE_REGION:-us-east-1}"
   EP_STORE_URL: "${EP_STORE_URL:-}"
-  # Outbound mail, for the password-reset link. Empty host = mail is off, and
-  # `/forgot` falls back to "ask an administrator". 587 + STARTTLS is the usual
-  # shape; set EP_MAIL_SECURITY=ssl for 465, or `none` for a local relay.
+  # Mail for the reset link; an empty host turns mail off.
   EP_MAIL_HOST: "${EP_MAIL_HOST:-}"
   EP_MAIL_PORT: "${EP_MAIL_PORT:-587}"
   EP_MAIL_SECURITY: "${EP_MAIL_SECURITY:-starttls}"
@@ -36,11 +28,7 @@ x-runtime: &runtime
   EP_RESET_SECONDS: "${EP_RESET_SECONDS:-1800}"
 
 services:
-  # First-setup init job: applies `bootstrap/template.yml` as the `emuplane`
-  # stack, which owns the DynamoDB tables the control stores itself in. Not a
-  # long-running service — `scripts/up.sh` runs it to completion before the
-  # control starts, and the control refuses to serve when the tables are missing.
-  # Idempotent: an existing stack is left alone.
+  # First-setup job: applies bootstrap/template.yml as the `emuplane` stack.
   bootstrap:
     image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:latest}"
     restart: "no"
@@ -63,8 +51,7 @@ services:
     ports:
       - "127.0.0.1:${EP_UI_PORT:-4570}:${EP_PORT:-8080}"
       - "127.0.0.1:${EP_PUBLISHED_GATEWAY_PORT:-4571}:${EP_GATEWAY_PORT:-8081}"
-    # No volumes: the console is stateless, and the control's state lives in the
-    # backend's DynamoDB. Nothing here needs a host directory.
+    # No volumes: the console is stateless and all state is the backend's DynamoDB.
     init: true
     read_only: true
     tmpfs:
