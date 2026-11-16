@@ -2,19 +2,18 @@
 
 The table is generated, so it cannot go stale — `scripts/qa_check.py` runs
 `s3_coverage.py --check` and fails when the file drifts. Generation cannot catch
-the two things that actually went wrong in this repository: an operation that
-kept its row while its proof was deleted, and counts that quietly walked
-backwards when a control was removed. So this is the ratchet:
+what actually went wrong in this repository: a row whose proof was deleted, and a
+count that quietly walked backwards when a control was removed.
 
-  * every test file a row names exists;
-  * every operation with a console surface names a test — a surface nobody tests
-    is a claim, not coverage;
-  * the three headline numbers never fall below what is closed today;
-  * every operation the emulator advertises still has a row.
+The rule this file enforces is simple and absolute: **every operation the
+emulator advertises names a test, and those tests run on every run**. Not "the
+emulator's own suite covers it" — an operation with no emuplane test is a row
+with an em dash in the last column, and that fails. So does a test file that is
+named but absent, an operation with no row at all, and a headline count that
+falls below its pinned floor.
 
-A floor is a ratchet, not a target: raise it when an operation is closed (the
-message says which number moved), and the next person is told when one slips
-back.
+A floor is a ratchet, not a target: raise it when an operation is closed, and the
+next person is told when one slips back.
 """
 
 from __future__ import annotations
@@ -29,7 +28,6 @@ LEDGER = ROOT / "S3.md"
 README = ROOT.parent / "ministack-src" / "README.md"
 
 # Today's numbers, pinned. Raising them is the point of closing an operation.
-FLOOR_TESTED = 47
 FLOOR_SHOWN = 47
 FLOOR_READS_SHOWN = 23
 
@@ -73,6 +71,15 @@ def test_every_operation_upstream_advertises_has_a_row():
     )
 
 
+def test_every_operation_names_a_test():
+    """The rule. An em dash here means nobody in emuplane exercises it."""
+    bare = [op for op, _action, _shown, test in rows() if test == DASH]
+    assert bare == [], (
+        "these operations have no emuplane test, so nothing would catch them "
+        f"breaking: {bare}"
+    )
+
+
 def test_every_test_a_row_names_exists():
     missing = [
         (op, path)
@@ -83,29 +90,12 @@ def test_every_test_a_row_names_exists():
     assert missing == [], f"rows name test files that are not there: {missing}"
 
 
-def test_no_operation_claims_a_console_surface_without_a_test():
-    bare = [
-        op
-        for op, action, shown, test in rows()
-        if (action != DASH or shown != DASH) and test == DASH
-    ]
-    assert bare == [], (
-        "these operations are reachable from the console but nothing proves them: "
-        f"{bare}"
-    )
-
-
 def test_the_counts_do_not_go_backwards():
     listed = rows()
-    tested = [row for row in listed if row[3] != DASH]
     shown = [row for row in listed if row[2] != DASH]
     reads = [row for row in listed if row[0].startswith(READ_PREFIXES)]
     reads_shown = [row for row in reads if row[2] != DASH]
 
-    assert len(tested) >= FLOOR_TESTED, (
-        f"{len(tested)} operations have an emuplane test, down from "
-        f"{FLOOR_TESTED}: did a test go with a control?"
-    )
     assert len(shown) >= FLOOR_SHOWN, (
         f"{len(shown)} operations are shown in the console, down from "
         f"{FLOOR_SHOWN}: did a control disappear?"

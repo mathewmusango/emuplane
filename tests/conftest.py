@@ -75,8 +75,13 @@ def s3_endpoint(emulator):
         }
 
     def control(s3, method: str, path: str, headers: dict, body: bytes, query: dict):
-        """S3 Control's `/v20180820/...` paths, which the emulator routes in its
-        ASGI app rather than inside the S3 service."""
+        """Paths the emulator routes in its ASGI app rather than inside the service."""
+        if method == "POST" and path == "/WriteGetObjectResponse" and headers.get(
+            "x-amz-request-route"
+        ):
+            from ministack.services import s3_object_lambda
+
+            return s3_object_lambda.write_get_object_response(headers, body)
         if not hasattr(s3, "is_access_point_control_path"):
             return None
         if path.startswith("/v20180820/mrap/") or path.startswith(
@@ -152,6 +157,9 @@ def s3_endpoint(emulator):
 
         def do_DELETE(self):
             self._serve("DELETE")
+
+        def do_PATCH(self):
+            self._serve("PATCH")
 
         def do_HEAD(self):
             self._serve("HEAD")

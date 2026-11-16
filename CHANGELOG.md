@@ -9,6 +9,15 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **Every operation now has a test.** `tests/s3/test_operations.py` drives the
+  37 operations the console does not: the remaining bucket-configuration writes
+  (logging, notifications via EventBridge, replication), multipart upload from
+  initiate to abort, object tagging, annotations, retention and legal hold,
+  Multi-Region access points (create → describe → read → policy → routes →
+  delete) and Object Lambda access points (create → configuration → policy →
+  delete). `WriteGetObjectResponse` pins its route contract — an unknown route is
+  AWS's `400 InvalidHostHeader`; the success path needs a Lambda mid-GET and
+  belongs to the emulator's own suite.
 - **Bucket tags can be edited and removed.** *Properties → Tags* gained an editor
   (key/value rows, add a row, remove a row) and *Remove tags*: saving sends the
   whole `TagSet` (`PutBucketTagging` — tags are replaced as a set, not patched),
@@ -227,6 +236,13 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **No operation is left to the gateway any more.** The rule is now absolute:
+  every one of the 84 operations names the emuplane test that exercises it, and
+  `scripts/qa_check.py --tests` runs them on every run. `tests/s3/test_ledger.py`
+  fails on a row with no test, on a named test file that is missing, on an
+  advertised operation with no row, and on a headline count below its floor —
+  47 shown in the console and 23 of 35 reads. `S3.md` now reports **0 operations
+  with no emuplane test** instead of pointing at the emulator's suite.
 - **An ACL you cannot change says why.** Object Ownership decides it: with S3's
   default *bucket owner enforced* the bucket answers
   `AccessControlListNotSupported: The bucket does not allow ACLs`, so the ACL row
