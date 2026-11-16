@@ -110,12 +110,33 @@ GITHUB_TOKEN=… python3 scripts/changelog.py --next-version --version v0.1.0
 With no tag and no flag it starts from `0.0.0`, which is what the first release
 needs. It prints a number and writes nothing.
 
-**Why not Release Please or semantic-release.** Both derive the version from
-conventional commits, which would make the commit prefix and the issue label two
-sources of truth for one decision — and a `fix:` commit closing a `removed` issue
-would compute the wrong number. Issues are the unit here, so they decide the
-version too. The tag is still cut by hand, which is what the release guard checks.
+**Why not Release Please, semantic-release or git-cliff.** All three derive the
+version — and the entries — from commits. Here the unit is the issue, so a commit
+prefix would be a second source of truth for one decision: a `fix:` commit closing
+a `removed` issue would compute the wrong number. git-cliff answers a different
+question ("what changed in the code"); it becomes interesting after Rust lands, for
+per-crate notes from conventional commits, not for this changelog.
 
+### Press to release
+
+`.github/workflows/release-now.yml` is the unattended path, started by hand. It
+reads the issues, writes the section, commits `Release v0.1.0`, tags that commit,
+and dispatches `release.yml` **at the tag** — which is where the image takes its
+semver tag from. GitHub exempts `workflow_dispatch` from the `GITHUB_TOKEN`
+recursion rule, so no personal token is needed.
+
+```bash
+gh workflow run release-now.yml          # or Actions → "Release: now" → Run workflow
+```
+
+It refuses a minor or a major unless `force` is set, and it is idempotent: when the
+section is already in `CHANGELOG.md` it tags instead of writing again, so pressing
+twice finishes a half-done release instead of failing on its own work.
+
+The one thing it needs from the repository is the ability to push to `main`; the
+release commit *is* the tagged commit, so a PR-gated `main` rules that out.
+
+## Writing a bullet that reads well
 ## Automating the release
 
 Most of it already is. On a merge to `main`, one command says what the closed

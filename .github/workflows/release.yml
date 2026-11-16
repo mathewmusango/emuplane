@@ -6,6 +6,9 @@ name: "Release: Image"
 on:
   push:
     tags: ["v*"]
+  # Also startable at a tag by `.github/workflows/release-now.yml`, which is exempt from
+  # the GITHUB_TOKEN recursion guard and is how a pressed release reaches this run.
+  workflow_dispatch:
 
 permissions:
   contents: read
