@@ -281,11 +281,122 @@ describe('console', () => {
     )
   })
 
-  it('renders the resource table and its action form', async () => {
+  it('renders the bucket table without the API explorer', async () => {
     renderAt(<Resources />)
     expect(await screen.findAllByText('General purpose buckets')).toBeTruthy()
-    expect(screen.getByText('Actions')).toBeTruthy()
-    expect(await screen.findByText('aws s3 mb s3://<bucket>')).toBeTruthy()
+    // The table carries the actions; the API explorer is for services without one.
+    expect(screen.queryByText('Actions')).toBeNull()
+  })
+
+  it('empties a selected bucket, but only once its name is typed', async () => {
+    const deleted = []
+    const listing = RESPONSES['/api/s3/objects']
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        if (String(url).split('?')[0] === '/api/exec') {
+          deleted.push(JSON.parse(options.body).params.Key)
+          // Empty from here on, so the re-listing loop stops after one pass.
+          RESPONSES['/api/s3/objects'] = { bucket: 'logs-bucket', objects: [] }
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({ ok: true, status: 200, body: '' }),
+          }
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      renderAt(<Resources />)
+      await screen.findAllByText('General purpose buckets')
+      // Cloudscape keeps a closed modal in the DOM, so the header action is the
+      // first of the two buttons named Empty.
+      const empty = screen.getAllByRole('button', { name: 'Empty' })[0]
+      expect(empty.disabled).toBe(true)
+
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      expect(empty.disabled).toBe(false)
+      fireEvent.click(empty)
+
+      const dialog = await screen.findByRole('dialog', { name: 'Empty bucket?' })
+      const confirm = within(dialog).getByRole('button', { name: 'Empty' })
+      expect(confirm.disabled).toBe(true)
+      fireEvent.change(within(dialog).getByRole('textbox'), {
+        target: { value: 'logs-bucket' },
+      })
+      expect(confirm.disabled).toBe(false)
+      fireEvent.click(confirm)
+
+      await waitFor(() => expect(deleted).toEqual(['reports/2026.csv']))
+      expect(await screen.findByText(/Bucket logs-bucket emptied/)).toBeTruthy()
+    } finally {
+      RESPONSES['/api/s3/objects'] = listing
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('creates a bucket from its own page, applying the options chosen', async () => {
+    // Pin the region: an earlier test leaves us-west-2 selected for the session.
+    sessionStorage.setItem('emuplane:region', 'us-east-1')
+    const sent = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        if (String(url).split('?')[0] === '/api/s3/buckets') {
+          sent.push(JSON.parse(options.body))
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              JSON.stringify({ ok: true, status: 200, bucket: 'demo-bucket' }),
+          }
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      const Probe = () => {
+        const where = useLocation()
+        return <div data-testid="location">{where.pathname + where.search}</div>
+      }
+      renderAt(
+        <>
+          <App />
+          <Probe />
+        </>,
+        ['/s3/create'],
+      )
+      expect((await screen.findAllByText('Amazon S3')).length).toBeGreaterThan(0)
+
+      fireEvent.change(screen.getByPlaceholderText('my-bucket'), {
+        target: { value: 'demo-bucket' },
+      })
+      fireEvent.click(screen.getByLabelText(/ACLs enabled/))
+      fireEvent.click(screen.getByRole('button', { name: 'Create bucket' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'demo-bucket',
+        region: 'us-east-1',
+        ownership: 'BucketOwnerPreferred',
+        versioning: false,
+        object_lock: false,
+        encryption: 'AES256',
+        block_public_access: {
+          BlockPublicAcls: true,
+          IgnorePublicAcls: true,
+          BlockPublicPolicy: true,
+          RestrictPublicBuckets: true,
+        },
+      })
+      // Creating hands back to the buckets list, in the bucket's region.
+      await screen.findByText('/s3/home?region=us-east-1')
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
   })
 
   it('opens a bucket and lists its objects', async () => {

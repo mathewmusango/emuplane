@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Badge from '@cloudscape-design/components/badge'
 import Box from '@cloudscape-design/components/box'
@@ -35,6 +35,10 @@ import { Shell, loadCatalogue } from '../components/Shell'
 const FIELD_DEFAULTS = (fields) =>
   Object.fromEntries((fields || []).map((item) => [item.name, item.default || '']))
 
+// A listing is capped, so emptying re-lists after each pass. This bounds the loop
+// in case a bucket never reports itself empty.
+const EMPTY_PASSES = 100
+
 function pretty(body) {
   if (!body) return ''
   try {
@@ -47,6 +51,7 @@ function pretty(body) {
 export default function Resources() {
   const { service: routeService } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { account, region, setRegion, meta } = useSession()
   const [searchParams, setSearchParams] = useSearchParams()
   const urlRegion = searchParams.get('region') || ''
@@ -92,8 +97,8 @@ export default function Resources() {
   const [selected, setSelected] = useState([])
   const [confirmingDelete, setConfirmingDelete] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [newBucket, setNewBucket] = useState('')
+  const [confirmingEmpty, setConfirmingEmpty] = useState(null)
+  const [emptyConfirm, setEmptyConfirm] = useState('')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -158,7 +163,8 @@ export default function Resources() {
     try {
       const payload = await api.exec({
         account,
-        region,
+        // The table lists every enabled region, so the action follows the row.
+        region: selected[0]?.region || region,
         service: 's3',
         operation: 'delete-bucket',
         params: { Bucket: confirmingDelete },
@@ -178,27 +184,38 @@ export default function Resources() {
     }
   }
 
-  const createBucket = async () => {
-    if (!newBucket.trim()) return
+  // Emptying is the console's own loop: the catalogue has no single call for it,
+  // so each listed object goes through `delete-object`.
+  const emptyBucket = async () => {
+    if (!confirmingEmpty) return
+    const { name, region: targetRegion } = confirmingEmpty
     setBusy(true)
+    let removed = 0
     try {
-      const payload = await api.exec({
-        account,
-        region,
-        service: 's3',
-        operation: 'create-bucket',
-        params: { Bucket: newBucket.trim() },
-      })
-      if (payload.ok) {
-        addFlash('success', `Bucket ${newBucket.trim()} created.`)
-        setCreating(false)
-        setNewBucket('')
-        load()
-      } else {
-        addFlash('error', payload.error || 'Could not create the bucket.')
+      for (let pass = 0; pass < EMPTY_PASSES; pass += 1) {
+        const listing = await api.s3Objects(account, targetRegion, name)
+        const keys = (listing.objects || []).map((item) => item.key)
+        if (keys.length === 0) break
+        for (const key of keys) {
+          const answer = await api.exec({
+            account,
+            region: targetRegion,
+            service: 's3',
+            operation: 'delete-object',
+            params: { Bucket: name, Key: key },
+          })
+          if (!answer.ok) {
+            throw new Error(answer.error || `Could not delete ${key}.`)
+          }
+          removed += 1
+        }
       }
+      addFlash('success', `Bucket ${name} emptied (${removed} objects deleted).`)
+      setConfirmingEmpty(null)
+      if (bucket === name) setObjects([])
+      load()
     } catch (err) {
-      addFlash('error', err.message)
+      addFlash('error', `${err.message}${removed ? ` (${removed} already deleted)` : ''}`)
     } finally {
       setBusy(false)
     }
@@ -246,6 +263,16 @@ export default function Resources() {
       },
     ])
   }
+
+  // The create page hands back the name it made, so the list says so — once.
+  useEffect(() => {
+    const created = location.state?.created
+    if (!created) return
+    addFlash('success', `Bucket ${created} created.`)
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+    // Mount only: the flash belongs to the navigation that brought us here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const run = async (target = operation) => {
     if (!target) return
@@ -565,19 +592,25 @@ export default function Resources() {
                 <Button
                   disabled={!selected.length}
                   onClick={() => {
+                    setEmptyConfirm('')
+                    setConfirmingEmpty({
+                      name: selected[0].name,
+                      region: selected[0].region || region,
+                    })
+                  }}
+                >
+                  Empty
+                </Button>
+                <Button
+                  disabled={!selected.length}
+                  onClick={() => {
                     setDeleteConfirm('')
                     setConfirmingDelete(selected[0].name)
                   }}
                 >
                   Delete
                 </Button>
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setNewBucket('')
-                    setCreating(true)
-                  }}
-                >
+                <Button variant="primary" onClick={() => navigate('/s3/create')}>
                   Create bucket
                 </Button>
               </SpaceBetween>
@@ -727,7 +760,49 @@ export default function Resources() {
             </Container>
           )}
 
-          {actionsPanel}
+          {/* S3's actions are the table's own (Empty / Delete / Create bucket);
+              the API explorer stays on the services that have no table actions. */}
+          {service !== 's3' && actionsPanel}
+
+          <Modal
+            visible={Boolean(confirmingEmpty)}
+            onDismiss={() => setConfirmingEmpty(null)}
+            header="Empty bucket?"
+            footer={
+              <Box float="right">
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button variant="link" onClick={() => setConfirmingEmpty(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    loading={busy}
+                    disabled={emptyConfirm !== confirmingEmpty?.name}
+                    onClick={emptyBucket}
+                  >
+                    Empty
+                  </Button>
+                </SpaceBetween>
+              </Box>
+            }
+          >
+            <SpaceBetween size="m">
+              <Box>
+                Delete every object in <code>{confirmingEmpty?.name}</code>? The
+                bucket itself stays, and this cannot be undone.
+              </Box>
+              <FormField
+                label="Type the bucket name to confirm"
+                constraintText={`Expected: ${confirmingEmpty?.name || ''}`}
+              >
+                <Input
+                  value={emptyConfirm}
+                  onChange={({ detail }) => setEmptyConfirm(detail.value)}
+                  placeholder={confirmingEmpty?.name || ''}
+                />
+              </FormField>
+            </SpaceBetween>
+          </Modal>
 
           <Modal
             visible={Boolean(confirmingDelete)}
@@ -767,40 +842,6 @@ export default function Resources() {
                 />
               </FormField>
             </SpaceBetween>
-          </Modal>
-
-          <Modal
-            visible={creating}
-            onDismiss={() => setCreating(false)}
-            header="Create bucket"
-            footer={
-              <Box float="right">
-                <SpaceBetween direction="horizontal" size="xs">
-                  <Button variant="link" onClick={() => setCreating(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="primary"
-                    loading={busy}
-                    disabled={!newBucket.trim()}
-                    onClick={createBucket}
-                  >
-                    Create bucket
-                  </Button>
-                </SpaceBetween>
-              </Box>
-            }
-          >
-            <FormField
-              label="Bucket name"
-              constraintText="Lowercase letters, digits, dots and dashes; globally unique."
-            >
-              <Input
-                value={newBucket}
-                onChange={({ detail }) => setNewBucket(detail.value)}
-                placeholder="my-bucket"
-              />
-            </FormField>
           </Modal>
 
           <Modal

@@ -104,11 +104,15 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
   }
 
   // On `/<service>/home` the sidebar is the service's own: what it lists here is
-  // what this console can actually do with it.
+  // what this console can actually do with it. The create page belongs to that
+  // nav too, so the service does not disappear mid-flow.
   const serviceHome = (() => {
     const parts = location.pathname.split('/').filter(Boolean)
-    return parts.length === 2 && parts[1] === 'home' ? parts[0] : ''
+    return parts.length === 2 && (parts[1] === 'home' || parts[1] === 'create')
+      ? parts[0]
+      : ''
   })()
+  const serviceBase = serviceHome ? `/${serviceHome}/home` : ''
 
   const serviceNav = () => {
     if (serviceHome === 's3') {
@@ -120,7 +124,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
             {
               type: 'link',
               text: 'General purpose buckets',
-              href: location.pathname,
+              href: serviceBase,
             },
             { type: 'link', text: 'Directory buckets', href: '#', disabled: true },
             { type: 'link', text: 'Table buckets', href: '#', disabled: true },
@@ -139,7 +143,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
       ]
     }
     return [
-      { type: 'link', text: 'Resources', href: location.pathname },
+      { type: 'link', text: 'Resources', href: serviceBase },
       { type: 'divider' },
       { type: 'link', text: 'All services', href: '/services' },
     ]
@@ -211,7 +215,12 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         onNavigationChange={({ detail }) => setNavOpen(detail.open)}
         navigation={
           <SideNavigation
-            activeHref={activeHref || location.pathname}
+            header={
+              serviceHome
+                ? { text: serviceLongName(serviceHome), href: serviceBase }
+                : undefined
+            }
+            activeHref={serviceHome ? serviceBase : activeHref || location.pathname}
             items={serviceHome ? serviceNav() : navItems()}
             onFollow={({ detail }) => {
               if (detail.href.startsWith('http') || detail.href === '#') return

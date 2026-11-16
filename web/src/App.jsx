@@ -3,6 +3,7 @@ import ErrorBoundary from '@cloudscape-design/components/error-boundary'
 import Dashboard from './pages/Dashboard'
 import Services from './pages/Services'
 import Resources from './pages/Resources'
+import CreateBucket from './pages/CreateBucket'
 import Settings from './pages/Settings'
 import About from './pages/About'
 import SignIn from './pages/SignIn'
@@ -24,6 +25,10 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/services" element={<Services />} />
         <Route path="/resources" element={<Navigate to="/services" replace />} />
+        {/* S3's create is its own page, the way the console does it: one form
+            with the region, ownership, access, versioning, tags, encryption and
+            Object Lock, applied in a single request. */}
+        <Route path="/s3/create" element={<CreateBucket />} />
         <Route path="/:service/home" element={<Resources />} />
         <Route path="/resources/:service" element={<ServiceRedirect />} />
         <Route path="/settings" element={<Settings />} />

@@ -9,6 +9,30 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **Creating a bucket is its own page, the way the console does it.** `/s3/create`
+  carries that form: AWS Region, bucket type and namespace (General purpose and
+  Global namespace are the only ones this backend serves — the others are shown
+  and say why), the bucket name with S3's own rules answered before the round
+  trip, Object Ownership, Block Public Access (the master checkbox and its four
+  settings), Bucket Versioning, up to 50 tags, default encryption (SSE-S3 /
+  SSE-KMS / DSSE-KMS plus the bucket key) and Object Lock under *Advanced
+  settings*, which turns Versioning on with it. `POST /api/s3/buckets`
+  (`control/buckets.py`) sends `CreateBucket` with the region's
+  `LocationConstraint` and the create-time `x-amz-object-ownership` and
+  object-lock headers, then applies the rest the way the console does
+  (`?publicAccessBlock`, `?versioning`, `?tagging`, `?encryption`). A follow-up
+  failure still reports the bucket as created and names the step that failed. The
+  name is claimed before the emulator sees it — the same claim the gateway makes
+  — so a taken name gets one answer from both paths, and a failure releases it.
+  The buckets page's *Create bucket* now opens the page and comes back with the
+  new name; its name-only modal is gone.
+- **Emptying a bucket from the S3 page.** *Empty* sits beside *Delete* and needs
+  the bucket name typed first, like the delete dialog. S3 has no single call for
+  it, so the console loops `delete-object` over the listing and re-lists until the
+  bucket reports empty (a listing is capped, so one pass can stop short), then
+  says how many objects went; a failure names what was already deleted. *Empty*
+  and *Delete* now act in the bucket's own region instead of the page's, because
+  the table lists every enabled region.
 - Console: the five AWS sign-in screens — user type (root / IAM) → email or
   account ID → password → MFA code — as one `/signin` route in
   `web/src/pages/SignIn.jsx`, submitting to `web/src/authStub.js` until the
@@ -66,10 +90,17 @@ the minor number is bumped by hand, patch releases are the bot's.
   name and code together, from `web/src/regionNames.js`). The region switch, its
   tabs, the *All AWS Regions* toggle and the kinds side navigation are gone — one
   table, no hashes in the URL. Header actions follow the console: refresh, *Copy
-  ARN*, *Delete*, *Create bucket*; the bucket name is the link into the bucket
-  (no *Open* column); the filter reads *Find buckets by name*. The service
-  chooser moves off the S3 page (the bar's services menu is how you switch) and
-  the API explorer sits below the table.
+  ARN*, *Empty*, *Delete*, *Create bucket* (which opens the create page); the
+  bucket name is the link into the
+  bucket (no *Open* column); the filter reads *Find buckets by name*. The service
+  chooser moves off the S3 page (the bar's services menu is how you switch), and
+  the API explorer is gone from the S3 page — its table carries the actions. The
+  explorer stays on the services whose tables have no actions of their own.
+- **The service nav names the service.** *Amazon S3* sits at the top of the S3
+  sidebar, above *Buckets* — the console's own nav header — and `/s3/create`
+  keeps the service nav instead of falling back to the global one. The section
+  links go to `/<service>/home`, so the create page's *General purpose buckets*
+  link is the list rather than itself.
 - **Sign-up is one step again.** The emailed one-time password and the `/mailbox`
   page were removed on request: `Create Account` takes email, account name and
   password, creates the account and signs in. The SES send path went with them;

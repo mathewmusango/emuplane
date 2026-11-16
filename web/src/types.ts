@@ -124,6 +124,37 @@ export interface ObjectsResult {
   objects: ObjectRow[]
 }
 
+export interface BucketTag {
+  Key: string
+  Value: string
+}
+
+/** The console's create page, as POST /api/s3/buckets takes it. */
+export interface CreateBucketOptions {
+  account: string
+  region: string
+  bucket: string
+  ownership: string
+  block_public_access: Record<string, boolean>
+  versioning: boolean
+  tags: BucketTag[]
+  encryption: string
+  bucket_key: boolean
+  object_lock: boolean
+}
+
+export interface CreateBucketResult {
+  ok: boolean
+  status?: number
+  bucket: string
+  /** False when a follow-up setting failed after the bucket itself was made. */
+  created?: boolean
+  error?: string
+  account?: string
+  region?: string
+  service?: string
+}
+
 export interface ActionParam {
   name: string
   label: string

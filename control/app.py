@@ -46,6 +46,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import console  # noqa: E402  (local module: action catalogue)
+import buckets  # noqa: E402  (local module: the console's bucket create)
 import mail  # noqa: E402  (local module: the one outbound message)
 from dynamo import DynamoError  # noqa: E402
 from backends import profile  # noqa: E402
@@ -2201,9 +2202,20 @@ def aws_call(
 
 
 def signed_rest(
-    service: str, account: str, region: str, method: str, path: str, body: str = ""
+    service: str,
+    account: str,
+    region: str,
+    method: str,
+    path: str,
+    body: str = "",
+    extra_headers: dict | None = None,
 ) -> tuple[int, str]:
-    """Generic REST-JSON call (Lambda, API Gateway, ...) as the account root."""
+    """Generic REST-JSON call (Lambda, API Gateway, ...) as the account root.
+
+    `extra_headers` carries the few S3 create-time headers (`x-amz-object-ownership`,
+    object lock) that only exist on the request itself; the four this function
+    signs and sizes are never taken from the caller.
+    """
     node = primary_node()
     if node is None:
         return 0, "emulator is not registered"
@@ -2221,7 +2233,10 @@ def signed_rest(
         "Content-Length": str(len(data)),
     }
     if data:
-        headers["Content-Type"] = "application/json"
+        headers["Content-Type"] = "application/xml" if service == "s3" else "application/json"
+    for name, value in (extra_headers or {}).items():
+        if name.lower() not in ("host", "authorization", "content-length", "content-type"):
+            headers[name] = value
     conn = http.client.HTTPConnection(url.hostname, url.port or 80, timeout=10)
     try:
         conn.request(method, path, body=data or None, headers=headers)
@@ -2234,16 +2249,24 @@ def signed_rest(
 
 
 def signed_s3(
-    account: str, region: str, method: str, path: str, body: str = ""
+    account: str,
+    region: str,
+    method: str,
+    path: str,
+    body: str = "",
+    extra_headers: dict | None = None,
 ) -> tuple[int, str]:
     """Path-style S3 call signed as the account root, so no secret is held."""
-    return signed_rest("s3", account, region, method, path, body)
+    return signed_rest("s3", account, region, method, path, body, extra_headers)
 
 
-def is_service_home(path: str) -> bool:
-    """`/<service>/home` is a console route: the shape the real one uses."""
+def is_console_route(path: str) -> bool:
+    """The console's own paths beyond the flat `SPA_ROUTES`: a service's home
+    (`/<service>/home`) and the pages that hang off it (`/s3/create`)."""
     parts = [part for part in path.split("/") if part]
-    return len(parts) == 2 and parts[1] == "home"
+    if len(parts) != 2:
+        return False
+    return parts[1] == "home" or (parts[0] == "s3" and parts[1] == "create")
 
 
 def static_asset(url_path: str) -> tuple[bytes, str] | None:
@@ -3235,7 +3258,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             return self._redirect("/services")
         if path in PUBLIC_SPA_ROUTES:
             return self._spa()
-        if path in SPA_ROUTES or path.startswith("/resources/") or is_service_home(path):
+        if path in SPA_ROUTES or path.startswith("/resources/") or is_console_route(path):
             if not self._authenticated():
                 return self._redirect("/login?next=" + quote(path))
             return self._spa()
@@ -3861,6 +3884,61 @@ class ControlHandler(BaseHTTPRequestHandler):
                     "regions": ACCOUNTS.regions_of(account_obj),
                 },
             )
+        if path == "/api/s3/buckets":
+            # The console's create page: one request that applies the whole form.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            name = str(payload.get("bucket") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not name:
+                return self._json(400, {"error": "a bucket name is required"})
+            # The name is claimed before the emulator sees it, exactly as the
+            # gateway claims it, so a taken name gets one answer from both paths.
+            entry = bucket_owner(name)
+            reserved = entry is None
+            if entry is None:
+                ok, message, code = reserve_across(name, region, target["account_id"])
+                if not ok:
+                    return self._json(code, {"error": message})
+            elif (
+                entry.get("account_id") != target["account_id"]
+                or entry.get("region") != region
+            ):
+                return self._json(409, {"error": bucket_taken(name)})
+            result = buckets.create(
+                region,
+                payload,
+                lambda method, target_path, body, headers=None: signed_s3(
+                    target["account_id"], region, method, target_path, body, headers
+                ),
+            )
+            if result.get("created"):
+                OWNERS.record(
+                    target["account_id"],
+                    region,
+                    "s3",
+                    name,
+                    info.get("user") or "token",
+                )
+            elif reserved:
+                # Nothing was created, so the claim goes back.
+                release_across(name)
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=account, region=region, service="s3"),
+            )
         if path == "/api/exec":
             payload = self._body()
             info = self._caller()
@@ -4364,7 +4442,7 @@ on the <a href="/">overview</a>.</p>
         return self._layout("Users", body)
 
     def _s3_page(self) -> str:
-        buckets = current_buckets()
+        registry = current_buckets()
         health = health_snapshot()
         rows = "".join(
             "<tr>"
@@ -4375,7 +4453,7 @@ on the <a href="/">overview</a>.</p>
             f"<td>{html.escape(entry.get('last_seen', '-'))}</td>"
             f"<td>{'<span class=down>stale</span>' if entry.get('stale') else '<span class=up>live</span>'}</td>"
             "</tr>"
-            for name, entry in sorted(buckets.items())
+            for name, entry in sorted(registry.items())
         ) or '<tr><td colspan="6" class="muted">no buckets registered</td></tr>'
         node_cache = REGISTRY.node_snapshot()
         inventory = "".join(

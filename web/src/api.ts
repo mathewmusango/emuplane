@@ -4,6 +4,8 @@ import type {
 
   BrowseResult,
   CountsResult,
+  CreateBucketOptions,
+  CreateBucketResult,
   CredentialsResult,
   DeleteAccountResult,
   Meta,
@@ -98,6 +100,8 @@ export const api = {
     request<ObjectsResult>(
       `/api/s3/objects?${query({ account, region, bucket, prefix })}`,
     ),
+  createBucket: (payload: CreateBucketOptions) =>
+    request<CreateBucketResult>('/api/s3/buckets', { method: 'POST', body: payload }),
   exec: (payload: {
     account: string
     region: string
