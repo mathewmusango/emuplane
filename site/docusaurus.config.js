@@ -1,7 +1,7 @@
 const config = {
   title: 'Emuplane',
   tagline: 'A console and control plane for local AWS emulation',
-  favicon: 'img/favicon.svg',
+  favicon: 'img/mark.svg',
 
   url: 'https://mathewmusango.github.io',
   baseUrl: '/emuplane/',
@@ -53,7 +53,7 @@ const config = {
       title: 'Emuplane',
       logo: {
         alt: 'Emuplane',
-        src: 'img/logo.svg',
+        src: 'img/mark.svg',
       },
       items: [
         {
