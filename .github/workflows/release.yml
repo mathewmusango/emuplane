@@ -33,6 +33,8 @@ jobs:
             echo "::error::$GITHUB_REF_NAME is not the tip of main: tag the commit you released, nothing older."
             exit 1
           fi
+      - name: The changelog has a section for this tag
+        run: python3 scripts/changelog.py --version "$GITHUB_REF_NAME" --check
 
   image:
     needs: guard

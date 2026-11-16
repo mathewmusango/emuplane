@@ -1,0 +1,22 @@
+name: "PR: links an issue"
+
+# A pull request names the issue it closes, because the changelog is built from
+# issues. Dependency bots are exempt: they have no issue to link.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  links-an-issue:
+    if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: The body closes an issue
+        run: python3 scripts/triage.py --pr

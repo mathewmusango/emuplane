@@ -23,7 +23,7 @@ module.exports = {
       type: 'category',
       label: 'Operations',
       collapsed: false,
-      items: ['operations/runbook', 'operations/image-and-versions'],
+      items: ['operations/runbook', 'operations/image-and-versions', 'operations/releases'],
     },
     {
       type: 'category',

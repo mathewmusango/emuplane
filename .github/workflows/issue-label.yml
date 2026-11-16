@@ -1,0 +1,21 @@
+name: "Issue: carries a changelog label"
+
+# An issue names the section it belongs to, so nothing reaches the changelog by
+# falling into a default.
+on:
+  issues:
+    types: [opened, edited, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog-label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: The label maps to a section
+        run: python3 scripts/triage.py --issue
