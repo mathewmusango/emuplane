@@ -67,6 +67,23 @@ python3 scripts/changelog.py --create-labels             # create it, leaving th
 It is idempotent: a label that already exists is never touched, so colours edited
 in the GitHub UI survive. It needs an authenticated `gh` and nothing else.
 
+## `Unreleased`, and the first release
+
+`--write` never invents a section for a version already in the file, and it never
+touches `Unreleased`. So the two kinds of entry stay distinct:
+
+- **`Unreleased` is the human scratchpad** — notes that matter before an issue
+exists. It is yours to edit.
+- **A released section is either generated from that release's issues, or authored.**
+  The first release is authored, because it predates the issue convention.
+- **Never both for the same change.** At release time the pending notes either
+  become issues (and the section is generated) or the section is written by hand.
+  A generated section that repeats an `Unreleased` bullet is the signal that a note
+  should have become an issue.
+
+The first release also measures from the repository's first commit, not from a tag
+that does not exist yet, so `--since` is optional there too.
+
 ## Writing a bullet that reads well
 
 The default bullet is the issue title. When the title is written for the tracker

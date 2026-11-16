@@ -184,20 +184,24 @@ def repo_slug(explicit: str = "") -> str:
 
 
 def since_default() -> str:
-    """The commit date of the newest tag, so 'since the last release' is a fact."""
+    """The commit date of the newest tag, or of the first commit when the repo has no tag yet."""
     tag = subprocess.run(
         ["git", "describe", "--tags", "--abbrev=0"],
         capture_output=True,
         text=True,
     ).stdout.strip()
-    if not tag:
-        raise SystemExit("no tag to measure from: pass --since (an ISO date)")
-    stamp = subprocess.run(
-        ["git", "log", "-1", "--format=%cI", tag], capture_output=True, text=True
-    ).stdout.strip()
-    if not stamp:
-        raise SystemExit(f"cannot read the date of {tag}: pass --since")
-    return stamp
+    if tag:
+        stamp = subprocess.run(
+            ["git", "log", "-1", "--format=%cI", tag], capture_output=True, text=True
+        ).stdout.strip()
+        if stamp:
+            return stamp
+    first = subprocess.run(
+        ["git", "log", "--reverse", "--format=%cI"], capture_output=True, text=True
+    ).stdout.strip().splitlines()
+    if not first:
+        raise SystemExit("no commit to measure from: pass --since (an ISO date)")
+    return first[0]
 
 
 def fetch_issues(repo: str, since: str, token: str) -> list[dict]:

@@ -159,3 +159,20 @@ def test_a_dry_run_creates_nothing(config):
     assert created == 0
     assert present == 0
     assert not any(call[:2] == ["label", "create"] for call in calls)
+
+
+class _Answered:
+    def __init__(self, text: str) -> None:
+        self.stdout = text
+
+
+def test_the_first_release_measures_from_the_first_commit(monkeypatch):
+    answers = iter([_Answered(""), _Answered("2026-01-01T00:00:00+00:00\n2026-11-16T10:00:00+00:00\n")])
+    monkeypatch.setattr(changelog.subprocess, "run", lambda *a, **k: next(answers))
+    assert changelog.since_default() == "2026-01-01T00:00:00+00:00"
+
+
+def test_a_tag_wins_over_the_first_commit(monkeypatch):
+    answers = iter([_Answered("v0.1.0\n"), _Answered("2026-11-01T00:00:00+00:00\n")])
+    monkeypatch.setattr(changelog.subprocess, "run", lambda *a, **k: next(answers))
+    assert changelog.since_default() == "2026-11-01T00:00:00+00:00"
