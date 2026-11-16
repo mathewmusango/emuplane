@@ -10,6 +10,7 @@ import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
 import Modal from '@cloudscape-design/components/modal'
 import Multiselect from '@cloudscape-design/components/multiselect'
+import Select from '@cloudscape-design/components/select'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import StatusIndicator from '@cloudscape-design/components/status-indicator'
 import Table from '@cloudscape-design/components/table'
@@ -63,6 +64,13 @@ const STATUS = {
 const statusOf = (status) => (
   <StatusIndicator type={STATUS[status] || 'info'}>{status || dash}</StatusIndicator>
 )
+
+// SubmitMultiRegionAccessPointRoutes takes 0 or 100 per member and refuses every
+// member at 0, so a traffic dial has two states, not a range.
+const DIALS = [
+  { value: '100', label: 'Active (100%)' },
+  { value: '0', label: 'Inactive (0%)' },
+]
 
 const pretty = (text) => {
   if (!text) return ''
@@ -212,8 +220,12 @@ export default function AccessPoints() {
   const [createError, setCreateError] = useState('')
   const [createResult, setCreateResult] = useState(null)
   // The operations this page created, by access point name. The token exists
-  // only in the create's answer, so this is the one place it can be shown from.
+  // only in the answer that carried it, so this is the one place it can be shown
+  // from.
   const [operations, setOperations] = useState({})
+  const [routeDials, setRouteDials] = useState(null)
+  const [routesBusy, setRoutesBusy] = useState(false)
+  const [routesError, setRoutesError] = useState('')
   const detail = SECTIONS[section]
 
   const load = () => {
@@ -276,12 +288,13 @@ export default function AccessPoints() {
   // A listing is not a detail: an MRAP's list row has no policy and no routes,
   // and an Object Lambda access point's has no configuration, so the row view
   // reads the instance resources themselves.
-  const openDetail = async () => {
-    const row = selected[0]
+  const openDetail = async (row = selected[0]) => {
     if (!row) return
     setDetailRow(row)
     setDetailView(null)
     setDetailError('')
+    setRoutesError('')
+    setRouteDials(null)
     try {
       setDetailView(await api.accessPointDetail(account, region, section, row.name))
     } catch (err) {
@@ -292,11 +305,16 @@ export default function AccessPoints() {
   const openPolicy = async () => {
     const row = selected[0]
     if (!row) return
-    setPolicy({ name: row.name })
+    setPolicy({ name: row.name, section })
     setPolicyText('')
     setPolicyError('')
     try {
-      const answer = await api.accessPointPolicy(account, region, row.name)
+      const answer = await api.accessPointPolicy(
+        account,
+        region,
+        row.name,
+        section === 'multi-region' ? 'multi-region' : 'general',
+      )
       setPolicyText(pretty(answer.policy))
     } catch (err) {
       setPolicyError(err.message)
@@ -304,17 +322,34 @@ export default function AccessPoints() {
   }
 
   const savePolicy = async (next) => {
+    const multiRegion = policy.section === 'multi-region'
     setBusy(true)
     setPolicyError('')
     try {
-      await api.editAccessPointPolicy({
-        account,
-        region,
-        name: policy.name,
-        policy: next,
-      })
+      const answer = multiRegion
+        ? await api.editMultiRegionPolicy({
+            account,
+            region,
+            name: policy.name,
+            policy: next,
+          })
+        : await api.editAccessPointPolicy({
+            account,
+            region,
+            name: policy.name,
+            policy: next,
+          })
+      // A Multi-Region policy is written by an asynchronous request, so a FAILED
+      // operation means the old policy is still in force: keep the editor open.
+      if (answer.operation) {
+        setOperations((held) => ({ ...held, [policy.name]: answer.operation }))
+        if (answer.created === false) {
+          setPolicyError(answer.error || 'the operation did not succeed')
+          return
+        }
+      }
       setPolicy(null)
-      setNotice(next ? 'Access point policy saved' : 'Access point policy removed')
+      setNotice(multiRegion || next ? 'Access point policy saved' : 'Access point policy removed')
       load()
     } catch (err) {
       setPolicyError(err.message)
@@ -324,14 +359,29 @@ export default function AccessPoints() {
   }
 
   const remove = async () => {
+    const multiRegion = deleting.section === 'multi-region'
     setBusy(true)
     try {
-      await api.deleteAccessPoint({
-        account,
-        region,
-        name: deleting.name,
-      })
+      const answer = multiRegion
+        ? await api.deleteMultiRegionAccessPoint({
+            account,
+            region,
+            name: deleting.name,
+          })
+        : await api.deleteAccessPoint({
+            account,
+            region,
+            name: deleting.name,
+          })
       setDeleting(null)
+      if (answer.operation) {
+        setOperations((held) => ({ ...held, [deleting.name]: answer.operation }))
+      }
+      if (answer.created === false) {
+        // The delete was accepted and did not happen; the operation says why.
+        setError(answer.error || 'the delete did not succeed')
+        return
+      }
       setSelected([])
       setNotice(`Deleted access point ${deleting.name}`)
       load()
@@ -340,6 +390,40 @@ export default function AccessPoints() {
       setDeleting(null)
     } finally {
       setBusy(false)
+    }
+  }
+
+  // The traffic dials are the one Multi-Region write S3 answers synchronously, so
+  // they are edited in place on the detail's own routes table.
+  const startRoutes = () => {
+    const dials = {}
+    for (const route of detailView?.routes || []) {
+      dials[route.bucket] = String(route.traffic || '100')
+    }
+    setRouteDials(dials)
+    setRoutesError('')
+  }
+
+  const saveRoutes = async () => {
+    setRoutesBusy(true)
+    setRoutesError('')
+    try {
+      await api.submitMultiRegionRoutes({
+        account,
+        region,
+        arn: detailView.arn,
+        routes: (detailView.routes || []).map((route) => ({
+          bucket: route.bucket,
+          traffic: String(routeDials[route.bucket]),
+        })),
+      })
+      setNotice(`Traffic dials saved for ${detailRow.name}`)
+      setRouteDials(null)
+      await openDetail(detailRow)
+    } catch (err) {
+      setRoutesError(err.message)
+    } finally {
+      setRoutesBusy(false)
     }
   }
 
@@ -453,19 +537,21 @@ export default function AccessPoints() {
                 Copy ARN
               </Button>
               {!general && (
-                <Button disabled={selected.length !== 1} onClick={openDetail}>
+                <Button disabled={selected.length !== 1} onClick={() => openDetail()}>
                   View details
                 </Button>
               )}
-              {general && (
+              {(general || section === 'multi-region') && (
                 <Button disabled={selected.length !== 1} onClick={openPolicy}>
                   Edit policy
                 </Button>
               )}
-              {general && (
+              {(general || section === 'multi-region') && (
                 <Button
                   disabled={selected.length !== 1}
-                  onClick={() => setDeleting(selected[0])}
+                  onClick={() =>
+                    setDeleting(selected[0] ? { name: selected[0].name, section } : null)
+                  }
                 >
                   Delete
                 </Button>
@@ -579,13 +665,17 @@ export default function AccessPoints() {
               <Button variant="link" onClick={() => setPolicy(null)}>
                 Cancel
               </Button>
-              <Button
-                loading={busy}
-                disabled={!policyText.trim()}
-                onClick={() => savePolicy(null)}
-              >
-                Remove policy
-              </Button>
+              {/* S3 Control has no DeleteMultiRegionAccessPointPolicy: a
+                  Multi-Region policy is replaced, never removed. */}
+              {policy?.section !== 'multi-region' && (
+                <Button
+                  loading={busy}
+                  disabled={!policyText.trim()}
+                  onClick={() => savePolicy(null)}
+                >
+                  Remove policy
+                </Button>
+              )}
               <Button variant="primary" loading={busy} onClick={() => savePolicy(policyText)}>
                 Save
               </Button>
@@ -607,7 +697,11 @@ export default function AccessPoints() {
       <Modal
         visible={Boolean(deleting)}
         onDismiss={() => setDeleting(null)}
-        header="Delete access point"
+        header={
+          deleting?.section === 'multi-region'
+            ? 'Delete Multi-Region access point'
+            : 'Delete access point'
+        }
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
@@ -623,13 +717,22 @@ export default function AccessPoints() {
       >
         <SpaceBetween size="m">
           <Box>
-            Delete <strong>{deleting?.name}</strong>? Requests made through this access point
-            stop working. The bucket and its objects are not touched.
+            Delete <strong>{deleting?.name}</strong>?{' '}
+            {deleting?.section === 'multi-region'
+              ? 'Requests made through its alias stop working. The member buckets and their objects are not touched, and S3 Control answers the delete asynchronously.'
+              : 'Requests made through this access point stop working. The bucket and its objects are not touched.'}
           </Box>
-          <Alert type="warning">
-            A bucket with access points attached cannot be deleted until every one of them is
-            deleted.
-          </Alert>
+          {deleting?.section === 'multi-region' ? (
+            <Alert type="warning">
+              A Multi-Region access point is deleted by an asynchronous request. Its operation is
+              shown once S3 Control reports what became of it.
+            </Alert>
+          ) : (
+            <Alert type="warning">
+              A bucket with access points attached cannot be deleted until every one of them is
+              deleted.
+            </Alert>
+          )}
         </SpaceBetween>
       </Modal>
 
@@ -777,12 +880,41 @@ export default function AccessPoints() {
                     {detailView.errors.routes}
                   </Alert>
                 )}
+                {routesError && <Alert type="error">{routesError}</Alert>}
                 <Table
                   items={detailView.routes || []}
                   header={
                     <Header
                       variant="h3"
                       description="Traffic dials decide how much of the request load each bucket takes."
+                      actions={
+                        <SpaceBetween direction="horizontal" size="xs">
+                          {routeDials ? (
+                            <>
+                              <Button variant="link" onClick={() => setRouteDials(null)}>
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="primary"
+                                loading={routesBusy}
+                                disabled={Object.values(routeDials).every(
+                                  (dial) => dial === '0',
+                                )}
+                                onClick={saveRoutes}
+                              >
+                                Save
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              onClick={startRoutes}
+                              disabled={!(detailView.routes || []).length}
+                            >
+                              Edit traffic dials
+                            </Button>
+                          )}
+                        </SpaceBetween>
+                      }
                     >
                       Routes
                     </Header>
@@ -793,11 +925,35 @@ export default function AccessPoints() {
                     {
                       id: 'traffic',
                       header: 'Traffic dial',
-                      width: 140,
-                      cell: (row) => `${row.traffic}%`,
+                      width: 200,
+                      cell: (row) =>
+                        routeDials ? (
+                          <Select
+                            selectedOption={DIALS.find(
+                              (dial) => dial.value === String(routeDials[row.bucket]),
+                            )}
+                            onChange={({ detail: changed }) =>
+                              setRouteDials((held) => ({
+                                ...held,
+                                [row.bucket]: changed.selectedOption.value,
+                              }))
+                            }
+                            options={DIALS}
+                            ariaLabel={`Traffic dial for ${row.bucket}`}
+                          />
+                        ) : (
+                          `${row.traffic}%`
+                        ),
                     },
                   ]}
                 />
+                {routeDials &&
+                  Object.values(routeDials).every((dial) => dial === '0') && (
+                    <Alert type="warning">
+                      At least one Region has to stay Active: set one dial back to 100 before
+                      saving.
+                    </Alert>
+                  )}
                 {operations[detailRow?.name] && (
                   <SpaceBetween size="xs">
                     <Header

@@ -309,7 +309,10 @@ export const RESPONSES = {
           { bucket: 'logs-bucket', region: 'us-east-1' },
           { bucket: 'west-bucket', region: 'us-west-2' },
         ],
-        routes: [{ bucket: 'logs-bucket', region: 'us-east-1', traffic: '100' }],
+        routes: [
+          { bucket: 'logs-bucket', region: 'us-east-1', traffic: '100' },
+          { bucket: 'west-bucket', region: 'us-west-2', traffic: '100' },
+        ],
         policy: '{"Version":"2012-10-17","Statement":[]}',
         errors: {},
       }
@@ -328,11 +331,59 @@ export const RESPONSES = {
       errors: {},
     }
   },
-  '/api/s3/access-point-policy': {
+  '/api/s3/access-point-policy': (url) => {
+    const section = new URL(url, 'http://console').searchParams.get('section')
+    // A Multi-Region access point's policy is its own resource, read from the
+    // region that manages Multi-Region access points.
+    if (section === 'multi-region') {
+      return {
+        ok: true,
+        status: 200,
+        name: 'world-point',
+        policy: '{"Version":"2012-10-17","Statement":[]}',
+      }
+    }
+    return { ok: true, status: 200, name: 'reports-point', policy: null }
+  },
+  '/api/s3/mrap-delete': {
     ok: true,
     status: 200,
-    name: 'reports-point',
-    policy: null,
+    name: 'world-point',
+    created: true,
+    operation: {
+      token: 'arn:aws:s3:us-west-2:111111111111:async-request/mrap/delete/7c1d2e',
+      operation: 'DeleteMultiRegionAccessPoint',
+      status: 'SUCCEEDED',
+      created: '2026-11-16T13:05:00Z',
+      name: 'world-point',
+      buckets: [],
+      results: [
+        { region: 'us-east-1', status: 'SUCCEEDED' },
+        { region: 'us-west-2', status: 'SUCCEEDED' },
+      ],
+      error: null,
+    },
+  },
+  '/api/s3/mrap-policy': {
+    ok: true,
+    status: 200,
+    name: 'world-point',
+    created: true,
+    operation: {
+      token: 'arn:aws:s3:us-west-2:111111111111:async-request/mrap/put-policy/9a4b1f',
+      operation: 'PutMultiRegionAccessPointPolicy',
+      status: 'SUCCEEDED',
+      created: '2026-11-16T13:06:00Z',
+      name: 'world-point',
+      buckets: [],
+      results: [{ region: 'us-east-1', status: 'SUCCEEDED' }],
+      error: null,
+    },
+  },
+  '/api/s3/mrap-routes': {
+    ok: true,
+    status: 200,
+    arn: 'arn:aws:s3::111111111111:accesspoint/world-point.mrap',
   },
   '/api/s3/access-point-delete': { ok: true, status: 204, name: 'reports-point' },
   '/api/s3/access-point-policy-edit': {

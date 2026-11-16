@@ -1441,8 +1441,147 @@ describe('s3', () => {
     // The listing has none of this: the report, the dials and the policy are
     // three reads on the access point itself.
     expect(within(dialog).getByText('Routes')).toBeTruthy()
-    expect(within(dialog).getByText('100%')).toBeTruthy()
+    expect(within(dialog).getAllByText('100%').length).toBe(2)
     expect(within(dialog).getByText(/"Statement"/)).toBeTruthy()
+  })
+
+  it('deletes a Multi-Region access point after confirming', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/mrap-delete', RESPONSES['/api/s3/mrap-delete'], sent)
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+      await screen.findByText('world-point')
+
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      // The header's action and the delete dialog's own button share a name, and a
+      // closed dialog stays in the DOM, so the first is the page's.
+      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Delete Multi-Region access point',
+      })
+      // Deleting one is asynchronous, and the dialog says so rather than
+      // promising it is already gone.
+      expect(within(dialog).getByText(/member buckets and their objects are not touched/)).toBeTruthy()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        name: 'world-point',
+      })
+      expect(await screen.findByText('Deleted access point world-point')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('writes a Multi-Region access point policy, which is replaced and not removed', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/mrap-policy', RESPONSES['/api/s3/mrap-policy'], sent)
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+      await screen.findByText('world-point')
+
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit policy' }))
+
+      const dialog = await screen.findByRole('dialog', { name: /Edit policy/ })
+      // The editor opens on the policy the access point holds now.
+      const editor = within(dialog).getByRole('textbox')
+      await waitFor(() => expect(editor.value).toContain('Statement'))
+      // S3 Control has no delete for a Multi-Region policy.
+      expect(within(dialog).queryByRole('button', { name: 'Remove policy' })).toBeNull()
+
+      const document = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow"}]}'
+      fireEvent.change(editor, { target: { value: document } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        name: 'world-point',
+        policy: document,
+      })
+      expect(await screen.findByText('Access point policy saved')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('sets a traffic dial from the routes table', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/mrap-routes', RESPONSES['/api/s3/mrap-routes'], sent)
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+      await screen.findByText('world-point')
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Access point world-point' })
+      // The detail is its own read: the dials exist only once it lands.
+      await within(dialog).findAllByText('100%')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Edit traffic dials' }))
+
+      // One dial per member: the second bucket is the one switched off.
+      const user = userEvent.setup()
+      await user.click(
+        within(dialog).getByRole('button', { name: /Traffic dial for west-bucket/ }),
+      )
+      await user.click(await screen.findByRole('option', { name: 'Inactive (0%)' }))
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        arn: 'arn:aws:s3::111111111111:accesspoint/world-point.mrap',
+        routes: [
+          { bucket: 'logs-bucket', traffic: '100' },
+          { bucket: 'west-bucket', traffic: '0' },
+        ],
+      })
+      expect(await screen.findByText('Traffic dials saved for world-point')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('refuses to switch every member off', async () => {
+    pinRegion('us-east-1')
+    renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+    await screen.findByText('reports-point')
+    fireEvent.click(screen.getByRole('tab', { name: 'Multi-Region' }))
+    await screen.findByText('world-point')
+    fireEvent.click(screen.getAllByRole('radio')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Access point world-point' })
+    await within(dialog).findAllByText('100%')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Edit traffic dials' }))
+
+    const user = userEvent.setup()
+    for (const bucket of ['logs-bucket', 'west-bucket']) {
+      await user.click(
+        within(dialog).getByRole('button', { name: new RegExp(`Traffic dial for ${bucket}`) }),
+      )
+      await user.click(await screen.findByRole('option', { name: 'Inactive (0%)' }))
+    }
+
+    // S3 refuses an access point with every member switched off, so the page does
+    // not offer to ask.
+    expect(within(dialog).getByText(/At least one Region has to stay Active/)).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: 'Save' }).disabled).toBe(true)
   })
 
   it('opens an Object Lambda access point with its configuration, and no policy is a state', async () => {

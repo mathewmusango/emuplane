@@ -7,6 +7,7 @@ import type {
   ActionResult,
   BucketHead,
   MultiRegionResult,
+  MultiRegionRoutesResult,
 
   BrowseResult,
   BucketSettings,
@@ -276,9 +277,14 @@ export const api = {
     request<AccessPointDetail>(
       `/api/s3/access-point-detail?${query({ account, region, section, name })}`,
     ),
-  accessPointPolicy: (account: string, region: string, name: string) =>
+  accessPointPolicy: (
+    account: string,
+    region: string,
+    name: string,
+    section: 'general' | 'multi-region' = 'general',
+  ) =>
     request<AccessPointPolicy>(
-      `/api/s3/access-point-policy?${query({ account, region, name })}`,
+      `/api/s3/access-point-policy?${query({ account, region, name, section })}`,
     ),
   editAccessPointPolicy: (payload: {
     account: string
@@ -298,6 +304,23 @@ export const api = {
     name: string
     buckets: string[]
   }) => request<MultiRegionResult>('/api/s3/mrap', { method: 'POST', body: payload }),
+  deleteMultiRegionAccessPoint: (payload: { account: string; region: string; name: string }) =>
+    request<MultiRegionResult>('/api/s3/mrap-delete', { method: 'POST', body: payload }),
+  /** PutMultiRegionAccessPointPolicy: replaced, never removed — S3 Control has no
+   *  delete for a Multi-Region policy. */
+  editMultiRegionPolicy: (payload: {
+    account: string
+    region: string
+    name: string
+    policy: string
+  }) => request<MultiRegionResult>('/api/s3/mrap-policy', { method: 'POST', body: payload }),
+  /** SubmitMultiRegionAccessPointRoutes: 0 (Inactive) or 100 (Active) per member. */
+  submitMultiRegionRoutes: (payload: {
+    account: string
+    region: string
+    arn: string
+    routes: { bucket: string; traffic: string }[]
+  }) => request<MultiRegionRoutesResult>('/api/s3/mrap-routes', { method: 'POST', body: payload }),
   exec: (payload: {
     account: string
     region: string

@@ -325,6 +325,16 @@ export interface MultiRegionResult {
   region?: string
 }
 
+/** SubmitMultiRegionAccessPointRoutes: a dial per member, answered with no token. */
+export interface MultiRegionRoutesResult {
+  ok: boolean
+  status?: number
+  arn: string
+  error?: string
+  account?: string
+  region?: string
+}
+
 export interface BucketTag {
   Key: string
   Value: string

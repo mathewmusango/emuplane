@@ -3718,6 +3718,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
             region = (params.get("region") or [DEFAULT_REGION])[0]
+            section = (params.get("section") or ["general"])[0]
             name = (params.get("name") or [""])[0].strip()
             info = self._caller()
             target = ACCOUNTS.by_ref(account)
@@ -3733,12 +3734,17 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if not name:
                 return self._json(400, {"error": "an access point name is required"})
-            result = accesspoints.read_policy(
-                region, name, s3control(target["account_id"], region)
+            rest = s3control(target["account_id"], region)
+            # A Multi-Region access point's policy is its own resource, read from
+            # the region that manages Multi-Region access points.
+            result = (
+                accesspoints.read_multi_region_policy(name, rest)
+                if section == "multi-region"
+                else accesspoints.read_policy(region, name, rest)
             )
             return self._json(
                 200 if result.get("ok") else 400,
-                dict(result, account=target["account_id"], region=region),
+                dict(result, account=target["account_id"], region=region, section=section),
             )
         if path == "/api/s3/access-point-detail":
             # One access point read from the resources that own it: an MRAP's
@@ -4566,6 +4572,92 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200
                 if result.get("ok")
                 else (failure if 400 <= failure < 500 else 502),
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/mrap-delete":
+            # DeleteMultiRegionAccessPoint is asynchronous too: the answer is a
+            # token, so the operation it names is described with it.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            name = str(payload.get("name") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not name:
+                return self._json(400, {"error": "an access point name is required"})
+            result = accesspoints.delete_multi_region(
+                name, s3control(target["account_id"], region)
+            )
+            failure = result.get("status") or 0
+            return self._json(
+                200
+                if result.get("ok")
+                else (failure if 400 <= failure < 500 else 502),
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/mrap-policy":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            name = str(payload.get("name") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not name:
+                return self._json(400, {"error": "an access point name is required"})
+            result = accesspoints.write_multi_region_policy(
+                name, payload.get("policy"), s3control(target["account_id"], region)
+            )
+            failure = result.get("status") or 0
+            return self._json(
+                200
+                if result.get("ok")
+                else (failure if 400 <= failure < 500 else 502),
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/mrap-routes":
+            # The one Multi-Region write that is not asynchronous: S3 answers 200
+            # with no token, so the dials are read back from the access point.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            arn = str(payload.get("arn") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            result = accesspoints.write_multi_region_routes(
+                arn, payload.get("routes"), s3control(target["account_id"], region)
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region),
             )
         if path == "/api/s3/access-point-delete":

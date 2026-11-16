@@ -405,6 +405,35 @@ def listing(section: str, region: str, rest, bucket: str = "") -> dict:
 # themselves, which is what the console's detail pane shows.
 
 
+def _mrap_policy_text(text: str) -> str:
+    """The policy in force, from the Established (or else Proposed) state.
+
+    AWS reports the policy twice while it propagates; MiniStack applies at once,
+    so either the same text or an empty one.
+    """
+    state = _first(text, "Established")
+    if state is None:
+        state = _first(text, "Proposed")
+    return _field(state, "Policy")
+
+
+def read_multi_region_policy(name: str, rest) -> dict:
+    """GetMultiRegionAccessPointPolicy; no policy at all is a state, not a failure."""
+    status, text = rest(
+        MULTI_REGION_HOME, "GET", MULTI_REGION + "/" + quote(name, safe="") + "/policy"
+    )
+    if 200 <= status < 300:
+        return {
+            "ok": True,
+            "status": status,
+            "name": name,
+            "policy": _mrap_policy_text(text) or None,
+        }
+    if status == 404 and _code(text) == "NoSuchMultiRegionAccessPointPolicy":
+        return {"ok": True, "status": 200, "name": name, "policy": None}
+    return {"ok": False, "status": status or 502, "name": name, "error": _detail(text, status)}
+
+
 def multi_region_detail(name: str, rest) -> dict:
     """GetMultiRegionAccessPoint, GetMultiRegionAccessPointPolicy, and the routes.
 
@@ -445,12 +474,7 @@ def multi_region_detail(name: str, rest) -> dict:
         MULTI_REGION_HOME, "GET", MULTI_REGION + "/" + quote(name, safe="") + "/policy"
     )
     if 200 <= status < 300:
-        # AWS reports the policy twice, Established and Proposed; the first is the
-        # one in force, and MiniStack applies at once, so either is the same text.
-        state = _first(text, "Established")
-        if state is None:
-            state = _first(text, "Proposed")
-        detail["policy"] = _field(state, "Policy") or None
+        detail["policy"] = _mrap_policy_text(text) or None
     elif not (status == 404 and _code(text) == "NoSuchMultiRegionAccessPointPolicy"):
         detail["errors"]["policy"] = _detail(text, status)
 
@@ -689,22 +713,22 @@ def describe_operation(token: str, rest) -> dict:
     return {"ok": True, "status": 200, "operation": _async_operation(element)}
 
 
-def create_multi_region(payload: dict, rest) -> dict:
-    """CreateMultiRegionAccessPoint, then the operation it answers with.
-
-    `ok` says the request was submitted and its operation described; `created`
-    says the operation itself ended SUCCEEDED. A failed operation is still `ok`,
-    because the page has to show the status and the per-Region results S3
-    reported — an empty row would read as though nothing was attempted.
-    """
-    try:
-        name, buckets = _mrap_form(payload)
-    except ValueError as exc:
-        return {"ok": False, "status": 400, "error": str(exc)}
-
-    status, text = rest(
-        MULTI_REGION_HOME, "POST", ASYNC + "/create", _mrap_create_body(name, buckets)
+def _mrap_async_body(operation: str, name: str, extra: str = "") -> str:
+    """The `<Operation>Request` body Create, Delete and PutPolicy share."""
+    return (
+        f'<{operation}Request xmlns="{CONTROL_NS}">'
+        f"<Details><Name>{html.escape(name)}</Name>{extra}</Details>"
+        f"</{operation}Request>"
     )
+
+
+def _mrap_answered(name: str, status: int, text: str, rest) -> dict:
+    """The token an asynchronous request answered with, described.
+
+    Create, delete and put-policy all answer 200 with nothing but a request
+    token, and the token is the whole answer to "did it work?" — so the operation
+    it names is read here and returned with it.
+    """
     if not 200 <= status < 300:
         return {
             "ok": False,
@@ -713,13 +737,13 @@ def create_multi_region(payload: dict, rest) -> dict:
             "error": _detail(text, status),
         }
 
-    token = _field(_first(text, "CreateMultiRegionAccessPointResult"), "RequestTokenARN")
+    token = _field(_root(text), "RequestTokenARN")
     if not token:
         return {
             "ok": False,
             "status": 502,
             "name": name,
-            "error": "the create answered with no request token to describe",
+            "error": "the request answered with no request token to describe",
         }
 
     described = describe_operation(token, rest)
@@ -729,8 +753,8 @@ def create_multi_region(payload: dict, rest) -> dict:
             "status": described.get("status") or 502,
             "name": name,
             "error": (
-                "the access point was requested, but the operation that says whether "
-                f"it was made could not be read: {described.get('error')}"
+                "the request was accepted, but the operation that says whether it "
+                f"worked could not be read: {described.get('error')}"
             ),
         }
 
@@ -748,3 +772,123 @@ def create_multi_region(payload: dict, rest) -> dict:
             else f"the operation ended {operation.get('status') or 'without a status'}"
         )
     return {"ok": True, "status": 200, **result}
+
+
+def create_multi_region(payload: dict, rest) -> dict:
+    """CreateMultiRegionAccessPoint, then the operation it answers with.
+
+    `ok` says the request was submitted and its operation described; `created`
+    says the operation itself ended SUCCEEDED. A failed operation is still `ok`,
+    because the page has to show the status and the per-Region results S3
+    reported — an empty row would read as though nothing was attempted.
+    """
+    try:
+        name, buckets = _mrap_form(payload)
+    except ValueError as exc:
+        return {"ok": False, "status": 400, "error": str(exc)}
+
+    status, text = rest(
+        MULTI_REGION_HOME, "POST", ASYNC + "/create", _mrap_create_body(name, buckets)
+    )
+    return _mrap_answered(name, status, text, rest)
+
+
+def delete_multi_region(name: str, rest) -> dict:
+    """DeleteMultiRegionAccessPoint, then the operation it answers with."""
+    key = str(name or "").strip()
+    if not key:
+        return {"ok": False, "status": 400, "error": "an access point name is required"}
+    status, text = rest(
+        MULTI_REGION_HOME,
+        "POST",
+        ASYNC + "/delete",
+        _mrap_async_body("DeleteMultiRegionAccessPoint", key),
+    )
+    return _mrap_answered(key, status, text, rest)
+
+
+def write_multi_region_policy(name: str, policy, rest) -> dict:
+    """PutMultiRegionAccessPointPolicy, then the operation it answers with.
+
+    A Multi-Region access point policy is replaced, never removed: S3 Control has
+    no DeleteMultiRegionAccessPointPolicy, so an empty document is refused here
+    rather than sent as a request that would quietly keep the old policy.
+    """
+    key = str(name or "").strip()
+    if not key:
+        return {"ok": False, "status": 400, "error": "an access point name is required"}
+    text = "" if policy is None else str(policy).strip()
+    if not text:
+        return {
+            "ok": False,
+            "status": 400,
+            "name": key,
+            "error": "a Multi-Region access point policy is replaced, not removed: send a document.",
+        }
+    problem = _policy_problem(text)
+    if problem:
+        return {"ok": False, "status": 400, "name": key, "error": problem}
+
+    status, body = rest(
+        MULTI_REGION_HOME,
+        "POST",
+        ASYNC + "/put-policy",
+        _mrap_async_body(
+            "PutMultiRegionAccessPointPolicy",
+            key,
+            f"<Policy>{html.escape(text)}</Policy>",
+        ),
+    )
+    return _mrap_answered(key, status, body, rest)
+
+
+# A traffic dial is all-or-nothing: S3 accepts 0 (Inactive) or 100 (Active), and
+# refuses an access point with every member switched off.
+ROUTE_DIALS = ("0", "100")
+
+
+def write_multi_region_routes(arn: str, routes: list, rest) -> dict:
+    """SubmitMultiRegionAccessPointRoutes, addressed by the access point's ARN.
+
+    This one is synchronous: S3 answers 200 with no token, so there is no
+    operation to describe — the dials are read back from the access point.
+    """
+    key = str(arn or "").strip()
+    if not key.startswith("arn:"):
+        return {
+            "ok": False,
+            "status": 400,
+            "error": "the routes are addressed by the access point's ARN",
+        }
+
+    updates = []
+    for route in routes or []:
+        bucket = str((route or {}).get("bucket") or "").strip()
+        if not bucket:
+            continue
+        dial = str((route or {}).get("traffic") or "").strip()
+        if dial not in ROUTE_DIALS:
+            return {
+                "ok": False,
+                "status": 400,
+                "arn": key,
+                "error": "a traffic dial is 0 (Inactive) or 100 (Active)",
+            }
+        updates.append(
+            f"<Route><Bucket>{html.escape(bucket)}</Bucket>"
+            f"<TrafficDialPercentage>{dial}</TrafficDialPercentage></Route>"
+        )
+    if not updates:
+        return {"ok": False, "status": 400, "arn": key, "error": "no routes to submit"}
+
+    body = (
+        f'<MultiRegionAccessPointRouteRequest xmlns="{CONTROL_NS}">'
+        f"<RouteUpdates>{''.join(updates)}</RouteUpdates>"
+        "</MultiRegionAccessPointRouteRequest>"
+    )
+    status, text = rest(
+        MULTI_REGION_HOME, "PATCH", MULTI_REGION + "/" + quote(key, safe="") + "/routes", body
+    )
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "arn": key}
+    return {"ok": False, "status": status or 502, "arn": key, "error": _detail(text, status)}
