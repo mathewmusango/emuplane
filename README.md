@@ -19,7 +19,9 @@ Emuplane is not an emulator. It is what you put in front of one — [MiniStack](
 It is what makes an emulator usable by more than one person: it holds the
 accounts and the logins inside them, issues the access keys clients sign with,
 serves the console and control API, and is the endpoint Terraform and the AWS
-CLI point at.
+CLI point at. Those accounts, logins and access keys are rows in the **emulator's
+DynamoDB**, in tables a CloudFormation stack creates on the first deployment —
+never files on the host.
 
 Currently tested on MiniStack only; the others are profiles, not verified
 targets.
@@ -32,11 +34,8 @@ The first run creates `.env` from `.env.example`, applies the CloudFormation sta
 that owns the control's DynamoDB tables, pulls the image and starts the console on
 `http://localhost:4570`.
 
-Logins and credentials are stored in the emulator's DynamoDB: the accounts, their
-users, their sessions and their access keys are rows in the tables that stack
-creates on the first deployment, never files on the host. Nothing is seeded:
-create the first account at `/signup` and mint the deployment's API token with
-`./scripts/token.sh`.
+Nothing is seeded: create the first account at `/signup` and mint the
+deployment's API token with `./scripts/token.sh`.
 
 ## Documentation
 
