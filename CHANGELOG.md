@@ -304,6 +304,28 @@ the minor number is bumped by hand, patch releases are the bot's.
   purpose buckets* and *All AWS Regions* — driving the same all-regions fetch.
 ### Fixed
 
+- **Creating a bucket works in every region, not only `us-east-1`.** AWS accepts
+  an omitted `CreateBucketConfiguration` only on the global `us-east-1` endpoint;
+  a regional endpoint requires the constraint and otherwise refuses with
+  `IllegalLocationConstraintException: The unspecified location constraint is
+  incompatible for the region specific endpoint this request was sent to` — which
+  is exactly what the console's `create-bucket` was sending. `control/console.py`
+  now takes the document from `buckets.location_constraint` (`_create_bucket_body`,
+  threaded through `_s3`'s body argument) and still sends no body for `us-east-1`,
+  where a constraint of its own name is itself invalid.
+- **Put object sends the object's body.** The entry built its request with an
+  empty payload, so the form's *Body* field was accepted and dropped and every
+  object landed 0 bytes long. `_s3` now hands a callable body the form and the
+  region, and `put-object` uses it (`_object_body`); the other S3 entries have no
+  payload of their own and are unchanged.
+- **Object keys are percent-encoded on the way out.** A key holding a space (or
+  any reserved character) never left the box: the request line carried it raw and
+  the HTTP client answered `InvalidURL: URL can't contain control characters`,
+  which surfaced as a failed run. `_s3` now takes `quote_params` and encodes `Key`
+  with `safe="/"` for `put-object` and `delete-object` — the separators S3 reads
+  stay literal — and the emulator decodes the path, so a key round-trips
+  unchanged (`notes/2026 Q4.csv`, `odd+#%/name.txt`). Emptying a bucket therefore
+  works on keys like these too.
 - **The picker writes the region into the URL on the click itself** (`Shell`'s
   `changeRegion`), instead of relying on the page's effect to notice afterwards.
   Both paths now exist — immediate write and effect sync — so the address bar

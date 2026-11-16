@@ -13,6 +13,9 @@ from __future__ import annotations
 import html
 import json
 import re
+from urllib.parse import quote
+
+import buckets
 
 
 def field(name, label="", required=False, kind="text", placeholder="", default=""):
@@ -57,13 +60,35 @@ def _json(service, target, names=(), build=None, ok=(200,)):
     return run
 
 
-def _s3(method, path, body=""):
+def _s3(method, path, body="", quote_params=()):
     def run(params, account, region, call, rest):
-        target = path.format(**params)
-        status, text = rest("s3", account, region, method, target, body or "")
+        # A request line cannot carry a raw key: a space answers
+        # InvalidURL before the call is made. Percent-encode the values the path
+        # interpolates, keeping "/" literal, since that is what S3 reads as the
+        # bucket/key separator.
+        values = {
+            name: quote(str(params[name]), safe="/") if name in quote_params else params[name]
+            for name in params
+        }
+        target = path.format(**values)
+        # `body` may be a callable when the payload depends on the form or region.
+        payload = body(params, region) if callable(body) else body
+        status, text = rest("s3", account, region, method, target, payload or "")
         return 200 <= status < 300, status, text
 
     return run
+
+
+def _create_bucket_body(_params, region):
+    """A bare create still has to name the region on every non-us-east-1
+    endpoint. The console's create page adds the rest of the settings through
+    `buckets.create`, which shares this document."""
+    return buckets.location_constraint(region)
+
+
+def _object_body(params, _region):
+    """PutObject's payload is the form's Body field; the bucket and key are path."""
+    return params.get("Body") or ""
 
 
 def _rest(service, method, path):
@@ -129,7 +154,7 @@ CATALOGUE: dict[str, dict] = {
                 "label": "Create bucket",
                 "cli": "aws s3 mb s3://<bucket>",
                 "params": [field("Bucket", "Bucket name", True, placeholder="my-bucket")],
-                "run": _s3("PUT", "/{Bucket}"),
+                "run": _s3("PUT", "/{Bucket}", body=_create_bucket_body),
             },
             {
                 "id": "delete-bucket",
@@ -155,7 +180,9 @@ CATALOGUE: dict[str, dict] = {
                     field("Key", "Object key", True),
                     field("Body", "Body", False, kind="textarea", placeholder="contents"),
                 ],
-                "run": _s3("PUT", "/{Bucket}/{Key}"),
+                "run": _s3(
+                    "PUT", "/{Bucket}/{Key}", body=_object_body, quote_params=("Key",)
+                ),
             },
             {
                 "id": "delete-object",
@@ -166,7 +193,7 @@ CATALOGUE: dict[str, dict] = {
                     field("Bucket", "Bucket name", True),
                     field("Key", "Object key", True),
                 ],
-                "run": _s3("DELETE", "/{Bucket}/{Key}"),
+                "run": _s3("DELETE", "/{Bucket}/{Key}", quote_params=("Key",)),
             },
         ],
     },
