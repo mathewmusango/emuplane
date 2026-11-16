@@ -1,5 +1,6 @@
 # Code of Conduct
 
-This repository runs the `ministack` service on one machine.
-
-It is currently maintained by one person and keeps no community.
+Be direct about the work and decent to the person. Harassment, doxxing and comments
+that make the room worse are not welcome in issues or
+[Discussions](https://github.com/mathewmusango/emuplane/discussions); reports go to
+[email](mailto:musangomathew@gmail.com).
