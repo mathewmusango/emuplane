@@ -6,6 +6,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { BrowserRouter, useLocation } from 'react-router-dom'
 import { SessionProvider } from '../../web/src/context'
 import App from '../../web/src/App'
@@ -276,6 +277,56 @@ describe('s3', () => {
     await waitFor(() =>
       expect(screen.getByTestId('location').textContent).toBe('/services'),
     )
+  })
+
+  it("copies the chosen bucket's settings into the form", async () => {
+    pinRegion('us-east-1')
+    const user = userEvent.setup()
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/buckets',
+      { ok: true, status: 200, bucket: 'copied-bucket' },
+      sent,
+    )
+    try {
+      renderAt(<App />, ['/s3/create'])
+      await screen.findByText('Copy settings from an existing bucket - optional')
+
+      // The trigger's accessible name comes from the field label, so find it by
+      // the placeholder it shows.
+      const trigger = screen
+        .getAllByRole('button')
+        .find((button) => button.textContent.trim() === 'Choose bucket')
+      await user.click(trigger)
+      await user.click(await screen.findByRole('option', { name: /logs-bucket/ }))
+
+      // The form now reads like the source bucket.
+      expect((await screen.findByLabelText(/ACLs enabled/)).checked).toBe(true)
+      expect(screen.getByDisplayValue('team')).toBeTruthy()
+      expect(screen.getByDisplayValue('platform')).toBeTruthy()
+
+      await user.type(screen.getByPlaceholderText('my-bucket'), 'copied-bucket')
+      await user.click(screen.getByRole('button', { name: 'Create bucket' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'copied-bucket',
+        ownership: 'BucketOwnerPreferred',
+        versioning: true,
+        encryption: 'aws:kms',
+        bucket_key: true,
+        object_lock: false,
+        tags: [{ Key: 'team', Value: 'platform' }],
+        block_public_access: {
+          BlockPublicAcls: false,
+          IgnorePublicAcls: true,
+          BlockPublicPolicy: true,
+          RestrictPublicBuckets: true,
+        },
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
   })
 
   it('offers the account\u2019s buckets for copying their settings', async () => {
