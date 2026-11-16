@@ -141,6 +141,20 @@ export interface BucketSettings {
   region?: string
 }
 
+/** One object read back: its text, or why it is a download instead. */
+export interface ObjectContent {
+  ok: boolean
+  key: string
+  /** null when the object is binary: there is no text to show. */
+  body: string | null
+  binary: boolean
+  size: number
+  content_type: string
+  account?: string
+  region?: string
+  error?: string
+}
+
 /** A listing from one of S3's child APIs (S3 Tables, S3 Files). */
 export interface S3ChildListing {
   ok: boolean

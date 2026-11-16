@@ -9,6 +9,19 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Added
 
+- **A file can be uploaded from the operator's filesystem.** The bucket page's
+  *Upload* modal takes a file (choose or drop) and sends its bytes as the body to
+  `POST /api/s3/object-upload`, with the browser's content type — no base64
+  through JSON — so S3 stores the file as what it is and a PNG comes back as
+  `image/png`. The destination key follows the file name until it is typed over,
+  nested prefixes included. One file per request, up to 25 MB, which the page and
+  the control both refuse past (the emulator keeps objects in memory).
+- **An object is shown as text, or offered as a download.** Reading an object
+  now answers its stored content type and size: a textual type is shown in the
+  page, an unknown type is decided by the bytes, and anything else — a PNG, a
+  zip — is a *Download* rather than a page of replacement characters. Both come
+  from `GET /api/s3/object-download`, which returns the object's own bytes with
+  the type S3 stored.
 - **S3's operations are proven from both ends.** `tests/control/test_parity.py`
   writes with the control's own signed client straight at the emulator — the
   path a foreign client takes, with no gateway and no claim recorded — and then
@@ -169,6 +182,11 @@ the minor number is bumped by hand, patch releases are the bot's.
 
 ### Changed
 
+- **Clicking an object key opens it again.** `BucketDetail` rendered the key as a
+  button that called `openObject`, which no longer existed — every click on an
+  object name threw instead of opening it. The function is back, now carrying the
+  binary/text answer above, and a console test opens an object so the handler
+  cannot go missing unnamed again.
 - **A bucket created outside the console is located by asking S3.**
   `ListBuckets` is account-global and says nothing about a bucket's region, and
   a bucket made straight on the emulator has no claim either, so `/api/browse`

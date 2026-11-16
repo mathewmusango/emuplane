@@ -102,6 +102,22 @@ def bearer_ok(presented: str) -> bool:
 DEFAULT_REGION = "us-east-1"
 SEEN_REGIONS: set[str] = set()
 SEEN_LOCK = threading.Lock()
+
+# One file in one PutObject. The emulator keeps objects in memory, so a cap is a
+# lab decision, not an S3 limit; the page says the same number.
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+
+_CONTENT_TYPE_RE = re.compile(r"^[-\w.+/]+\s*(;.*)?$")
+
+
+def safe_content_type(value: str) -> str:
+    """The file's type as S3 should store it, or a neutral one.
+
+    A header is not a place to trust: a CR/LF would split it, and anything odd is
+    dropped rather than forwarded to the emulator.
+    """
+    kind = (value or "").split("\r")[0].split("\n")[0].strip()[:128]
+    return kind if kind and _CONTENT_TYPE_RE.match(kind) else "application/octet-stream"
 # The endpoint this control fronts. Nothing here names a particular emulator:
 # MiniStack, Floci or anything else that answers the same APIs is equally valid,
 # and the label in the console comes from the URL unless EP_BACKEND_NAME says it.
@@ -2210,7 +2226,7 @@ def signed_rest(
     region: str,
     method: str,
     path: str,
-    body: str = "",
+    body="",
     extra_headers: dict | None = None,
 ) -> tuple[int, str]:
     """A generic REST call (S3, Lambda, API Gateway, ...) as the account root.
@@ -2222,6 +2238,24 @@ def signed_rest(
     if node is None:
         return 0, "emulator is not registered"
     return signed.request(
+        node["endpoint"], service, account, region, method, path, body, extra_headers
+    )
+
+
+def signed_rest_raw(
+    service: str,
+    account: str,
+    region: str,
+    method: str,
+    path: str,
+    body=b"",
+    extra_headers: dict | None = None,
+) -> tuple[int, dict, bytes]:
+    """The same call, answering headers and bytes — for an object download."""
+    node = primary_node()
+    if node is None:
+        return 0, {}, b"emulator is not registered"
+    return signed.request_bytes(
         node["endpoint"], service, account, region, method, path, body, extra_headers
     )
 
@@ -2657,6 +2691,27 @@ class ControlHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(payload)
+
+    def _bytes(
+        self,
+        payload: bytes,
+        content_type: str,
+        status: int = 200,
+        filename: str = "",
+    ) -> None:
+        """One object's bytes, as an attachment when `filename` is given."""
+        self.send_response(status)
+        self.send_header("Content-Type", content_type or "application/octet-stream")
+        self.send_header("Content-Length", str(len(payload)))
+        if filename:
+            self.send_header(
+                "Content-Disposition",
+                "attachment; filename*=UTF-8''" + quote(filename, safe=""),
+            )
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(payload)
 
     def _spa(self) -> None:
         payload = spa_index()
@@ -3247,6 +3302,11 @@ class ControlHandler(BaseHTTPRequestHandler):
 """,
         )
 
+    def _read_body(self) -> bytes:
+        """The request body as bytes — a file upload is not JSON."""
+        length = int(self.headers.get("Content-Length") or 0)
+        return self.rfile.read(length) if length else b""
+
     def _body(self) -> dict:
         length = int(self.headers.get("Content-Length") or 0)
         if not length:
@@ -3362,7 +3422,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200,
                 {"account": target["account_id"], "region": region, "counts": counts},
             )
-        if path in ("/api/s3/bucket-documents", "/api/s3/object"):
+        if path in ("/api/s3/bucket-documents", "/api/s3/object", "/api/s3/object-download"):
             params = parse_qs(urlsplit(self.path).query)
             account = (params.get("account") or [""])[0].strip()
             region = (params.get("region") or [DEFAULT_REGION])[0]
@@ -3382,15 +3442,46 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if not bucket:
                 return self._json(400, {"error": "a bucket is required"})
-            client = lambda method, target_path: signed_rest(
-                "s3", target["account_id"], region, method, target_path
-            )
             if path.endswith("bucket-documents"):
-                result = buckets.read_documents(bucket, client)
-            else:
-                if not key:
-                    return self._json(400, {"error": "a key is required"})
-                result = buckets.read_object(bucket, key, client)
+                result = buckets.read_documents(
+                    bucket,
+                    lambda method, target_path: signed_rest(
+                        "s3", target["account_id"], region, method, target_path
+                    ),
+                )
+                return self._json(
+                    200 if result.get("ok") else 404,
+                    dict(result, account=target["account_id"], region=region),
+                )
+            if not key:
+                return self._json(400, {"error": "a key is required"})
+            if path.endswith("object-download"):
+                # The object as a file: the console shows text inline and offers
+                # this for everything else, so a PNG is not a page of mojibake.
+                status, headers, data = signed_rest_raw(
+                    "s3",
+                    target["account_id"],
+                    region,
+                    "GET",
+                    "/" + quote(bucket) + "/" + quote(key, safe="/"),
+                )
+                if not 200 <= status < 300:
+                    return self._json(
+                        status if status in (403, 404) else 502,
+                        {"error": data.decode(errors="replace")[:300]},
+                    )
+                return self._bytes(
+                    data,
+                    safe_content_type(headers.get("content-type", "")),
+                    filename=key.rsplit("/", 1)[-1],
+                )
+            result = buckets.read_object(
+                bucket,
+                key,
+                lambda method, target_path: signed_rest_raw(
+                    "s3", target["account_id"], region, method, target_path
+                ),
+            )
             return self._json(
                 200 if result.get("ok") else 404,
                 dict(result, account=target["account_id"], region=region),
@@ -4107,13 +4198,62 @@ class ControlHandler(BaseHTTPRequestHandler):
                 bucket,
                 key,
                 str(payload.get("body") or ""),
-                lambda method, target_path, body: signed_rest(
-                    "s3", target["account_id"], region, method, target_path, body
+                lambda method, target_path, body, headers=None: signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body, headers
                 ),
             )
             return self._json(
                 200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/object-upload":
+            # A file from the operator's machine, sent as its own bytes: the body
+            # is the object, not base64 inside JSON. S3 stores the Content-Type it
+            # is given, which is why the browser's file type is passed through.
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            bucket = (params.get("bucket") or [""])[0].strip()
+            key = (params.get("key") or [""])[0]
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            # Read the body before answering anything: an early return would leave
+            # the file in the socket for the next keep-alive request to choke on.
+            data = self._read_body()
+            if not bucket or not key:
+                return self._json(400, {"error": "a bucket and a key are required"})
+            if len(data) > MAX_UPLOAD_BYTES:
+                return self._json(
+                    413,
+                    {
+                        "error": (
+                            f"that file is {len(data)} bytes; this console uploads up to "
+                            f"{MAX_UPLOAD_BYTES} in one request"
+                        )
+                    },
+                )
+            result = buckets.put_object(
+                bucket,
+                key,
+                data,
+                lambda method, target_path, body, headers=None: signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body, headers
+                ),
+                content_type=safe_content_type(self.headers.get("Content-Type", "")),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region, bucket=bucket),
             )
         if path == "/api/s3/empty":
             payload = self._body()

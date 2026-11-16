@@ -5,6 +5,7 @@ import Box from '@cloudscape-design/components/box'
 import Button from '@cloudscape-design/components/button'
 import Container from '@cloudscape-design/components/container'
 import ContentLayout from '@cloudscape-design/components/content-layout'
+import FileUpload from '@cloudscape-design/components/file-upload'
 import Header from '@cloudscape-design/components/header'
 import Input from '@cloudscape-design/components/input'
 import Modal from '@cloudscape-design/components/modal'
@@ -23,6 +24,15 @@ import { Shell } from '../components/Shell'
 // One bucket, the way the console shows it: a page of its own with the tabs this
 // instance can actually back. Metrics, Management, File systems, Access Points and
 // Metadata are not tabs here — the console has nothing to put in them.
+
+// One file per request, the same ceiling the control enforces.
+const MAX_UPLOAD = 25 * 1024 * 1024
+
+const megabytes = (bytes) =>
+  bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(Math.round(bytes / 1024), 1)} KB`
+
 export default function BucketDetail() {
   const { name = '' } = useParams()
   const navigate = useNavigate()
@@ -40,6 +50,8 @@ export default function BucketDetail() {
   const [uploading, setUploading] = useState(false)
   const [newKey, setNewKey] = useState('')
   const [newBody, setNewBody] = useState('')
+  const [file, setFile] = useState([])
+  const [uploadError, setUploadError] = useState('')
   const [saving, setSaving] = useState(false)
   const [versioningEdit, setVersioningEdit] = useState(null)
   const [accessEdit, setAccessEdit] = useState(null)
@@ -88,16 +100,47 @@ export default function BucketDetail() {
 
   const upload = async () => {
     setSaving(true)
+    setUploadError('')
     try {
-      await api.putObject({ account, region, bucket: name, key: newKey, body: newBody })
+      const chosen = file[0]
+      if (chosen) {
+        if (chosen.size > MAX_UPLOAD) {
+          throw new Error(
+            `${chosen.name} is ${megabytes(chosen.size)}; this console uploads up to ${megabytes(MAX_UPLOAD)} in one request.`,
+          )
+        }
+        // The file's bytes are the body, and its type is stored with it, so a PNG
+        // comes back as a PNG rather than as text.
+        await api.uploadObjectFile({
+          account,
+          region,
+          bucket: name,
+          key: newKey.trim() || chosen.name,
+          file: chosen,
+        })
+      } else {
+        await api.putObject({ account, region, bucket: name, key: newKey, body: newBody })
+      }
       setUploading(false)
       setNewKey('')
       setNewBody('')
+      setFile([])
       await loadObjects()
     } catch (err) {
-      setError(err.message)
+      setUploadError(err.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const openObject = async (key) => {
+    setObjectError('')
+    try {
+      const answer = await api.readObject(account, region, name, key)
+      setObjectView(answer)
+    } catch (err) {
+      setObjectView(null)
+      setObjectError(err.message)
     }
   }
 
@@ -401,27 +444,56 @@ export default function BucketDetail() {
           }}
           header={objectView ? objectView.key : 'Could not read this object'}
           size="large"
+          footer={
+            objectView?.binary ? (
+              <Box float="right">
+                <Button
+                  href={api.objectDownloadUrl(account, region, name, objectView.key)}
+                >
+                  Download
+                </Button>
+              </Box>
+            ) : undefined
+          }
         >
           {objectError ? (
             <Alert type="error">{objectError}</Alert>
+          ) : objectView?.binary ? (
+            <SpaceBetween size="m">
+              <Alert type="info" header="This object is not text">
+                It is stored as <span className="mono">{objectView.content_type}</span> (
+                {megabytes(objectView.size)}), so the page offers it as a download rather
+                than showing bytes that would not mean anything.
+              </Alert>
+            </SpaceBetween>
           ) : (
             <pre className="result-body">{objectView?.body}</pre>
           )}
         </Modal>
         <Modal
           visible={uploading}
-          onDismiss={() => setUploading(false)}
+          onDismiss={() => {
+            setUploading(false)
+            setUploadError('')
+            setFile([])
+          }}
           header="Upload object"
           footer={
             <Box float="right">
               <SpaceBetween direction="horizontal" size="xs">
-                <Button variant="link" onClick={() => setUploading(false)}>
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    setUploading(false)
+                    setFile([])
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button
                   variant="primary"
                   loading={saving}
-                  disabled={!newKey.trim()}
+                  disabled={!file.length && !(newKey.trim() && newBody)}
                   onClick={upload}
                 >
                   Upload
@@ -431,6 +503,33 @@ export default function BucketDetail() {
           }
         >
           <SpaceBetween size="m">
+            {uploadError && <Alert type="error">{uploadError}</Alert>}
+            <FileUpload
+              value={file}
+              onChange={({ detail }) => {
+                setFile(detail.value)
+                setUploadError('')
+                const chosen = detail.value[0]
+                // The destination key follows the file name until the operator
+                // types one, which is what the console does.
+                if (chosen && (!newKey.trim() || newKey === file[0]?.name)) {
+                  setNewKey(chosen.name)
+                }
+              }}
+              accept="*/*"
+              showFileSize
+              showFileLastModified
+              constraintText={`One file, up to ${megabytes(MAX_UPLOAD)}. The file's own type is stored with it.`}
+              i18nStrings={{
+                uploadButtonText: () => 'Choose file',
+                dropzoneText: () => 'Drop a file here, or choose one',
+                removeFileAriaLabel: (index) => `Remove file ${index + 1}`,
+                limitShowFewer: 'Show fewer files',
+                limitShowMore: 'Show more files',
+                errorIconAriaLabel: 'Error',
+                warningIconAriaLabel: 'Warning',
+              }}
+            />
             <Box>
               <Box variant="awsui-key-label">Object key</Box>
               <Input
@@ -439,14 +538,16 @@ export default function BucketDetail() {
                 placeholder="reports/2026.csv"
               />
             </Box>
-            <Box>
-              <Box variant="awsui-key-label">Content</Box>
-              <Textarea
-                value={newBody}
-                onChange={({ detail }) => setNewBody(detail.value)}
-                placeholder="contents"
-              />
-            </Box>
+            {!file.length && (
+              <Box>
+                <Box variant="awsui-key-label">Or type the contents</Box>
+                <Textarea
+                  value={newBody}
+                  onChange={({ detail }) => setNewBody(detail.value)}
+                  placeholder="contents"
+                />
+              </Box>
+            )}
           </SpaceBetween>
         </Modal>
       </ContentLayout>

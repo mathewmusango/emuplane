@@ -478,6 +478,138 @@ describe('s3', () => {
     }
   })
 
+  // A stub for one path, with the answer the page should see.
+  const stubPath = (path, answer) => {
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        if (String(url).split('?')[0] === path) {
+          return { ok: true, status: 200, text: async () => JSON.stringify(answer) }
+        }
+        return base(url, options)
+      }),
+    )
+    return base
+  }
+
+  const openBucket = async () => {
+    renderAt(<App />, ['/s3/home?region=us-east-1'])
+    await screen.findAllByText('General purpose buckets')
+    fireEvent.click(await screen.findByRole('button', { name: 'logs-bucket' }))
+    await screen.findByText('reports/2026.csv')
+  }
+
+  it('opens an object and shows its text', async () => {
+    pinRegion('us-east-1')
+    await openBucket()
+    fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+    const dialog = await screen.findByRole('dialog', { name: 'reports/2026.csv' })
+    expect(within(dialog).getByText(/2026-01-01,10/)).toBeTruthy()
+  })
+
+  it('offers a non-text object as a download instead of showing bytes', async () => {
+    pinRegion('us-east-1')
+    const base = stubPath('/api/s3/object', {
+      ok: true,
+      key: 'reports/2026.csv',
+      body: null,
+      binary: true,
+      size: 2048,
+      content_type: 'image/png',
+    })
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+      expect(await screen.findByText('This object is not text')).toBeTruthy()
+      const link = screen.getByRole('link', { name: 'Download' })
+      expect(link.getAttribute('href')).toContain('/api/s3/object-download?')
+      expect(link.getAttribute('href')).toContain('key=reports%2F2026.csv')
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('uploads a file from the filesystem with its own type', async () => {
+    pinRegion('us-east-1')
+    const seen = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        if (String(url).split('?')[0] === '/api/s3/object-upload') {
+          seen.push({
+            url: String(url),
+            body: options.body,
+            type: options.headers?.['Content-Type'],
+          })
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({ ok: true, key: 'notes.txt' }),
+          }
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      await openBucket()
+      // The header action and the modal's own button share a name; the closed
+      // modal stays in the DOM, so the first is the page's.
+      fireEvent.click(screen.getAllByRole('button', { name: 'Upload' })[0])
+
+      const file = new File(['hello from disk\n'], 'notes.txt', { type: 'text/plain' })
+      const input = document.querySelector('input[type="file"]')
+      Object.defineProperty(input, 'files', { value: [file], configurable: true })
+      fireEvent.change(input)
+
+      // The destination key follows the file name until it is typed over.
+      await waitFor(() =>
+        expect(screen.getByDisplayValue('notes.txt')).toBeTruthy(),
+      )
+      const dialog = await screen.findByRole('dialog', { name: 'Upload object' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Upload' }))
+
+      await waitFor(() => expect(seen.length).toBe(1))
+      expect(seen[0].body).toBe(file)
+      expect(seen[0].type).toBe('text/plain')
+      expect(seen[0].url).toContain('key=notes.txt')
+      expect(seen[0].url).toContain('bucket=logs-bucket')
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('still uploads typed contents when no file is chosen', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/object', { ok: true, status: 200, key: 'notes.txt' }, sent)
+    try {
+      await openBucket()
+      // The header action and the modal's own button share a name; the closed
+      // modal stays in the DOM, so the first is the page's.
+      fireEvent.click(screen.getAllByRole('button', { name: 'Upload' })[0])
+      const dialog = await screen.findByRole('dialog', { name: 'Upload object' })
+
+      fireEvent.change(within(dialog).getByPlaceholderText('reports/2026.csv'), {
+        target: { value: 'notes/typed.txt' },
+      })
+      fireEvent.change(within(dialog).getByPlaceholderText('contents'), {
+        target: { value: 'typed into the page' },
+      })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Upload' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        key: 'notes/typed.txt',
+        body: 'typed into the page',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('lists the access points S3 Control reports, in the console columns', async () => {
     pinRegion('us-east-1')
     renderAt(<App />, ['/s3/access-points?region=us-east-1'])

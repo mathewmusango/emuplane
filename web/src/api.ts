@@ -16,6 +16,7 @@ import type {
   MeResult,
   NewAccessKeyResult,
   NodeRow,
+  ObjectContent,
   ObjectsResult,
   ProvisionResult,
   RegionResult,
@@ -30,6 +31,8 @@ interface RequestOptions {
   method?: string
   body?: unknown
   headers?: Record<string, string>
+  /** Send `body` as it is: a File, not JSON. */
+  raw?: boolean
 }
 
 // A 401 usually means the session expired: bounce to the login screens. Two cases
@@ -39,14 +42,19 @@ interface RequestOptions {
 const SIGNED_OUT_ROUTES = ['/login', '/signin', '/forgot']
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { raw, ...init } = options
   const response = await fetch(path, {
     credentials: 'same-origin',
-    ...options,
+    ...init,
     headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body && !raw ? { 'Content-Type': 'application/json' } : {}),
       ...(options.headers || {}),
     },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: options.body
+      ? raw
+        ? (options.body as BodyInit)
+        : JSON.stringify(options.body)
+      : undefined,
   })
 
   const onSignIn = SIGNED_OUT_ROUTES.includes(window.location.pathname)
@@ -114,6 +122,34 @@ export const api = {
     key: string
     body: string
   }) => request<ActionResult>('/api/s3/object', { method: 'POST', body: payload }),
+  /** A file from the operator's machine: its bytes as the body, its type as sent. */
+  uploadObjectFile: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    file: File
+  }) =>
+    request<ActionResult>(
+      `/api/s3/object-upload?${query({
+        account: payload.account,
+        region: payload.region,
+        bucket: payload.bucket,
+        key: payload.key,
+      })}`,
+      {
+        method: 'POST',
+        raw: true,
+        body: payload.file,
+        headers: { 'Content-Type': payload.file.type || 'application/octet-stream' },
+      },
+    ),
+  objectDownloadUrl: (
+    account: string,
+    region: string,
+    bucket: string,
+    key: string,
+  ) => `/api/s3/object-download?${query({ account, region, bucket, key })}`,
   emptyBucket: (payload: { account: string; region: string; bucket: string }) =>
     request<ActionResult>('/api/s3/empty', { method: 'POST', body: payload }),
   editBucketSettings: (payload: {
@@ -129,7 +165,7 @@ export const api = {
       `/api/s3/bucket-documents?${query({ account, region, bucket })}`,
     ),
   readObject: (account: string, region: string, bucket: string, key: string) =>
-    request<{ ok: boolean; key: string; body: string }>(
+    request<ObjectContent>(
       `/api/s3/object?${query({ account, region, bucket, key })}`,
     ),
   bucketSettings: (account: string, region: string, bucket: string) =>

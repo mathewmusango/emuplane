@@ -131,6 +131,15 @@ export const RESPONSES = {
       { key: 'reports/2026.csv', size: '12', modified: '2026-11-04T00:00:00Z' },
     ],
   },
+  '/api/s3/object': {
+    ok: true,
+    key: 'reports/2026.csv',
+    body: 'date,total\n2026-01-01,10',
+    binary: false,
+    size: 24,
+    content_type: 'text/csv',
+    region: 'us-east-1',
+  },
   '/api/s3/table-buckets': {
     ok: true,
     status: 200,

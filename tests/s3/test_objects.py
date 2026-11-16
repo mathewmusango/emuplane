@@ -6,15 +6,29 @@ to the emulator stand-in — so the requests are the ones the console makes.
 
 from __future__ import annotations
 
+import base64
+
 import buckets
 import signed
 
 ACCOUNT = "344381301567"
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
 
 
 def _client(endpoint, region="us-east-1"):
     def call(method, path, body="", headers=None):
         return signed.request(endpoint, "s3", ACCOUNT, region, method, path, body, headers)
+
+    return call
+
+
+def _raw(endpoint, region="us-east-1"):
+    """The same client, answering headers and bytes — what a download needs."""
+
+    def call(method, path):
+        return signed.request_bytes(endpoint, "s3", ACCOUNT, region, method, path)
 
     return call
 
@@ -91,17 +105,49 @@ def test_reading_an_object_returns_its_text(s3_endpoint):
     _create(client, "object-read-bucket")
     assert buckets.put_object("object-read-bucket", "hello.txt", "hi there", client)["ok"]
 
-    read = buckets.read_object(
-        "object-read-bucket", "hello.txt", lambda method, path: client(method, path)
-    )
+    read = buckets.read_object("object-read-bucket", "hello.txt", _raw(s3_endpoint))
     assert read["ok"], read.get("error")
     assert read["body"] == "hi there"
+    assert read["binary"] is False
+    assert read["content_type"] == "text/plain"
 
-    missing = buckets.read_object(
-        "object-read-bucket", "nope.txt", lambda method, path: client(method, path)
-    )
+    missing = buckets.read_object("object-read-bucket", "nope.txt", _raw(s3_endpoint))
     assert missing["ok"] is False
     assert missing["status"] == 404
+
+
+def test_a_file_is_uploaded_with_its_own_type_and_offered_as_a_download(s3_endpoint):
+    """Bytes from a filesystem: stored as sent, typed as sent, never shown as text."""
+    client = _client(s3_endpoint)
+    _create(client, "binary-upload-bucket")
+
+    written = buckets.put_object(
+        "binary-upload-bucket", "pixel.png", PNG, client, content_type="image/png"
+    )
+    assert written["ok"], written.get("error")
+    assert written["size"] == len(PNG)
+
+    status, headers, data = _raw(s3_endpoint)("GET", "/binary-upload-bucket/pixel.png")
+    assert status == 200
+    assert data == PNG
+    assert headers["content-type"] == "image/png"
+
+    read = buckets.read_object("binary-upload-bucket", "pixel.png", _raw(s3_endpoint))
+    assert read["ok"]
+    assert read["binary"] is True
+    assert read["body"] is None
+    assert read["content_type"] == "image/png"
+    assert read["size"] == len(PNG)
+
+
+def test_bytes_without_a_type_are_not_shown_as_text(s3_endpoint):
+    client = _client(s3_endpoint)
+    _create(client, "untyped-upload-bucket")
+    assert buckets.put_object("untyped-upload-bucket", "blob.bin", b"\x00\x01\x02", client)["ok"]
+
+    read = buckets.read_object("untyped-upload-bucket", "blob.bin", _raw(s3_endpoint))
+    assert read["ok"]
+    assert read["binary"] is True and read["body"] is None
 
 
 def test_the_configuration_documents_are_what_s3_has(s3_endpoint):

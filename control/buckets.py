@@ -34,6 +34,26 @@ PUBLIC_ACCESS = (
 
 MAX_TAGS = 50
 
+# What the console sends for text typed into the form, and what it is willing to
+# show back as text. Anything else is offered as a download.
+TEXT_TYPE = "text/plain; charset=utf-8"
+TEXTUAL = (
+    "text/",
+    "application/json",
+    "application/xml",
+    "application/yaml",
+    "application/x-yaml",
+    "application/javascript",
+    "application/x-ndjson",
+    "application/x-www-form-urlencoded",
+)
+# A type that says nothing either way, so the bytes decide.
+UNKNOWN_TYPES = ("", "application/octet-stream", "binary/octet-stream")
+
+
+def _textual(kind: str) -> bool:
+    return kind.lower().startswith(TEXTUAL)
+
 # A listing is capped, so emptying re-lists after each pass; this bounds the loop.
 EMPTY_PASSES = 100
 
@@ -352,13 +372,28 @@ def _bucket_path(bucket: str) -> str:
     return "/" + quote(bucket, safe="")
 
 
-def put_object(bucket: str, key: str, body: str, call) -> dict:
-    """PutObject: the key is percent-encoded, the body is what was typed."""
+def put_object(bucket: str, key: str, body, call, content_type: str = "") -> dict:
+    """PutObject: the key is percent-encoded, the body is what was handed over.
+
+    `body` is text from the form or bytes from a file, and `content_type` is what
+    S3 stores and serves back — a PNG that arrives as `application/xml` is a
+    wrong object, not a cosmetic detail.
+    """
+    headers = {}
+    if content_type:
+        headers["Content-Type"] = content_type
+    elif isinstance(body, str):
+        headers["Content-Type"] = TEXT_TYPE
     status, text = call(
-        "PUT", _bucket_path(bucket) + "/" + quote(key, safe="/"), body
+        "PUT", _bucket_path(bucket) + "/" + quote(key, safe="/"), body, headers
     )
     if 200 <= status < 300:
-        return {"ok": True, "status": status, "key": key}
+        return {
+            "ok": True,
+            "status": status,
+            "key": key,
+            "size": len(body if isinstance(body, bytes) else body.encode()),
+        }
     return {"ok": False, "status": status or 502, "error": _detail(text, status)}
 
 
@@ -465,8 +500,43 @@ def read_documents(bucket: str, call) -> dict:
 
 
 def read_object(bucket: str, key: str, call) -> dict:
-    """GetObject, as text: the console is a lab reader, not a download manager."""
-    status, body = call("GET", _bucket_path(bucket) + "/" + quote(key, safe="/"))
+    """GetObject as content: text when it decodes, a download when it does not.
+
+    `call(method, path)` answers `(status, headers, bytes)` — the bytes matter,
+    because decoding them is what tells a text object from a binary one. A PNG
+    decoded as text is a page of replacement characters, and showing that is
+    worse than offering the file.
+    """
+    status, headers, data = call(
+        "GET", _bucket_path(bucket) + "/" + quote(key, safe="/")
+    )
     if not 200 <= status < 300:
-        return {"ok": False, "status": status or 502, "error": _detail(body, status)}
-    return {"ok": True, "status": status, "key": key, "body": body[:20000]}
+        return {
+            "ok": False,
+            "status": status or 502,
+            "error": _detail(data.decode(errors="replace"), status),
+        }
+
+    kind = (headers.get("content-type") or "").split(";")[0].strip()
+    text = None
+    # A type that names itself textual gets a decode; a type that says nothing
+    # either way is decided by the bytes. Control characters mean binary even when
+    # the decode succeeds — a NUL is not something to put in a page.
+    if not (kind.lower() not in UNKNOWN_TYPES and not _textual(kind)):
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            text = None
+        if text is not None and any(
+            character < " " and character not in "\t\n\r" for character in text[:4096]
+        ):
+            text = None
+    return {
+        "ok": True,
+        "status": status,
+        "key": key,
+        "body": None if text is None else text[:20000],
+        "binary": text is None,
+        "size": len(data),
+        "content_type": kind or "application/octet-stream",
+    }
