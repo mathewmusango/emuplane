@@ -40,7 +40,7 @@ x-emuplane: &emuplane
 services:
   # The emulator. Internal only: clients want the gateway, never this.
   ministack:
-    image: "${MINISTACK_IMAGE:-docker.io/ministackorg/ministack:1.5.40-full}"
+    image: "${MINISTACK_IMAGE:-docker.io/ministackorg/ministack:1.5.40-full@sha256:7140ff8d5313b5b3d98b2ef5557e32af432929dfe703d03335d4a9352a62b6aa}"
     restart: "no"
     environment:
       <<: *ministack
@@ -58,7 +58,7 @@ services:
 
   # First-setup job: applies bootstrap/template.yml as the `emuplane` stack.
   bootstrap:
-    image: "ghcr.io/mathewmusango/emuplane:0.1.2"
+    image: "ghcr.io/mathewmusango/emuplane:0.1.2@sha256:8e0e15e73d7cbe2ae12ea8331c5b67f1fe55fd4cb0a9b7727e661ba01acdaa5b"
     command: ["python", "/app/bootstrap/apply.py"]
     restart: "no"
     environment:
@@ -75,7 +75,7 @@ services:
       - no-new-privileges:true
 
   emuplane:
-    image: "ghcr.io/mathewmusango/emuplane:0.1.2"
+    image: "ghcr.io/mathewmusango/emuplane:0.1.2@sha256:8e0e15e73d7cbe2ae12ea8331c5b67f1fe55fd4cb0a9b7727e661ba01acdaa5b"
     restart: "no"
     depends_on:
       ministack:
