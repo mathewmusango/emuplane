@@ -50,21 +50,28 @@ def tag_exists(root: Path, version: str) -> bool:
     return bool(found)
 
 
-def compose_tag(root: Path) -> str:
-    """The image version the shipped compose defaults to, so it can be held to the release."""
-    path = root / "docker-compose.yml"
-    if not path.is_file():
-        return ""
-    found = re.search(
-        r"ghcr\.io/[^:\s]+/emuplane:(\d+\.\d+\.\d+)", path.read_text(encoding="utf-8")
-    )
-    return found.group(1) if found else ""
+COMPOSE_FILES = ("docker-compose.yml", "docker-compose.all.yml")
+
+
+def compose_tags(root: Path) -> dict[str, str]:
+    """Each compose file's pinned image version, so both stacks move with the release."""
+    tags = {}
+    for name in COMPOSE_FILES:
+        path = root / name
+        if not path.is_file():
+            continue
+        found = re.search(
+            r"ghcr\.io/[^:\s]+/emuplane:(\d+\.\d+\.\d+)", path.read_text(encoding="utf-8")
+        )
+        tags[name] = found.group(1) if found else ""
+    return tags
 
 
 def report(root: Path, version: str, number: str = "") -> list[dict]:
     """Each unit with whether it is present; `version` is the tag, `number` its bare form."""
     bare = number or version.lstrip("v")
     docs = docs_versions(root)
+    tags = compose_tags(root)
     return [
         {"unit": "git tag", "expected": version, "present": tag_exists(root, version)},
         {"unit": "CHANGELOG.md", "expected": f"## [{version}]", "present": changelog_has(root, version)},
@@ -75,9 +82,9 @@ def report(root: Path, version: str, number: str = "") -> list[dict]:
             "present": (root / "site" / "versioned_docs" / f"version-{bare}").is_dir(),
         },
         {
-            "unit": "docker-compose.yml image",
-            "expected": f"ghcr.io/…/emuplane:{bare}",
-            "present": compose_tag(root) == bare,
+            "unit": "compose image tags",
+            "expected": f"every compose file at {bare}",
+            "present": bool(tags) and set(tags.values()) == {bare},
         },
     ]
 

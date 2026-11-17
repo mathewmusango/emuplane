@@ -32,6 +32,9 @@ cp .env.example .env        # set EP_BACKEND_URL to the backend's endpoint
 podman-compose up -d        # or: docker compose up -d
 ```
 
+Or bring the emulator along: `docker-compose.all.yml` with `.env.all.example`
+runs MiniStack, the first-setup job and the control as one stack.
+
 `bootstrap` runs first and applies the CloudFormation stack that owns the control's
 DynamoDB tables; the console then answers on `http://localhost:4570`.
 

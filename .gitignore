@@ -1,4 +1,5 @@
 .env
+.env.all
 /compose.lab.yml
 /compose.dev.yml
 *.bak

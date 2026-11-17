@@ -27,19 +27,31 @@ EP_GATEWAY_URL=http://localhost:4571
 
 ## Start it
 
-```bash
-# the emulator first — Emuplane's first job reads it
-services/ministack/scripts/up.sh
+The whole stack — MiniStack, its first-setup job and the control — fits in one
+file:
 
-# then Emuplane: preflight, apply the DynamoDB tables, start the control
-./scripts/up.sh
+```bash
+cp .env.all.example .env.all
+docker compose --env-file .env.all -f docker-compose.all.yml up -d
 ```
 
-`./scripts/up.sh` runs the `bootstrap` service to completion before the control
-starts. Bootstrap applies `bootstrap/template.yml` as the `emuplane` stack — the
-DynamoDB tables Emuplane keeps its own accounts and sessions in — and is
-idempotent. **The control refuses to serve if those tables are missing**, rather
-than starting and failing on the first login.
+The emulator is internal to that network and never published; the console answers
+on `http://localhost:4570` and the gateway on `http://localhost:4571`.
+
+Already running an emulator? Point `EP_BACKEND_URL` at it and skip the bundled
+one:
+
+```bash
+cp .env.example .env        # set EP_BACKEND_URL to the backend's endpoint
+./scripts/up.sh             # or: docker compose up -d
+```
+
+Either way, `./scripts/up.sh` (and the compose `depends_on`) runs the `bootstrap`
+service to completion before the control starts. Bootstrap applies
+`bootstrap/template.yml` as the `emuplane` stack — the DynamoDB tables Emuplane
+keeps its own accounts and sessions in — and is idempotent. **The control refuses
+to serve if those tables are missing**, rather than starting and failing on the
+first login.
 
 By hand, the same thing:
 

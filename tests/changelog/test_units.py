@@ -69,20 +69,31 @@ def test_check_reports_what_is_missing(repo, capsys):
         "CHANGELOG.md",
         "site/versions.json",
         "versioned docs",
-        "docker-compose.yml image",
+        "compose image tags",
     ]
 
 
-def test_the_compose_default_tracks_the_version(repo):
+def test_every_compose_file_tracks_the_version(repo):
+    for name in ("docker-compose.yml", "docker-compose.all.yml"):
+        (repo / name).write_text(
+            'image: "ghcr.io/mathewmusango/emuplane:0.2.0"\n', encoding="utf-8"
+        )
+    assert _units(repo)["compose image tags"] is True
+    assert _units(repo, "v0.3.0")["compose image tags"] is False
+
+
+def test_one_stack_left_behind_fails_the_release(repo):
     (repo / "docker-compose.yml").write_text(
         'image: "ghcr.io/mathewmusango/emuplane:0.2.0"\n', encoding="utf-8"
     )
-    assert _units(repo)["docker-compose.yml image"] is True
-    assert _units(repo, "v0.3.0")["docker-compose.yml image"] is False
+    (repo / "docker-compose.all.yml").write_text(
+        'image: "ghcr.io/mathewmusango/emuplane:0.1.0"\n', encoding="utf-8"
+    )
+    assert _units(repo)["compose image tags"] is False
 
 
 def test_a_compose_default_of_latest_does_not_match(repo):
     (repo / "docker-compose.yml").write_text(
         'image: "ghcr.io/mathewmusango/emuplane:latest"\n', encoding="utf-8"
     )
-    assert _units(repo)["docker-compose.yml image"] is False
+    assert _units(repo)["compose image tags"] is False

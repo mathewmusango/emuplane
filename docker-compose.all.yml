@@ -1,0 +1,114 @@
+name: emuplane
+
+# The whole stack in one file: MiniStack, its first-setup job and the control.
+#   cp .env.all.example .env.all
+#   docker compose --env-file .env.all -f docker-compose.all.yml up -d
+
+# What the emulator needs: its own flags, none of them the control's business.
+x-ministack: &ministack
+  AUTH: "true"
+  PERSIST_STATE: "1"
+  STATE_DIR: "/var/lib/ministack/state"
+  S3_PERSIST: "1"
+  S3_DATA_DIR: "/var/lib/ministack/s3"
+
+# What the control and its first-setup job both need.
+x-shared: &shared
+  TZ: "${TZ:-Africa/Nairobi}"
+  EP_BACKEND_URL: "http://ministack:4566"
+  EP_STORE_ACCOUNT: "${EP_STORE_ACCOUNT:-111111111111}"
+  EP_STORE_REGION: "${EP_STORE_REGION:-us-east-1}"
+  EP_STORE_URL: "${EP_STORE_URL:-}"
+
+# The console, the gateway and their mail: the job needs none of it.
+x-emuplane: &emuplane
+  <<: *shared
+  EP_BACKEND: "${EP_BACKEND:-ministack}"
+  EP_CONSOLE_URL: "${EP_CONSOLE_URL:?set EP_CONSOLE_URL in .env.all: http://localhost:4570 without a reverse proxy}"
+  EP_GATEWAY_URL: "${EP_GATEWAY_URL:?set EP_GATEWAY_URL in .env.all: http://localhost:4571 without a reverse proxy}"
+  EP_POLL_SECONDS: "${EP_POLL_SECONDS:-10}"
+  EP_SESSION_SECONDS: "${EP_SESSION_SECONDS:-28800}"
+  EP_RECENT_LIMIT: "${EP_RECENT_LIMIT:-5}"
+  EP_MAIL_HOST: "${EP_MAIL_HOST:-}"
+  EP_MAIL_PORT: "${EP_MAIL_PORT:-587}"
+  EP_MAIL_SECURITY: "${EP_MAIL_SECURITY:-starttls}"
+  EP_MAIL_USER: "${EP_MAIL_USER:-}"
+  EP_MAIL_PASSWORD: "${EP_MAIL_PASSWORD:-}"
+  EP_MAIL_FROM: "${EP_MAIL_FROM:-}"
+  EP_RESET_SECONDS: "${EP_RESET_SECONDS:-1800}"
+
+services:
+  # The emulator. Internal only: clients want the gateway, never this.
+  ministack:
+    image: "${MINISTACK_IMAGE:-docker.io/ministackorg/ministack:1.5.40-full}"
+    restart: "no"
+    environment:
+      <<: *ministack
+    volumes:
+      - ministack-state:/var/lib/ministack/state
+      - ministack-s3:/var/lib/ministack/s3
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4566/_ministack/health', timeout=5)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # First-setup job: applies bootstrap/template.yml as the `emuplane` stack.
+  bootstrap:
+    image: "ghcr.io/mathewmusango/emuplane:0.1.0"
+    command: ["python", "/app/bootstrap/apply.py"]
+    restart: "no"
+    environment:
+      <<: *shared
+    depends_on:
+      ministack:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  emuplane:
+    image: "ghcr.io/mathewmusango/emuplane:0.1.0"
+    restart: "no"
+    depends_on:
+      ministack:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
+    environment:
+      <<: *emuplane
+    ports:
+      - "127.0.0.1:4570:4570"
+      - "127.0.0.1:4571:4571"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4570/health', timeout=5)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+
+volumes:
+  ministack-state:
+  ministack-s3:
