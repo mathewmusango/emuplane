@@ -65,7 +65,7 @@ npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 | `GetBucketAcl` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py (documents), tests/control/test_api.py |
 | `PutBucketAcl` | Bucket page (Configuration documents, Edit) | Bucket page › Configuration documents › Edit (ACL-enabled buckets) | tests/s3/test_objects.py (ACL enabled/disabled), tests/web/s3.test.jsx |
 | `GetBucketTagging` | Bucket page (Properties) | Bucket page › Properties | tests/s3/test_create.py, tests/control/test_api.py |
-| `PutBucketTagging` | Create page (tags) | Bucket page › Properties › Tags › Edit | tests/s3/test_create.py, tests/s3/test_objects.py, tests/control/test_api.py, tests/web/s3.test.jsx |
+| `PutBucketTagging` | Bucket page (Properties, Edit), Create page (tags) | Create bucket page › Tags, Bucket page › Properties › Tags › Edit | tests/s3/test_create.py, tests/s3/test_objects.py, tests/control/test_api.py, tests/web/s3.test.jsx |
 | `DeleteBucketTagging` | Bucket page (Properties, Remove tags) | Bucket page › Properties › Tags › Remove tags | tests/s3/test_objects.py, tests/control/test_api.py, tests/web/s3.test.jsx |
 | `GetBucketPolicy` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py (documents), tests/control/test_api.py |
 | `PutBucketPolicy` | Bucket page (Configuration documents, Edit) | Bucket page › Configuration documents › Edit | tests/s3/test_objects.py (policy round trip), tests/control/test_api.py, tests/web/s3.test.jsx |
