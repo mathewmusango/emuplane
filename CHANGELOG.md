@@ -8,6 +8,13 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.1.2] - 2026-11-17
+
+### Fixed
+
+- The release publishes without its SBOM, checksums and digest ([#62](https://github.com/mathewmusango/emuplane/issues/62))
+- The release plan re-opens a release that already shipped ([#63](https://github.com/mathewmusango/emuplane/issues/63))
+
 ## [v0.1.1] - 2026-11-17
 
 ### Fixed
