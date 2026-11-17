@@ -112,6 +112,16 @@ What a release carries, besides the notes and the image:
 `workflow_dispatch` is exempt from the `GITHUB_TOKEN` recursion rule, which is why
 the tagging run can start the release itself without a personal token.
 
+### The release pull request runs checks too
+
+A branch pushed and a pull request opened with `GITHUB_TOKEN` start no workflows, so
+with it the release PR would be the one PR nobody checks — and a required status check
+that never reports would block the very PR it exists to protect. `RELEASE_TOKEN` is a
+fine-grained personal access token (contents and pull requests: write, issues: read,
+this repository only) that `release-plan.yml` uses for the checkout, the push and the
+`gh` calls. Leave it unset and the plan still runs, warning that its checks will be
+missing.
+
 ### Closing an issue is what puts it in a release
 
 `release.py` reads the issues **closed** since the last tag, so the order matters —
