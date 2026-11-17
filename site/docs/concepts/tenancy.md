@@ -9,7 +9,7 @@ deployment's bearer token.
 
 ```mermaid
 flowchart LR
-  acct["Account<br/>124969375555"]
+  acct["Account<br/>123456789012"]
   acct --> users["Users<br/>root + IAM"]
   acct --> keys["Access keys<br/>used by tools"]
   acct --> regions["Enabled regions<br/>us-east-1, us-west-2, …"]
