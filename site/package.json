@@ -32,5 +32,10 @@
   },
   "engines": {
     "node": ">=20.0"
+  },
+  "overrides": {
+    "katex": "^0.18.10",
+    "tinypool": "^2.2.0",
+    "serialize-javascript": "^7.1.4"
   }
 }
