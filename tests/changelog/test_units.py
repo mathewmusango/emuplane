@@ -69,4 +69,20 @@ def test_check_reports_what_is_missing(repo, capsys):
         "CHANGELOG.md",
         "site/versions.json",
         "versioned docs",
+        "docker-compose.yml image",
     ]
+
+
+def test_the_compose_default_tracks_the_version(repo):
+    (repo / "docker-compose.yml").write_text(
+        'image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:0.2.0}"\n', encoding="utf-8"
+    )
+    assert _units(repo)["docker-compose.yml image"] is True
+    assert _units(repo, "v0.3.0")["docker-compose.yml image"] is False
+
+
+def test_a_compose_default_of_latest_does_not_match(repo):
+    (repo / "docker-compose.yml").write_text(
+        'image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:latest}"\n', encoding="utf-8"
+    )
+    assert _units(repo)["docker-compose.yml image"] is False

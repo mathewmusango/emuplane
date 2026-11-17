@@ -50,6 +50,17 @@ def tag_exists(root: Path, version: str) -> bool:
     return bool(found)
 
 
+def compose_tag(root: Path) -> str:
+    """The image version the shipped compose defaults to, so it can be held to the release."""
+    path = root / "docker-compose.yml"
+    if not path.is_file():
+        return ""
+    found = re.search(
+        r"ghcr\.io/[^:\s]+/emuplane:(\d+\.\d+\.\d+)", path.read_text(encoding="utf-8")
+    )
+    return found.group(1) if found else ""
+
+
 def report(root: Path, version: str, number: str = "") -> list[dict]:
     """Each unit with whether it is present; `version` is the tag, `number` its bare form."""
     bare = number or version.lstrip("v")
@@ -62,6 +73,11 @@ def report(root: Path, version: str, number: str = "") -> list[dict]:
             "unit": "versioned docs",
             "expected": f"site/versioned_docs/version-{bare}",
             "present": (root / "site" / "versioned_docs" / f"version-{bare}").is_dir(),
+        },
+        {
+            "unit": "docker-compose.yml image",
+            "expected": f"ghcr.io/…/emuplane:{bare}",
+            "present": compose_tag(root) == bare,
         },
     ]
 

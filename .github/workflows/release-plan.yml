@@ -52,6 +52,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch --create "release/$tag"
           python3 scripts/changelog.py --version "$tag" --write
+          sed -i "s|ghcr.io/mathewmusango/emuplane:[0-9][0-9.]*|ghcr.io/mathewmusango/emuplane:${tag#v}|" docker-compose.yml
           npm --prefix site ci --no-audit --no-fund
           npm --prefix site run version "${tag#v}"
           python3 scripts/units.py --version "$tag" --check --skip-tag

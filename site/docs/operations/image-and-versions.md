@@ -14,7 +14,9 @@ Release.
 | major | by hand | `0.1.0` → `1.0.0` |
 
 The git tag carries a `v` (`v0.1.0`); the image tag does not (`0.1.0`). `latest`
-follows the newest tag.
+follows the newest tag, and `docker-compose.yml`'s default image is the release
+version itself — the release pull request rewrites it, and `scripts/units.py --check`
+refuses a release where the two disagree.
 
 ## These docs are versioned the same way
 

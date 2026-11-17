@@ -30,11 +30,15 @@ x-runtime: &runtime
 services:
   # First-setup job: applies bootstrap/template.yml as the `emuplane` stack.
   bootstrap:
-    image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:latest}"
+    image: "docker.io/library/python:3.13-alpine@sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8"
     restart: "no"
     environment:
       <<: *runtime
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
     command: ["python", "/app/bootstrap/apply.py"]
+    volumes:
+      - ./bootstrap:/app/bootstrap:ro
     read_only: true
     tmpfs:
       - /tmp
@@ -44,7 +48,7 @@ services:
       - no-new-privileges:true
 
   emuplane:
-    image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:latest}"
+    image: "${EP_IMAGE:-ghcr.io/mathewmusango/emuplane:0.1.0}"
     restart: "no"
     depends_on:
       bootstrap:
