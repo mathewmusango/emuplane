@@ -14,7 +14,7 @@ That split is the porting contract:
   exactly this set. A Kubernetes ConfigMap is the same names and values, and a
   deployment may supply only what it needs because every other key has a default.
 - **Deployment settings** — image, network, container names and published ports.
-  `token.sh` uses them; they are never injected into the container.
+  They never reach the container.
 
 ## Container settings
 
@@ -46,6 +46,6 @@ Mail is optional, for the password-reset link:
 ## Nothing secret in `.env`
 
 There is no seeded account and no pre-set token. Accounts come from sign-up. The
-bearer token is optional: `./scripts/token.sh` mints one when a script needs the
-control API, prints it once, and stores only a SHA-256 hash in the settings
-store.
+bearer token is optional: `python /app/api_token.py` inside the container mints one
+when a script needs the control API, prints it once, and stores only a SHA-256 hash
+in the settings store.

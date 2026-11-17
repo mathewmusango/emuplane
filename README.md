@@ -42,8 +42,8 @@ More: [Quickstart](https://mathewmusango.github.io/emuplane/docs/getting-started
 — the emulator first, then the first account and the first bucket.
 
 Nothing is seeded: create the first account at `/signup`. The API bearer token is
-optional: mint one with `./scripts/token.sh` when something other than the console
-needs the control API.
+optional: mint one with `python /app/api_token.py` inside the container when
+something other than the console needs the control API.
 
 ## Accessing it
 
@@ -99,7 +99,7 @@ as its published image: `ministackorg/ministack:1.5.40-full`.
 | [`web/`](web) | the React + Cloudscape console (its own README) |
 | [`site/`](site) | the documentation site |
 | [`bootstrap/`](bootstrap) | the CloudFormation template and init job for the control's tables |
-| [`scripts/`](scripts) | `token.sh`, `password.sh`, `reset-link.sh`, `qa_check.py` |
+| [`scripts/`](scripts) | the QA gate and the maintainer's helpers |
 | [`docker-compose.yml`](docker-compose.yml) | the container contract |
 
 More: [Runbook](https://mathewmusango.github.io/emuplane/docs/operations/runbook)

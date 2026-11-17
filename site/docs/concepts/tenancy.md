@@ -73,8 +73,8 @@ lab network.
   token, so a stolen cookie store does not hand anyone a working session.
 - Resetting a password revokes that user's sessions.
 - `/forgot` issues a single-use link. With no mail transport configured — the
-  default — it says to ask an administrator, and `./scripts/password.sh` does the
-  reset.
+  default — it says to ask an administrator, and `python /app/password.py`
+  inside the container does the reset.
 
 ## What a token is, and is not
 

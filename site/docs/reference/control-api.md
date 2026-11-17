@@ -13,7 +13,7 @@ with what it read.
 | Caller | Credential | Reaches |
 | --- | --- | --- |
 | A person in the browser | the console session cookie | their own account only |
-| The deployment | a bearer token from `./scripts/token.sh` | every account |
+| The deployment | a bearer token minted inside the container (`python /app/api_token.py`) | every account |
 
 A request with neither is refused. A request for an account the session does not
 belong to is `403`, except for the bearer token, which is the one cross-tenant

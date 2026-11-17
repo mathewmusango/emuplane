@@ -27,7 +27,7 @@ flowchart LR
 | **Console** | A React + Cloudscape UI: a region menu, service pages, the S3 pages, an API explorer and the sign-in screens. |
 
 Nothing is seeded. The first account is made at `/signup`, and the deployment's
-bearer token is minted once with `./scripts/token.sh`.
+bearer token is minted once inside the container (`python /app/api_token.py`).
 
 ## What it is not
 

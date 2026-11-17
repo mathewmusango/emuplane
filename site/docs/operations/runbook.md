@@ -17,8 +17,9 @@ cp .env.example .env        # EP_BACKEND_URL, EP_CONSOLE_URL, EP_GATEWAY_URL
 podman-compose up -d        # bootstrap first, then the control
 ```
 
-No credential is seeded: the API bearer token is minted on demand by
-`./scripts/token.sh` and stored as a hash, so `.env` carries no secret at all.
+No credential is seeded: the API bearer token is minted on demand (see [Tokens and
+passwords](#tokens-and-passwords)) and stored as a hash, so `.env` carries no
+secret at all.
 
 `docker-compose.yml` is the product's own definition; a deployment adds a compose
 override of its own for its image, names, routes and network, and
@@ -128,11 +129,11 @@ silently serves the last built image.
 ## Tokens and passwords
 
 ```bash
-./scripts/token.sh            # mint the API bearer token, printed once
-./scripts/token.sh --status   # is there one?
-./scripts/token.sh --rotate   # replace it; the old one stops working immediately
-./scripts/reset-link.sh <user>   # a one-time /reset link, handed over out of band
-./scripts/password.sh <user>     # set the password outright
+docker compose exec emuplane python /app/api_token.py            # mint, printed once
+docker compose exec emuplane python /app/api_token.py --status   # is there one?
+docker compose exec emuplane python /app/api_token.py --rotate   # the old one stops working
+docker compose exec emuplane python /app/password.py <user> --link   # a one-time /reset link
+docker compose exec emuplane python /app/password.py <user>          # set it outright
 ```
 
 Both password paths revoke that principal's sessions.

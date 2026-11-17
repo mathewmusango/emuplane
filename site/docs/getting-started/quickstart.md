@@ -105,19 +105,6 @@ The gateway resolves the account from the key, checks that the request's signing
 region is enabled for that account, and forwards it. The object you uploaded is
 now in the console's Objects tab.
 
-## The deployment token (optional)
-
-The console signs in with sessions, so nothing here needs a token. The control API
-has a second caller — a script, or the deployment itself — and that one is a bearer
-token:
-
-```bash
-./scripts/token.sh
-```
-
-It is printed once and stored hashed. You do not need one to use Emuplane from the
-console; you need one when something other than a browser calls the control API.
-
 ## Where next
 
 - [Accessing it: the console and the CLI](/docs/getting-started/access)
