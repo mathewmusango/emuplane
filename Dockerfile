@@ -40,7 +40,7 @@ COPY --chown=10001:10001 control/app.py control/accesspoints.py control/buckets.
      control/console.py control/dynamo.py control/signed.py \
      control/s3extra.py control/store.py control/api_token.py control/password.py \
      control/backends.py control/mail.py /app/
-# The first-setup job and the stack it applies.
+# The first-setup job, so `docker compose run bootstrap` needs no mount or checkout.
 COPY --chown=10001:10001 bootstrap /app/bootstrap
 
 # The control API, and the AWS gateway that fronts the emulator.

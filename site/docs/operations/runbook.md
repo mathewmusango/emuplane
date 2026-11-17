@@ -30,9 +30,9 @@ stored as a hash, so `.env` carries no secret at all.
 
 ## The image
 
-Two stages: Node builds `web/dist`, then the Python stage copies it and the
-control source, so the image is self-contained — nothing is bind-mounted from the
-host and nothing has to be built there.
+The build is two stages: Node builds `web/dist`, then the Python stage copies it,
+the control source and the first-setup job, so the image is self-contained —
+nothing is bind-mounted from the host and nothing has to be built there.
 
 - Base images are pinned by **index digest** — multi-arch, so a rebuild resolves
   to the same bytes. `renovate.json` is what moves them.
@@ -45,15 +45,19 @@ host and nothing has to be built there.
   `/tmp` on a tmpfs, every capability dropped and `no-new-privileges`, plus
   `init: true` so signals are forwarded and children reaped. Nothing needs a
   writable layer: all state is in the emulator.
-- `docker-compose.yml` names the published image and never builds it, so `up` on a
-  fresh host pulls. A deployment's own overlay can add a `build:` block beside that
-  name, which is how a checkout builds itself with `up` and `build`.
+- The same image runs the first-setup job with another command
+  (`/app/bootstrap/apply.py`): a job, not a service — no ports, no healthcheck,
+  `restart: "no"`.
+- `docker-compose.yml` names the published image and never builds it, so `up` on
+  a fresh host pulls. A deployment's own overlay can add a `build:` block beside
+  that name, which is how a checkout builds itself with `up` and `build`.
 
 ## The bootstrap stack
 
-Before the console starts, the `bootstrap` service (`bootstrap/apply.py`) applies
-`bootstrap/template.yml` as the CloudFormation stack `emuplane`. That stack owns the
-eleven DynamoDB tables the control keeps its own state in.
+Before the console starts, the `bootstrap` service (`/app/bootstrap/apply.py`, the
+same image with another command) applies `bootstrap/template.yml` as the
+CloudFormation stack `emuplane`. That stack owns the eleven DynamoDB tables the
+control keeps its own state in.
 
 - Compose orders it: `emuplane` declares `depends_on: bootstrap:
   service_completed_successfully`, so a plain `up -d` is enough.

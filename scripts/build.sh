@@ -18,14 +18,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-image=${EP_IMAGE:-}
-if [ -z "$image" ]; then
-  image=$(sed -n 's/^EP_IMAGE=//p' .env 2>/dev/null)
+image=localhost/emuplane:dev
+if [ -f compose.lab.yml ]; then
+  image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' compose.lab.yml | head -n 1 | tr -d '"')
 fi
-if [ -z "$image" ] && [ -f compose.lab.yml ]; then
-  image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' compose.lab.yml | head -n 1)
-fi
-image=${image:-localhost/emuplane:dev}
 
 case "${1:-}" in
   --no-cache) cache=(--no-cache) ;;

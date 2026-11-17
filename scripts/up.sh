@@ -86,11 +86,14 @@ if [ "$dev" = "1" ]; then
 fi
 
 # An end user pulls the published image; only a maintainer builds one (`--build`).
-image=$(sed -n 's/^EP_IMAGE=//p' .env)
-if [ -z "$image" ] && [ -f "$overlay" ]; then
+image=""
+if [ -f "$overlay" ]; then
   image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' "$overlay" | head -n 1)
 fi
-image=${image:-ghcr.io/mathewmusango/emuplane:latest}
+if [ -z "$image" ]; then
+  image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' docker-compose.yml | head -n 1)
+fi
+image=$(printf '%s' "$image" | tr -d '"')
 if [ "$build" = "0" ]; then
   if [ "$pull" = "1" ] || ! podman image exists "$image"; then
     echo "pulling $image"
