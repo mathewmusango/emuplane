@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import py_compile
 import re
 import subprocess
@@ -12,6 +13,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+# The emulator checkout the S3 tests and the coverage check read.
+EMULATOR = Path(os.environ.get("EP_EMULATOR_SRC") or ROOT.parent / "ministack-src")
 MANIFEST = ROOT / "qa" / "tasks.json"
 
 SECRET_PATTERNS = [
@@ -126,7 +129,7 @@ def test_python() -> list[str]:
 
 def coverage() -> list[str]:
     """The published coverage page is generated, so a stale one is a failure; without the emulator checkout it passes."""
-    readme = ROOT.parent / "ministack-src" / "README.md"
+    readme = EMULATOR / "README.md"
     script = ROOT / "scripts" / "s3_coverage.py"
     if not readme.is_file() or not script.is_file():
         print("ministack-src is not checked out: skipped the S3 coverage check")

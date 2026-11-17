@@ -134,3 +134,8 @@ cd web && npx tsc --noEmit && npm test  # the console
 cd web && npx vite build                # dist/, which the container serves
 cd site && npm run build                # these pages
 ```
+
+The S3 and access-point tests import the emulator's own service modules rather than
+a mock, so they need its source: set `EP_EMULATOR_SRC` to a checkout of the tag the
+images carry (`v1.5.41`), which is what CI clones. Without it those tests skip and
+the run proves less than it looks like it does.

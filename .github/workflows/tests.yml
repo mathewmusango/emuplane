@@ -19,3 +19,27 @@ jobs:
     uses: mathewmusango/my-workflows/.github/workflows/tests-vitest.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
     with:
       working-directory: web
+
+  # The S3 and access-point tests import the emulator's own service modules, so they
+  # run against a checkout of the tag the images carry rather than a mock of it.
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EP_EMULATOR_SRC: ${{ runner.temp }}/ministack
+      EMULATOR_TAG: v1.5.41
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check out the emulator at the tested tag
+        run: git clone --quiet --depth 1 --branch "$EMULATOR_TAG" https://github.com/ministackorg/ministack "$EP_EMULATOR_SRC"
+      - name: Install pytest and the emulator's dependencies
+        run: pip install --quiet pytest -r "$EP_EMULATOR_SRC/requirements.txt"
+      - name: Run the suite
+        run: python3 -m pytest -q tests
+      - name: The published coverage page is current
+        run: python3 scripts/s3_coverage.py --check
+      - name: Ledger, secrets and compile checks
+        run: python3 scripts/qa_check.py

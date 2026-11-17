@@ -10,10 +10,12 @@ const config = {
   trailingSlash: false,
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'throw',
 
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: 'throw',
+    },
   },
   // Diagram support for the fenced ```mermaid blocks.
   themes: ['@docusaurus/theme-mermaid'],

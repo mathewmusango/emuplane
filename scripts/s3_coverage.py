@@ -8,12 +8,14 @@ that page is stale.
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-EMULATOR = ROOT.parent / "ministack-src"
+# The emulator's own operation list: a checkout beside the repo, or CI's pin.
+EMULATOR = Path(os.environ.get("EP_EMULATOR_SRC") or ROOT.parent / "ministack-src")
 README = EMULATOR / "README.md"
 LEDGER = ROOT / "my-docs" / "S3.md"
 PAGE = ROOT / "site" / "docs" / "reference" / "s3-coverage.md"
