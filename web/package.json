@@ -8,7 +8,8 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pretest": "ln -sfn ../web/node_modules ../tests/node_modules"
   },
   "dependencies": {
     "@cloudscape-design/components": "^3.0.1410",

@@ -43,5 +43,10 @@ COPY --chown=10001:10001 bootstrap /app/bootstrap
 EXPOSE 4570 4571
 
 # Declared in docker-compose.yml, because podman's OCI format ignores HEALTHCHECK.
+# The control and the bootstrap are standard-library only: pip's vendored tree is dead weight here.
+RUN rm -rf /usr/local/lib/python3.13/site-packages/pip \
+    /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
+    /usr/local/lib/python3.13/site-packages/README.txt
+
 USER 10001:10001
 CMD ["python", "/app/app.py"]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
-from conftest import ACCOUNT, TOKEN, api, s3
+from conftest import ACCOUNT, api, s3
 
 BUCKET = "api-object-meta-bucket"
 LOCKED = "api-object-meta-locked"
