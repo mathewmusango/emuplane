@@ -14,7 +14,7 @@ That split is the porting contract:
   exactly this set. A Kubernetes ConfigMap is the same names and values, and a
   deployment may supply only what it needs because every other key has a default.
 - **Deployment settings** — image, network, container names and published ports.
-  `up.sh` and `token.sh` use them; they are never injected into the container.
+  `token.sh` uses them; they are never injected into the container.
 
 ## Container settings
 

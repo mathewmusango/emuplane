@@ -43,11 +43,11 @@ one:
 
 ```bash
 cp .env.example .env        # set EP_BACKEND_URL to the backend's endpoint
-./scripts/up.sh             # or: docker compose up -d
+docker compose up -d
 ```
 
-Either way, `./scripts/up.sh` (and the compose `depends_on`) runs the `bootstrap`
-service to completion before the control starts. Bootstrap applies
+Either way, the compose `depends_on` runs the `bootstrap` service to completion
+before the control starts. Bootstrap applies
 `bootstrap/template.yml` as the `emuplane` stack — the DynamoDB tables Emuplane
 keeps its own accounts and sessions in — and is idempotent. **The control refuses
 to serve if those tables are missing**, rather than starting and failing on the

@@ -8,7 +8,7 @@ Day-to-day operation of an Emuplane deployment.
 ## Before anything: the emulator
 
 Emuplane is the control plane, not the emulator. The emulator runs from its own
-compose file in its own repository, and `up.sh` refuses to start without it.
+compose file in its own repository, and the control will not serve until it answers.
 
 ## Start
 
@@ -17,16 +17,12 @@ cp .env.example .env        # EP_BACKEND_URL, EP_CONSOLE_URL, EP_GATEWAY_URL
 podman-compose up -d        # bootstrap first, then the control
 ```
 
-`./scripts/up.sh` is the maintainer's wrapper over the same two compose files: it
-derives `EP_BACKEND_URL` from `EP_BACKEND_CONTAINER` and `EP_BACKEND_PORT` when that
-is empty, creates the lab network, pulls the image when it is missing, runs the
-bootstrap job explicitly and waits for `/health`. The first run creates `.env` from
-`.env.example` (mode `0600`) when it is missing. No credential is
-seeded: the API bearer token is minted on demand by `./scripts/token.sh` and
-stored as a hash, so `.env` carries no secret at all.
+No credential is seeded: the API bearer token is minted on demand by
+`./scripts/token.sh` and stored as a hash, so `.env` carries no secret at all.
 
-`docker-compose.yml` is the product's own definition; `up.sh` layers an untracked
-`compose.lab.yml` over it for a deployment's image, names, routes and network.
+`docker-compose.yml` is the product's own definition; a deployment adds a compose
+override of its own for its image, names, routes and network, and
+`docker-compose.all.yml` already does that for the bundled emulator.
 
 ## The image
 
@@ -61,13 +57,13 @@ control keeps its own state in.
 
 - Compose orders it: `emuplane` declares `depends_on: bootstrap:
   service_completed_successfully`, so a plain `up -d` is enough.
-- `up.sh` runs it explicitly first, and is idempotent either way.
+- Running it by hand (`docker compose run --rm bootstrap`) is idempotent too.
 - **The control refuses to serve when a table is missing**, naming it and this
   command, rather than starting and failing on the first sign-in.
 - Tables that predate the stack are reported, not adopted — CloudFormation cannot
   adopt one. Drop them on a fresh setup and re-run.
-- Its exit status is 0 only when every table is present, which is what `up.sh` waits
-  on. `--drop-tables` deletes the stack and the control tables; `--delete` removes
+- Its exit status is 0 only when every table is present, so a failed job stops
+  `up` before the control. `--drop-tables` deletes the stack and the control tables; `--delete` removes
   only the stack. `EP_STACK_NAME`, `EP_TABLE_PREFIX` and `MC_TEMPLATE` (the template
   path) let a smoke run use names of its own.
 
@@ -102,16 +98,23 @@ every account, key and bucket is still there. Removing the **emulator** is the
 irreversible act. Back up its two data directories first — `/var/lib/ministack/state`
 and `/var/lib/ministack/s3` inside the container, host bind mounts or a volume in
 practice — or accept that the accounts and their buckets go with it. A fresh
-emulator comes back empty, and the next `./scripts/up.sh` applies the control's
+emulator comes back empty, and the next `docker compose up -d` applies the control's
 tables to it again.
 
-## The dev loop
+## Working on the source
 
-`./scripts/up.sh --dev` mounts the control source and the built console into the
-container, so a change costs no image build. The overlay it applies
-(`compose.dev.yml`) is generated on the spot from `control/*.py` and `web/dist`,
-and ignored — the mounts cannot live in `docker-compose.yml`, which has to work for
-someone who has the image and no source checkout.
+The image flattens `control/` into `/app/`, so mount the file you are changing
+rather than the directory — a directory mount would hide `/app/static`:
+
+```yaml title="compose.override.yml"
+services:
+  emuplane:
+    volumes:
+      - ./web/dist:/app/static:ro
+      - ./control/app.py:/app/app.py:ro
+```
+
+Compose loads that file automatically, so `up -d` picks up the mounts:
 
 | Change | What to do |
 | --- | --- |
@@ -119,10 +122,7 @@ someone who has the image and no source checkout.
 | `web/` | `cd web && npm run build`, with the mount in place |
 | `site/` (these pages) | `cd site && npm run build` |
 
-`./scripts/dev.sh web`, `api` or `all` runs those two in one step: a host Vite
-build, then a container restart, with no image build.
-
-Without `--dev` the container runs the image's baked code — a restart then
+Without the mounts the container runs the image's baked code — a restart then
 silently serves the last built image.
 
 ## Tokens and passwords

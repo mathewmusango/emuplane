@@ -38,11 +38,6 @@ runs MiniStack, the first-setup job and the control as one stack.
 `bootstrap` runs first and applies the CloudFormation stack that owns the control's
 DynamoDB tables; the console then answers on `http://localhost:4570`.
 
-`./scripts/up.sh` is the maintainer's wrapper over the same two files: it derives
-`EP_BACKEND_URL` from `EP_BACKEND_CONTAINER` and `EP_BACKEND_PORT`, creates the lab
-network, pulls the image when it is missing, runs the bootstrap job explicitly and
-waits for `/health`. `--pull`, `--build` and `--dev` are its own.
-
 More: [Quickstart](https://mathewmusango.github.io/emuplane/docs/getting-started/quickstart)
 — the emulator first, then the first account and the first bucket.
 
@@ -104,7 +99,7 @@ as its published image: `ministackorg/ministack:1.5.40-full`.
 | [`web/`](web) | the React + Cloudscape console (its own README) |
 | [`site/`](site) | the documentation site |
 | [`bootstrap/`](bootstrap) | the CloudFormation template and init job for the control's tables |
-| [`scripts/`](scripts) | `up.sh`, `build.sh`, `token.sh`, `qa_check.py` |
+| [`scripts/`](scripts) | `token.sh`, `password.sh`, `reset-link.sh`, `qa_check.py` |
 | [`docker-compose.yml`](docker-compose.yml) | the container contract |
 
 More: [Runbook](https://mathewmusango.github.io/emuplane/docs/operations/runbook)
