@@ -23,5 +23,8 @@ site/.npm-cache/
 qa/
 addons/
 my-docs/
+# Maintainer-only research: both write into my-docs/, which is ignored.
+/scripts/profile-login.sh
+/scripts/upstream_services.py
 # Internal design notes: cells, router, break-glass. Not for a public repo.
 ARCHITECTURE.md

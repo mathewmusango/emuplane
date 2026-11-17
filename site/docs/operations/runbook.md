@@ -119,6 +119,9 @@ someone who has the image and no source checkout.
 | `web/` | `cd web && npm run build`, with the mount in place |
 | `site/` (these pages) | `cd site && npm run build` |
 
+`./scripts/dev.sh web`, `api` or `all` runs those two in one step: a host Vite
+build, then a container restart, with no image build.
+
 Without `--dev` the container runs the image's baked code — a restart then
 silently serves the last built image.
 
