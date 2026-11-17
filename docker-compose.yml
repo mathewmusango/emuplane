@@ -30,7 +30,7 @@ x-emuplane: &emuplane
 services:
   # First-setup job: applies bootstrap/template.yml as the `emuplane` stack.
   bootstrap:
-    image: "ghcr.io/mathewmusango/emuplane:0.1.1"
+    image: "ghcr.io/mathewmusango/emuplane:0.1.2"
     command: ["python", "/app/bootstrap/apply.py"]
     restart: "no"
     environment:
@@ -44,7 +44,7 @@ services:
       - no-new-privileges:true
 
   emuplane:
-    image: "ghcr.io/mathewmusango/emuplane:0.1.1"
+    image: "ghcr.io/mathewmusango/emuplane:0.1.2"
     restart: "no"
     depends_on:
       bootstrap:
