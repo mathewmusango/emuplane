@@ -1,6 +1,8 @@
 .env
 .env.all
 /compose.lab.yml
+# Written by release-plan to carry the decision between steps, never committed.
+/decision.json
 /compose.dev.yml
 *.bak
 __pycache__/
