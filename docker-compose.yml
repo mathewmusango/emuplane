@@ -3,7 +3,7 @@ name: emuplane
 # The container contract: what the control and its first-setup job both need.
 x-shared: &shared
   TZ: "${TZ:-Africa/Nairobi}"
-  EP_BACKEND_URL: "${EP_BACKEND_URL:?set EP_BACKEND_URL in .env to the backend's endpoint}"
+  EP_BACKEND_URL: "${EP_BACKEND_URL:-}"
   EP_STORE_ACCOUNT: "${EP_STORE_ACCOUNT:-111111111111}"
   EP_STORE_REGION: "${EP_STORE_REGION:-us-east-1}"
   EP_STORE_URL: "${EP_STORE_URL:-}"
@@ -13,8 +13,8 @@ x-emuplane: &emuplane
   <<: *shared
   # The backend profile (control/backends.py) and its connection string.
   EP_BACKEND: "${EP_BACKEND:-ministack}"
-  EP_CONSOLE_URL: "${EP_CONSOLE_URL:?set EP_CONSOLE_URL in .env: http://localhost:4570 without a reverse proxy}"
-  EP_GATEWAY_URL: "${EP_GATEWAY_URL:?set EP_GATEWAY_URL in .env: http://localhost:4571 without a reverse proxy}"
+  EP_CONSOLE_URL: "${EP_CONSOLE_URL:-http://localhost:4570}"
+  EP_GATEWAY_URL: "${EP_GATEWAY_URL:-http://localhost:4571}"
   EP_POLL_SECONDS: "${EP_POLL_SECONDS:-10}"
   EP_SESSION_SECONDS: "${EP_SESSION_SECONDS:-28800}"
   EP_RECENT_LIMIT: "${EP_RECENT_LIMIT:-5}"

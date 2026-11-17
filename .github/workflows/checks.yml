@@ -17,12 +17,12 @@ concurrency:
 
 jobs:
   python:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-python.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
+    uses: mathewmusango/my-workflows/.github/workflows/checks-python.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17
   js:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-js.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
+    uses: mathewmusango/my-workflows/.github/workflows/checks-js.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17
   shell:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-shell.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
+    uses: mathewmusango/my-workflows/.github/workflows/checks-shell.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17
   yaml:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-yaml.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
+    uses: mathewmusango/my-workflows/.github/workflows/checks-yaml.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17
   docker:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-docker.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
+    uses: mathewmusango/my-workflows/.github/workflows/checks-docker.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17

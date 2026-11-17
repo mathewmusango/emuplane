@@ -21,9 +21,9 @@ That split is the porting contract:
 | Key | Default | What it does |
 | --- | --- | --- |
 | `EP_BACKEND` | `generic` | backend profile: `generic`, `ministack`, `floci`, `localstack`, `moto`; only `ministack` is tested |
-| `EP_BACKEND_URL` | required | the emulator endpoint the control talks to |
-| `EP_CONSOLE_URL` | required | the address a browser uses; without a reverse proxy that is `http://localhost:4570` |
-| `EP_GATEWAY_URL` | required | the address clients sign against; without a reverse proxy that is `http://localhost:4571` |
+| `EP_BACKEND_URL` | empty | the emulator endpoint the control talks to; **empty stops the control at boot** |
+| `EP_CONSOLE_URL` | `http://localhost:4570` | the address a browser uses; set it to the proxy's address behind one |
+| `EP_GATEWAY_URL` | `http://localhost:4571` | the address clients sign against; set it to the proxy's address behind one |
 | `EP_STORE_ACCOUNT` | `111111111111` | account the control reads its own DynamoDB tables as |
 | `EP_STORE_REGION` | `us-east-1` | region those tables live in |
 | `EP_STORE_URL` | empty | where the control's own tables live; **empty means `EP_BACKEND_URL`**, so repointing the backend moves the accounts with it |
