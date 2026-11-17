@@ -44,13 +44,13 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: mathewmusango/my-workflows/.github/workflows/release-image-ghcr.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/release-image-ghcr.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17
 
   release:
     needs: image
     permissions:
       contents: write
-    uses: mathewmusango/my-workflows/.github/workflows/release-github.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/release-github.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17
 
   artifacts:
     needs: [image, release]
@@ -98,4 +98,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload "$GITHUB_REF_NAME"
-          "emuplane-$GITHUB_REF_NAME.spdx.json" SHA256SUMS IMAGE-DIGEST --clobber
+          "emuplane-$GITHUB_REF_NAME.spdx.json" SHA256SUMS IMAGE-DIGEST
+          --repo "$GITHUB_REPOSITORY" --clobber

@@ -41,8 +41,6 @@ const config = {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl: 'https://github.com/mathewmusango/emuplane/tree/main/',
           showLastUpdateTime: false,
-          // The operations pages are held until the release flow is public.
-          exclude: ['operations/**'],
         },
         blog: false,
         theme: {
