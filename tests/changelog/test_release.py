@@ -83,3 +83,14 @@ def test_a_policy_can_allow_everything_through(config):
 def test_a_policy_can_allow_nothing(config):
     config["policy"]["auto"] = []
     assert release.decide("v1.4.2", [issue(1, "A fix", ["bug"])], config)["action"] == release.PULL_REQUEST
+
+
+def test_a_version_whose_tag_exists_is_not_planned_again(config):
+    decided = release.decide("v1.4.2", [issue(1, "A fix", ["bug"])], config, {"v1.4.3"})
+    assert decided["action"] == release.NOTHING
+
+
+def test_a_version_without_its_tag_is_still_planned(config):
+    decided = release.decide("v1.4.2", [issue(1, "A fix", ["bug"])], config, {"v1.4.2"})
+    assert decided["action"] == release.RELEASE
+    assert decided["version"] == "1.4.3"

@@ -39,6 +39,7 @@ jobs:
         if: steps.decide.outputs.action == 'nothing'
         run: echo "::notice::No closed issue since the last release is changelog material."
       - name: Write the section on a release branch
+        id: write
         if: steps.decide.outputs.action != 'nothing'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,6 +48,7 @@ jobs:
           tag="${{ steps.decide.outputs.tag }}"
           if python3 scripts/changelog.py --version "$tag" --check; then
             echo "::notice::$tag is already in CHANGELOG.md"
+            echo "prepared=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
@@ -61,8 +63,9 @@ jobs:
           git add --all
           git commit --message "Release $tag"
           git push --force origin "HEAD:refs/heads/release/$tag"
+          echo "prepared=true" >> "$GITHUB_OUTPUT"
       - name: Open or update the release pull request
-        if: steps.decide.outputs.action != 'nothing'
+        if: steps.write.outputs.prepared == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
