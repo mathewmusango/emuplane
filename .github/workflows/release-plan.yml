@@ -21,13 +21,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: The token that decides whether this branch runs checks
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            echo "::warning::RELEASE_TOKEN is unset: the release branch and its pull request are made with GITHUB_TOKEN, so the pull request carries no checks."
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
       - name: The version the closed issues imply
         id: decide
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           python3 scripts/release.py | tee decision.json
@@ -42,7 +50,7 @@ jobs:
         id: write
         if: steps.decide.outputs.action != 'nothing'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           tag="${{ steps.decide.outputs.tag }}"
@@ -67,7 +75,7 @@ jobs:
       - name: Open or update the release pull request
         if: steps.write.outputs.prepared == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           tag="${{ steps.decide.outputs.tag }}"
