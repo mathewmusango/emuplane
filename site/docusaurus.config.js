@@ -7,7 +7,7 @@ const config = {
   baseUrl: '/emuplane/',
   organizationName: 'mathewmusango',
   projectName: 'emuplane',
-  trailingSlash: false,
+  trailingSlash: true,
 
   onBrokenLinks: 'throw',
 
