@@ -8,12 +8,13 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "pretest": "ln -sfn ../web/node_modules ../tests/node_modules"
   },
   "dependencies": {
-    "@cloudscape-design/components": "^3.0.1410",
+    "@cloudscape-design/components": "^3.0.1412",
     "@cloudscape-design/global-styles": "^1.0.67",
-    "lucide-react": "^1.70.0",
+    "lucide-react": "^1.71.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.14.0"

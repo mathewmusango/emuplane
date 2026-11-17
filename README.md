@@ -7,7 +7,7 @@
   <a href="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml/badge.svg" alt="Semgrep"></a>
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
   <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python">
-  <a href="https://github.com/users/mathewmusango/packages/container/package/emuplane"><img src="https://img.shields.io/badge/ghcr.io-emuplane-blue?logo=github" alt="ghcr.io"></a>
+  <a href="https://github.com/mathewmusango/emuplane/pkgs/container/emuplane"><img src="https://img.shields.io/badge/ghcr.io-emuplane-blue?logo=github" alt="ghcr.io"></a>
 </p>
 
 ---
@@ -31,6 +31,10 @@ targets.
 cp .env.example .env        # set EP_BACKEND_URL to the backend's endpoint
 podman-compose up -d        # or: docker compose up -d
 ```
+
+The image is `ghcr.io/mathewmusango/emuplane`, published per release:
+`docker pull ghcr.io/mathewmusango/emuplane:latest` fetches the newest, and the
+compose file names the pinned tag it runs.
 
 Or bring the emulator along: `docker-compose.all.yml` with `.env.all.example`
 runs MiniStack, the first-setup job and the control as one stack.

@@ -1,7 +1,7 @@
 name: "Issue: carries a changelog label"
 
 # An issue names the section it belongs to, so nothing reaches the changelog by
-# falling into a default.
+# falling into a default. Bots are exempt: their dashboards are not changelog entries.
 on:
   issues:
     types: [opened, edited, reopened, labeled, unlabeled]
@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   changelog-label:
+    if: github.actor != 'renovate[bot]' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

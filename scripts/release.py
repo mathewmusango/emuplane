@@ -23,12 +23,23 @@ RELEASE = "release"
 PULL_REQUEST = "pull-request"
 
 
-def decide(current: str, issues: list[dict], config: dict) -> dict:
-    """`{"action", "level", "version", "count"}` for this set of closed issues."""
+def decide(
+    current: str,
+    issues: list[dict],
+    config: dict,
+    released: set[str] | frozenset[str] = frozenset(),
+) -> dict:
+    """`{"action", "level", "version", "count"}` for this set of closed issues.
+
+    A version whose tag is already in `released` decides nothing: a plan that
+    runs again after its own release has nothing left to prepare.
+    """
     level = changelog.bump_level(issues, config)
     if level is None:
         return {"action": NOTHING, "level": None, "version": current, "count": 0}
     version = changelog.next_version(current, issues, config)
+    if f"v{version}" in released:
+        return {"action": NOTHING, "level": None, "version": current, "count": 0}
     automatic = [str(step).lower() for step in (config.get("policy") or {}).get("auto", [])]
     return {
         "action": RELEASE if level in automatic else PULL_REQUEST,
@@ -53,7 +64,7 @@ def main() -> int:
     issues = changelog.fetch_issues(
         changelog.repo_slug(args.repo), args.since or changelog.since_default(), token
     )
-    print(json.dumps(decide(current, issues, config), indent=2))
+    print(json.dumps(decide(current, issues, config, changelog.tags()), indent=2))
     return 0
 
 
