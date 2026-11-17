@@ -24,8 +24,6 @@ That split is the porting contract:
 | `EP_BACKEND_URL` | required | the emulator endpoint the control talks to |
 | `EP_CONSOLE_URL` | required | the address a browser uses; without a reverse proxy that is `http://localhost:4570` |
 | `EP_GATEWAY_URL` | required | the address clients sign against; without a reverse proxy that is `http://localhost:4571` |
-| `EP_PORT` | `4570` | console and control API port, the same inside the container and on the host |
-| `EP_GATEWAY_PORT` | `4571` | gateway port, the same inside the container and on the host |
 | `EP_STORE_ACCOUNT` | `111111111111` | account the control reads its own DynamoDB tables as |
 | `EP_STORE_REGION` | `us-east-1` | region those tables live in |
 | `EP_STORE_URL` | empty | where the control's own tables live; **empty means `EP_BACKEND_URL`**, so repointing the backend moves the accounts with it |

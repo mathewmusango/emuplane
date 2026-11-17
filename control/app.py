@@ -32,8 +32,8 @@ from backends import profile  # noqa: E402
 from store import Store, StoreNotProvisioned  # noqa: E402
 
 # No database file: control-plane documents live in the emulator's DynamoDB (control/store.py), whose tables Layer 0 creates.
-EP_PORT = int(os.environ.get("EP_PORT", "4570"))
-GATEWAY_PORT = int(os.environ.get("EP_GATEWAY_PORT", "4571"))
+CONTROL_PORT = 4570
+GATEWAY_PORT = 4571
 # The API bearer token lives in the settings store as a SHA-256 digest (control/api_token.py mints it), never in `.env`.
 TOKEN_KEY = "admin_token"
 
@@ -5136,7 +5136,7 @@ document.getElementById('refresh').onsubmit = async (event) => {{
 
 def main() -> None:
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
-    control = ThreadingHTTPServer(("0.0.0.0", EP_PORT), ControlHandler)
+    control = ThreadingHTTPServer(("0.0.0.0", CONTROL_PORT), ControlHandler)
     gateway = ThreadingHTTPServer(("0.0.0.0", GATEWAY_PORT), GatewayHandler)
     threading.Thread(target=gateway.serve_forever, daemon=True).start()
 
@@ -5151,7 +5151,7 @@ def main() -> None:
 
     threading.Thread(target=poller, daemon=True).start()
     print(
-        f"control on :{EP_PORT}, gateway on :{GATEWAY_PORT}, "
+        f"control on :{CONTROL_PORT}, gateway on :{GATEWAY_PORT}, "
         f"{len(NODES)} nodes, bearer token {'set' if stored_token_hash() else 'unset'}",
         flush=True,
     )

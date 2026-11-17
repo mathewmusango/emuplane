@@ -52,8 +52,8 @@ Two ports are published on loopback only:
 
 | Port | What it is |
 | --- | --- |
-| `4570` | Console and control API (`EP_PORT`, the same inside and out) |
-| `4571` | Gateway for your tools (`EP_GATEWAY_PORT`, the same inside and out) |
+| `4570` | Console and control API |
+| `4571` | Gateway for your tools |
 
 ## The first account
 

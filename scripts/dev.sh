@@ -17,8 +17,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-port=$(sed -n 's/^EP_PORT=//p' .env 2>/dev/null)
-port=${port:-4570}
+port=4570
 
 web() {
   if [ ! -d web/node_modules ]; then
