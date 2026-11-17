@@ -37,7 +37,7 @@ jobs:
         run: echo "EP_EMULATOR_SRC=$RUNNER_TEMP/ministack" >> "$GITHUB_ENV"
       - name: Check out the emulator at the tested tag
         # The coverage page is generated from the emulator's own operation list.
-        run: git clone --quiet --depth 1 --branch v1.5.40 https://github.com/ministackorg/ministack "$EP_EMULATOR_SRC"
+        run: git clone --quiet --depth 1 --branch v1.5.41 https://github.com/ministackorg/ministack "$EP_EMULATOR_SRC"
       - run: npm ci
       - name: Generated reference pages are current
         run: |
