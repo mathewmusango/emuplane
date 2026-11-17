@@ -91,7 +91,7 @@ name, a default port and the quirks worth knowing. `EP_BACKEND` selects it and
 not a copy of this repository.
 
 The reference backend is [MiniStack](https://github.com/ministackorg/ministack), run
-as its published image: `ministackorg/ministack:1.5.41-full`.
+as its published image: `ministackorg/ministack:1.5.40-full`.
 
 ## Layout
 
