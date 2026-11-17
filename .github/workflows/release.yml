@@ -98,4 +98,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload "$GITHUB_REF_NAME"
-          "emuplane-$GITHUB_REF_NAME.spdx.json" SHA256SUMS IMAGE-DIGEST --clobber
+          "emuplane-$GITHUB_REF_NAME.spdx.json" SHA256SUMS IMAGE-DIGEST
+          --repo "$GITHUB_REPOSITORY" --clobber
