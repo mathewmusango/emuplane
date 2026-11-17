@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   vitest:
-    uses: mathewmusango/my-workflows/.github/workflows/tests-vitest.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/tests-vitest.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
     with:
       working-directory: web
 

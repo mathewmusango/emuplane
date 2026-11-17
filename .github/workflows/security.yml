@@ -19,6 +19,6 @@ jobs:
   # repository is public.
   deps:
     if: ${{ !github.event.repository.private }}
-    uses: mathewmusango/my-workflows/.github/workflows/security-dependency-review.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/security-dependency-review.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
   npm-audit:
-    uses: mathewmusango/my-workflows/.github/workflows/security-npm-audit.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/security-npm-audit.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17

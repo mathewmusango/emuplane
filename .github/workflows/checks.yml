@@ -7,9 +7,6 @@ on:
     branches: [main]
   workflow_dispatch: {}
 
-# `pull-requests: read` is for the leaves' `dorny/paths-filter`: a called workflow
-# can only downgrade the token it is given, never raise it, so the grant has to be
-# made here.
 permissions:
   contents: read
   pull-requests: read
@@ -20,12 +17,12 @@ concurrency:
 
 jobs:
   python:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-python.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/checks-python.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
   js:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-js.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/checks-js.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
   shell:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-shell.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/checks-shell.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
   yaml:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-yaml.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/checks-yaml.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
   docker:
-    uses: mathewmusango/my-workflows/.github/workflows/checks-docker.yml@d00fec710bc056ae055e10782eae126b7a1d0b61 # v2026.1113.1341Z
+    uses: mathewmusango/my-workflows/.github/workflows/checks-docker.yml@b3ebec60c21da32a6de90e56745367e0e7581ebd # 2026-11-17
