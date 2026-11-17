@@ -25,6 +25,18 @@ EP_GATEWAY_URL=http://localhost:4571
 `EP_BACKEND` picks the profile (`generic`, `ministack`, `floci`, `localstack`,
 `moto`); `EP_BACKEND_URL` is the only value that has to be right.
 
+## Pull it
+
+The image is published to the GitHub Container Registry: [ghcr.io/mathewmusango/emuplane](https://github.com/mathewmusango/emuplane/pkgs/container/emuplane). Every release tags its version and moves `latest` to the same digest.
+
+```bash
+docker pull ghcr.io/mathewmusango/emuplane:latest     # the newest release
+docker pull ghcr.io/mathewmusango/emuplane:<version>  # the tag docker-compose.yml names
+```
+
+The compose files pin a version, so bringing the stack up never changes the image
+under you; `latest` is there for a quick look at the newest release.
+
 ## Start it
 
 The whole stack — MiniStack, its first-setup job and the control — fits in one
