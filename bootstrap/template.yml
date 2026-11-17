@@ -1,17 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: >-
-  The substrate the MiniStack control plane stores itself in: one DynamoDB table
-  per store, each key -> JSON document, partition key `pk`. Applied as a stack by
-  bootstrap/apply.py as the first-setup init job. The control never creates a
-  table of its own - it refuses to serve when this stack has not run.
+Description: The DynamoDB tables the control stores itself in, one per store, each key -> JSON document, partition key pk.
 
 Parameters:
   TablePrefix:
     Type: String
     Default: emuplane-
-    Description: >-
-      Prefix for every table name. Change it only for a smoke test of this
-      template; the control reads the same value from its own store module.
+    Description: Prefix for every table name; change it only for a smoke test of this template.
 
 Resources:
   AccountsTable:
@@ -152,4 +146,4 @@ Outputs:
     Value: !Ref TablePrefix
   TableCount:
     Description: How many tables this stack owns.
-    Value: "10"
+    Value: "11"
