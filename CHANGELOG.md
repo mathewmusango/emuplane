@@ -8,6 +8,12 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.1.1] - 2026-11-17
+
+### Fixed
+
+- The release image scans its own pip, and fails ([#57](https://github.com/mathewmusango/emuplane/issues/57))
+
 ## [v0.1.0] - 2026-11-17
 
 ### Added
