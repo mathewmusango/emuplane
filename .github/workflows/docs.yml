@@ -23,6 +23,8 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      EP_EMULATOR_SRC: ${{ runner.temp }}/ministack
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,6 +35,9 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: site/package-lock.json
+      - name: Check out the emulator at the tested tag
+        # The coverage page is generated from the emulator's own operation list.
+        run: git clone --quiet --depth 1 --branch v1.5.41 https://github.com/ministackorg/ministack "$EP_EMULATOR_SRC"
       - run: npm ci
       - name: Generated reference pages are current
         run: |
