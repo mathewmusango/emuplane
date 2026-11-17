@@ -236,6 +236,14 @@ def latest_tag() -> str:
     ).stdout.strip()
 
 
+def tags() -> set[str]:
+    """Every release tag this checkout knows."""
+    found = subprocess.run(
+        ["git", "tag", "--list", "v*"], capture_output=True, text=True
+    ).stdout
+    return {line.strip() for line in found.splitlines() if line.strip()}
+
+
 def since_default() -> str:
     """The commit date of the newest tag, or of the first commit when the repo has no tag yet."""
     tag = latest_tag()
