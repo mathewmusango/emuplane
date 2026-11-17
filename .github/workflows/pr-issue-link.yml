@@ -12,7 +12,8 @@ permissions:
 jobs:
   links-an-issue:
     if: >-
-      github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.event.pull_request.user.login != 'renovate[bot]' &&
       !startsWith(github.head_ref, 'release/')
     runs-on: ubuntu-latest
     timeout-minutes: 5
