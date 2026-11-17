@@ -27,5 +27,13 @@ my-docs/
 # Maintainer-only research: both write into my-docs/, which is ignored.
 /scripts/profile-login.sh
 /scripts/upstream_services.py
+# Maintainer-only helpers: they drive this host's stack and this host's build.
+/scripts/build.sh
+/scripts/dev.sh
+/scripts/favicons.sh
+/scripts/password.sh
+/scripts/reset-link.sh
+/scripts/token.sh
+/scripts/up.sh
 # Internal design notes: cells, router, break-glass. Not for a public repo.
 ARCHITECTURE.md
