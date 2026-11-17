@@ -24,8 +24,8 @@ x-shared: &shared
 x-emuplane: &emuplane
   <<: *shared
   EP_BACKEND: "${EP_BACKEND:-ministack}"
-  EP_CONSOLE_URL: "${EP_CONSOLE_URL:?set EP_CONSOLE_URL in .env.all: http://localhost:4570 without a reverse proxy}"
-  EP_GATEWAY_URL: "${EP_GATEWAY_URL:?set EP_GATEWAY_URL in .env.all: http://localhost:4571 without a reverse proxy}"
+  EP_CONSOLE_URL: "${EP_CONSOLE_URL:-http://localhost:4570}"
+  EP_GATEWAY_URL: "${EP_GATEWAY_URL:-http://localhost:4571}"
   EP_POLL_SECONDS: "${EP_POLL_SECONDS:-10}"
   EP_SESSION_SECONDS: "${EP_SESSION_SECONDS:-28800}"
   EP_RECENT_LIMIT: "${EP_RECENT_LIMIT:-5}"
