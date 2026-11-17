@@ -66,6 +66,10 @@ control keeps its own state in.
   command, rather than starting and failing on the first sign-in.
 - Tables that predate the stack are reported, not adopted — CloudFormation cannot
   adopt one. Drop them on a fresh setup and re-run.
+- Its exit status is 0 only when every table is present, which is what `up.sh` waits
+  on. `--drop-tables` deletes the stack and the control tables; `--delete` removes
+  only the stack. `EP_STACK_NAME`, `EP_TABLE_PREFIX` and `MC_TEMPLATE` (the template
+  path) let a smoke run use names of its own.
 
 ## Day to day
 

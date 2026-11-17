@@ -1,22 +1,5 @@
 #!/usr/bin/env python3
-"""First-setup init job: provision the control's own substrate as a stack.
-
-The control stores itself in the emulator it fronts — one DynamoDB table per store. Those
-are **provisioned, not conjured**: this job applies `template.yml` as the stack
-`emuplane`, and `control/store.py` only *verifies* the tables before the
-API serves. A fresh install therefore has an explicit, reviewable definition of
-its own schema instead of the application inventing one at boot.
-
-Idempotent by design: an existing complete stack is left alone, and tables that
-predate the stack are reported rather than adopted (CloudFormation cannot adopt
-a table, and deleting them is a decision for an operator on a fresh setup).
-
-    python bootstrap/apply.py            # inside the image, or from the repo
-    EP_TABLE_PREFIX=smoke- python bootstrap/apply.py   # smoke test of the template
-
-Exit status is 0 only when every table the control needs is present — that is
-what `scripts/up.sh` waits on before starting the console.
-"""
+"""First-setup job: apply `template.yml` as the stack that owns the control's own DynamoDB tables."""
 
 from __future__ import annotations
 
@@ -59,11 +42,7 @@ def endpoint() -> str:
 
 
 def call(action: str, params: dict[str, str]) -> ET.Element:
-    """One CloudFormation query call, signed like the store's DynamoDB calls.
-
-    No boto3 and no secret: a 12-digit access key is an account root to the
-    emulator, so a credential *name* plus `Signature=local` is the whole contract.
-    """
+    """One CloudFormation query call, signed like the store's DynamoDB calls: no boto3, no secret."""
     url = urlsplit(endpoint())
     account = os.environ.get("EP_STORE_ACCOUNT") or "111111111111"
     region = os.environ.get("EP_STORE_REGION") or "us-east-1"
@@ -132,13 +111,7 @@ def wait_for_terminal_state() -> str:
 
 
 def drop_tables() -> int:
-    """Delete the stack (if any) and then every control table.
-
-    The one-off for a fresh start: CloudFormation cannot adopt tables it did not
-    create, so a pre-stack installation is migrated by dropping them and letting
-    the init job build the stack. Destructive by design — it is the only way to
-    return to a first setup with no accounts.
-    """
+    """Delete the stack and every control table: the one-off that returns to a first setup."""
     if status():
         call("DeleteStack", {"StackName": STACK})
         wait_for_terminal_state()
@@ -169,12 +142,7 @@ def stack_params() -> dict[str, str]:
 
 
 def apply_update() -> tuple[bool, str]:
-    """Bring an existing stack to the current template.
-
-    The template grows with the product — a new store is a new table — so a
-    healthy stack is not proof that it is current. `No updates are to be
-    performed` is a success: the stack already matches.
-    """
+    """Bring an existing stack to the current template; `No updates are to be performed` is success."""
     try:
         call("UpdateStack", stack_params())
     except StackError as exc:
