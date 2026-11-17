@@ -5,7 +5,7 @@ module.exports = {
       type: 'category',
       label: 'Getting started',
       collapsed: false,
-      items: ['getting-started/quickstart', 'getting-started/access', 'getting-started/console'],
+      items: ['getting-started/quickstart', 'getting-started/access', 'getting-started/console', 'getting-started/access-keys'],
     },
     {
       type: 'category',
@@ -18,12 +18,6 @@ module.exports = {
       label: 'Guides',
       collapsed: false,
       items: ['guides/s3'],
-    },
-    {
-      type: 'category',
-      label: 'Operations',
-      collapsed: false,
-      items: ['operations/runbook', 'operations/image-and-versions', 'operations/releases'],
     },
     {
       type: 'category',

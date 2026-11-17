@@ -72,10 +72,10 @@ More: [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-start
 | --- | --- |
 | [Quickstart](https://mathewmusango.github.io/emuplane/docs/getting-started/quickstart) | two containers, one sign-in, one bucket |
 | [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-started/access) | the console and the CLI, by URL and by `host:port` |
+| [Access keys](https://mathewmusango.github.io/emuplane/docs/getting-started/access-keys) | minting a key and using it from the CLI |
 | [Architecture](https://mathewmusango.github.io/emuplane/docs/concepts/architecture) | the gateway, the control plane and the emulator |
 | [Accounts, regions and keys](https://mathewmusango.github.io/emuplane/docs/concepts/tenancy) | tenancy, region enablement, credentials |
 | [S3](https://mathewmusango.github.io/emuplane/docs/guides/s3) | the console's S3 pages |
-| [Runbook](https://mathewmusango.github.io/emuplane/docs/operations/runbook) | start, operate, the dev loop |
 | [Control API](https://mathewmusango.github.io/emuplane/docs/reference/control-api) | every console route |
 | [Configuration](https://mathewmusango.github.io/emuplane/docs/reference/configuration) | every `EP_` setting |
 | [Limits](https://mathewmusango.github.io/emuplane/docs/reference/limits) | what this deliberately does not do |
@@ -101,9 +101,6 @@ as its published image: `ministackorg/ministack:1.5.40-full`.
 | [`bootstrap/`](bootstrap) | the CloudFormation template and init job for the control's tables |
 | [`scripts/`](scripts) | the QA gate and the maintainer's helpers |
 | [`docker-compose.yml`](docker-compose.yml) | the container contract |
-
-More: [Runbook](https://mathewmusango.github.io/emuplane/docs/operations/runbook)
-— starting, operating, removing, and the dev loop.
 
 ## References
 
