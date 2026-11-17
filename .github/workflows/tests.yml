@@ -26,13 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      EP_EMULATOR_SRC: ${{ runner.temp }}/ministack
       EMULATOR_TAG: v1.5.40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Where the emulator source goes
+        run: echo "EP_EMULATOR_SRC=$RUNNER_TEMP/ministack" >> "$GITHUB_ENV"
       - name: Check out the emulator at the tested tag
         run: git clone --quiet --depth 1 --branch "$EMULATOR_TAG" https://github.com/ministackorg/ministack "$EP_EMULATOR_SRC"
       - name: Install pytest and the emulator's dependencies
