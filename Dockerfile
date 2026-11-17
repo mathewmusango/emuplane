@@ -13,7 +13,7 @@ COPY web/ ./
 RUN --mount=type=cache,target=/src/node_modules/.vite,sharing=locked \
     npm run build
 
-FROM docker.io/library/python:3.13-alpine@sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8
+FROM docker.io/library/python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e
 
 LABEL org.opencontainers.image.title="emuplane" \
       org.opencontainers.image.description="Emuplane console, control API and AWS gateway" \
