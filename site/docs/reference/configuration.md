@@ -22,7 +22,6 @@ That split is the porting contract:
 | --- | --- | --- |
 | `EP_BACKEND` | `generic` | backend profile: `generic`, `ministack`, `floci`, `localstack`, `moto`; only `ministack` is tested |
 | `EP_BACKEND_URL` | required | the emulator endpoint the control talks to |
-| `EP_BACKEND_NAME` | empty | label shown for the backend; empty means the profile name, else the URL's host |
 | `EP_CONSOLE_URL` | required | the address a browser uses; without a reverse proxy that is `http://localhost:4570` |
 | `EP_GATEWAY_URL` | required | the address clients sign against; without a reverse proxy that is `http://localhost:4571` |
 | `EP_PORT` | `4570` | console and control API port, the same inside the container and on the host |

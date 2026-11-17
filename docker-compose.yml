@@ -4,10 +4,8 @@ name: emuplane
 x-runtime: &runtime
   TZ: "${TZ:-Africa/Nairobi}"
   # The backend profile (control/backends.py) and its connection string.
-  EP_BACKEND: "${EP_BACKEND:-generic}"
+  EP_BACKEND: "${EP_BACKEND:-ministack}"
   EP_BACKEND_URL: "${EP_BACKEND_URL:?set EP_BACKEND_URL in .env to the backend's endpoint}"
-  # Empty means "use the profile's name, else the URL's host".
-  EP_BACKEND_NAME: "${EP_BACKEND_NAME:-}"
   EP_CONSOLE_URL: "${EP_CONSOLE_URL:?set EP_CONSOLE_URL in .env: http://localhost:4570 without a reverse proxy}"
   EP_GATEWAY_URL: "${EP_GATEWAY_URL:?set EP_GATEWAY_URL in .env: http://localhost:4571 without a reverse proxy}"
   EP_PORT: "${EP_PORT:-4570}"

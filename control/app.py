@@ -81,12 +81,7 @@ def safe_content_type(value: str) -> str:
 # The endpoint this control fronts; anything answering the same APIs works, and the label comes from the URL.
 NODE_URL = os.environ.get("EP_BACKEND_URL", "").strip().rstrip("/")
 BACKEND = profile(os.environ.get("EP_BACKEND"))
-NODE_NAME = (
-    os.environ.get("EP_BACKEND_NAME", "").strip()
-    or BACKEND.title
-    or (urlsplit(NODE_URL).hostname or "").strip()
-    or "node"
-)
+NODE_NAME = BACKEND.title or (urlsplit(NODE_URL).hostname or "").strip() or "node"
 POLL_SECONDS = int(os.environ.get("EP_POLL_SECONDS", "10"))
 
 API_VERSION = "v1"
