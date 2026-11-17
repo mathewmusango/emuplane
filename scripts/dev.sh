@@ -17,7 +17,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-port=$(sed -n 's/^EP_UI_PORT=//p' .env 2>/dev/null)
+port=$(sed -n 's/^EP_PORT=//p' .env 2>/dev/null)
 port=${port:-4570}
 
 web() {

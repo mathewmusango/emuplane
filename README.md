@@ -51,8 +51,8 @@ needs the control API.
 
 | What | On the host | In the compose network | Behind a proxy |
 | --- | --- | --- | --- |
-| Console and control API | `http://localhost:4570/` | `http://emuplane:8080` | `EP_CONSOLE_URL` |
-| AWS gateway | `http://localhost:4571` | `http://emuplane:8081` | `EP_GATEWAY_URL` |
+| Console and control API | `http://localhost:4570/` | `http://emuplane:4570` | `EP_CONSOLE_URL` |
+| AWS gateway | `http://localhost:4571` | `http://emuplane:4571` | `EP_GATEWAY_URL` |
 
 ```bash
 export AWS_ENDPOINT_URL=http://localhost:4571

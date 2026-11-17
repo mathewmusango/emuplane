@@ -118,9 +118,9 @@ echo "applying the control stack (bootstrap/apply.py)"
 
 "${compose[@]}" up -d --force-recreate
 
-ui_port=$(sed -n 's/^EP_UI_PORT=//p' .env)
+ui_port=$(sed -n 's/^EP_PORT=//p' .env)
 ui_port=${ui_port:-4570}
-gateway_port=$(sed -n 's/^EP_PUBLISHED_GATEWAY_PORT=//p' .env)
+gateway_port=$(sed -n 's/^EP_GATEWAY_PORT=//p' .env)
 gateway_port=${gateway_port:-4571}
 
 for _ in $(seq 1 60); do

@@ -8,13 +8,13 @@ browser, and the **gateway** answers anything that signs a request.
 
 | What | On the host | Inside the compose network | Behind a proxy |
 | --- | --- | --- | --- |
-| Console and control API | `http://localhost:4570/` | `http://emuplane:8080` | `EP_CONSOLE_URL` |
-| AWS gateway | `http://localhost:4571` | `http://emuplane:8081` | `EP_GATEWAY_URL` |
+| Console and control API | `http://localhost:4570/` | `http://emuplane:4570` | `EP_CONSOLE_URL` |
+| AWS gateway | `http://localhost:4571` | `http://emuplane:4571` | `EP_GATEWAY_URL` |
 
 The host side publishes **only on loopback** (`127.0.0.1`), so `localhost:4570` is
 the address on the machine running compose. From another machine, use the proxy
-address or publish the port yourself. The container side listens on `EP_PORT`
-(`8080`) and `EP_GATEWAY_PORT` (`8081`); the host ports are `4570` and `4571`.
+address or publish the port yourself. One port each: the container listens on
+`EP_PORT` (`4570`) and `EP_GATEWAY_PORT` (`4571`), and publishes the same numbers.
 
 The backend — the emulator itself — is **never published**. The control reaches it
 over the compose network at `EP_BACKEND_URL`, which is why no AWS client ever needs

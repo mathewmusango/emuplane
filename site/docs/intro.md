@@ -11,8 +11,8 @@ implied.
 
 ```mermaid
 flowchart LR
-  cli["Your tools<br/>aws-cli, terraform, SDKs"] -->|SigV4| gw["Gateway<br/>:8081"]
-  browser["Your browser"] -->|session cookie| ui["Console + control API<br/>:8080"]
+  cli["Your tools<br/>aws-cli, terraform, SDKs"] -->|SigV4| gw["Gateway<br/>:4571"]
+  browser["Your browser"] -->|session cookie| ui["Console + control API<br/>:4570"]
   ui -->|signed calls| gw
   gw -->|forwarded request| emu["Emulator<br/>MiniStack, LocalStack,<br/>moto, …"]
   ui -->|its own state| emu

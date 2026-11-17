@@ -10,8 +10,8 @@ x-runtime: &runtime
   EP_BACKEND_NAME: "${EP_BACKEND_NAME:-}"
   EP_CONSOLE_URL: "${EP_CONSOLE_URL:?set EP_CONSOLE_URL in .env: http://localhost:4570 without a reverse proxy}"
   EP_GATEWAY_URL: "${EP_GATEWAY_URL:?set EP_GATEWAY_URL in .env: http://localhost:4571 without a reverse proxy}"
-  EP_PORT: "${EP_PORT:-8080}"
-  EP_GATEWAY_PORT: "${EP_GATEWAY_PORT:-8081}"
+  EP_PORT: "${EP_PORT:-4570}"
+  EP_GATEWAY_PORT: "${EP_GATEWAY_PORT:-4571}"
   EP_POLL_SECONDS: "${EP_POLL_SECONDS:-10}"
   EP_SESSION_SECONDS: "${EP_SESSION_SECONDS:-28800}"
   EP_RECENT_LIMIT: "${EP_RECENT_LIMIT:-5}"
@@ -35,7 +35,6 @@ services:
     restart: "no"
     environment:
       <<: *runtime
-    # No volume: the job ships in the image, so a deployment needs no checkout.
     read_only: true
     tmpfs:
       - /tmp
@@ -53,9 +52,8 @@ services:
     environment:
       <<: *runtime
     ports:
-      - "127.0.0.1:${EP_UI_PORT:-4570}:${EP_PORT:-8080}"
-      - "127.0.0.1:${EP_PUBLISHED_GATEWAY_PORT:-4571}:${EP_GATEWAY_PORT:-8081}"
-    # No volumes: the console is stateless and all state is the backend's DynamoDB.
+      - "127.0.0.1:${EP_PORT:-4570}:${EP_PORT:-4570}"
+      - "127.0.0.1:${EP_GATEWAY_PORT:-4571}:${EP_GATEWAY_PORT:-4571}"
     init: true
     read_only: true
     tmpfs:
@@ -67,7 +65,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)"
+        - python3 -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('EP_PORT', '4570'), timeout=5)"
       interval: 10s
       timeout: 5s
       retries: 5

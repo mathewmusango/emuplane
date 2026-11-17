@@ -1,6 +1,3 @@
-# Emuplane: the console, the control API and the Emulator gateway in one image.
-#   podman build -t localhost/emuplane:dev .
-
 # Base images are pinned by index digest; `renovate.json` moves them.
 FROM docker.io/library/node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS web
 
@@ -15,7 +12,6 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked \
 COPY web/ ./
 RUN --mount=type=cache,target=/src/node_modules/.vite,sharing=locked \
     npm run build
-
 
 FROM docker.io/library/python:3.13-alpine@sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8
 
@@ -44,7 +40,7 @@ COPY --chown=10001:10001 control/app.py control/accesspoints.py control/buckets.
 COPY --chown=10001:10001 bootstrap /app/bootstrap
 
 # The control API, and the AWS gateway that fronts the emulator.
-EXPOSE 8080 8081
+EXPOSE 4570 4571
 
 # Declared in docker-compose.yml, because podman's OCI format ignores HEALTHCHECK.
 USER 10001:10001

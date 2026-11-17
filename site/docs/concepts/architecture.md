@@ -15,8 +15,8 @@ flowchart TB
   end
 
   subgraph ep["Emuplane (one image, one container)"]
-    gw["Gateway :8081<br/>access key → account<br/>region enabled?<br/>forward"]
-    ctl["Control :8080<br/>console pages<br/>control API<br/>sessions"]
+    gw["Gateway :4571<br/>access key → account<br/>region enabled?<br/>forward"]
+    ctl["Control :4570<br/>console pages<br/>control API<br/>sessions"]
   end
 
   subgraph backend["Emulator"]
