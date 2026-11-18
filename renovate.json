@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "enabledManagers": ["dockerfile"],
+  "enabledManagers": ["dockerfile", "pip_requirements"],
   "pinDigests": true,
-  "description": "Dockerfile base-image digests only. Dependabot owns github-actions and web/ npm; the compose emulator tag moves by hand with the S3 coverage ledger."
+  "description": "Dockerfile base-image digests and the one runtime pin. Dependabot owns github-actions and web/ npm; the compose emulator tag moves by hand with the S3 coverage ledger."
 }

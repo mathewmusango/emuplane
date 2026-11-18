@@ -1,0 +1,2 @@
+# The one runtime dependency: the parsers that read the emulator's and CloudFormation's XML refuse a DTD rather than expand it.
+defusedxml==0.7.1
