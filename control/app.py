@@ -1597,7 +1597,29 @@ def proxy(
         conn.close()
 
 
-class GatewayHandler(BaseHTTPRequestHandler):
+# A header value that carries a line break would split the response.
+HEADER_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def looks_like_email(value: str) -> bool:
+    """One `@`, a local part, and at least two non-empty labels; no pattern to backtrack through."""
+    if not value or len(value) > 254 or value.count("@") != 1:
+        return False
+    if any(character.isspace() for character in value):
+        return False
+    local, _, domain = value.partition("@")
+    labels = domain.split(".")
+    return bool(local) and len(labels) >= 2 and all(labels)
+
+
+class SafeHeaders:
+    """One choke point for response headers: no control character reaches the socket."""
+
+    def send_header(self, keyword: str, value: str) -> None:
+        super().send_header(keyword, HEADER_CONTROL.sub("", str(value)))
+
+
+class GatewayHandler(SafeHeaders, BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt: str, *args) -> None:
@@ -2546,7 +2568,7 @@ def identity(account: str, region: str) -> dict:
     return {"arn": xml_value(body, "Arn"), "account": xml_value(body, "Account")}
 
 
-class ControlHandler(BaseHTTPRequestHandler):
+class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt: str, *args) -> None:
@@ -4114,7 +4136,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
         if email is not None:
             email = str(email).strip()
-            if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            if email and not looks_like_email(email):
                 return self._json(
                     400, {"error": "that email address does not look right"}
                 )
@@ -5263,7 +5285,7 @@ class ControlHandler(BaseHTTPRequestHandler):
                         "digits, dot, dash or underscore"
                     },
                 )
-            if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            if email and not looks_like_email(email):
                 return self._json(400, {"error": "that email address does not look right"})
             if email and USERS.all_by_email(email):
                 return self._json(
