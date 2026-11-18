@@ -17,6 +17,10 @@ emulator, and where each of those rules lives.
 - **Account root keys are accepted with any secret, by design.** A 12-digit
   access key is that account's root; only issued `AKIA…` keys are verified by IAM.
   The control's own tokens authenticate the console, not AWS.
+- **An anonymous `ListBuckets` is refused.** The gateway answers `403 AccessDenied`
+  when no access key resolves: `ListBuckets` is account-scoped, so the emulator's
+  anonymous gate — which is bucket-scoped — never sees it, and would answer with
+  the default principal's list.
 - **Anything the gateway enforces, it enforces only there** — tenancy, region
   enablement and MFA delete are not enforced for a client that reaches the
   emulator directly. The shipped composition publishes no emulator port for that

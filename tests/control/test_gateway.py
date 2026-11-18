@@ -88,3 +88,17 @@ def test_an_unknown_access_key_does_not_become_an_account(control, gateway):
     status, _headers, _body = s3(gateway, "PUT", "/gw-unknown-key", account=key)
     claim = control.REGISTRY.buckets.get("gw-unknown-key") or {}
     assert claim.get("account_id") != key
+
+
+def test_an_unsigned_listing_of_every_bucket_is_refused(gateway):
+    """ListBuckets is account-scoped: without an access key there is no account to list for."""
+    status, _headers, body = s3(gateway, "GET", "/", headers={"Authorization": ""})
+    assert status == 403, body
+    assert b"AccessDenied" in body
+    assert b"ListAllMyBucketsResult" not in body
+
+
+def test_a_signed_listing_of_every_bucket_still_answers(gateway):
+    status, _headers, body = s3(gateway, "GET", "/")
+    assert status == 200, body
+    assert b"ListAllMyBucketsResult" in body
