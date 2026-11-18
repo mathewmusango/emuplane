@@ -65,3 +65,7 @@ enabled on first use or from the console.
 So `AWS_ACCESS_KEY_ID=<account id>` with `AWS_SECRET_ACCESS_KEY=x` works, by design,
 and is what lets the control act as the account owner. For a client you actually
 care about, issue an `AKIA…` key and keep the 12-digit form out of your scripts.
+
+A request with **no** key at all is anonymous: an object read succeeds only where
+the bucket's own policy allows it, and `ListBuckets` is refused with `403
+AccessDenied` — see [Limits](../reference/limits.md#the-gateway).
