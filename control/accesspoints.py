@@ -50,8 +50,12 @@ def _local(element) -> str:
 
 
 def _root(xml: str):
+    """The document, or None — an entity declaration is the whole of the attack, and no answer carries a DTD."""
+    text = xml or ""
+    if "<!DOCTYPE" in text or "<!ENTITY" in text:
+        return None
     try:
-        return ElementTree.fromstring(xml or "")
+        return ElementTree.fromstring(text)
     except ElementTree.ParseError:
         return None
 

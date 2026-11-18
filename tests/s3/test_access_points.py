@@ -235,3 +235,27 @@ def test_an_unknown_section_is_refused(s3_endpoint):
     refused = accesspoints.listing("directory", "us-east-1", _client(s3_endpoint))
     assert refused["ok"] is False
     assert "unknown access point section" in refused["error"]
+
+
+def test_a_document_that_declares_entities_is_refused_before_expansion():
+    """CodeQL's XML bomb: the DTD is refused, and the console hears the document is not XML."""
+    # Expat expands this one happily, so the refusal is the guard's and not the runtime's.
+    small = '<!DOCTYPE x [<!ENTITY a "aaa">]><x>&a;</x>'
+    assert accesspoints._root(small) is None
+    assert accesspoints._configuration_problem(small) == "the configuration is not XML"
+
+    bomb = (
+        '<?xml version="1.0"?>'
+        '<!DOCTYPE lolz [<!ENTITY lol "lol">'
+        '<!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;">]>'
+        "<lolz>&lol1;</lolz>"
+    )
+    assert accesspoints._root(bomb) is None
+    assert accesspoints._configuration_problem(bomb) == "the configuration is not XML"
+
+    plain = (
+        "<Configuration><SupportingAccessPoint>arn:aws:s3:us-east-1:1:accesspoint/ap"
+        "</SupportingAccessPoint><FunctionArn>arn:aws:lambda:us-east-1:1:function:f"
+        "</FunctionArn><Actions><Action>GetObject</Action></Actions></Configuration>"
+    )
+    assert accesspoints._configuration_problem(plain) == ""
