@@ -1,0 +1,40 @@
+{
+  "service": "IAM",
+  "title": "IAM coverage",
+  "page": "site/docs/reference/iam-coverage.md",
+  "group": "Core",
+  "console_service": "iam",
+  "intro": [
+    "Users, roles, policies, keys and identity providers. The console drives five",
+    "identity actions and reads access keys on the Settings page; everything else is",
+    "reachable over the wire and through the IAM API explorer.",
+    "",
+    "The identity policies are enforced, not decoration: `tests/control/test_iam_policies.py`",
+    "runs a matrix of users with different policies against a live lab (it skips",
+    "without one, because the in-process emulator runs with `AUTH` off)."
+  ],
+  "action_operations": {
+    "list-users": ["ListUsers"],
+    "create-user": ["CreateUser"],
+    "delete-user": ["DeleteUser"],
+    "create-access-key": ["CreateAccessKey"],
+    "attach-user-policy": ["AttachUserPolicy"]
+  },
+  "gui": {
+    "ListAccessKeys": "Settings page › Access keys",
+    "CreateAccessKey": "Settings page › Access keys › Create access key",
+    "ListUsers": "IAM page › API explorer",
+    "CreateUser": "IAM page › API explorer, sign-up",
+    "DeleteUser": "IAM page › API explorer",
+    "AttachUserPolicy": "IAM page › API explorer"
+  },
+  "covered": {
+    "CreateUser": "tests/control/test_iam_policies.py (lab matrix), tests/control/test_signup_naming.py",
+    "CreateAccessKey": "tests/control/test_iam_policies.py (lab matrix)",
+    "UpdateAccessKey": "tests/control/test_iam_policies.py (inactive key)",
+    "PutUserPolicy": "tests/control/test_iam_policies.py (lab matrix)",
+    "CreateGroup": "tests/control/test_iam_policies.py (group policy)",
+    "PutGroupPolicy": "tests/control/test_iam_policies.py (group policy)",
+    "AddUserToGroup": "tests/control/test_iam_policies.py (group policy)"
+  }
+}

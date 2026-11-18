@@ -1,0 +1,19 @@
+{
+  "service": "S3 Files",
+  "title": "S3 Files coverage",
+  "page": "site/docs/reference/s3-files-coverage.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "A separate API, not a bucket subresource: file systems, mount targets, access",
+    "points, policies and the synchronization configuration. The console reads one",
+    "thing from it — `ListFileSystems`, on the Files page and the bucket's *File",
+    "systems* tab — and offers no action of its own yet."
+  ],
+  "gui": {
+    "ListFileSystems": "Files page › table, bucket page › File systems"
+  },
+  "covered": {
+    "ListFileSystems": "tests/s3/test_children.py (listing parsed)"
+  }
+}

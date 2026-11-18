@@ -84,9 +84,9 @@ npm run coverage   # regenerates every service's coverage page
 | `GetBucketTagging` | Bucket page (Properties) | Bucket page › Properties | tests/s3/test_create.py, tests/control/test_api.py |
 | `PutBucketTagging` | Bucket page (Properties, Edit), Create page (tags) | Create bucket page › Tags, Bucket page › Properties › Tags › Edit | tests/s3/test_create.py, tests/s3/test_objects.py, tests/control/test_api.py, tests/web/s3.test.jsx |
 | `DeleteBucketTagging` | Bucket page (Properties, Remove tags) | Bucket page › Properties › Tags › Remove tags | tests/s3/test_objects.py, tests/control/test_api.py, tests/web/s3.test.jsx |
-| `GetBucketPolicy` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py (documents), tests/control/test_api.py |
-| `PutBucketPolicy` | Bucket page (Configuration documents, Edit) | Bucket page › Configuration documents › Edit | tests/s3/test_objects.py (policy round trip), tests/control/test_api.py, tests/web/s3.test.jsx |
-| `DeleteBucketPolicy` | Bucket page (Configuration documents, Remove) | Bucket page › Configuration documents › Remove | tests/s3/test_objects.py (policy round trip), tests/control/test_api.py |
+| `GetBucketPolicy` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py (documents), tests/control/test_api.py, tests/control/test_bucket_policies.py (two-account matrix) |
+| `PutBucketPolicy` | Bucket page (Configuration documents, Edit) | Bucket page › Configuration documents › Edit | tests/s3/test_objects.py (policy round trip), tests/control/test_api.py, tests/web/s3.test.jsx, tests/control/test_bucket_policies.py (two-account matrix) |
+| `DeleteBucketPolicy` | Bucket page (Configuration documents, Remove) | Bucket page › Configuration documents › Remove | tests/s3/test_objects.py (policy round trip), tests/control/test_api.py, tests/control/test_bucket_policies.py (two-account matrix) |
 | `GetBucketNotificationConfiguration` | Bucket page (Properties) | Bucket page › Properties › Event notifications | tests/s3/test_objects.py (documents) |
 | `PutBucketNotificationConfiguration` | Bucket page (Properties, Edit) | Bucket page › Properties › Event notifications › Edit | tests/s3/test_operations.py (EventBridge rule) |
 | `GetBucketLogging` | Bucket page (Properties) | Bucket page › Properties › Server access logging | tests/s3/test_objects.py (documents) |

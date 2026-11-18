@@ -1,0 +1,13 @@
+{
+  "service": "Account",
+  "title": "Account coverage",
+  "page": "site/docs/reference/account-coverage.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "The account-information API: who the account is, its contact details, and the",
+    "regions it can use. The console shows the account and its regions from its own",
+    "records — it reads none of these operations — so nothing here has a console",
+    "action or an emuplane test yet."
+  ]
+}
