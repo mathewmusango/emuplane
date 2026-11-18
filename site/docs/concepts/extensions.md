@@ -15,6 +15,7 @@ knows nothing about it, so the rule is Emuplane's to keep and to document.
 | --- | --- | --- |
 | Accounts, users, sessions | control | sign-in, and the `emuplane-accounts` / `-users` / `-sessions` tables |
 | Access key → account | gateway | an issued `AKIA…` key resolves through IAM; a 12-digit key *is* the account |
+| Anonymous requests | gateway | `ListBuckets` with no resolvable key is `403 AccessDenied`, not the emulator's default-principal list |
 | Tenancy isolation | control API | a session cannot read or act on another account's resources |
 | Region opt-in | gateway | a region the account has not enabled is `403 AccessDenied` before the emulator is asked |
 | Bucket-name uniqueness | gateway | one `409 BucketAlreadyExists`, whichever account or region asks |
