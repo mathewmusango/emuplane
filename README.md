@@ -1,31 +1,38 @@
-<h1 align="center">Emuplane</h1>
+<h1 align="center">
+  <img src="web/public/emuplane.png" alt="" width="44" height="44" align="middle">
+  Emuplane
+</h1>
 <p align="center"><strong>The control plane, console and gateway for AWS-compatible emulators.</strong></p>
 
 <p align="center">
   <a href="https://mathewmusango.github.io/emuplane/"><img src="https://img.shields.io/badge/docs-emuplane-blue" alt="Documentation"></a>
-  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/release.yml"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/release.yml/badge.svg" alt="Release"></a>
-  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml/badge.svg" alt="Semgrep"></a>
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
   <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python">
   <a href="https://github.com/mathewmusango/emuplane/pkgs/container/emuplane"><img src="https://img.shields.io/badge/ghcr.io-emuplane-blue?logo=github" alt="ghcr.io"></a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/checks.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/checks.yml?label=Checks" alt="Checks"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/tests.yml?label=Tests" alt="Tests"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/docs.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/docs.yml?label=Docs" alt="Docs"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/security.yml?label=Security" alt="Security"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/codeql.yml?label=CodeQL" alt="CodeQL"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/semgrep.yml?label=Semgrep" alt="Semgrep"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/dependabot/dependabot-updates"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/dependabot/dependabot-updates/badge.svg" alt="Dependabot Updates"></a>
+  <a href="https://developer.mend.io/github/mathewmusango/emuplane"><img src="https://img.shields.io/badge/renovate-enabled-blue?logo=renovatebot" alt="Renovate"></a>
+</p>
+
 ---
 
 Emuplane is not an emulator, and not a replacement for AWS. It is what you put in
-front of one — [MiniStack](https://github.com/ministackorg/ministack),
-[LocalStack](https://github.com/localstack/localstack), [Floci](https://github.com/floci-io/floci) or
-[moto](https://github.com/getmoto/moto).
+front of an emulator like [MiniStack](https://github.com/ministackorg/ministack).
 
-It is what makes an emulator usable by more than one person: it holds the
-accounts and the logins inside them, issues the access keys clients sign with,
-serves the console and control API, and is the endpoint Terraform and the AWS
-CLI point at. Those accounts, logins and access keys are rows in the **emulator's
-DynamoDB**, in tables a CloudFormation stack creates on the first deployment —
-never files on the host.
+The console and the control API are the front door; accounts, logins and access
+keys live in the emulator's DynamoDB, never on the host.
 
-Currently tested on MiniStack only; the others are profiles, not verified
-targets.
+> [!NOTE]
+> MiniStack is the only emulator this is tested against. Another one that speaks the
+> same protocol points at the same `EP_BACKEND_URL`, but nothing else is verified.
 
 ```bash
 cp .env.example .env        # set EP_BACKEND_URL to the backend's endpoint
@@ -37,7 +44,8 @@ The image is `ghcr.io/mathewmusango/emuplane`, published per release:
 compose file names the pinned tag it runs.
 
 Or bring the emulator along: `docker-compose.all.yml` with `.env.all.example`
-runs MiniStack, the first-setup job and the control as one stack.
+runs MiniStack (`ministackorg/ministack:1.5.40-full`), the first-setup job and the
+control as one stack.
 
 `bootstrap` runs first and applies the CloudFormation stack that owns the control's
 DynamoDB tables; the console then answers on `http://localhost:4570`.
@@ -45,9 +53,16 @@ DynamoDB tables; the console then answers on `http://localhost:4570`.
 More: [Quickstart](https://mathewmusango.github.io/emuplane/docs/getting-started/quickstart)
 — the emulator first, then the first account and the first bucket.
 
-Nothing is seeded: create the first account at `/signup`. The API bearer token is
-optional: mint one with `python /app/api_token.py` inside the container when
-something other than the console needs the control API.
+Nothing is seeded: create the first account at `/signup`.
+
+## The console
+
+Sign in, then every service this instance backs is one page away.
+
+<p align="center">
+  <img src="site/static/img/sign-in.png" alt="The sign-in screen" width="300">
+  <img src="site/static/img/services.png" alt="All services, after sign-in" width="620">
+</p>
 
 ## Accessing it
 
@@ -75,25 +90,12 @@ More: [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-start
 | Page | What it covers |
 | --- | --- |
 | [Quickstart](https://mathewmusango.github.io/emuplane/docs/getting-started/quickstart) | two containers, one sign-in, one bucket |
-| [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-started/access) | the console and the CLI, by URL and by `host:port` |
+| [The console](https://mathewmusango.github.io/emuplane/docs/getting-started/console) | the frame, the service pages, and what each one can read |
 | [Access keys](https://mathewmusango.github.io/emuplane/docs/getting-started/access-keys) | minting a key and using it from the CLI |
 | [Architecture](https://mathewmusango.github.io/emuplane/docs/concepts/architecture) | the gateway, the control plane and the emulator |
-| [Accounts, regions and keys](https://mathewmusango.github.io/emuplane/docs/concepts/tenancy) | tenancy, region enablement, credentials |
 | [S3](https://mathewmusango.github.io/emuplane/docs/guides/s3) | the console's S3 pages |
 | [Control API](https://mathewmusango.github.io/emuplane/docs/reference/control-api) | every console route |
 | [Configuration](https://mathewmusango.github.io/emuplane/docs/reference/configuration) | every `EP_` setting |
-| [Limits](https://mathewmusango.github.io/emuplane/docs/reference/limits) | what this deliberately does not do |
-| [S3 coverage](https://mathewmusango.github.io/emuplane/docs/reference/s3-coverage) | every operation, and whether the console shows it |
-
-## The emulator is a separate project
-
-A backend is a **profile** in [`control/backends.py`](control/backends.py): a display
-name, a default port and the quirks worth knowing. `EP_BACKEND` selects it and
-`EP_BACKEND_URL` is the connection string, so changing backend is a `.env` change,
-not a copy of this repository.
-
-The reference backend is [MiniStack](https://github.com/ministackorg/ministack), run
-as its published image: `ministackorg/ministack:1.5.41-full`.
 
 ## Layout
 
