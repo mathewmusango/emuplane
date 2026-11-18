@@ -48,6 +48,13 @@ def test_a_plan_without_issues_is_a_problem(spec):
     assert any("no issues" in problem for problem in issues.problems(spec))
 
 
+def test_the_project_flag_does_not_become_a_plan_name():
+    names, flags, values = issues.parse(["s3", "--project", "11", "--check"])
+    assert names == ["s3"]
+    assert "--check" in flags
+    assert values["project"] == "11"
+
+
 def test_the_pull_request_closes_every_issue(spec, tmp_path, capsys):
     cache = tmp_path / "issues.json"
     cache.write_text(

@@ -8,6 +8,7 @@ gates and the release notes all read from one place.
     python3 scripts/issues.py                 # every plan, dry run
     python3 scripts/issues.py s3 --check      # validate the labels and bodies
     python3 scripts/issues.py s3 --apply      # create them (needs an authenticated gh)
+    python3 scripts/issues.py s3 --project 11 # add them to a board, Module set
     python3 scripts/issues.py s3 --pr         # the pull request body that closes them
 """
 
@@ -23,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 GITHUB = ROOT / ".github"
 PLANS = GITHUB / "issues"
 CACHE = ROOT / "my-docs" / "issues.json"
+MODULE_FIELD = "Module"
 
 
 def plan_names() -> list[str]:
@@ -127,6 +129,116 @@ def apply(name: str, spec: dict, cache: Path = CACHE) -> int:
     return 0
 
 
+def parse(argv: list[str]) -> tuple[list[str], set[str], dict[str, str]]:
+    """Plan names, flags, and the one flag that takes a value."""
+    names: list[str] = []
+    flags: set[str] = set()
+    values: dict[str, str] = {}
+    index = 0
+    while index < len(argv):
+        arg = argv[index]
+        if arg == "--project":
+            values["project"] = argv[index + 1] if index + 1 < len(argv) else ""
+            index += 2
+            continue
+        if arg.startswith("-"):
+            flags.add(arg)
+        else:
+            names.append(arg)
+        index += 1
+    return names, flags, values
+
+
+def gh(*args: str) -> str:
+    """One `gh` call, with its refusal surfaced instead of being swallowed."""
+    result = subprocess.run(["gh", *args], cwd=ROOT, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f"issues: gh {args[0]} failed: {result.stderr.strip()}")
+    return result.stdout
+
+
+def repository() -> str:
+    """`owner/name`, so nothing hard-codes an owner."""
+    return json.loads(gh("repo", "view", "--json", "nameWithOwner"))["nameWithOwner"]
+
+
+def module_names() -> list[str]:
+    modules = json.loads((GITHUB / "modules.json").read_text(encoding="utf-8"))
+    return [module["name"] for module in modules["modules"]]
+
+
+def board(number: str, owner: str) -> tuple[str, str, dict[str, str]]:
+    """The project id, the Module field id, and its option ids by module name.
+
+    The field is created from `modules.json` when the board has none, so the board
+    and the labels cannot disagree about which modules exist.
+    """
+    project = json.loads(gh("project", "view", number, "--owner", owner, "--format", "json"))
+
+    def fields() -> list[dict]:
+        listed = gh("project", "field-list", number, "--owner", owner, "--format", "json")
+        return json.loads(listed)["fields"]
+
+    field = next((row for row in fields() if row["name"] == MODULE_FIELD), None)
+    if field is None:
+        gh(
+            "project",
+            "field-create",
+            number,
+            "--owner",
+            owner,
+            "--name",
+            MODULE_FIELD,
+            "--data-type",
+            "SINGLE_SELECT",
+            "--single-select-options",
+            ",".join(module_names()),
+        )
+        field = next((row for row in fields() if row["name"] == MODULE_FIELD), None)
+    options = {option["name"]: option["id"] for option in field.get("options") or []}
+    return project["id"], field["id"], options
+
+
+def add_to_board(name: str, spec: dict, number: str, cache: Path = CACHE) -> int:
+    """Add every issue to the board and set its Module, which is the board's own axis."""
+    found = read_cache(cache)
+    missing = [
+        f"{name}:{issue['key']}"
+        for issue in spec["issues"]
+        if f"{name}:{issue['key']}" not in found
+    ]
+    if missing:
+        print(
+            "issues: run --apply first, these have no number: " + ", ".join(missing),
+            file=sys.stderr,
+        )
+        return 1
+    repo = repository()
+    owner = repo.split("/")[0]
+    project_id, field_id, options = board(number, owner)
+    for issue in spec["issues"]:
+        url = f"https://github.com/{repo}/issues/{found[f'{name}:{issue['key']}']}"
+        item = json.loads(
+            gh("project", "item-add", number, "--owner", owner, "--url", url, "--format", "json")
+        )
+        option = options.get(issue["module"])
+        if option:
+            gh(
+                "project",
+                "item-edit",
+                "--project-id",
+                project_id,
+                "--id",
+                item["id"],
+                "--field-id",
+                field_id,
+                "--single-select-option-id",
+                option,
+            )
+        print(f"{url} -> {issue['module']}")
+    return 0
+
+
 def pull_request(name: str, spec: dict, cache: Path = CACHE) -> int:
     found = read_cache(cache)
     slots = [f"{name}:{issue['key']}" for issue in spec["issues"]]
@@ -176,7 +288,7 @@ def pull_request(name: str, spec: dict, cache: Path = CACHE) -> int:
 
 
 def main(argv: list[str]) -> int:
-    names = [arg for arg in argv if not arg.startswith("-")]
+    names, flags, values = parse(argv)
     targets = names or plan_names()
     failed = 0
     for name in targets:
@@ -184,16 +296,20 @@ def main(argv: list[str]) -> int:
         found = problems(spec)
         for problem in found:
             print(f"{name}: {problem}", file=sys.stderr)
-        if "--apply" in argv:
+        if "--apply" in flags:
             if found:
                 return 1
             failed |= apply(name, spec)
-        elif "--pr" in argv:
+        elif "project" in values:
+            if found:
+                return 1
+            failed |= add_to_board(name, spec, values["project"])
+        elif "--pr" in flags:
             if found:
                 return 1
             failed |= pull_request(name, spec)
         else:
-            if "--check" in argv and found:
+            if "--check" in flags and found:
                 failed = 1
             print(render(name, spec))
     return failed
