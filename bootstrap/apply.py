@@ -7,10 +7,13 @@ import http.client
 import os
 import sys
 import time
-import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
+from xml.etree.ElementTree import Element, ParseError
+
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 HERE = Path(__file__).resolve().parent
 
@@ -41,7 +44,7 @@ def endpoint() -> str:
     ).rstrip("/")
 
 
-def call(action: str, params: dict[str, str]) -> ET.Element:
+def call(action: str, params: dict[str, str]) -> Element:
     """One CloudFormation query call, signed like the store's DynamoDB calls: no boto3, no secret."""
     url = urlsplit(endpoint())
     account = os.environ.get("EP_STORE_ACCOUNT") or "111111111111"
@@ -67,9 +70,9 @@ def call(action: str, params: dict[str, str]) -> ET.Element:
         conn.close()
 
     try:
-        root = ET.fromstring(text)
-    except ET.ParseError:
-        root = ET.Element("Unparseable")
+        root = ElementTree.fromstring(text, forbid_dtd=True)
+    except (ParseError, DefusedXmlException):
+        root = Element("Unparseable")
     if response.status >= 400:
         code = text_of(root, "Code") or f"HTTP {response.status}"
         message = text_of(root, "Message") or text.strip()[:200]
@@ -77,7 +80,7 @@ def call(action: str, params: dict[str, str]) -> ET.Element:
     return root
 
 
-def text_of(root: ET.Element, name: str) -> str:
+def text_of(root: Element, name: str) -> str:
     """The first element called `name`, whatever namespace it carries."""
     for element in root.iter():
         if element.tag.rsplit("}", 1)[-1] == name:

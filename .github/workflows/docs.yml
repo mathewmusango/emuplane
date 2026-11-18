@@ -35,6 +35,9 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - name: Where the emulator source goes
         run: echo "EP_EMULATOR_SRC=$RUNNER_TEMP/ministack" >> "$GITHUB_ENV"
+      - name: Install the control's dependencies
+        # The generators import `control/`, which parses with defusedxml.
+        run: pip install --quiet -r ../requirements.txt
       - name: Check out the emulator at the tested tag
         # The coverage page is generated from the emulator's own operation list.
         run: git clone --quiet --depth 1 --branch v1.5.40 https://github.com/ministackorg/ministack "$EP_EMULATOR_SRC"

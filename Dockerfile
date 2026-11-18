@@ -30,6 +30,11 @@ RUN addgroup -S -g 10001 emuplane \
 
 WORKDIR /app
 
+# One pin, installed before the sources so editing `control/` reuses this layer.
+COPY requirements.txt /app/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    pip install --no-compile -r requirements.txt
+
 # The built console first, so editing `control/` only rewrites the layer after it.
 COPY --chown=10001:10001 --from=web /src/dist /app/static
 COPY --chown=10001:10001 control/app.py control/accesspoints.py control/buckets.py \
@@ -43,7 +48,7 @@ COPY --chown=10001:10001 bootstrap /app/bootstrap
 EXPOSE 4570 4571
 
 # Declared in docker-compose.yml, because podman's OCI format ignores HEALTHCHECK.
-# The control and the bootstrap are standard-library only: pip's vendored tree is dead weight here.
+# pip is dead weight at runtime: the one pinned dependency is installed above and stays.
 RUN rm -rf /usr/local/lib/python3.13/site-packages/pip \
     /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
     /usr/local/lib/python3.13/site-packages/README.txt

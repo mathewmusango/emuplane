@@ -5,8 +5,9 @@ from __future__ import annotations
 import html
 import json
 import re
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 from urllib.parse import quote
-from xml.etree import ElementTree
 
 S3_NS = "http://s3.amazonaws.com/doc/2006-03-01/"
 
@@ -204,8 +205,8 @@ def _local(element) -> str:
 
 def _root(xml: str):
     try:
-        return ElementTree.fromstring(xml)
-    except ElementTree.ParseError:
+        return ElementTree.fromstring(xml, forbid_dtd=True)
+    except (ElementTree.ParseError, DefusedXmlException):
         return None
 
 
