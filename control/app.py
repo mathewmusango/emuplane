@@ -1725,6 +1725,10 @@ class GatewayHandler(SafeHeaders, BaseHTTPRequestHandler):
 
         bucket, key, query, _ = s3_target(self.path, self.headers.get("Host", ""))
         if not bucket:
+            if not account:
+                # ListBuckets is account-scoped, so the emulator's bucket-scoped anonymous gate never sees it.
+                self._error(403, "AccessDenied", "no access key to list buckets for")
+                return
             node = node_by_region(region)
             if node is None:
                 self._error(503, "ServiceUnavailable", "no emulator is configured")
