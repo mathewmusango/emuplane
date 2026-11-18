@@ -11,7 +11,7 @@
     "prebuild": "node scripts/brand.js",
     "predev": "node scripts/brand.js",
     "prestart": "node scripts/brand.js",
-    "s3:coverage": "python3 ../scripts/s3_coverage.py",
+    "coverage": "python3 ../scripts/coverage.py",
     "serve": "docusaurus serve",
     "version": "docusaurus docs:version",
     "write-translations": "docusaurus write-translations"
