@@ -50,6 +50,10 @@ emulator, and where each of those rules lives.
 - **The Versions card lists the subtree, not one level.** `ListObjectVersions` is
   asked with the folder's prefix and no delimiter, so every version beneath the
   folder is listed; the Objects tab beside it still shows one level at a time.
+- **An Object Lambda configuration that declares entities is refused.** The
+  control parses that document with the standard library, so a `<!DOCTYPE` or
+  `<!ENTITY` is rejected before the parser runs and the console says *the
+  configuration is not XML*. S3 Control's own documents never carry a DTD.
 - **An incomplete upload can be aborted here, not completed.** Completing it is the
   job of the client that opened it and holds the part list it will send; the console
   shows the parts S3 lists and offers only the abort.
