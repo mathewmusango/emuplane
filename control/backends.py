@@ -27,25 +27,9 @@ PROFILES: dict[str, Backend] = {
         title="MiniStack",
         note="S3 state is account-scoped, and every region is served by one endpoint.",
     ),
-    "floci": Backend(
-        "floci",
-        title="Floci",
-        note="LocalStack-shaped; check its S3 region semantics before relying on them.",
-    ),
-    "localstack": Backend(
-        "localstack",
-        title="LocalStack",
-        note="Community edition lacks some services the catalogue lists.",
-    ),
-    "moto": Backend(
-        "moto",
-        title="Moto",
-        port=5000,
-        note="Single-threaded test server; the poller and the console still work.",
-    ),
 }
 
 
 def profile(identifier: str | None) -> Backend:
-    """The profile for `EP_BACKEND`; an unknown id falls back to generic."""
-    return PROFILES.get((identifier or "").strip().lower(), PROFILES["generic"])
+    """The profile for `EP_BACKEND`; unset or unknown falls back to `ministack`, the tested backend."""
+    return PROFILES.get((identifier or "").strip().lower(), PROFILES["ministack"])
