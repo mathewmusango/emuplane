@@ -35,9 +35,4 @@ jobs:
       - uses: github/codeql-action/init@b7b84b636b4f90c9b31da1bc5f72bfadd5b31410 # v3
         with:
           languages: ${{ matrix.language }}
-          # py/xml-bomb wants defusedxml; the control is standard-library only, and accesspoints.py refuses a DTD itself.
-          config: |
-            query-filters:
-              - exclude:
-                  id: py/xml-bomb
       - uses: github/codeql-action/analyze@b7b84b636b4f90c9b31da1bc5f72bfadd5b31410 # v3
