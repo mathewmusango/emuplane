@@ -5,8 +5,8 @@ title: Quickstart
 
 Emuplane runs as one container: the gateway and the console are two servers in
 the same image, and the state they own lives in the emulator's DynamoDB. The
-emulator itself is yours to run — MiniStack, LocalStack, moto or anything that
-speaks the same API.
+emulator itself is yours to run — MiniStack is the reference, but anything that
+speaks the same API works.
 
 ## What you need
 
@@ -22,20 +22,20 @@ EP_CONSOLE_URL=http://localhost:4570
 EP_GATEWAY_URL=http://localhost:4571
 ```
 
-`EP_BACKEND` picks the profile (`generic`, `ministack`, `floci`, `localstack`,
-`moto`); `EP_BACKEND_URL` is the only value that has to be right.
+`EP_BACKEND` picks the backend profile and defaults to `ministack`, the tested
+one; `EP_BACKEND_URL` is the only value that has to be right.
 
 ## Pull it
 
 The image is published to the GitHub Container Registry: [ghcr.io/mathewmusango/emuplane](https://github.com/mathewmusango/emuplane/pkgs/container/emuplane). Every release tags its version and moves `latest` to the same digest.
 
 ```bash
+docker pull ghcr.io/mathewmusango/emuplane:0.2.2      # the version this page documents
 docker pull ghcr.io/mathewmusango/emuplane:latest     # the newest release
-docker pull ghcr.io/mathewmusango/emuplane:<version>  # the tag docker-compose.yml names
 ```
 
-The compose files pin a version, so bringing the stack up never changes the image
-under you; `latest` is there for a quick look at the newest release.
+The compose files pin the current version, so bringing the stack up never changes
+the image under you; `latest` is there for a quick look at the newest release.
 
 ## Start it
 
@@ -50,11 +50,19 @@ docker compose --env-file .env.all -f docker-compose.all.yml up -d
 The emulator is internal to that network and never published; the console answers
 on `http://localhost:4570` and the gateway on `http://localhost:4571`.
 
-Already running an emulator? Point `EP_BACKEND_URL` at it and skip the bundled
-one:
+Already running an emulator? The container has to be able to **reach** it, and
+`EP_BACKEND_URL` names it the way the container sees it:
+
+- **It runs as a container.** Put it on a network this stack joins and name it:
+  `EP_BACKEND_URL=http://ministack:4566`.
+- **It runs on the host.** It must listen on more than loopback — publishing
+  `127.0.0.1:4566` is not reachable from a container. Then use
+  `http://host.containers.internal:4566` on Podman, or
+  `http://host.docker.internal:4566` on Docker Desktop (Docker on Linux needs an
+  `extra_hosts` entry of your own).
 
 ```bash
-cp .env.example .env        # set EP_BACKEND_URL to the backend's endpoint
+cp .env.example .env      # set EP_BACKEND_URL
 docker compose up -d
 ```
 
@@ -120,6 +128,7 @@ now in the console's Objects tab.
 ## Where next
 
 - [Accessing it: the console and the CLI](/docs/getting-started/access)
+- [Deployment: Docker and Podman](/docs/deployment/docker-podman)
 - [The console, page by page](/docs/getting-started/console)
 - [Accounts, regions and keys](/docs/concepts/tenancy)
 - [What the gateway enforces](/docs/concepts/architecture)

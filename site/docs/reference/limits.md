@@ -28,6 +28,9 @@ emulator, and where each of those rules lives.
 
 ## The S3 console
 
+- **S3 on Windows is still under development.** The console is exercised on Linux;
+  several S3 controls are unpolished on Windows and will change, so a page that
+  looks wrong there is a report to make, not a behaviour to rely on.
 - **Uploads take one file at a time, up to 200 MiB.** A file of 8 MiB or less is
   a single request; above that it is a multipart upload in 5 MiB parts, and one
   request body over 25 MiB is refused with `413`.
@@ -107,6 +110,10 @@ holds the flag on the bucket's own record and the gateway enforces it.
   contract is deliberately in place; the enrolment flow is not built. That gap is
   also why the MFA delete guard above checks for the header's presence rather
   than its code: there is no enrolled device to check it against.
+- **Password reset takes an email address only.** A root user resets with the
+  address it signed up with; an IAM user has no self-service reset, because the
+  form never asks which account or user the address belongs to. The split — root
+  by email, IAM by account and user name — is the next change to that screen.
 
 ## The emulator
 

@@ -29,6 +29,13 @@ flowchart LR
 Nothing is seeded. The first account is made at `/signup`, and the deployment's
 bearer token is minted once inside the container (`python /app/api_token.py`).
 
+![The console after sign-in: every page is a read against the emulator](/img/console/bucket-objects.png)
+
+<figure>
+  <figcaption>The console is not a mock-up of AWS: each panel is a call the
+  control plane made as the account's root, with what the emulator answered.</figcaption>
+</figure>
+
 ## What it is not
 
 - **Not an emulator.** The emulator is a separate project; Emuplane talks to it
@@ -50,3 +57,5 @@ bearer token is minted once inside the container (`python /app/api_token.py`).
 - [S3](/docs/guides/s3) — the pages, and what each one is allowed to claim.
 - [S3 coverage](/docs/reference/s3-coverage) — every operation, and whether the
   console can show or do it.
+- [Control API](/docs/reference/control-api) — the routes the console calls, and
+  how to call them yourself.

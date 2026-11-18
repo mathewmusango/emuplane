@@ -35,17 +35,22 @@ keys live in the emulator's DynamoDB, never on the host.
 > same protocol points at the same `EP_BACKEND_URL`, but nothing else is verified.
 
 ```bash
-cp .env.example .env        # set EP_BACKEND_URL to the backend's endpoint
-podman-compose up -d        # or: docker compose up -d
+cp .env.example .env    # EP_BACKEND_URL: the emulator as the container sees it
+podman-compose up -d    # or: docker compose up -d
 ```
+
+The container must reach that address: an emulator container on a shared network
+(`http://ministack:4566`), or one on the host listening beyond loopback
+(`http://host.containers.internal:4566` on Podman, `http://host.docker.internal:4566`
+on Docker Desktop).
 
 The image is `ghcr.io/mathewmusango/emuplane`, published per release:
 `docker pull ghcr.io/mathewmusango/emuplane:latest` fetches the newest, and the
 compose file names the pinned tag it runs.
 
-Or bring the emulator along: `docker-compose.all.yml` with `.env.all.example`
-runs MiniStack (`ministackorg/ministack:1.5.40-full`), the first-setup job and the
-control as one stack.
+Or bring the emulator along: `docker-compose.all.yml` with
+`.env.all.example` runs MiniStack (`ministackorg/ministack:1.5.40-full`), the
+first-setup job and the control as one stack.
 
 `bootstrap` runs first and applies the CloudFormation stack that owns the control's
 DynamoDB tables; the console then answers on `http://localhost:4570`.
@@ -106,7 +111,7 @@ More: [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-start
 | [`site/`](site) | the documentation site |
 | [`bootstrap/`](bootstrap) | the CloudFormation template and init job for the control's tables |
 | [`scripts/`](scripts) | the QA gate and the maintainer's helpers |
-| [`docker-compose.yml`](docker-compose.yml) | the container contract |
+| [`docker-compose.yml`](docker-compose.yml), [`docker-compose.all.yml`](docker-compose.all.yml) | the container contract and the all-in-one stack |
 
 ## References
 
