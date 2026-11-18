@@ -160,6 +160,7 @@ export const RESPONSES = {
       acl: null,
       logging: null,
       notifications: null,
+      website: null,
       replication: null,
       versions: '<ListVersionsResult><Name>logs-bucket</Name></ListVersionsResult>',
     },
@@ -171,6 +172,7 @@ export const RESPONSES = {
       acl: { delete: false, kind: 'xml', root: 'AccessControlPolicy' },
       logging: { delete: true, kind: 'xml', root: 'BucketLoggingStatus' },
       notifications: { delete: true, kind: 'xml', root: 'NotificationConfiguration' },
+      website: { delete: true, kind: 'xml', root: 'WebsiteConfiguration' },
       replication: { delete: true, kind: 'xml', root: 'ReplicationConfiguration' },
     },
   },
@@ -338,6 +340,14 @@ export const RESPONSES = {
         policy: '{"Version":"2012-10-17","Statement":[]}',
       }
     }
+    if (section === 'object-lambda') {
+      return {
+        ok: true,
+        status: 200,
+        name: 'lambda-point',
+        policy: '{"Version":"2012-10-17","Statement":[]}',
+      }
+    }
     return { ok: true, status: 200, name: 'reports-point', policy: null }
   },
   '/api/s3/mrap-delete': {
@@ -418,7 +428,12 @@ export const RESPONSES = {
         BlockPublicPolicy: true,
         RestrictPublicBuckets: true,
       },
+      public_access_block_configured: true,
       versioning: true,
+      versioning_status: 'Enabled',
+      mfa_delete: 'Disabled',
+      mfa_delete_source: 'control',
+      created: '2026-11-16T09:00:00.000Z',
       tags: [{ Key: 'team', Value: 'platform' }],
       encryption: 'aws:kms',
       bucket_key: true,

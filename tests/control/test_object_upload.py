@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import http.client
+import json
 from urllib.parse import urlencode
 
 from conftest import ACCOUNT, TOKEN, api
@@ -61,6 +62,54 @@ def upload(host: str, key: str, data: bytes, content_type: str = "application/oc
         return response.status, response.read().decode(errors="replace")
     finally:
         connection.close()
+
+
+def part(host: str, key: str, upload_id: str, part_number: int, data: bytes):
+    """POST one part body, as the browser does once a file is large enough."""
+    path = "/api/s3/multipart-part?" + urlencode(
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": BUCKET,
+            "key": key,
+            "upload_id": upload_id,
+            "part_number": part_number,
+        }
+    )
+    connection = _connection(host)
+    try:
+        connection.request(
+            "POST",
+            path,
+            body=data,
+            headers={
+                "Authorization": f"Bearer {TOKEN}",
+                "Content-Type": "application/octet-stream",
+            },
+        )
+        response = connection.getresponse()
+        payload = response.read().decode(errors="replace")
+        try:
+            return response.status, json.loads(payload)
+        except ValueError:
+            return response.status, payload
+    finally:
+        connection.close()
+
+
+def _create_upload(console, key: str):
+    return api(
+        console,
+        "POST",
+        "/api/s3/multipart-create",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": BUCKET,
+            "key": key,
+            "content_type": "application/octet-stream",
+        },
+    )
 
 
 def download(host: str, key: str):
@@ -155,6 +204,96 @@ def test_a_file_over_the_cap_is_refused(control, console, monkeypatch):
     status, body = upload(console, "too-big.bin", b"more than eight bytes")
     assert status == 413
     assert "uploads up to 8" in body
+
+
+def test_a_multipart_upload_creates_parts_and_completes(console):
+    _bucket(console)
+    status, created = _create_upload(console, "large/blob.bin")
+    assert status == 200, created
+    upload_id = created["upload_id"]
+    assert upload_id
+
+    status, first = part(console, "large/blob.bin", upload_id, 1, b"part-one")
+    assert status == 200, first
+    assert first["etag"]
+    status, second = part(console, "large/blob.bin", upload_id, 2, b"part-two")
+    assert status == 200, second
+    assert second["etag"]
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/multipart-complete",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": BUCKET,
+            "key": "large/blob.bin",
+            "upload_id": upload_id,
+            "parts": [
+                {"part_number": 1, "etag": first["etag"]},
+                {"part_number": 2, "etag": second["etag"]},
+            ],
+        },
+    )
+    assert status == 200, body
+
+    status, read_back = read(console, "large/blob.bin")
+    assert status == 200, read_back
+    assert read_back["body"] == "part-onepart-two"
+
+
+def test_a_multipart_upload_can_be_aborted(console):
+    _bucket(console)
+    status, created = _create_upload(console, "large/aborted.bin")
+    assert status == 200, created
+    upload_id = created["upload_id"]
+    assert part(console, "large/aborted.bin", upload_id, 1, b"discard me")[0] == 200
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/multipart-abort",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": BUCKET,
+            "key": "large/aborted.bin",
+            "upload_id": upload_id,
+        },
+    )
+    assert status == 200, body
+    assert read(console, "large/aborted.bin")[0] == 404
+
+
+def test_the_multipart_writes_refuse_incomplete_requests(console):
+    _bucket(console)
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/multipart-complete",
+        {"account": ACCOUNT, "region": "us-east-1", "bucket": BUCKET, "key": "x.bin", "parts": []},
+    )
+    assert status == 400
+    assert "upload id" in body["error"]
+
+    status, body = _create_upload(console, "x.bin")
+    assert status == 200, body
+    status, answer = api(
+        console,
+        "POST",
+        "/api/s3/multipart-complete",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": BUCKET,
+            "key": "x.bin",
+            "upload_id": body["upload_id"],
+            "parts": [],
+        },
+    )
+    assert status == 400
+    assert "no parts" in answer["error"]
 
 
 def test_a_missing_object_cannot_be_downloaded(console):

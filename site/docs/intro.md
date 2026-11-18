@@ -14,7 +14,7 @@ flowchart LR
   cli["Your tools<br/>aws-cli, terraform, SDKs"] -->|SigV4| gw["Gateway<br/>:4571"]
   browser["Your browser"] -->|session cookie| ui["Console + control API<br/>:4570"]
   ui -->|signed calls| gw
-  gw -->|forwarded request| emu["Emulator<br/>MiniStack, LocalStack,<br/>moto, …"]
+  gw -->|forwarded request| emu["Emulator<br/>MiniStack"]
   ui -->|its own state| emu
 ```
 
@@ -32,8 +32,9 @@ bearer token is minted once inside the container (`python /app/api_token.py`).
 ## What it is not
 
 - **Not an emulator.** The emulator is a separate project; Emuplane talks to it
-  through one URL. Backends are pluggable — [MiniStack](https://github.com/ministackorg/ministack), [LocalStack](https://github.com/localstack/localstack), [Floci](https://github.com/floci-io/floci) or [moto](https://github.com/getmoto/moto) — but only
-  MiniStack is tested.
+  through one URL. [MiniStack](https://github.com/ministackorg/ministack) is the
+  verified backend in this cycle (1.5.40-full); anything that speaks the same
+  protocol points at the same URL.
 - **Not a proxy to real AWS.** It is a local lab: no credential leaves the box.
 - **Not production infrastructure.** A control plane for a lab, sized to run
   beside the emulator on one host.
@@ -44,6 +45,8 @@ bearer token is minted once inside the container (`python /app/api_token.py`).
   one bucket.
 - [Architecture](/docs/concepts/architecture) — what runs where, and which
   component owns which rule.
+- [Beyond the emulator](concepts/extensions.md) — what Emuplane adds that the
+  emulator has no opinion about, MFA delete included.
 - [S3](/docs/guides/s3) — the pages, and what each one is allowed to claim.
 - [S3 coverage](/docs/reference/s3-coverage) — every operation, and whether the
   console can show or do it.

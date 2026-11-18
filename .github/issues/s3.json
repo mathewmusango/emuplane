@@ -1,0 +1,72 @@
+{
+  "release": "S3 console and coverage",
+  "pr": {
+    "title": "feat(s3): the console's S3 pages, the coverage ledger and the docs",
+    "branch": "s3/console"
+  },
+  "issues": [
+    {
+      "key": "browse",
+      "module": "s3",
+      "changelog": "changed",
+      "title": "S3 console: browse buckets and objects as folders",
+      "body": "The bucket page reads one folder at a time and treats the prefix as navigation.\n\n- `?prefix=` carries the folder, so the breadcrumb, a new tab and the back button agree; every step of the path is a link back.\n- The `..` row is gone, and the search box **filters** the folder instead of navigating out of it.\n- `ListObjectsV2` is one page (1000 keys), so a long folder offers **Load more objects** on the listing's own continuation token.\n- An object opens as a page of its own (`?key=`), with size, type, ETag and last-modified read from `HeadObject`, and text shown or a download offered.\n\nPinned by `tests/web/s3.test.jsx` (folder browsing, breadcrumb, paging, object view) and `tests/control/test_api.py` (delimiter listing, continuation token)."
+    },
+    {
+      "key": "edit",
+      "module": "s3",
+      "changelog": "added",
+      "title": "S3 console: upload objects and edit them in place",
+      "body": "Everything the Objects tab can write.\n\n- Upload typed contents or a file; above 8 MiB it is a multipart upload in 5 MiB parts, with the part list completed or aborted.\n- Create folder, copy, move, delete, and empty a bucket.\n- **Edit storage class** and **per-object encryption**: a `CopyObject` onto the object itself, since S3 has no in-place edit.\n- Object tags, annotations, retention and legal hold, each on its own route.\n\nEvery menu entry runs: the three that used to be listed without a route (storage class, encryption, public ACL) now have one.\n\nPinned by `tests/control/test_api.py` (`test_an_object_changes_storage_class_and_encryption_in_place`), `test_object_upload.py`, `test_object_meta_api.py` and `tests/web/s3.test.jsx`."
+    },
+    {
+      "key": "versions",
+      "module": "s3",
+      "changelog": "added",
+      "title": "S3 console: versions, incomplete uploads and object ACLs",
+      "body": "The three listings beside the current objects.\n\n- **Versions** (Properties): `ListObjectVersions` as a table — key, version ID, delete marker, latest, size, modified, storage class. A version can be downloaded (`GetObject?versionId`) and deleted on its own; a delete marker says that removing it restores the version beneath.\n- **Incomplete uploads** (Objects): `ListMultipartUploads`, with `ListParts` in a dialog and **Abort upload**.\n- **Object ACL**: `GetObjectAcl` read back with owner, grants and whether a grant names `AllUsers`; `PutObjectAcl` writes a canned grant, per version where the key has versions.\n- **Object Ownership** (Permissions) switches the ACL rule itself — enforced turns ACLs off, preferred turns them on — because the endpoint accepts `PutBucketOwnershipControls` after creation.\n\nAll three listings are **paged** rather than cut short.\n\nPinned by `tests/control/test_api.py` (ownership both directions, per-version ACL, paging) and `tests/web/s3.test.jsx`."
+    },
+    {
+      "key": "properties",
+      "module": "s3",
+      "changelog": "added",
+      "title": "S3 console: bucket properties, permissions and configuration",
+      "body": "The bucket's own settings, each read from the subresource that owns it.\n\n- Overview: region, ARN and **creation date** from `ListBuckets` (the row used to render the bucket name).\n- Versioning as S3 answers it — **Disabled**, **Enabled**, **Suspended** — and edits Enable/Suspend only, because S3 never disables again.\n- Default encryption (SSE-S3/KMS, bucket key), tags, Block Public Access, and the policy/ACL/CORS documents.\n- Lifecycle, replication, logging, notifications and **static website hosting** as documents, with S3's own answer shown rather than a flattened form, and no edit where ACLs are off.\n\nPinned by `tests/control/test_api.py` (`test_the_website_document_is_written_read_and_removed`, `test_logging_notifications_and_replication_are_written_from_the_page`, `test_the_overview_names_when_the_bucket_was_made`) and `tests/web/s3.test.jsx`."
+    },
+    {
+      "key": "mfa",
+      "module": "s3",
+      "changelog": "added",
+      "title": "S3: enforce MFA delete at the gateway",
+      "body": "MiniStack accepts `<MfaDelete>` on `PutBucketVersioning` and never returns it on GET, so the emulator implements the field and not the rule.\n\n- The control keeps the flag on the bucket's own record and answers it as `mfa_delete_source: control`.\n- The **gateway** refuses a version delete or a versioning change without `x-amz-mfa`, and refuses `DeleteBucket` outright while the flag is on, because no standard tool can put a code on it.\n- Enabling it **enables versioning in the same call** — MFA delete only exists on a versioned bucket.\n\nBoth limits are stated in `limits.md`: the code is not verified (no device is enrolled), and a client that reaches the emulator directly is not guarded. `tests/control/test_parity.py` pins the emulator behaviour the shim stands on, so the flag is deleted rather than doubled the day MiniStack returns it.\n\n**The console does not surface it yet** (deliberate — the control and the gateway stand ready)."
+    },
+    {
+      "key": "access-points",
+      "module": "s3",
+      "changelog": "added",
+      "title": "S3 console: access points, Multi-Region and Object Lambda",
+      "body": "Access points are S3 Control, not bucket subresources, and the page keeps that split: each tab is read from the region that serves it.\n\n- **General purpose**: listed in the page's region, created with name, bucket, network origin/VPC, Block Public Access and policy.\n- **Multi-Region**: read from us-west-2, created against S3 Control, and shown as the **asynchronous operation** the request token names — status, per-region results, error code.\n- **Object Lambda**: listed with configuration and policy read in full, created, deleted, and its configuration and policy replaced.\n\nThe page refuses before asking what S3 would refuse: two members in one Region, and every traffic dial at `0`.\n\nPinned by `tests/control/test_access_point_api.py`, `test_access_point_detail_api.py`, `test_object_lambda_api.py` and `tests/web/s3.test.jsx`."
+    },
+    {
+      "key": "paging",
+      "module": "s3",
+      "changelog": "fixed",
+      "title": "S3: page every listing instead of truncating it",
+      "body": "`ListObjectVersions`, `ListMultipartUploads` and `ListParts` answer `IsTruncated` with their own markers, and the three new views ignored them — a bucket past one page showed the first page and said nothing.\n\nThe objects list had the same defect earlier in this work; the fix now applies to all four listings, with **Load more objects / versions / uploads / parts**. The control passes the markers through (`key_marker`, `version_id_marker`, `upload_id_marker`, `part_number_marker`) and accepts `max_keys`, `max_uploads`, `max_parts` so a two-page case is testable without 1001 objects.\n\nPinned by `tests/control/test_api.py` (`test_a_long_version_list_is_paged_rather_than_cut_short`, `test_incomplete_uploads_and_their_parts_are_paged_too`, `test_a_long_object_listing_is_paged_and_a_token_carries_the_rest`) and two web tests."
+    },
+    {
+      "key": "coverage",
+      "module": "ci",
+      "changelog": "skip-changelog",
+      "title": "Coverage: one ledger per service, generated from the emulator README",
+      "body": "`scripts/s3_coverage.py` was one growing script with the S3 operation list pasted into it. It is now data:\n\n- `coverage/<service>.json` names the README row, the page it publishes and what the console does with each operation.\n- `scripts/coverage_engine.py` renders one page from `(data file, README row)` and knows nothing about any one service; `scripts/coverage.py` loops over the data files.\n- Adding a service is a data file, a page with `<!-- coverage:begin -->` markers and a sidebar entry — no code.\n\n`python3 scripts/coverage.py --check` is the gate in `tests.yml`, `docs.yml` and `qa_check.py`, and `tests/s3/test_ledger.py` pins the published floors.\n\nS3 is the first data file. IAM, Account and S3 Files follow in their own modules."
+    },
+    {
+      "key": "docs",
+      "module": "docs",
+      "changelog": "skip-changelog",
+      "title": "docs: the limitations page, the additions page and the S3 guide",
+      "body": "The documentation for everything above, written as user pages.\n\n- `reference/limits.md` — the one place a gap is written: the gateway, the S3 console, **MFA delete**, sign-in, the emulator's missing operations and how a missing operation degrades (`200` as a plain listing, not `501`), and addressing.\n- `concepts/extensions.md` — **Beyond the emulator**: what Emuplane adds that the emulator has no opinion about (accounts, sessions, region opt-in, name uniqueness, MFA delete), each with where the rule lives, plus the rule for adding one.\n- `guides/s3.md` — folders, the object view, versions, incomplete uploads, ownership, access points and the asynchronous Multi-Region operations.\n- `reference/s3-coverage.md` and `reference/control-api.md` regenerated from source.\n\nEvery claim in these pages is backed by a test named in the coverage ledger."
+    }
+  ]
+}

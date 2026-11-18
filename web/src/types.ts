@@ -122,6 +122,107 @@ export interface ObjectsResult {
   bucket: string
   prefix: string
   objects: ObjectRow[]
+  /** A listing is one page of up to 1000 keys; the rest is asked for with `next_token`. */
+  truncated?: boolean
+  next_token?: string
+}
+
+/** One version of one key, as ListObjectVersions lists it. */
+export interface VersionRow {
+  key: string
+  /** The ID DeleteObject takes back; `null` is only for a bucket that never versioned. */
+  version_id: string
+  latest: boolean
+  /** True for a marker: its bytes are gone, the position in the stack is not. */
+  delete_marker: boolean
+  size: string
+  modified: string
+  storage: string
+}
+
+export interface VersionsResult {
+  ok: boolean
+  bucket: string
+  prefix?: string
+  versions: VersionRow[]
+  /** A listing is one page; the rest is asked for with the two markers. */
+  truncated?: boolean
+  next_key_marker?: string
+  next_version_id_marker?: string
+  account?: string
+  region?: string
+  error?: string
+}
+
+/** One multipart upload that was started and never completed. */
+export interface UploadRow {
+  key: string
+  upload_id: string
+  initiated: string
+  storage: string
+}
+
+export interface UploadsResult {
+  ok: boolean
+  bucket: string
+  uploads: UploadRow[]
+  /** A listing is one page; the rest is asked for with the two markers. */
+  truncated?: boolean
+  next_key_marker?: string
+  next_upload_id_marker?: string
+  account?: string
+  region?: string
+  error?: string
+}
+
+/** One part an unfinished upload already holds. */
+export interface UploadPartRow {
+  part_number: string
+  size: string
+  etag: string
+  modified: string
+}
+
+export interface UploadPartsResult {
+  ok: boolean
+  bucket: string
+  key: string
+  upload_id: string
+  parts: UploadPartRow[]
+  /** ListParts is paged too, by part number. */
+  truncated?: boolean
+  next_part_number_marker?: string
+  account?: string
+  region?: string
+  error?: string
+}
+
+/** One grant on an object, as GetObjectAcl reports it. */
+export interface ObjectAclGrant {
+  /** CanonicalUser, Group or AmazonCustomerByEmail. */
+  type: string
+  id: string
+  display_name: string
+  uri: string
+  permission: string
+}
+
+export interface ObjectAclResult {
+  ok: boolean
+  status?: number
+  bucket: string
+  key: string
+  /** Empty is the version the key resolves to. */
+  version_id?: string
+  owner: { id: string; display_name: string }
+  grants: ObjectAclGrant[]
+  /** True when a grant names the AllUsers group. */
+  public: boolean
+  /** The ACL document as S3 answers it. */
+  acl: string
+  account?: string
+  region?: string
+  error?: string
 }
 
 /** One bucket's settings, shaped like the create form (copy-settings). */
@@ -131,7 +232,16 @@ export interface BucketSettings {
   settings: {
     ownership: string
     block_public_access: Record<string, boolean>
+    public_access_block_configured: boolean
     versioning: boolean
+    /** S3's own three answers: `Disabled` was never on, and `Enabled` can only ever become `Suspended`. */
+    versioning_status: 'Disabled' | 'Enabled' | 'Suspended'
+    /** Empty when the endpoint omits the element, which is not the same as `Disabled`. */
+    mfa_delete: string
+    /** `endpoint` when S3 answered it, `control` when Emuplane keeps and enforces it. */
+    mfa_delete_source: 'endpoint' | 'control'
+    /** When the bucket was made, as `ListBuckets` reports it; empty when the listing did not name it. */
+    created: string
     tags: BucketTag[]
     encryption: string
     bucket_key: boolean

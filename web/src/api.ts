@@ -21,6 +21,7 @@ import type {
   NewAccessKeyResult,
   NodeRow,
   ObjectAnnotation,
+  ObjectAclResult,
   ObjectContent,
   ObjectMeta,
   ObjectsResult,
@@ -30,7 +31,10 @@ import type {
   SettingsResult,
   SignInResult,
   UpdateMeResult,
+  UploadPartsResult,
+  UploadsResult,
   UserAccount,
+  VersionsResult,
 } from './types'
 
 interface RequestOptions {
@@ -112,10 +116,81 @@ export const api = {
     request<BrowseResult>(`/api/browse?${query({ account, region, service })}`),
   counts: (account: string, region: string) =>
     request<CountsResult>(`/api/counts?${query({ account, region })}`),
-  s3Objects: (account: string, region: string, bucket: string, prefix = '') =>
+  s3Objects: (
+    account: string,
+    region: string,
+    bucket: string,
+    prefix = '',
+    continuation_token = '',
+  ) =>
     request<ObjectsResult>(
-      `/api/s3/objects?${query({ account, region, bucket, prefix })}`,
+      `/api/s3/objects?${query({ account, region, bucket, prefix, continuation_token })}`,
     ),
+  /** ListObjectVersions: every version and delete marker under the prefix. */
+  versions: (
+    account: string,
+    region: string,
+    bucket: string,
+    prefix = '',
+    key_marker = '',
+    version_id_marker = '',
+  ) =>
+    request<VersionsResult>(
+      `/api/s3/versions?${query({
+        account,
+        region,
+        bucket,
+        prefix,
+        key_marker,
+        version_id_marker,
+      })}`,
+    ),
+  /** ListMultipartUploads: the uploads that were started and never finished. */
+  uploads: (
+    account: string,
+    region: string,
+    bucket: string,
+    prefix = '',
+    key_marker = '',
+    upload_id_marker = '',
+  ) =>
+    request<UploadsResult>(
+      `/api/s3/uploads?${query({
+        account,
+        region,
+        bucket,
+        prefix,
+        key_marker,
+        upload_id_marker,
+      })}`,
+    ),
+  /** ListParts: what one unfinished upload already holds. */
+  uploadParts: (
+    account: string,
+    region: string,
+    bucket: string,
+    key: string,
+    upload_id: string,
+    part_number_marker = '',
+  ) =>
+    request<UploadPartsResult>(
+      `/api/s3/upload-parts?${query({
+        account,
+        region,
+        bucket,
+        key,
+        upload_id,
+        part_number_marker,
+      })}`,
+    ),
+  /** DeleteObject with a versionId: one version goes, the rest of the key stays. */
+  deleteVersion: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    version_id: string
+  }) => request<ActionResult>('/api/s3/object-version-delete', { method: 'POST', body: payload }),
   createBucket: (payload: CreateBucketOptions) =>
     request<CreateBucketResult>('/api/s3/buckets', { method: 'POST', body: payload }),
   putObject: (payload: {
@@ -152,7 +227,9 @@ export const api = {
     region: string,
     bucket: string,
     key: string,
-  ) => `/api/s3/object-download?${query({ account, region, bucket, key })}`,
+    version_id = '',
+  ) =>
+    `/api/s3/object-download?${query({ account, region, bucket, key, version_id })}`,
   emptyBucket: (payload: { account: string; region: string; bucket: string }) =>
     request<ActionResult>('/api/s3/empty', { method: 'POST', body: payload }),
   editBucketSettings: (payload: {
@@ -160,13 +237,47 @@ export const api = {
     region: string
     bucket: string
     versioning?: boolean
+    versioning_status?: string
+    mfa_delete?: string
+    ownership?: string
     block_public_access?: Record<string, boolean>
+    remove_public_access_block?: boolean
     tags?: { Key: string; Value: string }[]
     remove_tags?: boolean
     encryption?: string
     bucket_key?: boolean
     remove_encryption?: boolean
   }) => request<ActionResult>('/api/s3/bucket-settings-edit', { method: 'POST', body: payload }),
+  /** Storage class or per-object encryption: a CopyObject onto the object itself. */
+  rewriteObject: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    storage_class?: string
+    encryption?: string
+  }) => request<ActionResult>('/api/s3/object-rewrite', { method: 'POST', body: payload }),
+  /** PutObjectAcl with a canned grant; a bucket that disables ACLs refuses it. */
+  setObjectAcl: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    canned_acl: string
+    /** An ACL belongs to a version; empty is the one the key resolves to. */
+    version_id?: string
+  }) => request<ActionResult>('/api/s3/object-acl', { method: 'POST', body: payload }),
+  /** GetObjectAcl: the owner and the grants, read back after a grant was written. */
+  objectAcl: (
+    account: string,
+    region: string,
+    bucket: string,
+    key: string,
+    version_id = '',
+  ) =>
+    request<ObjectAclResult>(
+      `/api/s3/object-acl?${query({ account, region, bucket, key, version_id })}`,
+    ),
   /** CopyObject: a PUT to the destination, with the source named in a header. */
   copyObject: (payload: {
     account: string
@@ -229,6 +340,101 @@ export const api = {
     request<ObjectAnnotation>(
       `/api/s3/object-annotation?${query({ account, region, bucket, key, name })}`,
     ),
+  /** PutObjectTagging, or DeleteObjectTagging when the list is empty. */
+  editObjectTags: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    tags: { Key: string; Value: string }[]
+  }) => request<ActionResult>('/api/s3/object-tags', { method: 'POST', body: payload }),
+  /** PutObjectAnnotation: the annotation's own content is text. */
+  writeObjectAnnotation: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    name: string
+    body: string
+  }) => request<ActionResult>('/api/s3/object-annotation', { method: 'POST', body: payload }),
+  removeObjectAnnotation: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    name: string
+  }) =>
+    request<ActionResult>('/api/s3/object-annotation', {
+      method: 'POST',
+      body: { ...payload, remove: true },
+    }),
+  setObjectRetention: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    mode: string
+    until: string
+  }) => request<ActionResult>('/api/s3/object-retention', { method: 'POST', body: payload }),
+  setObjectLegalHold: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    status: 'ON' | 'OFF'
+  }) => request<ActionResult>('/api/s3/object-legal-hold', { method: 'POST', body: payload }),
+  createMultipartUpload: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    content_type?: string
+  }) =>
+    request<{ ok: boolean; upload_id: string; error?: string }>('/api/s3/multipart-create', {
+      method: 'POST',
+      body: payload,
+    }),
+  uploadObjectPart: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    upload_id: string
+    part_number: number
+    data: Blob
+  }) =>
+    request<{ ok: boolean; etag: string; error?: string }>(
+      `/api/s3/multipart-part?${query({
+        account: payload.account,
+        region: payload.region,
+        bucket: payload.bucket,
+        key: payload.key,
+        upload_id: payload.upload_id,
+        part_number: String(payload.part_number),
+      })}`,
+      {
+        method: 'POST',
+        raw: true,
+        body: payload.data,
+        headers: { 'Content-Type': 'application/octet-stream' },
+      },
+    ),
+  completeMultipartUpload: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    upload_id: string
+    parts: { part_number: number; etag: string }[]
+  }) =>
+    request<ActionResult>('/api/s3/multipart-complete', { method: 'POST', body: payload }),
+  abortMultipartUpload: (payload: {
+    account: string
+    region: string
+    bucket: string
+    key: string
+    upload_id: string
+  }) => request<ActionResult>('/api/s3/multipart-abort', { method: 'POST', body: payload }),
   bucketSettings: (account: string, region: string, bucket: string) =>
     request<BucketSettings>(
       `/api/s3/bucket-settings?${query({ account, region, bucket })}`,
@@ -263,6 +469,32 @@ export const api = {
   }) => request<AccessPointResult>('/api/s3/access-points', { method: 'POST', body: payload }),
   deleteAccessPoint: (payload: { account: string; region: string; name: string }) =>
     request<AccessPointResult>('/api/s3/access-point-delete', { method: 'POST', body: payload }),
+  /** CreateAccessPointForObjectLambda: the configuration PUT creates the access point. */
+  createObjectLambdaAccessPoint: (payload: {
+    account: string
+    region: string
+    name: string
+    supporting_access_point: string
+    function_arn: string
+    actions: string[]
+    cloudwatch_metrics?: boolean
+  }) => request<AccessPointResult>('/api/s3/object-lambda', { method: 'POST', body: payload }),
+  deleteObjectLambdaAccessPoint: (payload: { account: string; region: string; name: string }) =>
+    request<AccessPointResult>('/api/s3/object-lambda-delete', {
+      method: 'POST',
+      body: payload,
+    }),
+  /** PutAccessPointConfigurationForObjectLambda: the document the details view shows. */
+  editObjectLambdaConfiguration: (payload: {
+    account: string
+    region: string
+    name: string
+    configuration: string
+  }) =>
+    request<AccessPointResult>('/api/s3/object-lambda-configuration', {
+      method: 'POST',
+      body: payload,
+    }),
   /** One access point in full: an MRAP's report, policy and routes, or an Object Lambda access point's configuration and policy. */
   accessPointDetail: (
     account: string,
@@ -277,7 +509,7 @@ export const api = {
     account: string,
     region: string,
     name: string,
-    section: 'general' | 'multi-region' = 'general',
+    section: 'general' | 'multi-region' | 'object-lambda' = 'general',
   ) =>
     request<AccessPointPolicy>(
       `/api/s3/access-point-policy?${query({ account, region, name, section })}`,
@@ -287,6 +519,7 @@ export const api = {
     region: string
     name: string
     policy: string | null
+    section?: 'general' | 'object-lambda'
   }) =>
     request<AccessPointPolicy>('/api/s3/access-point-policy-edit', {
       method: 'POST',

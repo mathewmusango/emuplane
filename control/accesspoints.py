@@ -126,6 +126,10 @@ def _path(name: str) -> str:
     return ACCESS_POINTS + "/" + quote(name, safe="")
 
 
+def _object_lambda_path(name: str) -> str:
+    return OBJECT_LAMBDA + "/" + quote(name, safe="")
+
+
 def _tag_elements(tags: list[str]) -> str:
     """`Key=Value` strings from the form, as the API's Tag elements."""
     parts = []
@@ -169,6 +173,14 @@ def _policy_body(policy: str) -> str:
         f'<PutAccessPointPolicyRequest xmlns="{CONTROL_NS}">'
         f"<Policy>{html.escape(policy)}</Policy>"
         "</PutAccessPointPolicyRequest>"
+    )
+
+
+def _object_lambda_policy_body(policy: str) -> str:
+    return (
+        f'<PutAccessPointPolicyForObjectLambdaRequest xmlns="{CONTROL_NS}">'
+        f"<Policy>{html.escape(policy)}</Policy>"
+        "</PutAccessPointPolicyForObjectLambdaRequest>"
     )
 
 
@@ -445,7 +457,7 @@ def multi_region_detail(name: str, rest) -> dict:
 
 def object_lambda_detail(region: str, name: str, rest) -> dict:
     """GetAccessPointForObjectLambda, its configuration and its policy; a missing policy is a state."""
-    base = OBJECT_LAMBDA + "/" + quote(name, safe="")
+    base = _object_lambda_path(name)
     status, text = rest(region, "GET", base)
     if not 200 <= status < 300:
         return {"ok": False, "status": status or 502, "name": name, "error": _detail(text, status)}
@@ -528,6 +540,151 @@ def read_policy(region: str, name: str, rest) -> dict:
     if status == 404 and _code(text) == "NoSuchAccessPointPolicy":
         return {"ok": True, "status": 200, "name": name, "policy": None}
     return {"ok": False, "status": status or 502, "name": name, "error": _detail(text, status)}
+
+
+def read_object_lambda_policy(region: str, name: str, rest) -> dict:
+    """GetAccessPointPolicyForObjectLambda; no policy at all is a state, not a failure."""
+    status, text = rest(region, "GET", _object_lambda_path(name) + "/policy")
+    if 200 <= status < 300:
+        result = _first(text, "GetAccessPointPolicyForObjectLambdaResult")
+        return {
+            "ok": True,
+            "status": status,
+            "name": name,
+            "policy": _field(result, "Policy") or None,
+        }
+    if status == 404 and _code(text) == "NoSuchAccessPointPolicy":
+        return {"ok": True, "status": 200, "name": name, "policy": None}
+    return {"ok": False, "status": status or 502, "name": name, "error": _detail(text, status)}
+
+
+def write_object_lambda_policy(region: str, name: str, policy, rest) -> dict:
+    """PutAccessPointPolicyForObjectLambda, or its Delete when the policy is empty."""
+    text = "" if policy is None else str(policy).strip()
+    path = _object_lambda_path(name) + "/policy"
+    if not text:
+        status, body = rest(region, "DELETE", path)
+        if 200 <= status < 300:
+            return {"ok": True, "status": status, "name": name, "policy": None}
+        return {"ok": False, "status": status or 502, "name": name, "error": _detail(body, status)}
+
+    problem = _policy_problem(text)
+    if problem:
+        return {"ok": False, "status": 400, "name": name, "error": problem}
+    status, answer = rest(region, "PUT", path, _object_lambda_policy_body(text))
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "name": name, "policy": text}
+    return {"ok": False, "status": status or 502, "name": name, "error": _detail(answer, status)}
+
+
+def delete_object_lambda(region: str, name: str, rest) -> dict:
+    status, text = rest(region, "DELETE", _object_lambda_path(name))
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "name": name}
+    return {"ok": False, "status": status or 502, "name": name, "error": _detail(text, status)}
+
+
+def _object_lambda_configuration(payload: dict) -> str:
+    """The configuration the create form describes, as the API document."""
+    supporting = str(payload.get("supporting_access_point") or "").strip()
+    function = str(payload.get("function_arn") or "").strip()
+    actions = [str(action) for action in (payload.get("actions") or ["GetObject"])]
+    action_xml = "".join(f"<Action>{html.escape(action)}</Action>" for action in actions)
+    metrics = "true" if payload.get("cloudwatch_metrics") else "false"
+    return (
+        "<Configuration>"
+        f"<SupportingAccessPoint>{html.escape(supporting)}</SupportingAccessPoint>"
+        f"<CloudWatchMetricsEnabled>{metrics}</CloudWatchMetricsEnabled>"
+        "<TransformationConfigurations><TransformationConfiguration>"
+        f"<Actions>{action_xml}</Actions>"
+        "<ContentTransformation><AwsLambda>"
+        f"<FunctionArn>{html.escape(function)}</FunctionArn>"
+        "</AwsLambda></ContentTransformation>"
+        "</TransformationConfiguration></TransformationConfigurations>"
+        "</Configuration>"
+    )
+
+
+def create_object_lambda(region: str, payload: dict, rest) -> dict:
+    """CreateAccessPointForObjectLambda, served by the configuration PUT on the instance path."""
+    name = str(payload.get("name") or "").strip()
+    if not NAME_RE.match(name) or "--" in name:
+        return {"ok": False, "status": 400, "error": NAME_HELP}
+    supporting = str(payload.get("supporting_access_point") or "").strip()
+    if not supporting:
+        return {
+            "ok": False,
+            "status": 400,
+            "error": "Choose the access point the Lambda transformations read through.",
+        }
+    function = str(payload.get("function_arn") or "").strip()
+    if not function.startswith("arn:aws:lambda:"):
+        return {
+            "ok": False,
+            "status": 400,
+            "error": (
+                "A Lambda function ARN looks like "
+                "arn:aws:lambda:<region>:<account>:function:<name>."
+            ),
+        }
+    actions = payload.get("actions") or ["GetObject"]
+    allowed = ("GetObject", "HeadObject")
+    if not actions or any(action not in allowed for action in actions):
+        return {
+            "ok": False,
+            "status": 400,
+            "error": "Object Lambda actions here are GetObject and HeadObject.",
+        }
+
+    body = (
+        f'<CreateAccessPointForObjectLambdaRequest xmlns="{CONTROL_NS}">'
+        f"{_object_lambda_configuration(payload)}"
+        "</CreateAccessPointForObjectLambdaRequest>"
+    )
+    status, text = rest(region, "PUT", _object_lambda_path(name), body)
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "name": name, "created": True}
+    return {
+        "ok": False,
+        "status": status or 502,
+        "name": name,
+        "created": False,
+        "error": _detail(text, status),
+    }
+
+
+def _configuration_problem(configuration: str) -> str:
+    """The console edits one configuration document; check its shape before S3 does."""
+    root = _root(configuration)
+    if root is None:
+        return "the configuration is not XML"
+    if _local(root) != "Configuration":
+        return "the configuration must be one <Configuration> element"
+    if not _field(root, "SupportingAccessPoint"):
+        return "the configuration needs a SupportingAccessPoint"
+    if not _field(root, "FunctionArn"):
+        return "the configuration needs a Lambda FunctionArn"
+    if _first(configuration, "Action") is None:
+        return "the configuration needs at least one Action"
+    return ""
+
+
+def write_object_lambda_configuration(region: str, name: str, configuration, rest) -> dict:
+    """PutAccessPointConfigurationForObjectLambda: replaces the transformation document."""
+    text = "" if configuration is None else str(configuration).strip()
+    if not text:
+        return {"ok": False, "status": 400, "name": name, "error": "the configuration is empty"}
+    problem = _configuration_problem(text)
+    if problem:
+        return {"ok": False, "status": 400, "name": name, "error": problem}
+    body = (
+        f'<PutAccessPointConfigurationForObjectLambdaRequest xmlns="{CONTROL_NS}">'
+        f"{text}</PutAccessPointConfigurationForObjectLambdaRequest>"
+    )
+    status, answer = rest(region, "PUT", _object_lambda_path(name) + "/configuration", body)
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "name": name}
+    return {"ok": False, "status": status or 502, "name": name, "error": _detail(answer, status)}
 
 
 def write_policy(region: str, name: str, policy, rest) -> dict:

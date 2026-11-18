@@ -128,17 +128,17 @@ def test_python() -> list[str]:
 
 
 def coverage() -> list[str]:
-    """The published coverage page is generated, so a stale one is a failure; without the emulator checkout it passes."""
+    """Every generated coverage page is checked, so a stale one is a failure; without the emulator checkout it passes."""
     readme = EMULATOR / "README.md"
-    script = ROOT / "scripts" / "s3_coverage.py"
+    script = ROOT / "scripts" / "coverage.py"
     if not readme.is_file() or not script.is_file():
-        print("ministack-src is not checked out: skipped the S3 coverage check")
+        print("ministack-src is not checked out: skipped the coverage check")
         return []
     result = subprocess.run([sys.executable, str(script), "--check"], cwd=ROOT)
     return (
         []
         if result.returncode == 0
-        else ["the S3 coverage page is out of date: run scripts/s3_coverage.py"]
+        else ["a coverage page is out of date: run scripts/coverage.py"]
     )
 
 

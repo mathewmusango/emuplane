@@ -11,7 +11,7 @@ module.exports = {
       type: 'category',
       label: 'Concepts',
       collapsed: false,
-      items: ['concepts/architecture', 'concepts/tenancy'],
+      items: ['concepts/architecture', 'concepts/tenancy', 'concepts/extensions'],
     },
     {
       type: 'category',

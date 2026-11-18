@@ -95,18 +95,34 @@ npm run api   # reads the control checkout named by CONTROL_SRC
 | `/api/s3/mrap-delete` | POST |
 | `/api/s3/mrap-policy` | POST |
 | `/api/s3/mrap-routes` | POST |
+| `/api/s3/multipart-abort` | POST |
+| `/api/s3/multipart-complete` | POST |
+| `/api/s3/multipart-create` | POST |
+| `/api/s3/multipart-part` | POST |
 | `/api/s3/object` | GET, POST |
-| `/api/s3/object-annotation` | GET |
+| `/api/s3/object-acl` | GET, POST |
+| `/api/s3/object-annotation` | GET, POST |
 | `/api/s3/object-copy` | POST |
 | `/api/s3/object-download` | GET |
+| `/api/s3/object-lambda` | POST |
+| `/api/s3/object-lambda-configuration` | POST |
+| `/api/s3/object-lambda-delete` | POST |
+| `/api/s3/object-legal-hold` | POST |
 | `/api/s3/object-meta` | GET |
+| `/api/s3/object-retention` | POST |
+| `/api/s3/object-rewrite` | POST |
+| `/api/s3/object-tags` | POST |
 | `/api/s3/object-upload` | POST |
+| `/api/s3/object-version-delete` | POST |
 | `/api/s3/objects` | GET |
 | `/api/s3/table-buckets` | GET |
+| `/api/s3/upload-parts` | GET |
+| `/api/s3/uploads` | GET |
+| `/api/s3/versions` | GET |
 | `/api/services` | GET |
 | `/api/settings` | GET |
 | `/api/users` | GET, POST |
 
-55 route/method pairs, 51 paths.
+73 route/method pairs, 67 paths.
 
 <!-- routes:end -->

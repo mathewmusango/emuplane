@@ -18,8 +18,18 @@ The table is generated in the implementation repository and copied here, so what
 you read is what the ledger says. Work that is planned rather than done is tracked
 on this repository's [project board](https://github.com/mathewmusango/emuplane/projects/11).
 
+Nine operations the console drives are **not rows here**, because the emulator's
+advertised S3 row omits them although the emulator answers them:
+`ListMultipartUploads` (`GET ?uploads`), `ListParts` (`GET ?uploadId`),
+`GetObjectAcl` and `PutObjectAcl` (`?acl` on an object), `Get`, `Put` and
+`DeleteBucketWebsite` (`?website`), and `Get` and `PutBucketOwnershipControls`
+(`?ownershipControls`). The console drives all nine — the incomplete-uploads card,
+the object ACL dialog, the static-website document and the Object Ownership
+switch — and `tests/control/test_api.py` pins each against the emulator, so an
+upstream README that catches up turns them into ordinary rows.
+
 ```bash
-npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
+npm run coverage   # regenerates every service's coverage page
 ```
 
 <!-- coverage:begin -->
@@ -27,11 +37,16 @@ npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 - Operations upstream advertises: **84**
 - Console actions (`/api/exec`, the create page): **5**
 - Operations with an emuplane test: **84**
-- Operations shown in the console: **63**
+- Operations shown in the console: **83**
+- Operations that are not console actions: **1**
 - GET operations (Get/List/Head/Describe) shown in the console: **35** of **35**
 - Operations with no emuplane test: **0**
 
+
+
+
 ## Buckets and objects
+
 
 | Operation | Console action | Shown in the console | Emuplane test |
 | --- | --- | --- | --- |
@@ -43,11 +58,13 @@ npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 | `GetObject` | Bucket page (Objects) | Bucket page › Objects › open | tests/s3/test_objects.py, tests/control/test_parity.py, tests/control/test_object_upload.py |
 | `DeleteObject` | delete-object | Bucket page › Objects › open › Delete | tests/web/s3.test.jsx (object view), tests/s3/test_catalogue.py, tests/control/test_parity.py |
 | `HeadObject` | Bucket page (Objects) | Bucket page › Objects › open (size, ETag, last modified) | tests/control/test_gateway.py (301 path), tests/s3/test_objects.py (HEAD first), tests/control/test_api.py |
-| `CopyObject` | Bucket page (Objects) | Bucket page › Objects › open › Copy | tests/s3/test_objects.py, tests/control/test_api.py, tests/web/s3.test.jsx |
+| `CopyObject` | Bucket page (Objects) | Bucket page › Objects › Actions › Copy / Edit storage class / Edit encryption | tests/s3/test_objects.py, tests/control/test_api.py, tests/web/s3.test.jsx |
 | `ListObjects v1/v2` | list-objects | Bucket page › Objects | tests/control/test_api.py (v2), tests/control/test_parity.py, tests/s3/test_objects.py (v1) |
 | `DeleteObjects` | delete-object | Buckets page › Empty | tests/s3/test_objects.py (Empty) |
 
+
 ## Bucket configuration
+
 
 | Operation | Console action | Shown in the console | Emuplane test |
 | --- | --- | --- | --- |
@@ -70,49 +87,55 @@ npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 | `GetBucketPolicy` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py (documents), tests/control/test_api.py |
 | `PutBucketPolicy` | Bucket page (Configuration documents, Edit) | Bucket page › Configuration documents › Edit | tests/s3/test_objects.py (policy round trip), tests/control/test_api.py, tests/web/s3.test.jsx |
 | `DeleteBucketPolicy` | Bucket page (Configuration documents, Remove) | Bucket page › Configuration documents › Remove | tests/s3/test_objects.py (policy round trip), tests/control/test_api.py |
-| `GetBucketNotificationConfiguration` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py (documents) |
-| `PutBucketNotificationConfiguration` | — | — | tests/s3/test_operations.py (EventBridge rule) |
-| `GetBucketLogging` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py (documents) |
-| `PutBucketLogging` | — | — | tests/s3/test_operations.py (logging written and read) |
+| `GetBucketNotificationConfiguration` | Bucket page (Properties) | Bucket page › Properties › Event notifications | tests/s3/test_objects.py (documents) |
+| `PutBucketNotificationConfiguration` | Bucket page (Properties, Edit) | Bucket page › Properties › Event notifications › Edit | tests/s3/test_operations.py (EventBridge rule) |
+| `GetBucketLogging` | Bucket page (Properties) | Bucket page › Properties › Server access logging | tests/s3/test_objects.py (documents) |
+| `PutBucketLogging` | Bucket page (Properties, Edit) | Bucket page › Properties › Server access logging › Edit | tests/s3/test_operations.py (logging written and read) |
 | `PutPublicAccessBlock` | Bucket page (Permissions, Save) | Bucket page › Permissions › Save | tests/s3/test_create.py |
 | `GetPublicAccessBlock` | Bucket page (Permissions) | Bucket page › Permissions | tests/s3/test_create.py |
-| `DeletePublicAccessBlock` | — | — | tests/s3/test_operations.py (access block removed) |
+| `DeletePublicAccessBlock` | Bucket page (Permissions, Remove) | Bucket page › Permissions › Remove configuration | tests/s3/test_operations.py (access block removed) |
+
 
 ## Objects in depth
 
+
 | Operation | Console action | Shown in the console | Emuplane test |
 | --- | --- | --- | --- |
-| `ListObjectVersions` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py |
-| `CreateMultipartUpload` | — | — | tests/s3/test_operations.py (multipart) |
-| `UploadPart` | — | — | tests/s3/test_operations.py (multipart) |
-| `CompleteMultipartUpload` | — | — | tests/s3/test_operations.py (multipart) |
-| `AbortMultipartUpload` | — | — | tests/s3/test_operations.py (multipart aborted) |
+| `ListObjectVersions` | Bucket page (Properties) | Bucket page › Properties › Versions | tests/s3/test_objects.py, tests/control/test_api.py, tests/web/s3.test.jsx |
+| `CreateMultipartUpload` | — | Bucket page › Objects › Upload (files above 8 MiB, part 1 of N) | tests/s3/test_operations.py (multipart), tests/control/test_api.py (incomplete-upload listing), tests/web/s3.test.jsx (files above 8 MiB) |
+| `UploadPart` | — | Bucket page › Objects › Upload (each part) | tests/s3/test_operations.py (multipart) |
+| `CompleteMultipartUpload` | — | Bucket page › Objects › Upload (when the last part lands) | tests/s3/test_operations.py (multipart) |
+| `AbortMultipartUpload` | — | Bucket page › Objects › Upload › Cancel, or Incomplete multipart uploads › Abort upload | tests/s3/test_operations.py (multipart aborted), tests/control/test_api.py, tests/web/s3.test.jsx |
 | `GetObjectTagging` | — | Bucket page › Objects › open › Tags | tests/s3/test_operations.py (object tags) |
-| `PutObjectTagging` | — | — | tests/s3/test_operations.py (object tags) |
-| `DeleteObjectTagging` | — | — | tests/s3/test_operations.py (object tags) |
-| `PutObjectAnnotation` | — | — | tests/s3/test_operations.py (annotations) |
+| `PutObjectTagging` | — | Bucket page › Objects › open › Tags › Edit tags / Save | tests/s3/test_operations.py (object tags) |
+| `DeleteObjectTagging` | — | Bucket page › Objects › open › Tags › Remove tags | tests/s3/test_operations.py (object tags) |
+| `PutObjectAnnotation` | — | Bucket page › Objects › open › Annotations › Add annotation | tests/s3/test_operations.py (annotations) |
 | `GetObjectAnnotation` | — | Bucket page › Objects › open › Annotations › name | tests/s3/test_operations.py (annotations) |
 | `ListObjectAnnotations` | — | Bucket page › Objects › open › Annotations | tests/s3/test_operations.py (annotations) |
-| `DeleteObjectAnnotation` | — | — | tests/s3/test_operations.py (annotations) |
+| `DeleteObjectAnnotation` | — | Bucket page › Objects › open › Annotations › Remove | tests/s3/test_operations.py (annotations) |
+
 
 ## Object Lock
+
 
 | Operation | Console action | Shown in the console | Emuplane test |
 | --- | --- | --- | --- |
 | `PutObjectLockConfiguration` | Create page (Object Lock) | Create bucket page › Object Lock | tests/s3/test_create.py (at create) |
 | `GetObjectLockConfiguration` | Create page (Copy settings) | Create bucket page › Copy settings | tests/s3/test_create.py |
-| `PutObjectRetention` | — | — | tests/s3/test_operations.py (retention) |
+| `PutObjectRetention` | — | Bucket page › Objects › open › Object Lock › Edit retention | tests/s3/test_operations.py (retention) |
 | `GetObjectRetention` | — | Bucket page › Objects › open › Object Lock | tests/s3/test_operations.py (retention) |
-| `PutObjectLegalHold` | — | — | tests/s3/test_operations.py (legal hold) |
+| `PutObjectLegalHold` | — | Bucket page › Objects › open › Object Lock › Edit legal hold | tests/s3/test_operations.py (legal hold) |
 | `GetObjectLegalHold` | — | Bucket page › Objects › open › Object Lock | tests/s3/test_operations.py (legal hold) |
+
 
 ## Replication and access points
 
+
 | Operation | Console action | Shown in the console | Emuplane test |
 | --- | --- | --- | --- |
-| `PutBucketReplication` | — | — | tests/s3/test_operations.py (replication config) |
-| `GetBucketReplication` | Bucket page (Configuration documents) | Bucket page › Configuration documents | tests/s3/test_objects.py (documents) |
-| `DeleteBucketReplication` | — | — | tests/s3/test_operations.py (replication removed) |
+| `PutBucketReplication` | Bucket page (Management, Edit) | Bucket page › Management › Replication rules › Edit | tests/s3/test_operations.py (replication config) |
+| `GetBucketReplication` | Bucket page (Management) | Bucket page › Management › Replication rules | tests/s3/test_objects.py (documents) |
+| `DeleteBucketReplication` | Bucket page (Management, Delete) | Bucket page › Management › Replication rules › Delete | tests/s3/test_operations.py (replication removed) |
 | `CreateAccessPoint` | Access Points page | Access Points page › Create access point | tests/s3/test_access_points.py, tests/control/test_access_point_api.py |
 | `GetAccessPoint` | Access Points page | Access Points page › row details | tests/s3/test_access_points.py (row details) |
 | `ListAccessPoints` | Access Points page | Access Points page › General purpose buckets | tests/s3/test_access_points.py, tests/control/test_access_point_api.py |
@@ -121,7 +144,9 @@ npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 | `GetAccessPointPolicy` | Access Points page (Edit policy) | Access Points page › Edit policy | tests/s3/test_access_points.py, tests/control/test_access_point_api.py |
 | `DeleteAccessPointPolicy` | Access Points page (Remove policy) | Access Points page › Remove policy | tests/s3/test_access_points.py, tests/control/test_access_point_api.py |
 
+
 ## Multi-Region Access Points and Object Lambda
+
 
 | Operation | Console action | Shown in the console | Emuplane test |
 | --- | --- | --- | --- |
@@ -134,18 +159,21 @@ npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 | `ListMultiRegionAccessPoints` | Access Points page (Multi-Region tab) | Access Points page › Multi-Region | tests/s3/test_access_points.py, tests/control/test_access_point_api.py |
 | `GetMultiRegionAccessPointRoutes` | — | Access Points page › Multi-Region › View details | tests/s3/test_operations.py (MRAP routes) |
 | `SubmitMultiRegionAccessPointRoutes` | Access Points page (Multi-Region traffic dials) | Access Points page › Multi-Region › View details › Routes › Edit traffic dials | tests/s3/test_operations.py (MRAP routes), tests/control/test_mrap_actions_api.py |
-| `CreateAccessPointForObjectLambda` | — | — | tests/s3/test_operations.py (Object Lambda create + read) |
+| `CreateAccessPointForObjectLambda` | Access Points page (Object Lambda create) | Access Points page › Object Lambda › Create | tests/s3/test_operations.py (Object Lambda create + read) |
 | `GetAccessPointForObjectLambda` | — | Access Points page › Object Lambda › View details | tests/s3/test_operations.py (Object Lambda create + read) |
 | `ListAccessPointsForObjectLambda` | Access Points page (Object Lambda tab) | Access Points page › Object Lambda | tests/s3/test_access_points.py, tests/control/test_access_point_api.py |
-| `DeleteAccessPointForObjectLambda` | — | — | tests/s3/test_operations.py (Object Lambda deleted) |
+| `DeleteAccessPointForObjectLambda` | Access Points page (Object Lambda delete) | Access Points page › Object Lambda › Delete | tests/s3/test_operations.py (Object Lambda deleted) |
 | `GetAccessPointConfigurationForObjectLambda` | — | Access Points page › Object Lambda › View details | tests/s3/test_operations.py (Object Lambda configuration) |
-| `PutAccessPointConfigurationForObjectLambda` | — | — | tests/s3/test_operations.py (Object Lambda configuration) |
-| `PutAccessPointPolicyForObjectLambda` | — | — | tests/s3/test_operations.py (Object Lambda policy) |
-| `GetAccessPointPolicyForObjectLambda` | — | Access Points page › Object Lambda › View details | tests/s3/test_operations.py (Object Lambda policy) |
-| `DeleteAccessPointPolicyForObjectLambda` | — | — | tests/s3/test_operations.py (Object Lambda policy) |
-| `WriteGetObjectResponse` | — | — | tests/s3/test_operations.py (unknown route refused) |
+| `PutAccessPointConfigurationForObjectLambda` | Access Points page (Object Lambda configuration) | Access Points page › Object Lambda › View details › Edit configuration | tests/s3/test_operations.py (Object Lambda configuration) |
+| `PutAccessPointPolicyForObjectLambda` | Access Points page (Edit policy) | Access Points page › Object Lambda › Edit policy | tests/s3/test_operations.py (Object Lambda policy) |
+| `GetAccessPointPolicyForObjectLambda` | Access Points page (Edit policy) | Access Points page › Object Lambda › Edit policy | tests/s3/test_operations.py (Object Lambda policy) |
+| `DeleteAccessPointPolicyForObjectLambda` | Access Points page (Remove policy) | Access Points page › Object Lambda › Edit policy › Remove policy | tests/s3/test_operations.py (Object Lambda policy) |
+| `WriteGetObjectResponse` | — | not a console action (the Lambda runtime's callback) | tests/s3/test_operations.py (unknown route refused) |
+
 
 ## GET operations
+
+
 
 - [x] `ListBuckets` — Buckets page › table
 - [x] `HeadBucket` — Bucket page (HeadBucket decides the region)
@@ -159,13 +187,13 @@ npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 - [x] `GetBucketAcl` — Bucket page › Configuration documents
 - [x] `GetBucketTagging` — Bucket page › Properties
 - [x] `GetBucketPolicy` — Bucket page › Configuration documents
-- [x] `GetBucketNotificationConfiguration` — Bucket page › Configuration documents
-- [x] `GetBucketLogging` — Bucket page › Configuration documents
-- [x] `ListObjectVersions` — Bucket page › Configuration documents
+- [x] `GetBucketNotificationConfiguration` — Bucket page › Properties › Event notifications
+- [x] `GetBucketLogging` — Bucket page › Properties › Server access logging
+- [x] `ListObjectVersions` — Bucket page › Properties › Versions
 - [x] `GetObjectLockConfiguration` — Create bucket page › Copy settings
 - [x] `GetObjectRetention` — Bucket page › Objects › open › Object Lock
 - [x] `GetObjectLegalHold` — Bucket page › Objects › open › Object Lock
-- [x] `GetBucketReplication` — Bucket page › Configuration documents
+- [x] `GetBucketReplication` — Bucket page › Management › Replication rules
 - [x] `GetObjectTagging` — Bucket page › Objects › open › Tags
 - [x] `GetObjectAnnotation` — Bucket page › Objects › open › Annotations › name
 - [x] `ListObjectAnnotations` — Bucket page › Objects › open › Annotations
@@ -180,7 +208,7 @@ npm run s3:coverage   # reads my-docs/S3.md, rewrites the block above
 - [x] `GetAccessPointForObjectLambda` — Access Points page › Object Lambda › View details
 - [x] `ListAccessPointsForObjectLambda` — Access Points page › Object Lambda
 - [x] `GetAccessPointConfigurationForObjectLambda` — Access Points page › Object Lambda › View details
-- [x] `GetAccessPointPolicyForObjectLambda` — Access Points page › Object Lambda › View details
+- [x] `GetAccessPointPolicyForObjectLambda` — Access Points page › Object Lambda › Edit policy
 - [x] `GetPublicAccessBlock` — Bucket page › Permissions
 
 <!-- coverage:end -->
