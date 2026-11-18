@@ -20,5 +20,14 @@ jobs:
   deps:
     if: ${{ !github.event.repository.private }}
     uses: mathewmusango/my-workflows/.github/workflows/security-dependency-review.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17
+  # The reusable workflow audits at a fixed threshold and takes no allowlist; picomatch has no fix, so this names what is accepted.
   npm-audit:
-    uses: mathewmusango/my-workflows/.github/workflows/security-npm-audit.yml@231bfd6be26e1cfe1a4a07c2a81f36296ab7b26b # 2026-11-17
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - name: Audit every lockfile against the allowlist
+        run: python3 scripts/npm_audit.py
