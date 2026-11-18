@@ -18,14 +18,14 @@ import re
 import subprocess
 import sys
 from datetime import date
+from http.client import HTTPSConnection
 from pathlib import Path
 from urllib.parse import quote
-from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / ".github" / "changelog.json"
 FILE = ROOT / "CHANGELOG.md"
-API = "https://api.github.com"
+API_HOST = "api.github.com"
 
 
 def load_config(path: Path = CONFIG) -> dict:
@@ -267,17 +267,25 @@ def fetch_issues(repo: str, since: str, token: str) -> list[dict]:
     issues: list[dict] = []
     page = 1
     while True:
-        request = Request(
-            f"{API}/search/issues?q={query}&per_page=100&page={page}",
-            headers={
-                "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {token}",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "User-Agent": "emuplane-changelog",
-            },
-        )
-        with urlopen(request, timeout=30) as answer:
-            payload = json.loads(answer.read())
+        connection = HTTPSConnection(API_HOST, timeout=30)
+        try:
+            connection.request(
+                "GET",
+                f"/search/issues?q={query}&per_page=100&page={page}",
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": f"Bearer {token}",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                    "User-Agent": "emuplane-changelog",
+                },
+            )
+            answer = connection.getresponse()
+            body = answer.read()
+        finally:
+            connection.close()
+        if answer.status != 200:
+            raise SystemExit(f"the search API answered {answer.status} for {repo}")
+        payload = json.loads(body)
         items = payload.get("items") or []
         issues.extend(items)
         if len(items) < 100:
