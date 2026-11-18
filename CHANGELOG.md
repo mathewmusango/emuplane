@@ -8,6 +8,12 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.2.2] - 2026-11-18
+
+### Security
+
+- control: an anonymous ListBuckets is refused at the gateway ([#119](https://github.com/mathewmusango/emuplane/issues/119))
+
 ## [v0.2.1] - 2026-11-18
 
 ### Fixed
