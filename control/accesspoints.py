@@ -5,8 +5,9 @@ from __future__ import annotations
 import html
 import json
 import re
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 from urllib.parse import quote
-from xml.etree import ElementTree
 
 CONTROL_NS = "https://awss3control.amazonaws.com/doc/2018-08-20/"
 
@@ -50,13 +51,10 @@ def _local(element) -> str:
 
 
 def _root(xml: str):
-    """The document, or None — an entity declaration is the whole of the attack, and no answer carries a DTD."""
-    text = xml or ""
-    if "<!DOCTYPE" in text or "<!ENTITY" in text:
-        return None
+    """The document, or None — the parser refuses a DTD, so nothing is expanded on the way in."""
     try:
-        return ElementTree.fromstring(text)
-    except ElementTree.ParseError:
+        return ElementTree.fromstring(xml or "", forbid_dtd=True)
+    except (ElementTree.ParseError, DefusedXmlException):
         return None
 
 
