@@ -1,0 +1,54 @@
+{
+  "prefix": "module:",
+  "description": "Which part of Emuplane an issue or PR belongs to. Orthogonal to the changelog labels: one module label plus one changelog label per issue.",
+  "modules": [
+    {
+      "name": "s3",
+      "color": "1d76db",
+      "description": "S3 buckets and objects: console pages, control routes, coverage",
+      "paths": ["web/src/pages/BucketDetail.jsx", "web/src/pages/CreateBucket.jsx", "control/buckets.py", "coverage/s3.json"]
+    },
+    {
+      "name": "s3-files",
+      "color": "5319e7",
+      "description": "S3 Files: file systems, mount targets, access points",
+      "paths": ["control/s3extra.py", "web/src/pages/S3Section.jsx", "coverage/s3-files.json"]
+    },
+    {
+      "name": "iam",
+      "color": "b60205",
+      "description": "IAM identities, policies and access keys; the gateway's authorisation",
+      "paths": ["control/app.py", "web/src/pages/Settings.jsx", "tests/control/test_iam_policies.py", "coverage/iam.json"]
+    },
+    {
+      "name": "account",
+      "color": "fbca04",
+      "description": "Accounts, regions and tenancy records",
+      "paths": ["control/app.py", "web/src/pages/Settings.jsx", "coverage/account.json"]
+    },
+    {
+      "name": "console",
+      "color": "0e8a16",
+      "description": "The React console as a whole: shell, navigation, shared components",
+      "paths": ["web/src/components", "web/src/pages"]
+    },
+    {
+      "name": "control",
+      "color": "d93f0b",
+      "description": "The control plane: gateway, sessions, stores, bootstrap",
+      "paths": ["control", "bootstrap"]
+    },
+    {
+      "name": "docs",
+      "color": "ededed",
+      "description": "The Docusaurus site and the generated coverage pages",
+      "paths": ["site", "coverage"]
+    },
+    {
+      "name": "ci",
+      "color": "c5def5",
+      "description": "Workflows, release plumbing, dependency bots",
+      "paths": [".github", "scripts"]
+    }
+  ]
+}
