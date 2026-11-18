@@ -8,6 +8,24 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-11-18
+
+### Added
+
+- S3 console: upload objects and edit them in place ([#89](https://github.com/mathewmusango/emuplane/issues/89))
+- S3 console: versions, incomplete uploads and object ACLs ([#90](https://github.com/mathewmusango/emuplane/issues/90))
+- S3 console: bucket properties, permissions and configuration ([#91](https://github.com/mathewmusango/emuplane/issues/91))
+- S3: enforce MFA delete at the gateway ([#92](https://github.com/mathewmusango/emuplane/issues/92))
+- S3 console: access points, Multi-Region and Object Lambda ([#93](https://github.com/mathewmusango/emuplane/issues/93))
+
+### Changed
+
+- S3 console: browse buckets and objects as folders ([#88](https://github.com/mathewmusango/emuplane/issues/88))
+
+### Fixed
+
+- S3: page every listing instead of truncating it ([#94](https://github.com/mathewmusango/emuplane/issues/94))
+
 ## [v0.1.2] - 2026-11-17
 
 ### Fixed
