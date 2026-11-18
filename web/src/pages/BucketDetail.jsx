@@ -1912,11 +1912,13 @@ export default function BucketDetail() {
               items={versions}
               loading={versionsLoading}
               loadingText="Reading versions"
-              trackBy="version_id"
+              // A composite key: every object written before versioning answers the version id `null`.
+              trackBy={(item) => `${item.key}:${item.version_id}`}
               columnDefinitions={[
                 {
                   id: 'key',
                   header: 'Name',
+                  width: 170,
                   // Only the current version is what the object view opens; an older one is named, not linked.
                   cell: (item) =>
                     item.latest && !item.delete_marker ? (
@@ -1925,18 +1927,39 @@ export default function BucketDetail() {
                       <span className="mono">{item.key}</span>
                     ),
                 },
-                { id: 'version_id', header: 'Version ID', cell: (item) => item.version_id },
+                {
+                  id: 'version_id',
+                  header: 'Version ID',
+                  width: 170,
+                  // The id is 36 characters, so it is elided in the cell and complete in the tooltip.
+                  cell: (item) => (
+                    <span
+                      className="mono"
+                      title={item.version_id}
+                      style={{
+                        display: 'inline-block',
+                        maxWidth: '18ch',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        verticalAlign: 'bottom',
+                      }}
+                    >
+                      {item.version_id}
+                    </span>
+                  ),
+                },
                 {
                   id: 'kind',
                   header: 'Type',
                   cell: (item) => (item.delete_marker ? 'Delete marker' : 'Version'),
-                  width: 130,
+                  width: 100,
                 },
                 {
                   id: 'latest',
                   header: 'Latest',
                   cell: (item) => (item.latest ? 'Yes' : dash),
-                  width: 90,
+                  width: 70,
                 },
                 {
                   id: 'size',
@@ -1945,29 +1968,31 @@ export default function BucketDetail() {
                     item.delete_marker || item.size === ''
                       ? dash
                       : formatSize(Number(item.size)),
-                  width: 110,
+                  width: 80,
                 },
                 {
                   id: 'modified',
                   header: 'Last modified',
                   cell: (item) => item.modified,
-                  width: 230,
+                  width: 200,
                 },
                 {
                   id: 'storage',
                   header: 'Storage class',
                   cell: (item) => item.storage || dash,
-                  width: 160,
+                  width: 120,
                 },
                 {
                   id: 'actions',
                   header: '',
-                  width: 190,
+                  width: 150,
                   cell: (item) => (
-                    <SpaceBetween direction="horizontal" size="xs">
+                    // Two icon actions, so a squeezed column cannot break the labels into eight lines.
+                    <div style={{ display: 'flex', gap: '0.25rem' }}>
                       {!item.delete_marker && (
                         <Button
-                          variant="inline-link"
+                          variant="icon"
+                          iconName="download"
                           ariaLabel={`Download version ${item.version_id} of ${item.key}`}
                           href={api.objectDownloadUrl(
                             account,
@@ -1976,18 +2001,15 @@ export default function BucketDetail() {
                             item.key,
                             item.version_id,
                           )}
-                        >
-                          Download
-                        </Button>
+                        />
                       )}
                       <Button
-                        variant="inline-link"
+                        variant="icon"
+                        iconName="remove"
                         ariaLabel={`Delete version ${item.version_id} of ${item.key}`}
                         onClick={() => setDeletingVersion(item)}
-                      >
-                        Delete
-                      </Button>
-                    </SpaceBetween>
+                      />
+                    </div>
                   ),
                 },
               ]}

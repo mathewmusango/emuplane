@@ -1200,6 +1200,67 @@ describe('s3', () => {
     }
   })
 
+  it('lists keys whose versions share the emulator’s null version id', async () => {
+    pinRegion('us-east-1')
+    const base = globalThis.fetch
+    // Everything written before versioning was enabled answers version id `null`, so two keys state the same id.
+    const errors = []
+    const record = vi.spyOn(console, 'error').mockImplementation((...args) => {
+      errors.push(args.join(' '))
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        const path = String(url).split('?')[0]
+        if (path === '/api/s3/versions') {
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              JSON.stringify({
+                ok: true,
+                bucket: 'logs-bucket',
+                versions: [
+                  {
+                    key: 'reports/2026.csv',
+                    version_id: 'null',
+                    latest: true,
+                    delete_marker: false,
+                    size: '24',
+                    modified: '2026-11-16T13:06:12Z',
+                    storage: 'STANDARD',
+                  },
+                  {
+                    key: 'reports/2025.csv',
+                    version_id: 'null',
+                    latest: true,
+                    delete_marker: false,
+                    size: '12',
+                    modified: '2026-11-15T09:00:00Z',
+                    storage: 'STANDARD',
+                  },
+                ],
+                truncated: false,
+              }),
+          }
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+
+      expect(await screen.findByText('reports/2026.csv')).toBeTruthy()
+      expect(screen.getByText('reports/2025.csv')).toBeTruthy()
+      // Two rows sharing one React key make the table's reconciliation ambiguous, so React warns.
+      expect(errors.filter((line) => /same key/i.test(line))).toEqual([])
+    } finally {
+      record.mockRestore()
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('pages an upload list and its parts instead of cutting them short', async () => {
     pinRegion('us-east-1')
     const sent = []
