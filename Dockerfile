@@ -1,5 +1,5 @@
-# Base images are pinned by index digest; `renovate.json` moves them.
-FROM docker.io/library/node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a AS web
+# Base images are pinned by tag and index digest, so a scanner can read the patch; `renovate.json` moves both.
+FROM docker.io/library/node:22.23.5-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a AS web
 
 WORKDIR /src
 
