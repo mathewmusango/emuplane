@@ -209,3 +209,63 @@ def test_below_one_point_oh_a_break_moves_the_minor(config):
 
 def test_an_excluded_issue_does_not_move_the_version(config):
     assert changelog.next_version("v1.4.2", [issue(1, "A chore", ["chore"])], config) == "1.4.3"
+
+
+def test_the_search_client_speaks_to_one_host(monkeypatch):
+    """The transport is fixed-host https, so a repo name cannot move the request off api.github.com."""
+    hosts: list[str] = []
+    paths: list[str] = []
+
+    class Answer:
+        status = 200
+
+        def __init__(self, payload: dict) -> None:
+            self._payload = payload
+
+        def read(self) -> bytes:
+            return json.dumps(self._payload).encode()
+
+    class Connection:
+        def __init__(self, host: str, timeout: int | None = None) -> None:
+            hosts.append(host)
+
+        def request(self, method: str, path: str, headers=None) -> None:
+            paths.append(path)
+            items = [{"number": n} for n in range(100)] if "&page=1" in path else [{"number": 100}]
+            self._answer = Answer({"items": items})
+
+        def getresponse(self):
+            return self._answer
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(changelog, "HTTPSConnection", Connection)
+    assert len(changelog.fetch_issues("owner/name", "2026-01-01T00:00:00Z", "token")) == 101
+    assert set(hosts) == {"api.github.com"}
+    assert all(path.startswith("/search/issues?q=repo%3Aowner/name") for path in paths)
+
+
+def test_a_refused_search_fails_loudly(monkeypatch):
+    class Answer:
+        status = 403
+
+        def read(self) -> bytes:
+            return b"{}"
+
+    class Connection:
+        def __init__(self, host: str, timeout: int | None = None) -> None:
+            pass
+
+        def request(self, *args, **kwargs) -> None:
+            pass
+
+        def getresponse(self):
+            return Answer()
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(changelog, "HTTPSConnection", Connection)
+    with pytest.raises(SystemExit):
+        changelog.fetch_issues("owner/name", "2026-01-01T00:00:00Z", "token")
