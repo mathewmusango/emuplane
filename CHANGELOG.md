@@ -8,6 +8,18 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.2.1] - 2026-11-18
+
+### Fixed
+
+- compose: the all-in-one stack runs the pinned emulator, and the README says so ([#106](https://github.com/mathewmusango/emuplane/issues/106))
+
+### Security
+
+- control: the access point parser refuses a document that declares entities ([#99](https://github.com/mathewmusango/emuplane/issues/99))
+- control: every XML parser refuses a DTD, and defusedxml is pinned ([#102](https://github.com/mathewmusango/emuplane/issues/102))
+- control: response headers cannot carry a line break, and an email is bounded before its pattern ([#116](https://github.com/mathewmusango/emuplane/issues/116))
+
 ## [v0.2.0] - 2026-11-18
 
 ### Added
