@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Box from '@cloudscape-design/components/box'
 import Button from '@cloudscape-design/components/button'
+import Checkbox from '@cloudscape-design/components/checkbox'
 import ColumnLayout from '@cloudscape-design/components/column-layout'
 import ContentLayout from '@cloudscape-design/components/content-layout'
 import FormField from '@cloudscape-design/components/form-field'
@@ -21,7 +22,7 @@ import { useSession } from '../context'
 import { regionName } from '../regionNames'
 import { Shell } from '../components/Shell'
 
-// The Access Points page: three tabs (no directory buckets); Multi-Region creates are asynchronous, Object Lambda ones are listed only.
+// The Access Points page: three tabs (no directory buckets); Multi-Region creates are asynchronous, Object Lambda keeps its configuration as a document.
 const SECTIONS = {
   general: {
     tab: 'General purpose buckets',
@@ -212,6 +213,18 @@ export default function AccessPoints() {
   const [routeDials, setRouteDials] = useState(null)
   const [routesBusy, setRoutesBusy] = useState(false)
   const [routesError, setRoutesError] = useState('')
+  const [lambdaCreateOpen, setLambdaCreateOpen] = useState(false)
+  const [lambdaName, setLambdaName] = useState('')
+  const [lambdaSupport, setLambdaSupport] = useState(null)
+  const [lambdaFunction, setLambdaFunction] = useState('')
+  const [lambdaActions, setLambdaActions] = useState({ GetObject: true, HeadObject: true })
+  const [lambdaMetrics, setLambdaMetrics] = useState(false)
+  const [lambdaOptions, setLambdaOptions] = useState([])
+  const [lambdaError, setLambdaError] = useState('')
+  const [lambdaCreating, setLambdaCreating] = useState(false)
+  const [configEdit, setConfigEdit] = useState(null)
+  const [configError, setConfigError] = useState('')
+  const [configBusy, setConfigBusy] = useState(false)
   const detail = SECTIONS[section]
 
   const load = () => {
@@ -293,12 +306,7 @@ export default function AccessPoints() {
     setPolicyText('')
     setPolicyError('')
     try {
-      const answer = await api.accessPointPolicy(
-        account,
-        region,
-        row.name,
-        section === 'multi-region' ? 'multi-region' : 'general',
-      )
+      const answer = await api.accessPointPolicy(account, region, row.name, section)
       setPolicyText(pretty(answer.policy))
     } catch (err) {
       setPolicyError(err.message)
@@ -322,6 +330,7 @@ export default function AccessPoints() {
             region,
             name: policy.name,
             policy: next,
+            section: policy.section === 'object-lambda' ? 'object-lambda' : 'general',
           })
       // A FAILED Multi-Region policy write means the old policy is still in force, so keep the editor open.
       if (answer.operation) {
@@ -342,20 +351,27 @@ export default function AccessPoints() {
   }
 
   const remove = async () => {
-    const multiRegion = deleting.section === 'multi-region'
+    const kind = deleting.section
     setBusy(true)
     try {
-      const answer = multiRegion
-        ? await api.deleteMultiRegionAccessPoint({
-            account,
-            region,
-            name: deleting.name,
-          })
-        : await api.deleteAccessPoint({
-            account,
-            region,
-            name: deleting.name,
-          })
+      const answer =
+        kind === 'multi-region'
+          ? await api.deleteMultiRegionAccessPoint({
+              account,
+              region,
+              name: deleting.name,
+            })
+          : kind === 'object-lambda'
+            ? await api.deleteObjectLambdaAccessPoint({
+                account,
+                region,
+                name: deleting.name,
+              })
+            : await api.deleteAccessPoint({
+                account,
+                region,
+                name: deleting.name,
+              })
       setDeleting(null)
       if (answer.operation) {
         setOperations((held) => ({ ...held, [deleting.name]: answer.operation }))
@@ -472,6 +488,74 @@ export default function AccessPoints() {
     }
   }
 
+  // An Object Lambda access point reads through a supporting access point, so the form lists the general ones first.
+  const openObjectLambdaCreate = () => {
+    setLambdaCreateOpen(true)
+    setLambdaName('')
+    setLambdaSupport(null)
+    setLambdaFunction('')
+    setLambdaActions({ GetObject: true, HeadObject: true })
+    setLambdaMetrics(false)
+    setLambdaError('')
+    setLambdaOptions([])
+    if (!account) return
+    api
+      .accessPoints(account, region, 'general')
+      .then((answer) =>
+        setLambdaOptions(
+          (answer?.access_points || []).map((row) => ({
+            label: row.bucket ? `${row.name} · ${row.bucket}` : row.name,
+            value: row.arn,
+          })),
+        ),
+      )
+      .catch((err) => setLambdaError(err.message))
+  }
+
+  const createObjectLambda = async () => {
+    setLambdaError('')
+    setLambdaCreating(true)
+    try {
+      await api.createObjectLambdaAccessPoint({
+        account,
+        region,
+        name: lambdaName.trim(),
+        supporting_access_point: lambdaSupport?.value || '',
+        function_arn: lambdaFunction.trim(),
+        actions: Object.keys(lambdaActions).filter((action) => lambdaActions[action]),
+        cloudwatch_metrics: lambdaMetrics,
+      })
+      setLambdaCreateOpen(false)
+      setNotice(`Object Lambda access point ${lambdaName.trim()} created`)
+      load()
+    } catch (err) {
+      setLambdaError(err.message)
+    } finally {
+      setLambdaCreating(false)
+    }
+  }
+
+  const saveConfiguration = async () => {
+    if (!configEdit) return
+    setConfigBusy(true)
+    setConfigError('')
+    try {
+      await api.editObjectLambdaConfiguration({
+        account,
+        region,
+        name: configEdit.name,
+        configuration: configEdit.text,
+      })
+      setConfigEdit(null)
+      setNotice(`Configuration saved for ${configEdit.name}`)
+      if (detailRow) await openDetail(detailRow)
+    } catch (err) {
+      setConfigError(err.message)
+    } finally {
+      setConfigBusy(false)
+    }
+  }
+
   const general = section === 'general'
 
   const table = (
@@ -520,27 +604,28 @@ export default function AccessPoints() {
                   View details
                 </Button>
               )}
-              {(general || section === 'multi-region') && (
-                <Button disabled={selected.length !== 1} onClick={openPolicy}>
-                  Edit policy
-                </Button>
-              )}
-              {(general || section === 'multi-region') && (
-                <Button
-                  disabled={selected.length !== 1}
-                  onClick={() =>
-                    setDeleting(selected[0] ? { name: selected[0].name, section } : null)
-                  }
-                >
-                  Delete
-                </Button>
-              )}
+              <Button disabled={selected.length !== 1} onClick={openPolicy}>
+                Edit policy
+              </Button>
+              <Button
+                disabled={selected.length !== 1}
+                onClick={() =>
+                  setDeleting(selected[0] ? { name: selected[0].name, section } : null)
+                }
+              >
+                Delete
+              </Button>
               {general && (
                 <Button
                   variant="primary"
                   onClick={() => navigate(`/s3/access-points/create?region=${region}`)}
                 >
                   Create access point
+                </Button>
+              )}
+              {section === 'object-lambda' && (
+                <Button variant="primary" onClick={openObjectLambdaCreate}>
+                  Create Object Lambda access point
                 </Button>
               )}
               {section === 'multi-region' && (
@@ -608,7 +693,7 @@ export default function AccessPoints() {
             <Alert type="info">
               {section === 'multi-region'
                 ? 'A Multi-Region access point is created by an asynchronous request: S3 Control answers with a request token, and the operation it names is shown as soon as it is read. Deleting one, and changing its policy or routes, is done with the S3 Control API for now.'
-                : 'This console lists Object Lambda access points. Creating, deleting and editing them is done with the S3 Control API for now.'}
+                : 'An Object Lambda access point reads through a supporting access point and a Lambda function. Creating and deleting one, and editing its configuration and policy, are done on this page.'}
             </Alert>
           )}
           <Tabs
@@ -622,7 +707,7 @@ export default function AccessPoints() {
           />
           <Box color="text-body-secondary" fontSize="body-s">
             Region <strong>{regionName(region)}</strong> <span className="mono">{region}</span>
-            {!general && (
+            {section === 'multi-region' && (
               <>
                 {' '}
                 · Multi-Region management is served from{' '}
@@ -678,7 +763,9 @@ export default function AccessPoints() {
         header={
           deleting?.section === 'multi-region'
             ? 'Delete Multi-Region access point'
-            : 'Delete access point'
+            : deleting?.section === 'object-lambda'
+              ? 'Delete Object Lambda access point'
+              : 'Delete access point'
         }
         footer={
           <Box float="right">
@@ -698,7 +785,9 @@ export default function AccessPoints() {
             Delete <strong>{deleting?.name}</strong>?{' '}
             {deleting?.section === 'multi-region'
               ? 'Requests made through its alias stop working. The member buckets and their objects are not touched, and S3 Control answers the delete asynchronously.'
-              : 'Requests made through this access point stop working. The bucket and its objects are not touched.'}
+              : deleting?.section === 'object-lambda'
+                ? 'Requests made through this Object Lambda access point stop working. The supporting access point and its bucket are not touched.'
+                : 'Requests made through this access point stop working. The bucket and its objects are not touched.'}
           </Box>
           {deleting?.section === 'multi-region' ? (
             <Alert type="warning">
@@ -957,6 +1046,16 @@ export default function AccessPoints() {
                 ) : (
                   <Box color="text-body-secondary">Not configured.</Box>
                 )}
+                {detailView.configuration && (
+                  <Button
+                    onClick={() => {
+                      setConfigError('')
+                      setConfigEdit({ name: detailRow.name, text: detailView.configuration })
+                    }}
+                  >
+                    Edit configuration
+                  </Button>
+                )}
               </div>
             )}
 
@@ -975,6 +1074,118 @@ export default function AccessPoints() {
             </div>
           </SpaceBetween>
         )}
+      </Modal>
+
+      <Modal
+        visible={lambdaCreateOpen}
+        onDismiss={() => setLambdaCreateOpen(false)}
+        header="Create Object Lambda access point"
+        size="medium"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setLambdaCreateOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" loading={lambdaCreating} onClick={createObjectLambda}>
+                Create
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          {lambdaError && <Alert type="error">{lambdaError}</Alert>}
+          <FormField
+            label="Name"
+            description="3 to 50 lowercase letters, digits and hyphens, without `--`."
+          >
+            <Input
+              value={lambdaName}
+              onChange={({ detail: changed }) => setLambdaName(changed.value)}
+              placeholder="my-object-lambda"
+            />
+          </FormField>
+          <FormField
+            label="Supporting access point"
+            description="The general purpose access point the Lambda transformations read through."
+          >
+            <Select
+              selectedOption={lambdaSupport}
+              onChange={({ detail: changed }) => setLambdaSupport(changed.selectedOption)}
+              options={lambdaOptions}
+              placeholder="Choose an access point"
+              empty="No general purpose access points in this Region"
+            />
+          </FormField>
+          <FormField
+            label="Lambda function ARN"
+            description="It has to be in the same account and Region as the access point."
+          >
+            <Input
+              value={lambdaFunction}
+              onChange={({ detail: changed }) => setLambdaFunction(changed.value)}
+              placeholder={`arn:aws:lambda:${region}:${account}:function:my-transform`}
+            />
+          </FormField>
+          <FormField label="Transformations">
+            <SpaceBetween size="xs">
+              <Checkbox
+                checked={lambdaActions.GetObject}
+                onChange={({ detail: changed }) =>
+                  setLambdaActions((held) => ({ ...held, GetObject: changed.checked }))
+                }
+              >
+                GetObject
+              </Checkbox>
+              <Checkbox
+                checked={lambdaActions.HeadObject}
+                onChange={({ detail: changed }) =>
+                  setLambdaActions((held) => ({ ...held, HeadObject: changed.checked }))
+                }
+              >
+                HeadObject
+              </Checkbox>
+            </SpaceBetween>
+          </FormField>
+          <Checkbox
+            checked={lambdaMetrics}
+            onChange={({ detail: changed }) => setLambdaMetrics(changed.checked)}
+          >
+            Publish CloudWatch metrics
+          </Checkbox>
+        </SpaceBetween>
+      </Modal>
+
+      <Modal
+        visible={Boolean(configEdit)}
+        onDismiss={() => setConfigEdit(null)}
+        header={`Edit configuration: ${configEdit?.name || ''}`}
+        size="large"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setConfigEdit(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" loading={configBusy} onClick={saveConfiguration}>
+                Save
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween size="m">
+          {configError && <Alert type="error">{configError}</Alert>}
+          <Textarea
+            value={configEdit?.text || ''}
+            onChange={({ detail: changed }) =>
+              setConfigEdit((held) => ({ ...held, text: changed.value }))
+            }
+            rows={14}
+            placeholder="<Configuration>...</Configuration>"
+          />
+        </SpaceBetween>
       </Modal>
     </Shell>
   )

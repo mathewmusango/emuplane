@@ -71,6 +71,29 @@ SEEN_LOCK = threading.Lock()
 # One file in one PutObject; the in-memory emulator's cap is a lab decision, not an S3 limit.
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
+# The storage classes a rewrite may name, and the canned grants an object ACL may carry.
+STORAGE_CLASSES = (
+    "STANDARD",
+    "REDUCED_REDUNDANCY",
+    "STANDARD_IA",
+    "ONEZONE_IA",
+    "INTELLIGENT_TIERING",
+    "GLACIER_IR",
+    "GLACIER",
+    "DEEP_ARCHIVE",
+    "OUTPOSTS",
+)
+OBJECT_ACLS = ("private", "public-read", "public-read-write", "authenticated-read")
+
+
+def s3_error(body: str, status: int) -> str:
+    """S3's own sentence out of an error document, so the console repeats rather than paraphrases."""
+    code = xml_value(body, "Code")
+    message = xml_value(body, "Message")
+    if code and message:
+        return f"{code}: {message}"
+    return message or code or f"S3 answered {status}"
+
 _CONTENT_TYPE_RE = re.compile(r"^[-\w.+/]+\s*(;.*)?$")
 
 
@@ -1066,6 +1089,18 @@ class Registry:
         with self.lock:
             return self.buckets.get(bucket)
 
+    def set_flag(self, bucket: str, key: str, value: str) -> None:
+        """Remember a setting the emulator does not keep; the gateway reads it back from here."""
+        with self.lock:
+            entry = self.buckets.get(bucket)
+            if entry is None:
+                return
+            if value:
+                entry[key] = value
+            else:
+                entry.pop(key, None)
+            self.save()
+
     def snapshot(self) -> dict[str, dict]:
         with self.lock:
             return dict(self.buckets)
@@ -1442,6 +1477,30 @@ def bucket_owner(bucket: str) -> dict | None:
     return REGISTRY.owner(bucket)
 
 
+# MFA delete is a control-plane rule: the emulator takes MfaDelete on PutBucketVersioning and never answers it.
+MFA_REQUIRED = (
+    "MFA Delete is enabled on this bucket: repeat the request with an x-amz-mfa header"
+)
+MFA_REQUIRED_BUCKET = (
+    "MFA Delete is enabled on this bucket: turn it off before deleting the bucket"
+)
+
+
+def bucket_mfa_delete(bucket: str) -> str:
+    entry = bucket_owner(bucket) or {}
+    return entry.get("mfa_delete") or ""
+
+
+def record_mfa_delete(bucket: str, region: str, account: str, value: str) -> None:
+    """Keep the flag on the bucket's claim, adopting a bucket the control has not seen yet."""
+    if bucket_owner(bucket) is None:
+        node = node_by_region(region)
+        if node is None:
+            return
+        REGISTRY.adopt(bucket, node, account)
+    REGISTRY.set_flag(bucket, "mfa_delete", "Enabled" if value == "Enabled" else "")
+
+
 BUCKET_TAKEN = "Bucket {name} already exists"
 
 
@@ -1654,6 +1713,19 @@ class GatewayHandler(BaseHTTPRequestHandler):
         params = parse_qs(query, keep_blank_values=True)
         keys = set(params) - {"x-id"}
         request_id = (params.get("x-id") or [""])[0]
+
+        # S3's MFA delete: a version delete and a versioning change need the header, and a plain delete does not.
+        if account and bucket_mfa_delete(bucket) == "Enabled":
+            guarded = (self.command == "DELETE" and key and "versionId" in params) or (
+                self.command == "PUT" and not key and "versioning" in params
+            )
+            if guarded and not (self.headers.get("x-amz-mfa") or "").strip():
+                self._error(403, "AccessDenied", MFA_REQUIRED)
+                return
+            # No standard tool can put a code on DeleteBucket, so the bucket waits until the flag is off.
+            if self.command == "DELETE" and not key and not keys:
+                self._error(403, "AccessDenied", MFA_REQUIRED_BUCKET)
+                return
         create = (
             self.command == "PUT"
             and not key
@@ -3261,6 +3333,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             "/api/s3/object",
             "/api/s3/object-download",
             "/api/s3/object-meta",
+            "/api/s3/object-acl",
             "/api/s3/object-annotation",
         ):
             params = parse_qs(urlsplit(self.path).query)
@@ -3324,14 +3397,32 @@ class ControlHandler(BaseHTTPRequestHandler):
                     200 if result.get("ok") else 404,
                     dict(result, account=target["account_id"], region=region),
                 )
+            if path.endswith("object-acl"):
+                # GetObjectAcl: the owner and the grants, for an object (or one version of it).
+                result = buckets.read_acl(
+                    bucket,
+                    key,
+                    lambda method, target_path: signed_rest(
+                        "s3", target["account_id"], region, method, target_path
+                    ),
+                    (params.get("version_id") or [""])[0],
+                )
+                return self._json(
+                    200 if result.get("ok") else 404,
+                    dict(result, account=target["account_id"], region=region),
+                )
             if path.endswith("object-download"):
                 # The object as a file, for everything the console does not show as text.
+                version_id = (params.get("version_id") or [""])[0]
+                target_path = "/" + quote(bucket) + "/" + quote(key, safe="/")
+                if version_id:
+                    target_path += "?versionId=" + quote(version_id, safe="")
                 status, headers, data = signed_rest_raw(
                     "s3",
                     target["account_id"],
                     region,
                     "GET",
-                    "/" + quote(bucket) + "/" + quote(key, safe="/"),
+                    target_path,
                 )
                 if not 200 <= status < 300:
                     return self._json(
@@ -3380,6 +3471,13 @@ class ControlHandler(BaseHTTPRequestHandler):
                     "s3", target["account_id"], region, method, target_path
                 ),
             )
+            settings = result.get("settings") or {}
+            if settings.get("mfa_delete"):
+                settings["mfa_delete_source"] = "endpoint"
+            else:
+                # This endpoint takes MfaDelete and never returns it, so the claim holds the flag the gateway enforces.
+                settings["mfa_delete"] = bucket_mfa_delete(bucket) or "Disabled"
+                settings["mfa_delete_source"] = "control"
             return self._json(
                 200, dict(result, account=target["account_id"], region=region)
             )
@@ -3389,6 +3487,8 @@ class ControlHandler(BaseHTTPRequestHandler):
             region = (params.get("region") or [DEFAULT_REGION])[0]
             bucket = (params.get("bucket") or [""])[0].strip()
             prefix = (params.get("prefix") or [""])[0]
+            token = (params.get("continuation_token") or [""])[0]
+            asked_keys = (params.get("max_keys") or ["1000"])[0]
             info = self._caller()
             target = ACCOUNTS.by_ref(account)
             if target is None:
@@ -3412,15 +3512,29 @@ class ControlHandler(BaseHTTPRequestHandler):
                         "region": claim["region"],
                     },
                 )
-            query = "/" + quote(bucket) + "?list-type=2"
+            # A page is what ListObjectsV2 answers with at most 1000 keys, so the caller asks for one and gets the token for the next.
+            limit = min(1000, max(1, int(asked_keys))) if asked_keys.isdigit() else 1000
+            query = f"/{quote(bucket)}?list-type=2&delimiter=%2F&max-keys={limit}"
             if prefix:
                 query += "&prefix=" + quote(prefix)
+            if token:
+                query += "&continuation-token=" + quote(token, safe="")
             status, body = signed_s3(account, region, "GET", query)
             if status != 200:
                 return self._json(
                     status if status >= 400 else 502, {"error": body[:200]}
                 )
-            objects = [
+            # A delimiter makes the listing one level deep: common prefixes are the folders, contents are the files.
+            folders = [
+                {
+                    "key": xml_value(block, "Prefix"),
+                    "size": "",
+                    "modified": "",
+                    "storage": "",
+                }
+                for block in re.findall(r"<CommonPrefixes>(.*?)</CommonPrefixes>", body, re.S)
+            ]
+            objects = folders + [
                 {
                     "key": xml_value(block, "Key"),
                     "size": xml_value(block, "Size"),
@@ -3429,6 +3543,13 @@ class ControlHandler(BaseHTTPRequestHandler):
                 }
                 for block in re.findall(r"<Contents>(.*?)</Contents>", body, re.S)
             ]
+            # Create folder leaves a zero-byte object keyed exactly as the prefix; S3's own browser hides that marker.
+            if prefix.endswith("/"):
+                objects = [row for row in objects if row["key"] != prefix]
+            truncated = xml_value(body, "IsTruncated").strip().lower() == "true"
+            next_token = (
+                xml_value(body, "NextContinuationToken").strip() if truncated else ""
+            )
             return self._json(
                 200,
                 {
@@ -3437,7 +3558,63 @@ class ControlHandler(BaseHTTPRequestHandler):
                     "bucket": bucket,
                     "prefix": prefix,
                     "objects": objects,
+                    "truncated": truncated,
+                    "next_token": next_token,
                 },
+            )
+        if path in ("/api/s3/versions", "/api/s3/uploads", "/api/s3/upload-parts"):
+            # The two listings a bucket page reads beside the current objects.
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            bucket = (params.get("bucket") or [""])[0].strip()
+            prefix = (params.get("prefix") or [""])[0]
+            key = (params.get("key") or [""])[0]
+            upload_id = (params.get("upload_id") or [""])[0]
+            # A listing is one page; these are how the next one is asked for.
+            key_marker = (params.get("key_marker") or [""])[0]
+            version_id_marker = (params.get("version_id_marker") or [""])[0]
+            upload_id_marker = (params.get("upload_id_marker") or [""])[0]
+            part_number_marker = (params.get("part_number_marker") or [""])[0]
+            max_keys = (params.get("max_keys") or [""])[0]
+            max_uploads = (params.get("max_uploads") or [""])[0]
+            max_parts = (params.get("max_parts") or [""])[0]
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket:
+                return self._json(400, {"error": "bucket is required"})
+            call = lambda method, target_path: signed_rest(  # noqa: E731
+                "s3", target["account_id"], region, method, target_path
+            )
+            if path.endswith("versions"):
+                result = buckets.list_versions(
+                    bucket, call, prefix, key_marker, version_id_marker, max_keys
+                )
+            elif path.endswith("uploads"):
+                result = buckets.list_uploads(
+                    bucket, call, prefix, key_marker, upload_id_marker, max_uploads
+                )
+            else:
+                if not key or not upload_id:
+                    return self._json(
+                        400, {"error": "a key and an upload id are required"}
+                    )
+                result = buckets.list_parts(
+                    bucket, key, upload_id, call, part_number_marker, max_parts
+                )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
             )
         if path in ("/api/s3/table-buckets", "/api/s3/file-systems"):
             # S3's other tabs are other APIs; the console asks them directly.
@@ -3532,12 +3709,13 @@ class ControlHandler(BaseHTTPRequestHandler):
             if not name:
                 return self._json(400, {"error": "an access point name is required"})
             rest = s3control(target["account_id"], region)
-            # An MRAP's policy is its own resource, read from the region that manages MRAPs.
-            result = (
-                accesspoints.read_multi_region_policy(name, rest)
-                if section == "multi-region"
-                else accesspoints.read_policy(region, name, rest)
-            )
+            # An MRAP's policy is its own resource, read from the region that manages MRAPs; Object Lambda keeps its own path.
+            if section == "multi-region":
+                result = accesspoints.read_multi_region_policy(name, rest)
+            elif section == "object-lambda":
+                result = accesspoints.read_object_lambda_policy(region, name, rest)
+            else:
+                result = accesspoints.read_policy(region, name, rest)
             return self._json(
                 200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region, section=section),
@@ -4133,6 +4311,223 @@ class ControlHandler(BaseHTTPRequestHandler):
                 200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region),
             )
+        if path == "/api/s3/object-tags":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "")
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket or not key:
+                return self._json(400, {"error": "a bucket and a key are required"})
+            result = buckets.write_object_tags(
+                bucket,
+                key,
+                payload.get("tags"),
+                lambda method, target_path, body, headers=None: signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body, headers
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/object-annotation":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "")
+            name = str(payload.get("name") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket or not key or not name:
+                return self._json(
+                    400, {"error": "a bucket, a key and an annotation name are required"}
+                )
+            call = lambda method, target_path, body, headers=None: signed_rest(  # noqa: E731
+                "s3", target["account_id"], region, method, target_path, body, headers
+            )
+            if payload.get("remove"):
+                result = buckets.clear_annotation(bucket, key, name, call)
+            else:
+                result = buckets.write_annotation(
+                    bucket, key, name, str(payload.get("body") or ""), call
+                )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/object-retention":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "")
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket or not key:
+                return self._json(400, {"error": "a bucket and a key are required"})
+            result = buckets.write_retention(
+                bucket,
+                key,
+                payload.get("mode"),
+                payload.get("until"),
+                lambda method, target_path, body, headers=None: signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body, headers
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/object-legal-hold":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "")
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket or not key:
+                return self._json(400, {"error": "a bucket and a key are required"})
+            result = buckets.write_legal_hold(
+                bucket,
+                key,
+                payload.get("status"),
+                lambda method, target_path, body, headers=None: signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body, headers
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/multipart-create":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "")
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket or not key:
+                return self._json(400, {"error": "a bucket and a key are required"})
+            result = buckets.create_multipart(
+                bucket,
+                key,
+                str(payload.get("content_type") or ""),
+                lambda method, target_path, body, headers=None: signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body, headers
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/multipart-part":
+            # The body is the part itself; the upload id and part number travel in the query.
+            params = parse_qs(urlsplit(self.path).query)
+            account = (params.get("account") or [""])[0].strip()
+            region = (params.get("region") or [DEFAULT_REGION])[0]
+            bucket = (params.get("bucket") or [""])[0].strip()
+            key = (params.get("key") or [""])[0]
+            upload_id = (params.get("upload_id") or [""])[0]
+            part_number = (params.get("part_number") or ["0"])[0]
+            info = self._caller()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket or not key or not upload_id:
+                return self._json(
+                    400, {"error": "a bucket, a key and an upload id are required"}
+                )
+            try:
+                number = int(part_number)
+            except ValueError:
+                return self._json(400, {"error": "the part number must be a number"})
+            result = buckets.upload_part(
+                bucket,
+                key,
+                upload_id,
+                number,
+                self._read_body(),
+                lambda method, target_path, body: signed_rest_raw(
+                    "s3", target["account_id"], region, method, target_path, body
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path in ("/api/s3/multipart-complete", "/api/s3/multipart-abort"):
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "")
+            upload_id = str(payload.get("upload_id") or "")
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not bucket or not key or not upload_id:
+                return self._json(
+                    400, {"error": "a bucket, a key and an upload id are required"}
+                )
+            def call(method, target_path, body, headers=None):
+                return signed_rest(
+                    "s3", target["account_id"], region, method, target_path, body, headers
+                )
+            if path.endswith("complete"):
+                result = buckets.complete_multipart(
+                    bucket, key, upload_id, payload.get("parts"), call
+                )
+            else:
+                result = buckets.abort_multipart(bucket, key, upload_id, call)
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
         if path == "/api/s3/object-upload":
             # The body is the object itself, not base64 in JSON; the browser's file type is passed through.
             params = parse_qs(urlsplit(self.path).query)
@@ -4241,6 +4636,153 @@ class ControlHandler(BaseHTTPRequestHandler):
                     region=destination_region,
                 ),
             )
+        if path == "/api/s3/object-version-delete":
+            # DeleteObject with a versionId: one version goes, the rest of the key stays.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "")
+            version_id = str(payload.get("version_id") or "")
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket or not key or not version_id:
+                return self._json(
+                    400, {"error": "a bucket, a key and a version id are required"}
+                )
+            result = buckets.delete_version(
+                bucket,
+                key,
+                version_id,
+                lambda method, target_path: signed_rest(
+                    "s3", target["account_id"], region, method, target_path
+                ),
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/object-rewrite":
+            # Storage class and per-object encryption are a CopyObject onto the object itself.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "").strip()
+            storage_class = str(payload.get("storage_class") or "").strip()
+            encryption = str(payload.get("encryption") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket or not key:
+                return self._json(400, {"error": "a bucket and a key are required"})
+            if not storage_class and not encryption:
+                return self._json(400, {"error": "nothing to change"})
+            if storage_class and storage_class not in STORAGE_CLASSES:
+                return self._json(400, {"error": f"unknown storage class: {storage_class}"})
+            if encryption and encryption not in buckets.ENCRYPTION:
+                return self._json(400, {"error": f"unknown encryption: {encryption}"})
+            headers = {
+                "x-amz-copy-source": f"/{quote(bucket, safe='')}/{quote(key, safe='')}",
+            }
+            if storage_class:
+                headers["x-amz-storage-class"] = storage_class
+            if encryption:
+                headers["x-amz-server-side-encryption"] = encryption
+            status, body = signed_rest(
+                "s3",
+                target["account_id"],
+                region,
+                "PUT",
+                f"/{quote(bucket, safe='')}/{quote(key, safe='')}",
+                "",
+                headers,
+            )
+            if not 200 <= status < 300:
+                return self._json(400, {"error": s3_error(body, status)})
+            return self._json(
+                200,
+                {
+                    "ok": True,
+                    "status": status,
+                    "bucket": bucket,
+                    "key": key,
+                    "storage_class": storage_class,
+                    "encryption": encryption,
+                    "account": target["account_id"],
+                    "region": region,
+                },
+            )
+        if path == "/api/s3/object-acl":
+            # PutObjectAcl with a canned grant; a bucket that disables ACLs refuses it, and says so.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            bucket = str(payload.get("bucket") or "").strip()
+            key = str(payload.get("key") or "").strip()
+            canned = str(payload.get("canned_acl") or "").strip()
+            version_id = str(payload.get("version_id") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            if not bucket or not key:
+                return self._json(400, {"error": "a bucket and a key are required"})
+            if canned not in OBJECT_ACLS:
+                return self._json(400, {"error": f"unknown canned ACL: {canned}"})
+            status, body = signed_rest(
+                "s3",
+                target["account_id"],
+                region,
+                "PUT",
+                f"/{quote(bucket, safe='')}/{quote(key, safe='')}"
+                + "?acl"
+                + (f"&versionId={quote(version_id, safe='')}" if version_id else ""),
+                "",
+                {"x-amz-acl": canned},
+            )
+            if not 200 <= status < 300:
+                return self._json(400, {"error": s3_error(body, status)})
+            return self._json(
+                200,
+                {
+                    "ok": True,
+                    "status": status,
+                    "bucket": bucket,
+                    "key": key,
+                    "version_id": version_id,
+                    "canned_acl": canned,
+                    "account": target["account_id"],
+                    "region": region,
+                },
+            )
         if path == "/api/s3/empty":
             payload = self._body()
             info = self._caller()
@@ -4328,6 +4870,9 @@ class ControlHandler(BaseHTTPRequestHandler):
                     "s3", target["account_id"], region, method, target_path, body
                 ),
             )
+            mfa = str(payload.get("mfa_delete") or "")
+            if result.get("ok") and mfa in ("Enabled", "Disabled"):
+                record_mfa_delete(bucket, region, target["account_id"], mfa)
             return self._json(
                 200 if result.get("ok") else 400,
                 dict(result, account=target["account_id"], region=region),
@@ -4351,6 +4896,78 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             result = accesspoints.create(
                 region, payload, s3control(target["account_id"], region)
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/object-lambda":
+            # The Object Lambda create form: one configuration PUT creates the access point.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if region not in ACCOUNTS.regions_of(target):
+                return self._json(
+                    403, {"error": f"region {region} is not enabled for this account"}
+                )
+            result = accesspoints.create_object_lambda(
+                region, payload, s3control(target["account_id"], region)
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/object-lambda-delete":
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            name = str(payload.get("name") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not name:
+                return self._json(400, {"error": "an access point name is required"})
+            result = accesspoints.delete_object_lambda(
+                region, name, s3control(target["account_id"], region)
+            )
+            return self._json(
+                200 if result.get("ok") else 400,
+                dict(result, account=target["account_id"], region=region),
+            )
+        if path == "/api/s3/object-lambda-configuration":
+            # PutAccessPointConfigurationForObjectLambda: the console edits the document it shows.
+            payload = self._body()
+            info = self._caller()
+            account = str(payload.get("account") or info.get("account") or "").strip()
+            region = str(payload.get("region") or DEFAULT_REGION).strip()
+            name = str(payload.get("name") or "").strip()
+            target = ACCOUNTS.by_ref(account)
+            if target is None:
+                return self._json(404, {"error": "unknown account"})
+            if not self._can_touch(info, target["account_id"]):
+                return self._json(
+                    403, {"error": "this account is not signed in to that tenancy"}
+                )
+            if not name:
+                return self._json(400, {"error": "an access point name is required"})
+            result = accesspoints.write_object_lambda_configuration(
+                region,
+                name,
+                payload.get("configuration"),
+                s3control(target["account_id"], region),
             )
             return self._json(
                 200 if result.get("ok") else 400,
@@ -4495,6 +5112,7 @@ class ControlHandler(BaseHTTPRequestHandler):
             info = self._caller()
             account = str(payload.get("account") or info.get("account") or "").strip()
             region = str(payload.get("region") or DEFAULT_REGION).strip()
+            section = str(payload.get("section") or "general")
             name = str(payload.get("name") or "").strip()
             target = ACCOUNTS.by_ref(account)
             if target is None:
@@ -4505,12 +5123,20 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if not name:
                 return self._json(400, {"error": "an access point name is required"})
-            result = accesspoints.write_policy(
-                region, name, payload.get("policy"), s3control(target["account_id"], region)
+            rest = s3control(target["account_id"], region)
+            result = (
+                accesspoints.write_object_lambda_policy(region, name, payload.get("policy"), rest)
+                if section == "object-lambda"
+                else accesspoints.write_policy(region, name, payload.get("policy"), rest)
             )
             return self._json(
                 200 if result.get("ok") else 400,
-                dict(result, account=target["account_id"], region=region),
+                dict(
+                    result,
+                    account=target["account_id"],
+                    region=region,
+                    section=section,
+                ),
             )
         if path == "/api/s3/buckets":
             # The console's create page: one request that applies the whole form.
@@ -4563,6 +5189,9 @@ class ControlHandler(BaseHTTPRequestHandler):
                     name,
                     info.get("user") or "token",
                 )
+                # MFA delete is the control's flag; the emulator has nowhere to put it.
+                if result.get("ok") and str(payload.get("mfa_delete") or "") == "Enabled":
+                    REGISTRY.set_flag(name, "mfa_delete", "Enabled")
             elif reserved:
                 # Nothing was created, so the claim goes back.
                 release_across(name)
@@ -4591,6 +5220,10 @@ class ControlHandler(BaseHTTPRequestHandler):
                 )
             if not isinstance(params, dict):
                 return self._json(400, {"error": "params must be an object"})
+            if service == "s3" and operation == "delete-bucket":
+                deleted = str(params.get("Bucket") or "")
+                if deleted and bucket_mfa_delete(deleted) == "Enabled":
+                    return self._json(409, {"error": MFA_REQUIRED_BUCKET})
             result = console.run_action(
                 service, operation, params, account, region, aws_call, signed_rest
             )

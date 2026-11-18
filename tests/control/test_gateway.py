@@ -67,6 +67,19 @@ def test_a_delete_releases_the_name(control, gateway):
     assert "gw-release-bucket" not in control.REGISTRY.buckets
 
 
+def test_a_bucket_under_mfa_delete_refuses_a_delete(control, gateway):
+    """No standard tool can put a code on DeleteBucket, so the bucket waits until the flag is off."""
+    assert s3(gateway, "PUT", "/gw-mfa-bucket")[0] == 200
+    control.REGISTRY.set_flag("gw-mfa-bucket", "mfa_delete", "Enabled")
+
+    status, _headers, body = s3(gateway, "DELETE", "/gw-mfa-bucket")
+    assert status == 403
+    assert b"turn it off before deleting the bucket" in body
+
+    control.REGISTRY.set_flag("gw-mfa-bucket", "mfa_delete", "")
+    assert s3(gateway, "DELETE", "/gw-mfa-bucket")[0] in (200, 204)
+
+
 def test_an_unknown_access_key_does_not_become_an_account(control, gateway):
     """The 12-digit account is the root; an unknown access key resolves to no account rather than to itself."""
     key = "AKIDEXAMPLE000000000"

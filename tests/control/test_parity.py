@@ -158,7 +158,7 @@ def test_objects_written_on_ministack_are_listed_and_read_by_emuplane(
 
     listed = objects(console, bucket)
     keys = sorted(row["key"] for row in listed)
-    assert keys == ["loose.txt", "parity/one.txt", "parity/two.txt"]
+    assert keys == ["loose.txt", "parity/"]
 
     narrowed = objects(console, bucket, prefix="parity/")
     assert sorted(row["key"] for row in narrowed) == ["parity/one.txt", "parity/two.txt"]
@@ -235,6 +235,28 @@ def test_an_object_deleted_on_ministack_is_gone_from_emuplane(s3_endpoint, conso
 
 
 # --- the catalogue this slice covers ---------------------------------------
+
+
+# --- MFA delete ------------------------------------------------------------
+
+
+def test_ministack_takes_mfa_delete_and_never_answers_it(s3_endpoint):
+    """The premise Emuplane's own flag rests on: the endpoint accepts MfaDelete and drops it."""
+    raw = ministack(s3_endpoint)
+    name = ensure_bucket(raw, "parity-ministack-mfa")
+    status, body = raw(
+        "PUT",
+        f"/{name}?versioning",
+        '<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">'
+        "<Status>Enabled</Status><MfaDelete>Enabled</MfaDelete></VersioningConfiguration>",
+    )
+    assert 200 <= status < 300, body
+
+    status, body = raw("GET", f"/{name}?versioning")
+    assert 200 <= status < 300, body
+    assert "<Status>Enabled</Status>" in body
+    # If this ever comes back, the control's flag is redundant: drop the shim rather than keep two answers.
+    assert "MfaDelete" not in body
 
 
 def test_the_five_core_operations_are_console_actions():

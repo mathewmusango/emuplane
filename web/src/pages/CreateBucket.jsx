@@ -396,7 +396,7 @@ export default function CreateBucket() {
                   onChange={({ detail }) => setVersioning(detail.value)}
                   items={[
                     { value: 'disable', label: 'Disable', disabled: lockOn },
-                    { value: 'enable', label: 'Enable', disabled: lockOn },
+                    { value: 'enable', label: 'Enable' },
                   ]}
                 />
                 {lockOn && (

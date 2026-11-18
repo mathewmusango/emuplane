@@ -97,7 +97,7 @@ def _mrap_policy(gateway) -> str:
     return policy
 
 
-def _object_lambda(gateway) -> str:
+def _object_lambda(gateway, name: str = LAMBDA) -> str:
     """A supporting access point, then the Object Lambda access point over it."""
     status, _headers, text = s3(
         gateway,
@@ -127,7 +127,7 @@ def _object_lambda(gateway) -> str:
     status, _headers, text = s3(
         gateway,
         "PUT",
-        "/v20180820/accesspointforobjectlambda/" + LAMBDA,
+        "/v20180820/accesspointforobjectlambda/" + name,
         body=configuration.encode(),
         headers={"x-amz-account-id": ACCOUNT},
     )
@@ -149,7 +149,7 @@ def _object_lambda(gateway) -> str:
     status, _headers, text = s3(
         gateway,
         "PUT",
-        f"/v20180820/accesspointforobjectlambda/{LAMBDA}/policy",
+        f"/v20180820/accesspointforobjectlambda/{name}/policy",
         body=(
             f'<PutAccessPointPolicyForObjectLambdaRequest xmlns="{CONTROL_NS}">'
             f"<Policy>{policy}</Policy></PutAccessPointPolicyForObjectLambdaRequest>"
@@ -205,6 +205,104 @@ def test_an_object_lambda_access_point_reads_back_with_configuration_and_policy(
     assert "GetObject" in body["configuration"]
     assert json.loads(body["policy"]) == json.loads(policy)
     assert body["errors"] == {}
+
+
+def test_an_object_lambda_policy_is_read_written_and_removed(console, gateway):
+    _bucket(console, SUPPORT_BUCKET)
+    name = "api-olap-policy"
+    original = _object_lambda(gateway, name)
+
+    query = (
+        f"/api/s3/access-point-policy?account={ACCOUNT}&region=us-east-1"
+        f"&section=object-lambda&name={quote(name, safe='')}"
+    )
+    status, body = api(console, "GET", query)
+    assert status == 200, body
+    assert json.loads(body["policy"]) == json.loads(original)
+
+    replaced = json.dumps(
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": "s3-object-lambda:GetObject",
+                    "Resource": "*",
+                }
+            ],
+        }
+    )
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/access-point-policy-edit",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "section": "object-lambda",
+            "name": name,
+            "policy": replaced,
+        },
+    )
+    assert status == 200, body
+    assert body["section"] == "object-lambda"
+
+    _, read = api(console, "GET", query)
+    assert json.loads(read["policy"]) == json.loads(replaced)
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/access-point-policy-edit",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "section": "object-lambda",
+            "name": name,
+            "policy": None,
+        },
+    )
+    assert status == 200, body
+    assert body["policy"] is None
+
+    # A policy that was removed is a state, not a failure.
+    status, read = api(console, "GET", query)
+    assert status == 200
+    assert read["policy"] is None
+
+
+def test_an_object_lambda_policy_must_be_json(console, gateway):
+    _bucket(console, SUPPORT_BUCKET)
+    name = "api-olap-policy-bad"
+    _object_lambda(gateway, name)
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/access-point-policy-edit",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "section": "object-lambda",
+            "name": name,
+            "policy": "not a policy",
+        },
+    )
+    assert status == 400
+    assert "not JSON" in body["error"]
+
+
+def test_an_object_lambda_policy_read_for_a_missing_access_point_says_so(console):
+    status, body = api(
+        console,
+        "GET",
+        f"/api/s3/access-point-policy?account={ACCOUNT}&region=us-east-1"
+        "&section=object-lambda&name=no-such-olap",
+    )
+    assert status == 400
+    assert body["ok"] is False
+    assert body["error"]
 
 
 def test_an_access_point_that_is_not_there_says_so(console):

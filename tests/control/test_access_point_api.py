@@ -220,7 +220,11 @@ def test_the_object_lambda_section_answers_for_the_page_region(console):
     status, body = _list(console, section="object-lambda")
     assert status == 200, body
     assert body["region"] == "us-east-1"
-    assert body["access_points"] == []
+    # Not an emptiness check: other cases create Object Lambda access points in this session.
+    assert all(
+        row["arn"].startswith("arn:aws:s3-object-lambda:")
+        for row in body["access_points"]
+    )
 
 
 def test_s3_control_calls_name_the_account_in_the_header(control, console, monkeypatch):

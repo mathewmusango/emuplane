@@ -187,6 +187,7 @@ def _options(payload: dict, region: str) -> dict:
         "bucket_key": bool(payload.get("bucket_key")),
         "versioning": bool(payload.get("versioning")),
         "object_lock": bool(payload.get("object_lock")),
+        "mfa_delete": str(payload.get("mfa_delete") or "") == "Enabled",
         "tags": tags,
         # The console sends the block only when expanded; absent means "leave the emulator's default alone".
         "public": (
@@ -237,13 +238,32 @@ def _tags(xml: str) -> list[dict]:
     return found
 
 
+def _created(bucket: str, call) -> str:
+    """ListBuckets is the only place S3 answers when a bucket was made."""
+    status, body = call("GET", "/?x-id=ListBuckets")
+    if not 200 <= status < 300:
+        return ""
+    for name, stamp in re.findall(
+        r"<Bucket>.*?<Name>([^<]+)</Name>.*?<CreationDate>([^<]*)</CreationDate>",
+        body,
+        re.S,
+    ):
+        if name == bucket:
+            return stamp
+    return ""
+
+
 def read_settings(bucket: str, call) -> dict:
     """The create form's settings, read back from `bucket`; a missing subresource keeps the default."""
     path = "/" + quote(bucket, safe="")
     settings = {
         "ownership": OWNERSHIP[0],
         "block_public_access": {name: False for name in PUBLIC_ACCESS},
+        "public_access_block_configured": False,
         "versioning": False,
+        "versioning_status": "Disabled",
+        "mfa_delete": "",
+        "created": "",
         "tags": [],
         "encryption": ENCRYPTION[0],
         "bucket_key": False,
@@ -260,11 +280,21 @@ def read_settings(bucket: str, call) -> dict:
 
     flags = _flags(get("?publicAccessBlock"))
     if flags:
+        settings["public_access_block_configured"] = True
         settings["block_public_access"] = {
             name: bool(flags.get(name)) for name in PUBLIC_ACCESS
         }
 
-    settings["versioning"] = _field(get("?versioning"), "Status") == "Enabled"
+    versioning = get("?versioning")
+    status = _field(versioning, "Status")
+    settings["versioning"] = status == "Enabled"
+    # S3 answers three ways: no Status is Disabled, and Enabled never goes back to Disabled — only Suspended.
+    settings["versioning_status"] = (
+        status if status in ("Enabled", "Suspended") else "Disabled"
+    )
+    # An endpoint that does not implement MFA delete omits the element, which is not the same as Disabled.
+    settings["mfa_delete"] = _field(versioning, "MfaDelete") or ""
+    settings["created"] = _created(bucket, call)
     settings["tags"] = _tags(get("?tagging"))
 
     encryption = _field(get("?encryption"), "SSEAlgorithm")
@@ -304,7 +334,8 @@ def create(region: str, payload: dict, s3) -> dict:
         steps.append(
             ("Block Public Access", "?publicAccessBlock", _public_access(options["public"]))
         )
-    if options["versioning"] or options["object_lock"]:
+    if options["versioning"] or options["object_lock"] or options["mfa_delete"]:
+        # MFA delete only exists on a versioned bucket, so asking for it turns versioning on.
         steps.append(("Bucket versioning", "?versioning", _versioning()))
     if options["tags"]:
         steps.append(("Tags", "?tagging", _tagging(options["tags"])))
@@ -387,18 +418,58 @@ def update_settings(bucket: str, payload: dict, call) -> dict:
     path = _bucket_path(bucket)
     # `(label, method, suffix, body)`: most steps are a PUT, but removing encryption is a DELETE.
     steps: list[tuple[str, str, str, str]] = []
-    if "versioning" in payload:
-        status = "Enabled" if payload.get("versioning") else "Suspended"
+    if (
+        "versioning_status" in payload
+        or "versioning" in payload
+        or payload.get("mfa_delete") is not None
+    ):
+        mfa = payload.get("mfa_delete")
+        if mfa not in (None, "", "Enabled", "Disabled"):
+            return {"ok": False, "status": 400, "error": f"unknown MFA delete: {mfa}"}
+        if "versioning_status" in payload:
+            state = payload["versioning_status"]
+        elif "versioning" in payload:
+            state = "Enabled" if payload.get("versioning") else "Suspended"
+        else:
+            # Only MFA delete changed, so the versioning state S3 holds is the one to send back with it.
+            held = _field(call("GET", path + "?versioning")[1], "Status")
+            state = held if held in ("Enabled", "Suspended") else ""
+        if state not in ("", "Enabled", "Suspended"):
+            return {"ok": False, "status": 400, "error": f"unknown state: {state}"}
+        # MFA delete only exists on a versioned bucket, so enabling it turns versioning on in the same call.
+        if mfa == "Enabled":
+            state = "Enabled"
+        document = f"<Status>{state}</Status>" if state else ""
+        if mfa in ("Enabled", "Disabled"):
+            document += f"<MfaDelete>{mfa}</MfaDelete>"
+        if document:
+            steps.append(
+                (
+                    "Bucket versioning",
+                    "PUT",
+                    "?versioning",
+                    f'<VersioningConfiguration xmlns="{S3_NS}">{document}'
+                    "</VersioningConfiguration>",
+                )
+            )
+    if payload.get("ownership") is not None:
+        ownership = str(payload["ownership"])
+        if ownership not in OWNERSHIP:
+            return {"ok": False, "status": 400, "error": f"unknown ownership: {ownership}"}
         steps.append(
             (
-                "Bucket versioning",
+                "Object Ownership",
                 "PUT",
-                "?versioning",
-                f'<VersioningConfiguration xmlns="{S3_NS}"><Status>{status}</Status>'
-                "</VersioningConfiguration>",
+                "?ownershipControls",
+                f'<OwnershipControls xmlns="{S3_NS}"><Rule>'
+                f"<ObjectOwnership>{ownership}</ObjectOwnership>"
+                "</Rule></OwnershipControls>",
             )
         )
-    if payload.get("block_public_access") is not None:
+    if payload.get("remove_public_access_block"):
+        # DeletePublicAccessBlock: the bucket keeps no public access block configuration at all.
+        steps.append(("Block Public Access", "DELETE", "?publicAccessBlock", ""))
+    elif payload.get("block_public_access") is not None:
         flags = payload["block_public_access"] or {}
         steps.append(
             (
@@ -484,6 +555,7 @@ DOCUMENTS = {
     "acl": "?acl",
     "logging": "?logging",
     "notifications": "?notification",
+    "website": "?website",
     "replication": "?replication",
     "versions": "?versions",
 }
@@ -500,6 +572,7 @@ EDITABLE = {
         None,
         '<NotificationConfiguration xmlns="{ns}" />',
     ),
+    "website": ("WebsiteConfiguration", "DeleteBucketWebsite", None),
     "replication": ("ReplicationConfiguration", "DeleteBucketReplication", None),
 }
 
@@ -712,6 +785,196 @@ def read_object_meta(bucket: str, key: str, call) -> dict:
     return {"ok": True, "status": 200, **found}
 
 
+def write_object_tags(bucket: str, key: str, tags, call) -> dict:
+    """PutObjectTagging, or DeleteObjectTagging when the tag set is empty."""
+    path = _bucket_path(bucket) + "/" + quote(key, safe="/") + "?tagging"
+    pairs = [
+        (str((tag or {}).get("Key") or "").strip(), str((tag or {}).get("Value") or ""))
+        for tag in tags or []
+    ]
+    if not pairs:
+        status, body = call("DELETE", path, "")
+        if 200 <= status < 300:
+            return {"ok": True, "status": status, "bucket": bucket, "key": key, "tags": []}
+        return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+    if any(not tag_key for tag_key, _value in pairs):
+        return {"ok": False, "status": 400, "error": "every tag needs a key"}
+    status, body = call("PUT", path, _tagging(pairs))
+    if 200 <= status < 300:
+        return {
+            "ok": True,
+            "status": status,
+            "bucket": bucket,
+            "key": key,
+            "tags": [{"Key": name, "Value": value} for name, value in pairs],
+        }
+    return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+
+
+def write_annotation(bucket: str, key: str, name: str, text: str, call) -> dict:
+    """PutObjectAnnotation: the annotation's own content is text."""
+    if not name:
+        return {"ok": False, "status": 400, "error": "an annotation name is required"}
+    path = (
+        _bucket_path(bucket)
+        + "/"
+        + quote(key, safe="/")
+        + "?annotation&annotationName="
+        + quote(name, safe="")
+    )
+    status, body = call("PUT", path, "" if text is None else str(text))
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "key": key, "name": name}
+    return {"ok": False, "status": status or 502, "name": name, "error": _detail(body, status)}
+
+
+def clear_annotation(bucket: str, key: str, name: str, call) -> dict:
+    """DeleteObjectAnnotation."""
+    if not name:
+        return {"ok": False, "status": 400, "error": "an annotation name is required"}
+    path = (
+        _bucket_path(bucket)
+        + "/"
+        + quote(key, safe="/")
+        + "?annotation&annotationName="
+        + quote(name, safe="")
+    )
+    status, body = call("DELETE", path, "")
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "key": key, "name": name}
+    return {"ok": False, "status": status or 502, "name": name, "error": _detail(body, status)}
+
+
+_RETENTION_MODES = ("GOVERNANCE", "COMPLIANCE")
+
+
+def write_retention(bucket: str, key: str, mode: str, until: str, call) -> dict:
+    """PutObjectRetention on the object's current version."""
+    mode = str(mode or "").strip().upper()
+    if mode not in _RETENTION_MODES:
+        return {
+            "ok": False,
+            "status": 400,
+            "error": "the retention mode is GOVERNANCE or COMPLIANCE",
+        }
+    until = str(until or "").strip()
+    if not until:
+        return {"ok": False, "status": 400, "error": "a retain-until date is required"}
+    body = (
+        f'<Retention xmlns="{S3_NS}"><Mode>{mode}</Mode>'
+        f"<RetainUntilDate>{html.escape(until)}</RetainUntilDate></Retention>"
+    )
+    path = _bucket_path(bucket) + "/" + quote(key, safe="/") + "?retention"
+    status, answer = call("PUT", path, body)
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "key": key, "mode": mode}
+    return {"ok": False, "status": status or 502, "error": _detail(answer, status)}
+
+
+def write_legal_hold(bucket: str, key: str, status_value: str, call) -> dict:
+    """PutObjectLegalHold on the object's current version."""
+    status_value = str(status_value or "").strip().upper()
+    if status_value not in ("ON", "OFF"):
+        return {"ok": False, "status": 400, "error": "the legal hold is ON or OFF"}
+    body = f'<LegalHold xmlns="{S3_NS}"><Status>{status_value}</Status></LegalHold>'
+    path = _bucket_path(bucket) + "/" + quote(key, safe="/") + "?legal-hold"
+    status, answer = call("PUT", path, body)
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "key": key, "legal_hold": status_value}
+    return {"ok": False, "status": status or 502, "error": _detail(answer, status)}
+
+
+def create_multipart(bucket: str, key: str, content_type: str, call) -> dict:
+    """CreateMultipartUpload: the upload id is the only handle for the parts."""
+    headers = {"Content-Type": content_type or "application/octet-stream"}
+    path = _bucket_path(bucket) + "/" + quote(key, safe="/") + "?uploads"
+    status, body = call("POST", path, "", headers)
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+    upload = re.search(r"<UploadId>(.*?)</UploadId>", body, re.S)
+    if not upload:
+        return {"ok": False, "status": status, "error": "the answer carried no UploadId"}
+    return {
+        "ok": True,
+        "status": status,
+        "bucket": bucket,
+        "key": key,
+        "upload_id": upload.group(1),
+    }
+
+
+def upload_part(
+    bucket: str, key: str, upload_id: str, part_number: int, data, call
+) -> dict:
+    """UploadPart: the answer's ETag is what CompleteMultipartUpload needs."""
+    if not upload_id:
+        return {"ok": False, "status": 400, "error": "an upload id is required"}
+    if not 1 <= int(part_number) <= 10000:
+        return {"ok": False, "status": 400, "error": "a part number is between 1 and 10000"}
+    path = (
+        _bucket_path(bucket)
+        + "/"
+        + quote(key, safe="/")
+        + f"?partNumber={int(part_number)}&uploadId={quote(upload_id, safe='')}"
+    )
+    status, headers, body = call("PUT", path, data)
+    if not 200 <= status < 300:
+        return {
+            "ok": False,
+            "status": status or 502,
+            "error": _detail(body.decode(errors="replace"), status),
+        }
+    return {
+        "ok": True,
+        "status": status,
+        "part_number": int(part_number),
+        "etag": headers.get("etag", ""),
+    }
+
+
+def complete_multipart(bucket: str, key: str, upload_id: str, parts, call) -> dict:
+    """CompleteMultipartUpload: every part the console uploaded, in order."""
+    if not upload_id:
+        return {"ok": False, "status": 400, "error": "an upload id is required"}
+    entries = "".join(
+        f"<Part><PartNumber>{int((part or {}).get('part_number') or 0)}</PartNumber>"
+        f"<ETag>{html.escape(str((part or {}).get('etag') or ''))}</ETag></Part>"
+        for part in parts or []
+    )
+    if not entries:
+        return {"ok": False, "status": 400, "error": "no parts were uploaded"}
+    body = (
+        f'<CompleteMultipartUpload xmlns="{S3_NS}">{entries}'
+        "</CompleteMultipartUpload>"
+    )
+    path = (
+        _bucket_path(bucket)
+        + "/"
+        + quote(key, safe="/")
+        + f"?uploadId={quote(upload_id, safe='')}"
+    )
+    status, answer = call("POST", path, body)
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "key": key}
+    return {"ok": False, "status": status or 502, "error": _detail(answer, status)}
+
+
+def abort_multipart(bucket: str, key: str, upload_id: str, call) -> dict:
+    """AbortMultipartUpload: discards the parts already uploaded."""
+    if not upload_id:
+        return {"ok": False, "status": 400, "error": "an upload id is required"}
+    path = (
+        _bucket_path(bucket)
+        + "/"
+        + quote(key, safe="/")
+        + f"?uploadId={quote(upload_id, safe='')}"
+    )
+    status, body = call("DELETE", path, "")
+    if 200 <= status < 300:
+        return {"ok": True, "status": status, "bucket": bucket, "key": key}
+    return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+
+
 def read_annotation(bucket: str, key: str, name: str, call) -> dict:
     """GetObjectAnnotation: one annotation's own content, which is text."""
     path = (
@@ -731,4 +994,247 @@ def read_annotation(bucket: str, key: str, name: str, call) -> dict:
         "key": key,
         "name": name,
         "error": _detail(body, status),
+    }
+def _tag(block: str, name: str) -> str:
+    """The text of the first `name` element in a fragment, as the listing handlers need it."""
+    found = re.search(rf"<{name}>(.*?)</{name}>", block or "", re.S)
+    return found.group(1) if found else ""
+
+
+def _text(element, name: str) -> str:
+    """The text of the first `name` descendant of an element, for the parsed ACL."""
+    if element is None:
+        return ""
+    for child in element.iter():
+        if _local(child) == name:
+            return child.text or ""
+    return ""
+
+
+def read_acl(bucket: str, key: str, call, version_id: str = "") -> dict:
+    """GetObjectAcl: the owner and every grant, as the document answers them."""
+    path = _bucket_path(bucket) + "/" + quote(key, safe="/") + "?acl"
+    if version_id:
+        path += "&versionId=" + quote(version_id, safe="")
+    status, body = call("GET", path)
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+    root = _root(body)
+    owner = {"id": "", "display_name": ""}
+    grants: list[dict] = []
+    if root is not None:
+        for element in root.iter():
+            name = _local(element)
+            if name == "Owner":
+                owner = {
+                    "id": _text(element, "ID") or "",
+                    "display_name": _text(element, "DisplayName") or "",
+                }
+            if name != "Grant":
+                continue
+            grantee = next(
+                (child for child in element if _local(child) == "Grantee"), None
+            )
+            grants.append(
+                {
+                    "type": _local(grantee) if grantee is not None else "",
+                    "id": (_text(grantee, "ID") if grantee is not None else "") or "",
+                    "display_name": (
+                        _text(grantee, "DisplayName") if grantee is not None else ""
+                    )
+                    or "",
+                    "uri": (_text(grantee, "URI") if grantee is not None else "") or "",
+                    "permission": _text(element, "Permission") or "",
+                }
+            )
+    return {
+        "ok": True,
+        "status": status,
+        "bucket": bucket,
+        "key": key,
+        "version_id": version_id,
+        "owner": owner,
+        "grants": grants,
+        "public": any(grant["uri"].endswith("/AllUsers") for grant in grants),
+        "acl": body,
+    }
+
+
+def list_versions(
+    bucket: str,
+    call,
+    prefix: str = "",
+    key_marker: str = "",
+    version_id_marker: str = "",
+    max_keys: str = "",
+) -> dict:
+    """ListObjectVersions: every version and delete marker under the prefix, at any depth."""
+    path = _bucket_path(bucket) + "?versions"
+    for name, value in (
+        ("prefix", prefix),
+        ("key-marker", key_marker),
+        ("version-id-marker", version_id_marker),
+        ("max-keys", max_keys),
+    ):
+        if value:
+            path += "&" + name + "=" + quote(value, safe="")
+    status, body = call("GET", path)
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+    versions = [
+        {
+            "key": _tag(block, "Key"),
+            "version_id": _tag(block, "VersionId"),
+            "latest": _tag(block, "IsLatest") == "true",
+            "delete_marker": False,
+            "size": _tag(block, "Size"),
+            "modified": _tag(block, "LastModified"),
+            "storage": _tag(block, "StorageClass"),
+        }
+        for block in re.findall(r"<Version>(.*?)</Version>", body, re.S)
+    ]
+    markers = [
+        {
+            "key": _tag(block, "Key"),
+            "version_id": _tag(block, "VersionId"),
+            "latest": _tag(block, "IsLatest") == "true",
+            "delete_marker": True,
+            "size": "",
+            "modified": _tag(block, "LastModified"),
+            "storage": "",
+        }
+        for block in re.findall(r"<DeleteMarker>(.*?)</DeleteMarker>", body, re.S)
+    ]
+    rows = sorted(versions + markers, key=lambda row: (row["key"], row["modified"]))
+    # A listing is one page; the markers are how the rest is asked for.
+    truncated = _tag(body, "IsTruncated").strip().lower() == "true"
+    return {
+        "ok": True,
+        "status": status,
+        "bucket": bucket,
+        "prefix": prefix,
+        "versions": rows,
+        "truncated": truncated,
+        "next_key_marker": (_tag(body, "NextKeyMarker") or "").strip() if truncated else "",
+        "next_version_id_marker": (
+            (_tag(body, "NextVersionIdMarker") or "").strip() if truncated else ""
+        ),
+    }
+
+
+def delete_version(bucket: str, key: str, version_id: str, call) -> dict:
+    """DeleteObject with a versionId: that version is gone for good."""
+    if not version_id:
+        return {"ok": False, "status": 400, "error": "a version id is required"}
+    path = (
+        _bucket_path(bucket)
+        + "/"
+        + quote(key, safe="/")
+        + "?versionId="
+        + quote(version_id, safe="")
+    )
+    status, body = call("DELETE", path)
+    if 200 <= status < 300:
+        return {
+            "ok": True,
+            "status": status,
+            "bucket": bucket,
+            "key": key,
+            "version_id": version_id,
+        }
+    return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+
+
+def list_uploads(
+    bucket: str,
+    call,
+    prefix: str = "",
+    key_marker: str = "",
+    upload_id_marker: str = "",
+    max_uploads: str = "",
+) -> dict:
+    """ListMultipartUploads: the uploads that were started and never finished."""
+    path = _bucket_path(bucket) + "?uploads"
+    for name, value in (
+        ("prefix", prefix),
+        ("key-marker", key_marker),
+        ("upload-id-marker", upload_id_marker),
+        ("max-uploads", max_uploads),
+    ):
+        if value:
+            path += "&" + name + "=" + quote(value, safe="")
+    status, body = call("GET", path)
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+    rows = [
+        {
+            "key": _tag(block, "Key"),
+            "upload_id": _tag(block, "UploadId"),
+            "initiated": _tag(block, "Initiated"),
+            "storage": _tag(block, "StorageClass"),
+        }
+        for block in re.findall(r"<Upload>(.*?)</Upload>", body, re.S)
+    ]
+    truncated = _tag(body, "IsTruncated").strip().lower() == "true"
+    return {
+        "ok": True,
+        "status": status,
+        "bucket": bucket,
+        "uploads": rows,
+        "truncated": truncated,
+        "next_key_marker": (_tag(body, "NextKeyMarker") or "").strip() if truncated else "",
+        "next_upload_id_marker": (
+            (_tag(body, "NextUploadIdMarker") or "").strip() if truncated else ""
+        ),
+    }
+
+
+def list_parts(
+    bucket: str,
+    key: str,
+    upload_id: str,
+    call,
+    part_number_marker: str = "",
+    max_parts: str = "",
+) -> dict:
+    """ListParts: what one incomplete upload already holds."""
+    if not upload_id:
+        return {"ok": False, "status": 400, "error": "an upload id is required"}
+    path = (
+        _bucket_path(bucket)
+        + "/"
+        + quote(key, safe="/")
+        + "?uploadId="
+        + quote(upload_id, safe="")
+    )
+    for name, value in (
+        ("part-number-marker", part_number_marker),
+        ("max-parts", max_parts),
+    ):
+        if value:
+            path += "&" + name + "=" + quote(value, safe="")
+    status, body = call("GET", path)
+    if not 200 <= status < 300:
+        return {"ok": False, "status": status or 502, "error": _detail(body, status)}
+    parts = [
+        {
+            "part_number": _tag(block, "PartNumber"),
+            "size": _tag(block, "Size"),
+            "etag": _tag(block, "ETag"),
+            "modified": _tag(block, "LastModified"),
+        }
+        for block in re.findall(r"<Part>(.*?)</Part>", body, re.S)
+    ]
+    truncated = _tag(body, "IsTruncated").strip().lower() == "true"
+    return {
+        "ok": True,
+        "status": status,
+        "bucket": bucket,
+        "key": key,
+        "upload_id": upload_id,
+        "parts": parts,
+        "truncated": truncated,
+        "next_part_number_marker": (
+            (_tag(body, "NextPartNumberMarker") or "").strip() if truncated else ""
+        ),
     }

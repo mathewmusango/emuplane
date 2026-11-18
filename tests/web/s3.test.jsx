@@ -220,6 +220,62 @@ describe('s3', () => {
     }
   })
 
+  it('copies settings from an existing bucket', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        const target = String(url).split('?')[0]
+        if (target === '/api/s3/buckets') {
+          if (options.body) sent.push(JSON.parse(options.body))
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({ ok: true, bucket: 'copied-bucket' }),
+          }
+        }
+        if (target === '/api/s3/bucket-settings') {
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              JSON.stringify({
+                ok: true,
+                bucket: 'logs-bucket',
+                settings: RESPONSES['/api/s3/bucket-settings'].settings,
+              }),
+          }
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      renderAt(<App />, ['/s3/create'])
+      fireEvent.change(await screen.findByPlaceholderText('my-bucket'), {
+        target: { value: 'copied-bucket' },
+      })
+
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: /Choose bucket/ }))
+      await user.click(await screen.findByRole('option', { name: /logs-bucket/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Create bucket' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'copied-bucket',
+        versioning: true,
+        encryption: 'aws:kms',
+        tags: [{ Key: 'team', Value: 'platform' }],
+      })
+      // MFA delete is not exposed on this page until the console carries it again.
+      expect(sent[0].mfa_delete).toBeUndefined()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('takes the region from the top bar, not the form, and follows it into the suffix', async () => {
     pinRegion('us-east-1')
     renderAt(<App />, ['/s3/create'])
@@ -517,24 +573,85 @@ describe('s3', () => {
     await screen.findByText('reports/2026.csv')
   }
 
+  it('browses into a folder, walks back by the breadcrumb, and pages a long listing', async () => {
+    pinRegion('us-east-1')
+    const listed = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        if (String(url).split('?')[0] !== '/api/s3/objects') return base(url, options)
+        listed.push(String(url))
+        const params = new URL(String(url), 'http://console').searchParams
+        const prefix = params.get('prefix') || ''
+        const token = params.get('continuation_token') || ''
+        const answer = (body) => ({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ prefix, ...body }),
+        })
+        if (!prefix) {
+          return answer({
+            objects: [
+              { key: 'reports/', size: '', modified: '', storage: '' },
+              { key: 'notes.txt', size: '4', modified: '', storage: 'STANDARD' },
+            ],
+          })
+        }
+        // A folder with more keys than a page: the token carries the rest.
+        return token
+          ? answer({ objects: [{ key: `${prefix}second.txt`, size: '1' }] })
+          : answer({
+              objects: [{ key: `${prefix}first.txt`, size: '1' }],
+              truncated: true,
+              next_token: 'page-2',
+            })
+      }),
+    )
+    try {
+      renderAt(<App />, ['/s3/home?region=us-east-1'])
+      await screen.findAllByText('General purpose buckets')
+      fireEvent.click(await screen.findByRole('button', { name: 'logs-bucket' }))
+      await screen.findByText('notes.txt')
+      // The way out of a folder is the breadcrumb, not a ".." row above the table.
+      expect(screen.queryByRole('link', { name: '..' })).toBeNull()
+
+      fireEvent.click(screen.getByRole('link', { name: 'reports/' }))
+      expect(await screen.findByText('reports/first.txt')).toBeTruthy()
+      // The folder is in the listing's own request, so a new tab and the back button land in it too.
+      expect(listed.some((url) => url.includes('prefix=reports%2F'))).toBe(true)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Load more objects' }))
+      expect(await screen.findByText('reports/second.txt')).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Load more objects' })).toBeNull()
+      expect(listed.some((url) => url.includes('continuation_token=page-2'))).toBe(true)
+
+      // Every step of the path is a link back, and the bucket is the way to the root.
+      fireEvent.click(screen.getByRole('link', { name: 'logs-bucket' }))
+      expect(await screen.findByText('notes.txt')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('opens an object and shows its text', async () => {
     pinRegion('us-east-1')
     await openBucket()
-    fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
-    const dialog = await screen.findByRole('dialog', { name: 'reports/2026.csv' })
-    expect(within(dialog).getByText(/2026-01-01,10/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
+    const dialog = await screen.findByRole('heading', { name: 'reports/2026.csv' })
+    expect(screen.getByText(/2026-01-01,10/)).toBeTruthy()
   })
 
   it('shows what only a HeadObject knows about an object', async () => {
     pinRegion('us-east-1')
     await openBucket()
-    fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+    fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
 
-    const dialog = await screen.findByRole('dialog', { name: 'reports/2026.csv' })
-    expect(within(dialog).getByText('d41d8cd98f00b204e9800998ecf8427e')).toBeTruthy()
-    expect(within(dialog).getByText('Mon, 16 Nov 2026 13:06:12 GMT')).toBeTruthy()
-    expect(within(dialog).getByText('text/csv')).toBeTruthy()
-    expect(within(dialog).getByText('24 B')).toBeTruthy()
+    const dialog = await screen.findByRole('heading', { name: 'reports/2026.csv' })
+    expect(screen.getByText('d41d8cd98f00b204e9800998ecf8427e')).toBeTruthy()
+    expect(screen.getByText('Mon, 16 Nov 2026 13:06:12 GMT')).toBeTruthy()
+    expect(screen.getByText('text/csv')).toBeTruthy()
+    expect(screen.getByText('24 B')).toBeTruthy()
   })
 
   it('shows each document on the tab that owns it, and says so when one is unset', async () => {
@@ -544,8 +661,10 @@ describe('s3', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
     expect(await screen.findByText('Server access logging')).toBeTruthy()
     expect(screen.getByText('Event notifications')).toBeTruthy()
-    // The one listing in the section says what it is.
-    expect(screen.getByText(/ListVersionsResult/)).toBeTruthy()
+    expect(screen.getByText('Static website hosting')).toBeTruthy()
+    // Versions is a listing of its own, not a document; this bucket's fixture has none.
+    expect(screen.getByText('Versions')).toBeTruthy()
+    expect(await screen.findByText('No versions in this folder yet.')).toBeTruthy()
     // ...but a document S3 reports as empty says so instead of showing an element.
     expect(screen.getAllByText('Not configured.').length).toBeGreaterThan(0)
 
@@ -728,8 +847,8 @@ describe('s3', () => {
   it("shows an object's tags, annotations and Object Lock state, each read on its own", async () => {
     pinRegion('us-east-1')
     await openBucket()
-    fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
-    await screen.findByRole('dialog', { name: 'reports/2026.csv' })
+    fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
+    await screen.findByRole('heading', { name: 'reports/2026.csv' })
 
     fireEvent.click(screen.getByRole('tab', { name: 'Tags' }))
     expect(await screen.findByText('stage')).toBeTruthy()
@@ -763,8 +882,8 @@ describe('s3', () => {
     )
     try {
       await openBucket()
-      fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
-      await screen.findByRole('dialog', { name: 'reports/2026.csv' })
+      fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
+      await screen.findByRole('heading', { name: 'reports/2026.csv' })
 
       fireEvent.click(screen.getByRole('tab', { name: 'Tags' }))
       expect(await screen.findByText('S3 refused the read')).toBeTruthy()
@@ -852,9 +971,10 @@ describe('s3', () => {
     const base = stubOnce('/api/s3/object-copy', { ok: true, status: 200 }, sent)
     try {
       await openBucket()
-      fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
-      const view = await screen.findByRole('dialog', { name: 'reports/2026.csv' })
-      fireEvent.click(within(view).getByRole('button', { name: 'Copy' }))
+      fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
+      await screen.findByRole('heading', { name: 'reports/2026.csv' })
+      // The object's page carries Copy; the closed copy modal's button shares the name, so the first is the page's.
+      fireEvent.click(screen.getAllByRole('button', { name: 'Copy' })[0])
 
       const dialog = await screen.findByRole('dialog', { name: 'Copy object' })
       fireEvent.change(within(dialog).getByDisplayValue('reports/2026.csv'), {
@@ -876,25 +996,532 @@ describe('s3', () => {
     }
   })
 
-  it('enables versioning from the bucket page', async () => {
+  it('offers only the Actions it can run', async () => {
+    pinRegion('us-east-1')
+    await openBucket()
+
+    // The first checkbox is the header's select-all; the second is the single object's row.
+    fireEvent.click(screen.getAllByRole('checkbox')[1])
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Actions' }))
+
+    const items = await screen.findAllByRole('menuitem')
+    expect(items.map((item) => item.textContent.trim())).toEqual([
+      'Copy',
+      'Move',
+      'Edit storage class',
+      'Edit server-side encryption',
+      'Make public using ACL',
+    ])
+  })
+
+  it('changes one object storage class in place', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/object-rewrite', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getAllByRole('checkbox')[1])
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: 'Actions' }))
+      await user.click(await screen.findByRole('menuitem', { name: 'Edit storage class' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Edit storage class' })
+      await user.click(within(dialog).getByRole('button', { name: /Storage class/ }))
+      await user.click(await screen.findByRole('option', { name: 'Standard-IA' }))
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        key: 'reports/2026.csv',
+        storage_class: 'STANDARD_IA',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('passes on S3\u2019s refusal when the bucket has ACLs disabled', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/object-acl',
+      {
+        ok: false,
+        error: 'AccessControlListNotSupported: The bucket does not allow ACLs',
+      },
+      sent,
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getAllByRole('checkbox')[1])
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: 'Actions' }))
+      await user.click(
+        await screen.findByRole('menuitem', { name: 'Make public using ACL' }),
+      )
+
+      const dialog = await screen.findByRole('dialog', { name: 'Object ACL' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+      // The console repeats S3's sentence rather than paraphrasing it.
+      expect(
+        await within(dialog).findByText(/AccessControlListNotSupported/),
+      ).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('shows the creation date, and suspends versioning rather than disabling it', async () => {
     pinRegion('us-east-1')
     const sent = []
     const base = stubOnce('/api/s3/bucket-settings-edit', { ok: true, status: 200 }, sent)
     try {
       await openBucket()
       fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
-      fireEvent.click(
-        await screen.findByRole('button', { name: 'Edit bucket versioning' }),
-      )
-      fireEvent.click(screen.getByLabelText('Disable'))
+
+      // The date is ListBuckets' answer, not what navigation happens to carry.
+      expect(await screen.findByText('2026-11-16T09:00:00.000Z')).toBeTruthy()
+      // MFA delete is not surfaced until the console carries it again.
+      expect(screen.queryByText('MFA delete')).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit bucket versioning' }))
+      // S3 has no "off" after "on": the choices are Enable and Suspend.
+      expect(screen.queryByLabelText('Disable')).toBeNull()
+      fireEvent.click(screen.getByLabelText('Suspend'))
       fireEvent.click(screen.getByRole('button', { name: 'Save bucket versioning' }))
 
       await waitFor(() => expect(sent.length).toBe(1))
       expect(sent[0]).toMatchObject({
         bucket: 'logs-bucket',
         region: 'us-east-1',
-        versioning: false,
+        versioning_status: 'Suspended',
       })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('lists an object’s versions and deletes one of them', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        const path = String(url).split('?')[0]
+        const answer = (body) => ({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify(body),
+        })
+        if (path === '/api/s3/object-version-delete') {
+          sent.push(JSON.parse(options.body))
+          return answer({ ok: true })
+        }
+        if (path === '/api/s3/versions') {
+          // Two pages, because a listing is one page and the rest is asked for.
+          const params = new URL(String(url), 'http://console').searchParams
+          if (params.get('key_marker')) {
+            return answer({
+              ok: true,
+              bucket: 'logs-bucket',
+              versions: [
+                {
+                  key: 'reports/2026.csv',
+                  version_id: 'v1',
+                  latest: false,
+                  delete_marker: false,
+                  size: '12',
+                  modified: '2026-11-15T09:00:00Z',
+                  storage: 'STANDARD',
+                },
+              ],
+              truncated: false,
+            })
+          }
+          return answer({
+            ok: true,
+            bucket: 'logs-bucket',
+            versions: [
+              {
+                key: 'reports/2026.csv',
+                version_id: 'v2',
+                latest: true,
+                delete_marker: false,
+                size: '24',
+                modified: '2026-11-16T13:06:12Z',
+                storage: 'STANDARD',
+              },
+            ],
+            truncated: true,
+            next_key_marker: 'reports/2026.csv',
+            next_version_id_marker: 'v2',
+          })
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Properties' }))
+
+      expect(await screen.findByText('v2')).toBeTruthy()
+      // The first page ends there; the older version is behind the listing's own marker.
+      expect(screen.queryByText('v1')).toBeNull()
+      expect(screen.getByText('Load more versions')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Load more versions' }))
+      expect(await screen.findByText('v1')).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Load more versions' })).toBeNull()
+      // One version can be fetched on its own, which is the only way to read an old body.
+      expect(
+        screen.getByRole('link', {
+          name: 'Download version v2 of reports/2026.csv',
+        }),
+      ).toBeTruthy()
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Delete version v1 of reports/2026.csv' }),
+      )
+      const confirm = await screen.findByRole('dialog', { name: 'Delete version' })
+      fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        bucket: 'logs-bucket',
+        key: 'reports/2026.csv',
+        version_id: 'v1',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('pages an upload list and its parts instead of cutting them short', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        const path = String(url).split('?')[0]
+        const answer = (body) => ({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify(body),
+        })
+        if (path === '/api/s3/uploads') {
+          const params = new URL(String(url), 'http://console').searchParams
+          if (params.get('key_marker')) {
+            return answer({
+              ok: true,
+              bucket: 'logs-bucket',
+              uploads: [
+                {
+                  key: 'other/zeta.bin',
+                  upload_id: 'upload-2',
+                  initiated: '2026-11-16T11:00:00Z',
+                  storage: 'STANDARD',
+                },
+              ],
+              truncated: false,
+            })
+          }
+          return answer({
+            ok: true,
+            bucket: 'logs-bucket',
+            uploads: [
+              {
+                key: 'big.bin',
+                upload_id: 'upload-1',
+                initiated: '2026-11-16T10:00:00Z',
+                storage: 'STANDARD',
+              },
+            ],
+            truncated: true,
+            next_key_marker: 'big.bin',
+            next_upload_id_marker: 'upload-1',
+          })
+        }
+        if (path === '/api/s3/upload-parts') {
+          const params = new URL(String(url), 'http://console').searchParams
+          if (params.get('part_number_marker')) {
+            return answer({
+              ok: true,
+              bucket: 'logs-bucket',
+              key: 'big.bin',
+              upload_id: 'upload-1',
+              parts: [
+                {
+                  part_number: '2',
+                  size: '4194304',
+                  etag: '"bbb"',
+                  modified: '2026-11-16T10:01:00Z',
+                },
+              ],
+              truncated: false,
+            })
+          }
+          return answer({
+            ok: true,
+            bucket: 'logs-bucket',
+            key: 'big.bin',
+            upload_id: 'upload-1',
+            parts: [
+              {
+                part_number: '1',
+                size: '5242880',
+                etag: '"aaa"',
+                modified: '2026-11-16T10:00:30Z',
+              },
+            ],
+            truncated: true,
+            next_part_number_marker: '1',
+          })
+        }
+        if (path === '/api/s3/multipart-abort') {
+          sent.push(JSON.parse(options.body))
+          return answer({ ok: true })
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      await openBucket()
+      expect(await screen.findByText('Incomplete multipart uploads')).toBeTruthy()
+      expect(await screen.findByText('upload-1')).toBeTruthy()
+      // More uploads than one page: the rest is behind the listing's marker.
+      fireEvent.click(screen.getByRole('button', { name: 'Load more uploads' }))
+      expect(await screen.findByText('other/zeta.bin')).toBeTruthy()
+
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'Show the parts of the upload of big.bin',
+        }),
+      )
+      const dialog = await screen.findByRole('dialog', { name: 'Incomplete upload' })
+      expect(await within(dialog).findByText('5.0 MB')).toBeTruthy()
+      // ListParts is paged by part number, not by a token.
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Load more parts' }))
+      expect(await within(dialog).findByText('4.0 MB')).toBeTruthy()
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Abort upload' }))
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        bucket: 'logs-bucket',
+        key: 'big.bin',
+        upload_id: 'upload-1',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('switches Object Ownership, which is what object ACLs depend on', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-settings-edit', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }))
+
+      // The tab states the state S3 answered, and offers the switch that changes it.
+      expect(
+        await screen.findByText('ACLs enabled - bucket owner preferred'),
+      ).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Edit object ownership' }))
+      fireEvent.click(screen.getByLabelText('ACLs disabled (bucket owner enforced)'))
+      fireEvent.click(screen.getByRole('button', { name: 'Save object ownership' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        region: 'us-east-1',
+        ownership: 'BucketOwnerEnforced',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('reads and writes an ACL on one version of an object', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const reads = []
+    let granted = false
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        const path = String(url).split('?')[0]
+        const answer = (body) => ({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify(body),
+        })
+        if (path === '/api/s3/versions') {
+          return answer({
+            ok: true,
+            bucket: 'logs-bucket',
+            versions: [
+              {
+                key: 'reports/2026.csv',
+                version_id: 'v2',
+                latest: true,
+                delete_marker: false,
+                size: '24',
+                modified: '2026-11-16T13:06:12Z',
+                storage: 'STANDARD',
+              },
+              {
+                key: 'reports/2026.csv',
+                version_id: 'v1',
+                latest: false,
+                delete_marker: false,
+                size: '12',
+                modified: '2026-11-15T09:00:00Z',
+                storage: 'STANDARD',
+              },
+            ],
+          })
+        }
+        if (path !== '/api/s3/object-acl') return base(url, options)
+        if (options.method === 'POST') {
+          sent.push(JSON.parse(options.body))
+          granted = true
+          return answer({ ok: true })
+        }
+        reads.push(String(url))
+        return answer({
+          ok: true,
+          status: 200,
+          bucket: 'logs-bucket',
+          key: 'reports/2026.csv',
+          owner: { id: 'owner-id', display_name: 'owner' },
+          grants: [
+            {
+              type: 'CanonicalUser',
+              id: 'owner-id',
+              display_name: 'owner',
+              uri: '',
+              permission: granted ? 'READ_ACP' : 'FULL_CONTROL',
+            },
+          ],
+          public: false,
+          acl: '<AccessControlPolicy/>',
+        })
+      }),
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getAllByRole('checkbox')[1])
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: 'Actions' }))
+      await user.click(await screen.findByRole('menuitem', { name: 'Make public using ACL' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Object ACL' })
+      // The older version is offered, because an ACL belongs to a version.
+      await user.click(await within(dialog).findByText('Current version'))
+      await user.click(await screen.findByRole('option', { name: /v1 ·/ }))
+
+      await waitFor(() =>
+        expect(reads.some((url) => url.includes('version_id=v1'))).toBe(true),
+      )
+
+      fireEvent.click(within(dialog).getByLabelText('Public read'))
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        key: 'reports/2026.csv',
+        canned_acl: 'public-read',
+        version_id: 'v1',
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('reads an object ACL back, before and after a grant is written', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    let granted = false
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        const path = String(url).split('?')[0]
+        if (path !== '/api/s3/object-acl') return base(url, options)
+        if (options.method === 'POST') {
+          sent.push(JSON.parse(options.body))
+          granted = true
+          return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) }
+        }
+        const owner = {
+          type: 'CanonicalUser',
+          id: 'owner-id',
+          display_name: 'owner',
+          uri: '',
+          permission: 'FULL_CONTROL',
+        }
+        const publicGrant = {
+          type: 'Group',
+          id: '',
+          display_name: '',
+          uri: 'http://acs.amazonaws.com/groups/global/AllUsers',
+          permission: 'READ',
+        }
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              ok: true,
+              status: 200,
+              bucket: 'logs-bucket',
+              key: 'reports/2026.csv',
+              owner: { id: 'owner-id', display_name: 'owner' },
+              grants: granted ? [owner, publicGrant] : [owner],
+              public: granted,
+              acl: '<AccessControlPolicy/>',
+            }),
+        }
+      }),
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getAllByRole('checkbox')[1])
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: 'Actions' }))
+      await user.click(await screen.findByRole('menuitem', { name: 'Make public using ACL' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Object ACL' })
+      // The dialog opens on what S3 holds, which for this object is the owner's grant only.
+      expect(await within(dialog).findByText('FULL_CONTROL')).toBeTruthy()
+      expect(within(dialog).getByText(/not public/)).toBeTruthy()
+      expect(within(dialog).queryByText('READ')).toBeNull()
+
+      fireEvent.click(within(dialog).getByLabelText('Public read'))
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        key: 'reports/2026.csv',
+        canned_acl: 'public-read',
+      })
+      // The dialog stays open on the answer, so the new grant is visible rather than assumed.
+      expect(
+        await within(dialog).findByText(/S3 holds public-read on reports\/2026.csv/),
+      ).toBeTruthy()
+      expect(await within(dialog).findByText('READ')).toBeTruthy()
+      expect(
+        within(dialog).getByText(/public: a grant names the AllUsers group/),
+      ).toBeTruthy()
     } finally {
       vi.stubGlobal('fetch', base)
     }
@@ -986,6 +1613,67 @@ describe('s3', () => {
     }
   })
 
+  it('removes the block public access configuration from the bucket page', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/bucket-settings-edit', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }))
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'Remove block public access configuration',
+        }),
+      )
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      // DeletePublicAccessBlock removes the configuration itself, rather than saving all four false.
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        remove_public_access_block: true,
+      })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('does not offer to remove a public access block that is not configured', async () => {
+    pinRegion('us-east-1')
+    const base = stubPath('/api/s3/bucket-settings', {
+      ok: true,
+      bucket: 'logs-bucket',
+      settings: {
+        ownership: 'BucketOwnerEnforced',
+        block_public_access: {
+          BlockPublicAcls: false,
+          IgnorePublicAcls: false,
+          BlockPublicPolicy: false,
+          RestrictPublicBuckets: false,
+        },
+        public_access_block_configured: false,
+        versioning: false,
+        tags: [],
+        encryption: 'AES256',
+        bucket_key: false,
+        object_lock: false,
+      },
+    })
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }))
+      expect(
+        await screen.findByText(
+          'No block public access configuration is set on this bucket.',
+        ),
+      ).toBeTruthy()
+      expect(
+        screen.queryByRole('button', { name: 'Remove block public access configuration' }),
+      ).toBeNull()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
   it('does not offer to edit the ACL where S3 turns ACLs off', async () => {
     pinRegion('us-east-1')
     const base = stubPath('/api/s3/bucket-settings', {
@@ -1018,10 +1706,11 @@ describe('s3', () => {
     const base = stubOnce('/api/exec', { ok: true, status: 200 }, sent)
     try {
       await openBucket()
-      fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+      fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
 
-      const view = await screen.findByRole('dialog', { name: 'reports/2026.csv' })
-      fireEvent.click(within(view).getByRole('button', { name: 'Delete' }))
+      await screen.findByRole('heading', { name: 'reports/2026.csv' })
+      // The object's page carries Delete; the closed confirm's button shares the name, so the first is the page's.
+      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
 
       const confirm = await screen.findByRole('dialog', { name: 'Delete object' })
       fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
@@ -1050,7 +1739,7 @@ describe('s3', () => {
     })
     try {
       await openBucket()
-      fireEvent.click(screen.getByRole('button', { name: 'reports/2026.csv' }))
+      fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
       expect(await screen.findByText('This object is not text')).toBeTruthy()
       const link = screen.getByRole('link', { name: 'Download' })
       expect(link.getAttribute('href')).toContain('/api/s3/object-download?')
@@ -1109,6 +1798,135 @@ describe('s3', () => {
     }
   })
 
+  it('edits and removes an object tag set', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/object-tags', { ok: true, status: 200, tags: [] }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
+      await screen.findByRole('heading', { name: 'reports/2026.csv' })
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Tags' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit object tags' }))
+      fireEvent.change(screen.getByLabelText('Object tag key 1'), {
+        target: { value: 'stage' },
+      })
+      fireEvent.change(screen.getByLabelText('Object tag value 1'), {
+        target: { value: 'prod' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Save object tags' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        key: 'reports/2026.csv',
+        tags: [{ Key: 'stage', Value: 'prod' }],
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remove object tags' }))
+      await waitFor(() => expect(sent.length).toBe(2))
+      expect(sent[1].tags).toEqual([])
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('adds and removes an object annotation', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce('/api/s3/object-annotation', { ok: true, status: 200 }, sent)
+    try {
+      await openBucket()
+      fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
+      await screen.findByRole('heading', { name: 'reports/2026.csv' })
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Annotations' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Add annotation' }))
+      fireEvent.change(screen.getByLabelText('Annotation name'), {
+        target: { value: 'review' },
+      })
+      fireEvent.change(screen.getByLabelText('Annotation content'), {
+        target: { value: 'looks good' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Save annotation' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        bucket: 'logs-bucket',
+        key: 'reports/2026.csv',
+        name: 'review',
+        body: 'looks good',
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remove annotation note' }))
+      await waitFor(() => expect(sent.length).toBe(2))
+      expect(sent[1]).toMatchObject({ name: 'note', remove: true })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('sets retention and legal hold from the object view', async () => {
+    pinRegion('us-east-1')
+    const retention = []
+    const holds = []
+    const baseRetention = stubOnce(
+      '/api/s3/object-retention',
+      { ok: true, status: 200 },
+      retention,
+    )
+    try {
+      const base = stubOnce(
+        '/api/s3/object-legal-hold',
+        { ok: true, status: 200 },
+        holds,
+      )
+      try {
+        await openBucket()
+        fireEvent.click(screen.getByRole('link', { name: 'reports/2026.csv' }))
+        await screen.findByRole('heading', { name: 'reports/2026.csv' })
+
+        fireEvent.click(screen.getByRole('tab', { name: 'Object Lock' }))
+        fireEvent.click(await screen.findByRole('button', { name: 'Edit retention' }))
+
+        const user = userEvent.setup()
+        const modeTrigger = screen
+          .getAllByRole('button')
+          .find((button) => button.textContent.trim() === 'Governance')
+        await user.click(modeTrigger)
+        await user.click(await screen.findByRole('option', { name: 'Compliance' }))
+        fireEvent.change(screen.getByLabelText('Retain until'), {
+          target: { value: '2030-01-01T00:00:00Z' },
+        })
+        fireEvent.click(screen.getByRole('button', { name: 'Save retention' }))
+
+        await waitFor(() => expect(retention.length).toBe(1))
+        expect(retention[0]).toMatchObject({
+          bucket: 'logs-bucket',
+          key: 'reports/2026.csv',
+          mode: 'COMPLIANCE',
+          until: '2030-01-01T00:00:00Z',
+        })
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit legal hold' }))
+        const holdTrigger = screen
+          .getAllByRole('button')
+          .find((button) => button.textContent.trim() === 'Off')
+        await user.click(holdTrigger)
+        await user.click(await screen.findByRole('option', { name: 'On' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Save legal hold' }))
+
+        await waitFor(() => expect(holds.length).toBe(1))
+        expect(holds[0]).toMatchObject({ key: 'reports/2026.csv', status: 'ON' })
+      } finally {
+        vi.stubGlobal('fetch', base)
+      }
+    } finally {
+      vi.stubGlobal('fetch', baseRetention)
+    }
+  })
+
   it('still uploads typed contents when no file is chosen', async () => {
     pinRegion('us-east-1')
     const sent = []
@@ -1133,6 +1951,65 @@ describe('s3', () => {
         key: 'notes/typed.txt',
         body: 'typed into the page',
       })
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('uploads a file above the part size in parts', async () => {
+    pinRegion('us-east-1')
+    const calls = []
+    const base = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, options = {}) => {
+        const path = String(url).split('?')[0]
+        if (path === '/api/s3/multipart-create') {
+          calls.push({ kind: 'create', body: JSON.parse(options.body) })
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({ ok: true, upload_id: 'upload-1' }),
+          }
+        }
+        if (path === '/api/s3/multipart-part') {
+          calls.push({ kind: 'part', url: String(url), size: options.body?.size })
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({ ok: true, etag: `"etag-${calls.length}"` }),
+          }
+        }
+        if (path === '/api/s3/multipart-complete') {
+          calls.push({ kind: 'complete', body: JSON.parse(options.body) })
+          return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) }
+        }
+        return base(url, options)
+      }),
+    )
+    try {
+      await openBucket()
+      fireEvent.click(screen.getAllByRole('button', { name: 'Upload' })[0])
+      const big = new File([new Uint8Array(9 * 1024 * 1024)], 'big.bin', {
+        type: 'application/octet-stream',
+      })
+      const input = document.querySelector('input[type="file"]')
+      Object.defineProperty(input, 'files', { value: [big], configurable: true })
+      fireEvent.change(input)
+
+      const dialog = await screen.findByRole('dialog', { name: 'Upload object' })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Upload' }))
+
+      await waitFor(() => expect(calls.some((call) => call.kind === 'complete')).toBe(true), {
+        timeout: 15000,
+      })
+      // 9 MiB at 5 MiB a part is two parts, and the complete names both.
+      expect(calls.filter((call) => call.kind === 'part').length).toBe(2)
+      expect(calls.find((call) => call.kind === 'create').body).toMatchObject({
+        bucket: 'logs-bucket',
+        key: 'big.bin',
+      })
+      expect(calls.find((call) => call.kind === 'complete').body.parts.length).toBe(2)
     } finally {
       vi.stubGlobal('fetch', base)
     }
@@ -1357,7 +2234,8 @@ describe('s3', () => {
 
       const dialog = await openMultiRegionCreate('new-world-point', [/logs-bucket/, /east-bucket/])
       // Both are in us-east-1, which is the create S3 would refuse.
-      expect(within(dialog).getByText(/two are in us-east-1/)).toBeTruthy()
+      expect(screen.getByText(/two are in us-east-1/)).toBeTruthy()
+      // The closed Object Lambda create modal also has a Create, so this is the open one's.
       expect(within(dialog).getByRole('button', { name: 'Create' }).disabled).toBe(true)
     } finally {
       restore()
@@ -1388,7 +2266,8 @@ describe('s3', () => {
 
       const dialog = await openMultiRegionCreate('new-world-point', [/logs-bucket/, /west-bucket/])
       fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
-      await waitFor(() => expect(within(dialog).getAllByText('SUCCEEDED').length).toBe(3))
+      await waitFor(() => expect(screen.getAllByText('SUCCEEDED').length).toBe(3))
+      // Every closed modal keeps a Close, so the create dialog's is the one to press.
       fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
 
       // The row's view carries the operation, whose token exists only in the answer this page still holds.
@@ -1422,9 +2301,9 @@ describe('s3', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Access point world-point' })
     // The listing has none of this: the report, the dials and the policy are three reads on the access point.
-    expect(within(dialog).getByText('Routes')).toBeTruthy()
-    expect(within(dialog).getAllByText('100%').length).toBe(2)
-    expect(within(dialog).getByText(/"Statement"/)).toBeTruthy()
+    expect(screen.getByText('Routes')).toBeTruthy()
+    expect(screen.getAllByText('100%').length).toBe(2)
+    expect(screen.getByText(/"Statement"/)).toBeTruthy()
   })
 
   it('deletes a Multi-Region access point after confirming', async () => {
@@ -1445,7 +2324,7 @@ describe('s3', () => {
         name: 'Delete Multi-Region access point',
       })
       // Deleting one is asynchronous, and the dialog says so rather than promising it is already gone.
-      expect(within(dialog).getByText(/member buckets and their objects are not touched/)).toBeTruthy()
+      expect(screen.getByText(/member buckets and their objects are not touched/)).toBeTruthy()
       fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
       await waitFor(() => expect(sent.length).toBe(1))
@@ -1511,8 +2390,8 @@ describe('s3', () => {
 
       const dialog = await screen.findByRole('dialog', { name: 'Access point world-point' })
       // The detail is its own read: the dials exist only once it lands.
-      await within(dialog).findAllByText('100%')
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Edit traffic dials' }))
+      await screen.findAllByText('100%')
+      fireEvent.click(screen.getByRole('button', { name: 'Edit traffic dials' }))
 
       // One dial per member: the second bucket is the one switched off.
       const user = userEvent.setup()
@@ -1547,8 +2426,8 @@ describe('s3', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View details' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Access point world-point' })
-    await within(dialog).findAllByText('100%')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Edit traffic dials' }))
+    await screen.findAllByText('100%')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit traffic dials' }))
 
     const user = userEvent.setup()
     for (const bucket of ['logs-bucket', 'west-bucket']) {
@@ -1559,7 +2438,8 @@ describe('s3', () => {
     }
 
     // S3 refuses an access point with every member switched off, so the page does not offer to ask.
-    expect(within(dialog).getByText(/At least one Region has to stay Active/)).toBeTruthy()
+    expect(screen.getByText(/At least one Region has to stay Active/)).toBeTruthy()
+    // The closed dialogs keep their own Save, so this is the one in the access point's dialog.
     expect(within(dialog).getByRole('button', { name: 'Save' }).disabled).toBe(true)
   })
 
@@ -1574,8 +2454,218 @@ describe('s3', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View details' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Access point lambda-point' })
-    expect(within(dialog).getByText(/SupportingAccessPoint/)).toBeTruthy()
-    expect(within(dialog).getByText('No policy on this access point.')).toBeTruthy()
+    expect(screen.getByText(/SupportingAccessPoint/)).toBeTruthy()
+    expect(screen.getByText('No policy on this access point.')).toBeTruthy()
+  })
+
+  it('writes an Object Lambda access point policy from the editor', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/access-point-policy-edit',
+      RESPONSES['/api/s3/access-point-policy-edit'],
+      sent,
+    )
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Object Lambda' }))
+      await screen.findByText('lambda-point')
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit policy' }))
+
+      const dialog = await screen.findByRole('dialog', { name: /Edit policy/ })
+      const editor = within(dialog).getByRole('textbox')
+      await waitFor(() => expect(editor.value).toContain('Statement'))
+      const document = '{"Version":"2012-10-17","Statement":[{"Effect":"Allow"}]}'
+      fireEvent.change(editor, { target: { value: document } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      // The Object Lambda policy is its own resource, so the editor names its section.
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        section: 'object-lambda',
+        name: 'lambda-point',
+        policy: document,
+      })
+      expect(await screen.findByText('Access point policy saved')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('removes an Object Lambda access point policy from the editor', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/access-point-policy-edit',
+      RESPONSES['/api/s3/access-point-policy-edit'],
+      sent,
+    )
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Object Lambda' }))
+      await screen.findByText('lambda-point')
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit policy' }))
+
+      const dialog = await screen.findByRole('dialog', { name: /Edit policy/ })
+      const editor = within(dialog).getByRole('textbox')
+      await waitFor(() => expect(editor.value).toContain('Statement'))
+      fireEvent.click(screen.getByRole('button', { name: 'Remove policy' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        section: 'object-lambda',
+        name: 'lambda-point',
+        policy: null,
+      })
+      expect(await screen.findByText('Access point policy removed')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('creates an Object Lambda access point from its tab', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/object-lambda',
+      { ok: true, status: 200, name: 'new-lambda-point', created: true },
+      sent,
+    )
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Object Lambda' }))
+      await screen.findByText('lambda-point')
+      fireEvent.click(screen.getByRole('button', { name: 'Create Object Lambda access point' }))
+
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Create Object Lambda access point',
+      })
+      fireEvent.change(screen.getByPlaceholderText('my-object-lambda'), {
+        target: { value: 'new-lambda-point' },
+      })
+
+      // Cloudscape's Select opens under user-event, and its options are in a portal.
+      const user = userEvent.setup()
+      const trigger = (await screen.findAllByRole('button')).find(
+        (button) => button.textContent.trim() === 'Choose an access point',
+      )
+      await user.click(trigger)
+      await user.click(await screen.findByRole('option', { name: /reports-point/ }))
+
+      fireEvent.change(
+        screen.getByPlaceholderText(
+          'arn:aws:lambda:us-east-1:111111111111:function:my-transform',
+        ),
+        { target: { value: 'arn:aws:lambda:us-east-1:111111111111:function:transform-demo' } },
+      )
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        name: 'new-lambda-point',
+        supporting_access_point:
+          'arn:aws:s3:us-east-1:111111111111:accesspoint/reports-point',
+        function_arn: 'arn:aws:lambda:us-east-1:111111111111:function:transform-demo',
+        actions: ['GetObject', 'HeadObject'],
+        cloudwatch_metrics: false,
+      })
+      expect(await screen.findByText('Object Lambda access point new-lambda-point created')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('deletes an Object Lambda access point after confirming', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/object-lambda-delete',
+      { ok: true, status: 204, name: 'lambda-point' },
+      sent,
+    )
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Object Lambda' }))
+      await screen.findByText('lambda-point')
+
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Delete Object Lambda access point',
+      })
+      expect(
+        screen.getByText(/supporting access point and its bucket are not touched/),
+      ).toBeTruthy()
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        name: 'lambda-point',
+      })
+      expect(await screen.findByText('Deleted access point lambda-point')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
+  })
+
+  it('replaces the Object Lambda configuration from its details view', async () => {
+    pinRegion('us-east-1')
+    const sent = []
+    const base = stubOnce(
+      '/api/s3/object-lambda-configuration',
+      { ok: true, status: 200, name: 'lambda-point' },
+      sent,
+    )
+    try {
+      renderAt(<AccessPoints />, ['/s3/access-points?region=us-east-1'])
+      await screen.findByText('reports-point')
+      fireEvent.click(screen.getByRole('tab', { name: 'Object Lambda' }))
+      await screen.findByText('lambda-point')
+      fireEvent.click(screen.getAllByRole('radio')[0])
+      fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+
+      const details = await screen.findByRole('dialog', { name: 'Access point lambda-point' })
+      fireEvent.click(within(details).getByRole('button', { name: 'Edit configuration' }))
+
+      const dialog = await screen.findByRole('dialog', {
+        name: /Edit configuration: lambda-point/,
+      })
+      const editor = within(dialog).getByRole('textbox')
+      await waitFor(() => expect(editor.value).toContain('SupportingAccessPoint'))
+      const replacement =
+        '<Configuration><SupportingAccessPoint>arn:aws:s3:us-east-1:111111111111:accesspoint/reports-point</SupportingAccessPoint>' +
+        '<TransformationConfigurations><TransformationConfiguration><Actions>' +
+        '<Action>GetObject</Action></Actions><ContentTransformation><AwsLambda>' +
+        '<FunctionArn>arn:aws:lambda:us-east-1:111111111111:function:edited</FunctionArn>' +
+        '</AwsLambda></ContentTransformation></TransformationConfiguration>' +
+        '</TransformationConfigurations></Configuration>'
+      fireEvent.change(editor, { target: { value: replacement } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(sent.length).toBe(1))
+      expect(sent[0]).toMatchObject({
+        account: '111111111111',
+        region: 'us-east-1',
+        name: 'lambda-point',
+        configuration: replacement,
+      })
+      expect(await screen.findByText('Configuration saved for lambda-point')).toBeTruthy()
+    } finally {
+      vi.stubGlobal('fetch', base)
+    }
   })
 
   it('links Access Points from the S3 navigation', async () => {

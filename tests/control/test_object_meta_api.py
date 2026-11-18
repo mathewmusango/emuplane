@@ -127,6 +127,165 @@ def test_the_tag_set_annotations_and_lock_states_are_read_back(console, gateway)
     assert answer["body"] == "first note"
 
 
+def test_tags_annotations_and_lock_are_written_from_the_console(console):
+    _bucket(console, LOCKED, object_lock=True)
+    _object(console, LOCKED, "console-tags.txt")
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-tags",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": LOCKED,
+            "key": "console-tags.txt",
+            "tags": [
+                {"Key": "stage", "Value": "prod"},
+                {"Key": "team", "Value": "platform"},
+            ],
+        },
+    )
+    assert status == 200, body
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-annotation",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": LOCKED,
+            "key": "console-tags.txt",
+            "name": "review",
+            "body": "written from the console",
+        },
+    )
+    assert status == 200, body
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-retention",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": LOCKED,
+            "key": "console-tags.txt",
+            "mode": "GOVERNANCE",
+            "until": "2030-01-01T00:00:00Z",
+        },
+    )
+    assert status == 200, body
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-legal-hold",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": LOCKED,
+            "key": "console-tags.txt",
+            "status": "ON",
+        },
+    )
+    assert status == 200, body
+
+    status, meta = _meta(console, LOCKED, "console-tags.txt")
+    assert status == 200, meta
+    assert {(tag["Key"], tag["Value"]) for tag in meta["tags"]} == {
+        ("stage", "prod"),
+        ("team", "platform"),
+    }
+    assert [row["name"] for row in meta["annotations"]] == ["review"]
+    assert "GOVERNANCE" in (meta["retention"] or "")
+    assert "ON" in (meta["legal_hold"] or "")
+
+    # The same routes remove the tag set, one annotation, and the legal hold.
+    assert api(
+        console,
+        "POST",
+        "/api/s3/object-tags",
+        {"account": ACCOUNT, "region": "us-east-1", "bucket": LOCKED, "key": "console-tags.txt", "tags": []},
+    )[0] == 200
+    assert api(
+        console,
+        "POST",
+        "/api/s3/object-annotation",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": LOCKED,
+            "key": "console-tags.txt",
+            "name": "review",
+            "remove": True,
+        },
+    )[0] == 200
+    assert api(
+        console,
+        "POST",
+        "/api/s3/object-legal-hold",
+        {"account": ACCOUNT, "region": "us-east-1", "bucket": LOCKED, "key": "console-tags.txt", "status": "OFF"},
+    )[0] == 200
+
+    _, cleared = _meta(console, LOCKED, "console-tags.txt")
+    assert cleared["tags"] == []
+    assert cleared["annotations"] == []
+    assert "OFF" in (cleared["legal_hold"] or "")
+
+
+def test_the_object_writes_refuse_an_unknown_lock_value(console):
+    _bucket(console, LOCKED, object_lock=True)
+    _object(console, LOCKED, "console-lock.txt")
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-retention",
+        {
+            "account": ACCOUNT,
+            "region": "us-east-1",
+            "bucket": LOCKED,
+            "key": "console-lock.txt",
+            "mode": "SOFT",
+            "until": "2030-01-01T00:00:00Z",
+        },
+    )
+    assert status == 400
+    assert "GOVERNANCE or COMPLIANCE" in body["error"]
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-legal-hold",
+        {"account": ACCOUNT, "region": "us-east-1", "bucket": LOCKED, "key": "console-lock.txt", "status": "MAYBE"},
+    )
+    assert status == 400
+    assert "ON or OFF" in body["error"]
+
+
+def test_the_object_writes_need_a_bucket_key_and_name(console):
+    _bucket(console, BUCKET)
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-tags",
+        {"account": ACCOUNT, "region": "us-east-1", "bucket": BUCKET, "tags": []},
+    )
+    assert status == 400
+    assert "bucket and a key" in body["error"]
+
+    status, body = api(
+        console,
+        "POST",
+        "/api/s3/object-annotation",
+        {"account": ACCOUNT, "region": "us-east-1", "bucket": BUCKET, "key": "plain.txt", "name": ""},
+    )
+    assert status == 400
+    assert "annotation name" in body["error"]
+
+
 def test_an_annotation_that_is_not_there_says_so(console):
     _bucket(console, LOCKED, object_lock=True)
     _object(console, LOCKED, "unannotated.txt")
