@@ -97,6 +97,10 @@ holds the flag on the bucket's own record and the gateway enforces it.
 
 ## Sign-in
 
+- **An email address is at most 254 characters, with one `@` and a dotted domain.**
+  The console refuses anything longer, or without exactly one `@`, a local part and
+  two or more non-empty labels on the domain, and answers `400` — the same answer
+  for an address that does not look right and for one that is simply too long.
 - **MFA enrolment is not implemented.** The sign-in flow has the screen and the
   API has the route, but `POST /api/auth/mfa` answers `501`, and signing in a
   principal that already has MFA enabled is refused with the same message. The
