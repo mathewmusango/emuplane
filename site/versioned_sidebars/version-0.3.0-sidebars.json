@@ -1,0 +1,60 @@
+{
+  "docs": [
+    "intro",
+    {
+      "type": "category",
+      "label": "Getting started",
+      "collapsed": false,
+      "items": [
+        "getting-started/quickstart",
+        "getting-started/access",
+        "getting-started/console",
+        "getting-started/access-keys"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "collapsed": false,
+      "items": [
+        "deployment/docker-podman"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts",
+      "collapsed": false,
+      "items": [
+        "concepts/architecture",
+        "concepts/tenancy",
+        "concepts/extensions"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Guides",
+      "collapsed": false,
+      "items": [
+        "guides/s3"
+      ]
+    }
+  ],
+  "reference": [
+    {
+      "type": "category",
+      "label": "Coverage",
+      "collapsed": false,
+      "items": [
+        "reference/s3-coverage",
+        "reference/s3-files-coverage",
+        "reference/iam-coverage",
+        "reference/account-coverage"
+      ]
+    },
+    "reference/configuration",
+    "reference/limits"
+  ],
+  "api": [
+    "reference/control-api"
+  ]
+}
