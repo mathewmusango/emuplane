@@ -22,13 +22,14 @@ jobs:
 
   # The S3 and access-point tests import the emulator's own service modules, so they
   # run against a checkout of the tag the images carry rather than a mock of it.
+  # The whole supported range is here, and the badge in the README repeats it.
   python:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13', '3.14']
+        python-version: ['3.13', '3.14', '3.15']
     env:
       EMULATOR_TAG: v1.5.40
     steps:
