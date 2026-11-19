@@ -4,6 +4,26 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.3.0] - 2026-11-19
+
+### Added
+
+- The reference has IAM, account and S3 Files coverage pages ([#141](https://github.com/mathewmusango/emuplane/issues/141))
+
+### Changed
+
+- Deployment files live in a Docker-compose/ folder, with traefik variants ([#132](https://github.com/mathewmusango/emuplane/issues/132))
+- EP_BACKEND_URL defaults to http://localhost:4566 ([#135](https://github.com/mathewmusango/emuplane/issues/135))
+- Documentation: a tab per area, a generated changelog, and the console in pictures ([#139](https://github.com/mathewmusango/emuplane/issues/139))
+- The profile table is MiniStack and generic, and MiniStack is the default ([#144](https://github.com/mathewmusango/emuplane/issues/144))
+- Publish the contribution policy on the docs site ([#154](https://github.com/mathewmusango/emuplane/issues/154))
+- README points at the contribution policy ([#163](https://github.com/mathewmusango/emuplane/issues/163))
+
+### Fixed
+
+- The bucket's Versions table gives every pre-versioning object the same key ([#140](https://github.com/mathewmusango/emuplane/issues/140))
+- The test suite runs the whole Python range the badge claims ([#161](https://github.com/mathewmusango/emuplane/issues/161))
+
 ## [v0.2.2] - 2026-11-18
 
 ### Security
