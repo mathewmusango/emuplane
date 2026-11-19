@@ -16,6 +16,36 @@ updates:
     commit-message:
       prefix: ci
 
+  - package-ecosystem: pip
+    directory: "/"
+    labels: ["dependencies"]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    groups:
+      python:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: docker
+    directory: "/"
+    labels: ["dependencies"]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    groups:
+      base-images:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: ci
+
   - package-ecosystem: npm
     directory: "/web"
     labels: ["dependencies"]
@@ -28,8 +58,6 @@ updates:
       web:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-    # The React type packages are a matched pair: a major bump of one does not
-    # resolve against the other, so both majors stay a deliberate migration.
     ignore:
       - dependency-name: "@types/react"
         update-types: ["version-update:semver-major"]
