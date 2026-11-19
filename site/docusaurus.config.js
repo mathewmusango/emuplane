@@ -116,7 +116,16 @@ const config = {
         {
           title: 'Project',
           items: [
+            { label: 'Contributing', to: '/contributing' },
             { label: 'GitHub', href: 'https://github.com/mathewmusango/emuplane' },
+            {
+              label: 'Issues',
+              href: 'https://github.com/mathewmusango/emuplane/issues',
+            },
+            {
+              label: 'Discussions',
+              href: 'https://github.com/mathewmusango/emuplane/discussions',
+            },
             {
               label: 'Container image',
               href: 'https://github.com/mathewmusango/emuplane/pkgs/container/emuplane',
