@@ -1,4 +1,4 @@
-# Base images are pinned by tag and index digest, so a scanner can read the patch; `renovate.json` moves both.
+# Base images are pinned by tag and index digest, so a scanner can read the patch; Dependabot moves both.
 FROM docker.io/library/node:26.13.1-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS web
 
 WORKDIR /src
@@ -49,9 +49,10 @@ EXPOSE 4570 4571
 
 # Declared in docker-compose.yml, because podman's OCI format ignores HEALTHCHECK.
 # pip is dead weight at runtime: the one pinned dependency is installed above and stays.
-RUN rm -rf /usr/local/lib/python3.13/site-packages/pip \
-    /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
-    /usr/local/lib/python3.13/site-packages/README.txt
+# The paths glob, because a base-image bump moves the interpreter's directory with it.
+RUN rm -rf /usr/local/lib/python3.*/site-packages/pip \
+    /usr/local/lib/python3.*/site-packages/pip-*.dist-info \
+    /usr/local/lib/python3.*/site-packages/README.txt
 
 USER 10001:10001
 CMD ["python", "/app/app.py"]
