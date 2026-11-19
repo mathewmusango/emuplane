@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
   <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python">
   <a href="https://github.com/mathewmusango/emuplane/pkgs/container/emuplane"><img src="https://img.shields.io/badge/ghcr.io-emuplane-blue?logo=github" alt="ghcr.io"></a>
+  <a href="https://securityscorecards.dev/viewer/?uri=github.com/mathewmusango/emuplane"><img src="https://api.securityscorecards.dev/projects/github.com/mathewmusango/emuplane/badge" alt="OpenSSF Scorecard"></a>
 </p>
 
 <p align="center">
@@ -18,8 +19,9 @@
   <a href="https://github.com/mathewmusango/emuplane/actions/workflows/security.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/security.yml?label=Security" alt="Security"></a>
   <a href="https://github.com/mathewmusango/emuplane/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/codeql.yml?label=CodeQL" alt="CodeQL"></a>
   <a href="https://github.com/mathewmusango/emuplane/actions/workflows/semgrep.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/semgrep.yml?label=Semgrep" alt="Semgrep"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/trivy.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/trivy.yml?label=Trivy" alt="Trivy"></a>
+  <a href="https://github.com/mathewmusango/emuplane/actions/workflows/scorecard.yml"><img src="https://img.shields.io/github/actions/workflow/status/mathewmusango/emuplane/scorecard.yml?label=Scorecard" alt="Scorecard"></a>
   <a href="https://github.com/mathewmusango/emuplane/actions/workflows/dependabot/dependabot-updates"><img src="https://github.com/mathewmusango/emuplane/actions/workflows/dependabot/dependabot-updates/badge.svg" alt="Dependabot Updates"></a>
-  <a href="https://developer.mend.io/github/mathewmusango/emuplane"><img src="https://img.shields.io/badge/renovate-enabled-blue?logo=renovatebot" alt="Renovate"></a>
 </p>
 
 ---
