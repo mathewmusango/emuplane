@@ -13,16 +13,16 @@ compose file in its own repository, and the control will not serve until it answ
 ## Start
 
 ```bash
-cp .env.example .env        # EP_BACKEND_URL, EP_CONSOLE_URL, EP_GATEWAY_URL
-podman-compose up -d        # bootstrap first, then the control
+cp .env.example .env   # EP_BACKEND_URL, EP_CONSOLE_URL, EP_GATEWAY_URL
+podman-compose up -d   # bootstrap first, then the control
 ```
 
 No credential is seeded: the API bearer token is minted on demand (see [Tokens and
 passwords](#tokens-and-passwords)) and stored as a hash, so `.env` carries no
 secret at all.
 
-`docker-compose.yml` is the product's own definition; a deployment adds a compose
-override of its own for its image, names, routes and network, and
+`docker-compose.yml` is the product's own definition; a deployment adds a
+compose override of its own for its image, names, routes and network, and
 `docker-compose.all.yml` already does that for the bundled emulator.
 
 ## The image
@@ -149,5 +149,5 @@ cd site && npm run build                # these pages
 
 The S3 and access-point tests import the emulator's own service modules rather than
 a mock, so they need its source: set `EP_EMULATOR_SRC` to a checkout of the tag the
-images carry (`v1.5.41`), which is what CI clones. Without it those tests skip and
+images carry (`v1.5.40`), which is what CI clones. Without it those tests skip and
 the run proves less than it looks like it does.

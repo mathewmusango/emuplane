@@ -14,9 +14,14 @@ The console signs people in with a session; a client signs with a key. An
    ![The sign-in screen: root user or IAM user](/img/sign-in.png)
 
 2. Open **Settings** and find the **Access keys** table.
-3. Choose **Create access key**.
-4. Copy the **secret access key** from the dialog. It is shown once: afterwards
-   the table shows only a masked id and a masked secret.
+3. Choose **Create access key**, give it a name (the machine or pipeline that will
+   use it), and create it.
+4. Copy or download the **secret access key** from the success alert. **Download
+   .csv** writes the key id and the secret to a file in the shape the AWS CLI
+   reads. It is shown once: afterwards the table shows only a masked id and a
+   masked secret.
+
+![Access key created: the id and the secret with copy buttons, and Download .csv. The secret is masked in this picture](/img/console/access-key-created.png)
 
 An account holds up to **two** keys, so a new key can be minted and proved before
 the old one is deleted. Deleting a key stops every client still using it, with no

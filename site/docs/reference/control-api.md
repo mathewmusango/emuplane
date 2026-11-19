@@ -42,6 +42,23 @@ rather than inventing a friendlier one.
   access point kinds, and the Multi-Region asynchronous operations. These do the
   work the console page claims, and nothing the page does not show.
 
+## Calling it by hand
+
+The console is one client; nothing stops you being another. The API explorer on a
+service page is the same catalogue the console drives, and the same routes answer
+the bearer token:
+
+![The API explorer: the catalogue of actions, the form for the chosen one, and the aws command it maps to](/img/console/api-explorer.png)
+
+```bash
+curl -s http://localhost:4570/api/accounts/me -H "Authorization: Bearer $EP_TOKEN"
+```
+
+`$EP_TOKEN` is the token `scripts/token.sh` mints (or `python /app/api_token.py`
+inside the container). A bearer caller has no account of its own, so a route that
+needs one takes it from the request — that is what makes the token the one
+cross-tenant principal.
+
 ## Every route
 
 This table is generated from the control's own route table, so it cannot list a

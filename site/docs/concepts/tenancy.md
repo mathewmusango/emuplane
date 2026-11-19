@@ -34,10 +34,18 @@ flowchart LR
 - A user name therefore only has to be understood in its account: the console
   shows the account name beside the account id and the user name as the identity
   inside it, because they live at different levels.
-- An **email address belongs to one principal only**, deployment-wide. That is what
-  makes a password reset unambiguous: `/forgot` finds one account, not the first
-  row that matches. A store written before the rule is not guessed at — an address
-  two principals share resets neither, and an administrator issues the link.
+- An **email address belongs to one principal only**, deployment-wide: two root
+  accounts cannot share one. One mailbox can still hold several root accounts,
+  because a `+` suffix is a different address — `ops+management@example.com` and
+  `ops+test@example.com` are two root users with two passwords, and both arrive
+  in the same inbox. That uniqueness is what makes a password reset unambiguous:
+  `/forgot` finds one account, not the first row that matches. A store written
+  before the rule is not guessed at — an address two principals share resets
+  neither, and an administrator issues the link.
+- **A reset is one identity, so the form asks for that identity.** A root user
+  resets by email; an IAM user resets by account (name or number) plus user name.
+  Today `/forgot` takes an email only, which means an IAM user has no self-service
+  reset yet — see [Limits](../reference/limits.md#sign-in).
 - Signing in follows the same split: root mode takes the **email**, IAM mode
   takes the **account and the user name**.
 - The deployment bearer token is the one principal that may cross tenancies, and

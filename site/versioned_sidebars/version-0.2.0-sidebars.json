@@ -29,17 +29,21 @@
       "items": [
         "guides/s3"
       ]
-    },
+    }
+  ],
+  "reference": [
     {
       "type": "category",
-      "label": "Reference",
+      "label": "Coverage",
       "collapsed": false,
       "items": [
-        "reference/control-api",
-        "reference/s3-coverage",
-        "reference/configuration",
-        "reference/limits"
+        "reference/s3-coverage"
       ]
-    }
+    },
+    "reference/configuration",
+    "reference/limits"
+  ],
+  "api": [
+    "reference/control-api"
   ]
 }

@@ -10,9 +10,10 @@ their own names in the backend's `.env`; Emuplane never writes there.
 
 That split is the porting contract:
 
-- **Container settings** — read at runtime, and `docker-compose.yml` passes
-  exactly this set. A Kubernetes ConfigMap is the same names and values, and a
-  deployment may supply only what it needs because every other key has a default.
+- **Container settings** — read at runtime, and
+  [`docker-compose.yml`](https://github.com/mathewmusango/emuplane/blob/main/docker-compose.yml)
+  passes exactly this set; a deployment may supply only what it needs because every
+  other key has a default.
 - **Deployment settings** — image, network, container names and published ports.
   They never reach the container.
 
@@ -20,7 +21,7 @@ That split is the porting contract:
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `EP_BACKEND` | `generic` | backend profile: `generic`, `ministack`, `floci`, `localstack`, `moto`; only `ministack` is tested |
+| `EP_BACKEND` | `ministack` | backend profile; `ministack` is the tested one (MiniStack 1.5.40-full), and `generic` is the neutral fallback for an emulator this repository has not been tested against |
 | `EP_BACKEND_URL` | empty | the emulator endpoint the control talks to; **empty stops the control at boot** |
 | `EP_CONSOLE_URL` | `http://localhost:4570` | the address a browser uses; set it to the proxy's address behind one |
 | `EP_GATEWAY_URL` | `http://localhost:4571` | the address clients sign against; set it to the proxy's address behind one |
@@ -42,10 +43,3 @@ Mail is optional, for the password-reset link:
 | `EP_MAIL_USER` / `EP_MAIL_PASSWORD` | empty | relay credentials; the password is a secret and belongs in `.env` only |
 | `EP_MAIL_FROM` | empty | From header |
 | `EP_RESET_SECONDS` | `1800` | how long a reset link stays valid |
-
-## Nothing secret in `.env`
-
-There is no seeded account and no pre-set token. Accounts come from sign-up. The
-bearer token is optional: `python /app/api_token.py` inside the container mints one
-when a script needs the control API, prints it once, and stores only a SHA-256 hash
-in the settings store.

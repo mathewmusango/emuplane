@@ -59,10 +59,27 @@ const config = {
       },
       items: [
         {
-          type: 'docSidebar',
-          sidebarId: 'docs',
+          // The working docs, until the next version freeze makes them the default.
+          to: '/docs/next/intro',
           position: 'left',
           label: 'Docs',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'reference',
+          position: 'left',
+          label: 'Reference',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'api',
+          position: 'left',
+          label: 'API',
+        },
+        {
+          to: '/changelog',
+          label: 'Changelog',
+          position: 'left',
         },
         {
           type: 'docsVersionDropdown',
@@ -82,14 +99,32 @@ const config = {
           title: 'Docs',
           items: [
             { label: 'Quickstart', to: '/docs/getting-started/quickstart' },
+            { label: 'The console', to: '/docs/getting-started/console' },
             { label: 'Architecture', to: '/docs/concepts/architecture' },
-            { label: 'Control API', to: '/docs/reference/control-api' },
+            { label: 'S3', to: '/docs/guides/s3' },
           ],
         },
         {
           title: 'Reference',
           items: [
+            { label: 'Control API', to: '/docs/reference/control-api' },
             { label: 'S3 coverage', to: '/docs/reference/s3-coverage' },
+            { label: 'Configuration', to: '/docs/reference/configuration' },
+            { label: 'Limits', to: '/docs/reference/limits' },
+          ],
+        },
+        {
+          title: 'Project',
+          items: [
+            { label: 'GitHub', href: 'https://github.com/mathewmusango/emuplane' },
+            {
+              label: 'Container image',
+              href: 'https://github.com/mathewmusango/emuplane/pkgs/container/emuplane',
+            },
+            {
+              label: 'Releases',
+              href: 'https://github.com/mathewmusango/emuplane/releases',
+            },
           ],
         },
       ],

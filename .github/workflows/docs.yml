@@ -46,7 +46,8 @@ jobs:
         run: |
           npm run api
           npm run coverage
-          git diff --exit-code -- docs
+          npm run changelog
+          git diff --exit-code -- docs src/pages/changelog.md
       - name: Build the site
         run: npm run build
       - name: Upload the site

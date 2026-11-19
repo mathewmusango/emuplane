@@ -6,6 +6,7 @@
   "scripts": {
     "api": "python3 scripts/api_reference.py",
     "build": "docusaurus build",
+    "changelog": "python3 scripts/changelog_page.py",
     "clear": "docusaurus clear",
     "dev": "docusaurus start",
     "prebuild": "node scripts/brand.js",
