@@ -85,6 +85,23 @@ def test_a_pull_request_with_a_link_passes(tmp_path, config):
     assert triage.check_pull_request(json.loads(Path(path).read_text()), config) == 0
 
 
+def test_two_issues_in_one_pull_request_fail(tmp_path, config, capsys):
+    path = _event(
+        tmp_path,
+        {"pull_request": {"title": "fix: a thing", "body": "Closes #8\nFixes #9"}},
+    )
+    assert triage.check_pull_request(json.loads(Path(path).read_text()), config) == 1
+    assert "closes 2 issues (#8, #9)" in capsys.readouterr().err
+
+
+def test_the_same_issue_named_twice_is_still_one(tmp_path, config):
+    path = _event(
+        tmp_path,
+        {"pull_request": {"title": "Closes #8", "body": "Fixes #8"}},
+    )
+    assert triage.check_pull_request(json.loads(Path(path).read_text()), config) == 0
+
+
 def test_an_issue_without_a_label_fails(tmp_path, config, capsys):
     payload = {"issue": {"number": 2, "labels": [{"name": "needs-triage"}]}}
     path = _event(tmp_path, payload)

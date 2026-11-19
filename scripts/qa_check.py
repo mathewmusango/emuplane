@@ -23,8 +23,8 @@ SECRET_PATTERNS = [
     re.compile(r"(?i)aws_secret_access_key\s*=\s*[A-Za-z0-9/+=]{20,}"),
 ]
 IGNORED_DIRS = {".git", "node_modules", "dist", "target", "__pycache__"}
-# CONTRIBUTING.md is absent on purpose while contributions are closed; see the note below.
-POLICY_FILES = ("SECURITY.md", "LICENSE", "CODE_OF_CONDUCT.md")
+# Policy files every checkout must carry; the docs site also serves a contributing page.
+POLICY_FILES = ("SECURITY.md", "LICENSE", "CODE_OF_CONDUCT.md", "CONTRIBUTING.md")
 
 
 def load() -> dict:
@@ -81,8 +81,6 @@ def security() -> list[str]:
     for required in POLICY_FILES:
         if required not in names:
             problems.append(f"missing repo policy file {required}")
-    if "CONTRIBUTING.md" not in names:
-        print("qa: contributions are closed, so CONTRIBUTING.md is deliberately absent")
     if ".env" in names:
         problems.append(".env is tracked; secrets must never be committed")
     for path in files:
