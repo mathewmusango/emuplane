@@ -22,7 +22,7 @@ That split is the porting contract:
 | Key | Default | What it does |
 | --- | --- | --- |
 | `EP_BACKEND` | `ministack` | backend profile; `ministack` is the tested one (MiniStack 1.5.40-full), and `generic` is the neutral fallback for an emulator this repository has not been tested against |
-| `EP_BACKEND_URL` | empty | the emulator endpoint the control talks to; **empty stops the control at boot** |
+| `EP_BACKEND_URL` | `http://localhost:4566` | the emulator endpoint the control talks to; the default is the single-host lab, and a container sets its own because `localhost` there is the container |
 | `EP_CONSOLE_URL` | `http://localhost:4570` | the address a browser uses; set it to the proxy's address behind one |
 | `EP_GATEWAY_URL` | `http://localhost:4571` | the address clients sign against; set it to the proxy's address behind one |
 | `EP_STORE_ACCOUNT` | `111111111111` | account the control reads its own DynamoDB tables as |
