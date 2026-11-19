@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The two triage gates: a pull request names the issue it closes, an issue names a changelog label.
+"""The two triage gates: a pull request closes exactly one issue, an issue names a changelog label.
 
 Run by CI with the event payload GitHub writes; the same file is what the tests
 exercise, so the rule is one implementation and not a copy of a regex in YAML.
@@ -31,9 +31,20 @@ def changelog_labels(config: dict) -> set[str]:
     return {str(name).strip().lower() for name in names}
 
 
+def closed_issues(*texts: str) -> list[int]:
+    """Every issue number these say they close, in order, each once."""
+    found: list[int] = []
+    for text in texts:
+        for match in CLOSING.finditer(text or ""):
+            number = int(match.group(1))
+            if number not in found:
+                found.append(number)
+    return found
+
+
 def closes_an_issue(*texts: str) -> bool:
     """Whether any of these says `Closes #12`, `Fixes #7`, `Resolved: #3`, …"""
-    return any(CLOSING.search(text or "") for text in texts)
+    return bool(closed_issues(*texts))
 
 
 def labelled(names, config: dict) -> bool:
@@ -44,9 +55,18 @@ def labelled(names, config: dict) -> bool:
 
 def check_pull_request(payload: dict, config: dict) -> int:
     pull = payload.get("pull_request") or {}
-    if closes_an_issue(pull.get("title") or "", pull.get("body") or ""):
-        print("the pull request names the issue it closes")
+    issues = closed_issues(pull.get("title") or "", pull.get("body") or "")
+    if len(issues) == 1:
+        print(f"the pull request closes one issue: #{issues[0]}")
         return 0
+    if issues:
+        named = ", ".join(f"#{number}" for number in issues)
+        print(
+            f"::error::This pull request closes {len(issues)} issues ({named}). One issue per pull request: "
+            "keep the one this change is for and land the rest on their own branches.",
+            file=sys.stderr,
+        )
+        return 1
     print(
         "::error::This pull request does not name the issue it closes. Add a line such as "
         "'Closes #12' to the body, so the change reaches the changelog.",
