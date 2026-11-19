@@ -103,6 +103,7 @@ More: [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-start
 | [S3](https://mathewmusango.github.io/emuplane/docs/guides/s3) | the console's S3 pages |
 | [Control API](https://mathewmusango.github.io/emuplane/docs/reference/control-api) | every console route |
 | [Configuration](https://mathewmusango.github.io/emuplane/docs/reference/configuration) | every `EP_` setting |
+| [Contributing](https://mathewmusango.github.io/emuplane/contributing/) | how to report a bug or an idea, and what a pull request has to clear |
 
 ## Layout
 
@@ -117,6 +118,8 @@ More: [Accessing it](https://mathewmusango.github.io/emuplane/docs/getting-start
 
 ## References
 
+- [Issues](https://github.com/mathewmusango/emuplane/issues) — a bug or an idea
+- [Discussions](https://github.com/mathewmusango/emuplane/discussions) — a question about how a rule is meant to behave
 - [MiniStack documentation](https://ministack.org/docs/)
 - [MiniStack on GitHub](https://github.com/ministackorg/ministack)
 - [StackPort (UI inspiration)](https://github.com/DaviReisVieira/stackport)
