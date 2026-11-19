@@ -31,9 +31,10 @@ generated route table). A page belongs to exactly one of them. **Changelog** is 
 link rather than a sidebar: its page lives in `src/pages/`, outside `docs/`, so
 freezing a version does not freeze the changelog.
 
-The **Docs** tab points at `/docs/next/` on purpose, so the working pages are the
-ones a reader lands on; revert it to `{type: 'docSidebar', sidebarId: 'docs'}` at
-the next version freeze, or a frozen release stays the site's front door.
+The **Docs** tab reads the `docs` sidebar, so it follows whichever version the
+site serves. While the working docs are unfrozen, a reader who wants them takes
+**Next** from the version menu — do **not** hardcode `/docs/next/` in the navbar:
+the freeze that makes it wrong is the release, and nobody remembers then.
 
 The navbar is shared by every frozen version, so each
 `versioned_sidebars/version-X-sidebars.json` carries the same three sidebars,
