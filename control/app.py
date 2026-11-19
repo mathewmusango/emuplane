@@ -102,7 +102,8 @@ def safe_content_type(value: str) -> str:
     kind = (value or "").split("\r")[0].split("\n")[0].strip()[:128]
     return kind if kind and _CONTENT_TYPE_RE.match(kind) else "application/octet-stream"
 # The endpoint this control fronts; anything answering the same APIs works, and the label comes from the URL.
-NODE_URL = os.environ.get("EP_BACKEND_URL", "").strip().rstrip("/")
+# Empty takes a single-host lab's emulator, which is where a bare `python app.py` finds one.
+NODE_URL = os.environ.get("EP_BACKEND_URL", "").strip().rstrip("/") or "http://localhost:4566"
 BACKEND = profile(os.environ.get("EP_BACKEND"))
 NODE_NAME = BACKEND.title or (urlsplit(NODE_URL).hostname or "").strip() or "node"
 POLL_SECONDS = int(os.environ.get("EP_POLL_SECONDS", "10"))
@@ -114,8 +115,7 @@ GATEWAY_URL = os.environ.get("EP_GATEWAY_URL", "").strip().rstrip("/")
 CONSOLE_URL = os.environ.get("EP_CONSOLE_URL", "").strip().rstrip("/")
 
 REQUIRED_SETTINGS = {
-    # Only the endpoint and the two public addresses must be known; the node name falls back to the URL's host.
-    "EP_BACKEND_URL": NODE_URL,
+    # The two public addresses must be known; the endpoint falls back to a single-host lab, and the node name to the URL's host.
     "EP_GATEWAY_URL": GATEWAY_URL,
     "EP_CONSOLE_URL": CONSOLE_URL,
 }

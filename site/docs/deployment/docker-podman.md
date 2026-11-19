@@ -41,8 +41,10 @@ Two things have to be true: the container must **reach** the emulator, and
   `http://host.docker.internal:4566` on Docker Desktop (Docker on Linux needs
   `extra_hosts: ["host.docker.internal:host-gateway"]` in your own overlay).
 
-`EP_BACKEND_URL` is required: the control refuses to start without it rather than
-running pointed at nothing.
+`EP_BACKEND_URL` has a default of `http://localhost:4566`, which is right for a bare
+`python app.py` beside a local emulator and wrong inside a container, where
+`localhost` is the container itself. The compose file passes the value through, so
+an empty one takes that default rather than stopping the control.
 
 ## Which environment file
 
