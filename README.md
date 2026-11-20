@@ -1,8 +1,9 @@
-<h1 align="center">
-  <img src="web/public/emuplane.png" alt="" width="44" height="44" align="middle">
-  Emuplane
-</h1>
-<p align="center"><strong>The control plane, console and gateway for AWS-compatible emulators.</strong></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/public/emuplane-banner-dark.png">
+    <img src="web/public/emuplane-banner.png" alt="Emuplane — the console, control API and gateway for AWS-compatible emulators" width="100%">
+  </picture>
+</p>
 
 <p align="center">
   <a href="https://mathewmusango.github.io/emuplane/"><img src="https://img.shields.io/badge/documentation-emuplane-blue" alt="Documentation"></a>
