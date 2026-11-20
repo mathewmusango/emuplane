@@ -1,3 +1,7 @@
+const latestRelease = require('./versions.json')[0];
+const [major, minor, patch] = latestRelease.split('.').map(Number);
+const workingDocsLabel = process.env.NODE_ENV === 'development' ? 'Next' : `${major}.${minor}.${patch + 1}`;
+
 const config = {
   title: 'Emuplane',
   tagline: 'A console and control plane for local AWS emulation',
@@ -41,6 +45,9 @@ const config = {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl: 'https://github.com/mathewmusango/emuplane/tree/main/',
           showLastUpdateTime: false,
+          versions: {
+            current: {label: workingDocsLabel},
+          },
         },
         blog: false,
         theme: {

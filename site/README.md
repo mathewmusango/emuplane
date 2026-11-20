@@ -42,6 +42,12 @@ listing only the pages that version has. `npm run version` snapshots the current
 `sidebars.js`, so a new version needs no editing; the older ones were backfilled
 once, by hand.
 
+The working docs are the next release, so the version menu labels them with the
+number a patch release would take — `0.3.2` while `0.3.1` is the newest release —
+derived from `versions.json` in `docusaurus.config.js`. The dev server still calls
+them **Next**, where they genuinely are a draft. The route stays `/docs/next/`:
+renaming it to the label would collide with the copy the next freeze creates.
+
 ## Screenshots
 
 `static/img/console/` is the console as it renders, captured from a control plane
