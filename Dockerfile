@@ -24,6 +24,12 @@ LABEL org.opencontainers.image.title="emuplane" \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# The digest pins where the image starts, not what it ships: Alpine publishes a security fix into
+# its repository before the official image is rebuilt, so a pinned base can lag by days. Taking the
+# upgrade here closes that gap, and the scan runs on every build, so a base that moves ahead shows
+# up as a green gate rather than a silent patch.
+RUN apk upgrade --no-cache
+
 # The runtime id is fixed, so a mount, a policy or a log line can name it.
 RUN addgroup -S -g 10001 emuplane \
     && adduser -S -D -H -u 10001 -G emuplane emuplane
