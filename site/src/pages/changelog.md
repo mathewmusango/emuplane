@@ -4,6 +4,14 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.3.1] - 2026-11-20
+
+### Fixed
+
+- The changelog page misses v0.3.0, so the docs deploy is red ([#165](https://github.com/mathewmusango/emuplane/issues/165))
+- Release plan writes CHANGELOG.md but never regenerates the changelog page ([#168](https://github.com/mathewmusango/emuplane/issues/168))
+- The Docs navbar item still points at /docs/next after the 0.3.0 freeze ([#169](https://github.com/mathewmusango/emuplane/issues/169))
+
 ## [v0.3.0] - 2026-11-19
 
 ### Added
