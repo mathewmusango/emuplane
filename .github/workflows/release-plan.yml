@@ -8,9 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  issues: read
+  contents: read
 
 concurrency:
   # A burst of merges queues its plans instead of killing one mid-write.
@@ -19,6 +17,10 @@ concurrency:
 
 jobs:
   plan:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

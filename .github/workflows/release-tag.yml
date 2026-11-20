@@ -7,14 +7,16 @@ on:
     types: [closed]
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
 
 jobs:
   tag:
     if: >-
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.head.ref, 'release/v')
+    permissions:
+      contents: write
+      actions: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
