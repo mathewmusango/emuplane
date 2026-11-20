@@ -4,6 +4,16 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.5.0] - 2026-11-20
+
+### Changed
+
+- The image carries the v-prefixed tag too ([#189](https://github.com/mathewmusango/emuplane/issues/189))
+
+### Fixed
+
+- The quickstart names image tags that never shipped ([#201](https://github.com/mathewmusango/emuplane/issues/201))
+
 ## [v0.4.0] - 2026-11-20
 
 ### Changed
