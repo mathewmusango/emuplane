@@ -23,6 +23,8 @@ jobs:
   guard:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      notes: ${{ steps.section.outputs.notes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -37,20 +39,38 @@ jobs:
             exit 1
           fi
       - name: The changelog has a section for this tag
-        run: python3 scripts/changelog.py --version "$GITHUB_REF_NAME" --check
+        id: section
+        run: |
+          set -euo pipefail
+          python3 scripts/changelog.py --version "$GITHUB_REF_NAME" --check
+          python3 - "$GITHUB_REF_NAME" > notes.md <<'PY'
+          import pathlib, re, sys
+
+          tag = sys.argv[1]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          found = re.search(rf"^## \[{re.escape(tag)}\].*?(?=^## \[|\Z)", text, re.M | re.S)
+          print(found.group(0).strip() if found else "")
+          PY
+          {
+            echo "notes<<RELEASE_NOTES"
+            cat notes.md
+            echo "RELEASE_NOTES"
+          } >> "$GITHUB_OUTPUT"
 
   image:
     needs: guard
     permissions:
       contents: read
       packages: write
-    uses: mathewmusango/my-workflows/.github/workflows/release-image-ghcr.yml@279532bc4b3b602d7753d118ded3cd8d768aed36 # v2026.1120.2118Z
+    uses: mathewmusango/my-workflows/.github/workflows/release-image-ghcr.yml@988ca2b0ea859a18e1dd75e6acadce904acdd278 # v2026.1120.2157Z
 
   release:
-    needs: image
+    needs: [image, guard]
     permissions:
       contents: write
-    uses: mathewmusango/my-workflows/.github/workflows/release-github.yml@279532bc4b3b602d7753d118ded3cd8d768aed36 # v2026.1120.2118Z
+    uses: mathewmusango/my-workflows/.github/workflows/release-github.yml@988ca2b0ea859a18e1dd75e6acadce904acdd278 # v2026.1120.2157Z
+    with:
+      body: ${{ needs.guard.outputs.notes }}
 
   artifacts:
     needs: [image, release]
