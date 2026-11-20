@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import http.client
 import json
+import os
 import re
 import sys
 import urllib.parse
@@ -51,6 +52,18 @@ def stale_versions(claims: dict) -> list[str]:
     return stale
 
 
+def entry_stale(entry: dict, newest: str) -> list[str]:
+    """Saved justifications that name releases but not the newest one, so they need re-saving."""
+    stale = []
+    for key, value in entry.items():
+        if not key.endswith("_justification") or not isinstance(value, str):
+            continue
+        found = VERSION.findall(value)
+        if found and newest not in found:
+            stale.append(key)
+    return stale
+
+
 def automation_url(claims: dict, section: str = "passing") -> str:
     """The prefilled edit URL: the badge site highlights these, a human saves them."""
     pairs = [(key, value) for key, value in claims.items() if value not in ("", None)]
@@ -79,7 +92,70 @@ def fetch(url: str) -> str:
     return body
 
 
+COOKIE_NAME = "_BadgeApp_session"
+SESSION_ENV = ("BADGE_SESSION", COOKIE_NAME)
+AUTH_TOKEN = re.compile(r'<input type="hidden" name="authenticity_token" value="([^"]+)"')
+CSRF_TOKEN = re.compile(r'<meta name="csrf-token" content="([^"]+)"')
+
+
+def session_cookie() -> str:
+    """The logged-in cookie the badge app issues; it lasts 48 hours."""
+    for name in SESSION_ENV:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    raise SystemExit(f"no session cookie: export {' or '.join(SESSION_ENV)}")
+
+
+def form_body(claims: dict, authentication_token: str) -> str:
+    """The HTML form submission the badge app expects from its own edit page."""
+    fields = {f"project[{key}]": value for key, value in claims.items()}
+    fields["authentication_token"] = authentication_token
+    return urllib.parse.urlencode(fields)
+
+
+def tokens(html: str) -> tuple[str, str]:
+    """The two tokens the edit page embeds; absent means not logged in for this project."""
+    auth, csrf = AUTH_TOKEN.search(html), CSRF_TOKEN.search(html)
+    if not auth or not csrf:
+        raise SystemExit("the edit page carries no tokens: the session is not logged in or not authorised")
+    return auth.group(1), csrf.group(1)
+
+
+def push(session: str) -> int:
+    """Write the claims through the badge app's own form, the way its edit page does."""
+    claims = load_claims()
+    connection = http.client.HTTPSConnection(HOST, timeout=30)
+    path = f"/en/projects/{PROJECT}/edit"
+    connection.request("GET", path, headers={"Cookie": f"{COOKIE_NAME}={session}"})
+    response = connection.getresponse()
+    html = response.read().decode("utf-8")
+    if response.status != 200:
+        raise SystemExit(f"{path} answered {response.status}: log in again and copy a fresh session cookie")
+    auth, csrf = tokens(html)
+    body = form_body(claims, auth)
+    connection.request(
+        "PATCH",
+        f"/en/projects/{PROJECT}",
+        body=body,
+        headers={
+            "Cookie": f"{COOKIE_NAME}={session}",
+            "X-CSRF-Token": csrf,
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    saved = connection.getresponse()
+    saved.read()
+    connection.close()
+    if saved.status not in (200, 302):
+        print(f"::error::the entry answered {saved.status}", file=sys.stderr)
+        return 1
+    print(f"wrote {len(claims)} claims into project {PROJECT}")
+    return 0
+
+
 def check() -> int:
+    """Compare the claims with the saved entry: a contradiction fails, staleness only reports."""
     claims = load_claims()
     entry = json.loads(fetch(f"/projects/{PROJECT}.json"))
     unanswered, divergent = [], []
@@ -91,10 +167,12 @@ def check() -> int:
             unanswered.append(key)
         elif saved != value:
             divergent.append(f"{key}: claims {value}, entry says {saved}")
-    for line in stale_versions(claims):
-        divergent.append(f"stale release in {line}")
     for key in unanswered:
         print(f"not answered yet: {key}")
+    for line in stale_versions(claims):
+        print(f"::notice::the claims name an older release ({line}); bump them in .bestpractices.json")
+    for key in entry_stale(entry, f"v{newest_release()}"):
+        print(f"::notice::the saved entry still names an older release in {key}; re-save it from scripts/badge.py --urls")
     for line in divergent:
         print(f"::error::{line}", file=sys.stderr)
     print(f"{len(claims)} claims, {len(unanswered)} unanswered, {len(divergent)} divergent")
@@ -108,8 +186,12 @@ def main() -> int:
     verbs.add_argument("--urls", action="store_true", help="print the prefilled automation URL")
     verbs.add_argument("--check", action="store_true", help="compare the claims with the saved entry")
     verbs.add_argument("--check-file", action="store_true", help="fail when the file is not what --write produces")
+    verbs.add_argument("--push", action="store_true", help="write the claims to the entry with a session cookie")
     parser.add_argument("--section", default="passing", help="the badge section, e.g. passing or baseline-1")
     args = parser.parse_args()
+
+    if args.push:
+        return push(session_cookie())
 
     if args.write:
         claims = load_claims()

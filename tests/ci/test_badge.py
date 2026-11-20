@@ -51,3 +51,42 @@ def test_an_older_release_in_a_justification_is_reported():
 
 def test_the_justifications_name_the_newest_release():
     assert badge.stale_versions(badge.load_claims()) == []
+
+
+def test_an_entry_naming_an_older_release_is_reported():
+    newest = f"v{badge.newest_release()}"
+    entry = {"x_justification": "shipped in v0.0.1", "y_justification": f"shipped in {newest}"}
+    assert badge.entry_stale(entry, newest) == ["x_justification"]
+
+
+def test_the_write_uses_the_sites_own_form_fields():
+    body = badge.form_body({"x_status": "Met"}, "TOKEN")
+    assert "project%5Bx_status%5D=Met" in body
+    assert "authentication_token=TOKEN" in body
+
+
+def test_the_tokens_come_from_the_edit_page():
+    html = '<meta name="csrf-token" content="CSRF"><input type="hidden" name="authenticity_token" value="AUTH"'
+    assert badge.tokens(html) == ("AUTH", "CSRF")
+
+
+def test_a_page_without_tokens_is_a_session_problem():
+    try:
+        badge.tokens("<html>not logged in</html>")
+    except SystemExit as exit_:
+        assert "not logged in" in str(exit_)
+    else:
+        raise AssertionError("a page with no tokens must not be written")
+
+
+def test_the_session_cookie_comes_from_the_environment(monkeypatch):
+    monkeypatch.setenv("BADGE_SESSION", "value")
+    assert badge.session_cookie() == "value"
+    monkeypatch.delenv("BADGE_SESSION")
+    monkeypatch.delenv("_BadgeApp_session", raising=False)
+    try:
+        badge.session_cookie()
+    except SystemExit as exit_:
+        assert "no session cookie" in str(exit_)
+    else:
+        raise AssertionError("no cookie must not reach the network")
