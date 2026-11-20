@@ -65,6 +65,28 @@ def summary(issue: dict, config: dict) -> str:
     return " ".join(text.split())
 
 
+def documentation_line(issue: dict, config: dict) -> str:
+    """The `Documentation:` line from the body, or "" when the issue does not say."""
+    body = issue.get("body") or ""
+    prefix = str(config.get("documentation_prefix") or "Documentation:")
+    found = re.search(rf"^{re.escape(prefix)}[ \t]*(.+)$", body, re.MULTILINE | re.IGNORECASE)
+    return " ".join(found.group(1).split()) if found else ""
+
+
+def documentation_block(issues: list[dict], config: dict) -> str:
+    """The page that carries each issue in the release, for the pull request body."""
+    lines = ["### Documentation", ""]
+    counted = 0
+    for issue in sorted(issues, key=lambda item: item.get("number", 0)):
+        if issue.get("state_reason") == "not_planned" or section_for(issue, config) is None:
+            continue
+        lines.append(f"- `#{issue['number']}` \u2014 {documentation_line(issue, config) or '*not stated*'}")
+        counted += 1
+    if not counted:
+        lines.append("Nothing in this release needs a page.")
+    return "\n".join(lines) + "\n"
+
+
 def render(version: str, when: str, issues: list[dict], config: dict) -> tuple[str, int]:
     """The Keep a Changelog section, and how many issues were left out."""
     groups: dict[str, list[dict]] = {s["title"]: [] for s in config.get("sections", [])}
@@ -311,6 +333,11 @@ def main() -> int:
         action="store_true",
         help="print the version the closed issues imply, and write nothing",
     )
+    parser.add_argument(
+        "--documentation",
+        action="store_true",
+        help="print the page that carries each issue in the release, and write nothing",
+    )
     parser.add_argument("--dry-run", action="store_true", help="say what --create-labels would do")
     args = parser.parse_args()
 
@@ -333,6 +360,15 @@ def main() -> int:
             repo_slug(args.repo), args.since or since_default(), token
         )
         print(next_version(args.version or latest_tag() or "v0.0.0", issues, config))
+        return 0
+
+    if args.documentation:
+        config = load_config()
+        token = os.environ.get("GITHUB_TOKEN", "")
+        if not token:
+            raise SystemExit("set GITHUB_TOKEN to read the issues")
+        issues = fetch_issues(repo_slug(args.repo), args.since or since_default(), token)
+        print(documentation_block(issues, config))
         return 0
 
     if not args.version:

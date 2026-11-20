@@ -80,13 +80,23 @@ def check_issue(payload: dict, config: dict) -> int:
     names = [label.get("name") for label in issue.get("labels") or [] if isinstance(label, dict)]
     if labelled(names, config):
         print(f"the issue carries a changelog label: {', '.join(sorted(names))}")
-        return 0
-    print(
-        "::error::This issue carries no changelog label. Add one of "
-        f"{', '.join(sorted(changelog_labels(config)))}.",
-        file=sys.stderr,
-    )
-    return 1
+    else:
+        print(
+            "::error::This issue carries no changelog label. Add one of "
+            f"{', '.join(sorted(changelog_labels(config)))}.",
+            file=sys.stderr,
+        )
+        return 1
+    if payload.get("action") in ("opened", "edited"):
+        prefix = str(config.get("documentation_prefix") or "Documentation:")
+        body = issue.get("body") or ""
+        if not re.search(rf"^{re.escape(prefix)}", body, re.MULTILINE | re.IGNORECASE):
+            print(
+                f"::warning::This issue does not say which page documents it. Add a line such as "
+                f"'{prefix} reference/configuration.md', so the release plan can show it.",
+                file=sys.stderr,
+            )
+    return 0
 
 
 def main() -> int:

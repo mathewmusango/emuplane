@@ -23,6 +23,11 @@ It carries no release note and no bump, because the site deploys the moment it m
 and documentation never decides when a release happens. Use it rather than borrowing
 `changed` for an edit nobody has to act on.
 
+An issue can also say which page carries it, with a `Documentation:` line in the body —
+`Documentation: reference/configuration.md`, or `Documentation: none, README only`. The
+release plan prints those lines for every issue in the release, so a page nobody wrote
+shows up in the pull request that would freeze the docs instead of after the tag.
+
 Past a typo, open the issue and wait for an answer before writing the code. The
 answer confirms the scope and says what is already in flight. A large pull request
 that drifted from an unconfirmed scope is closed whatever its quality.
