@@ -68,6 +68,7 @@ jobs:
           sed -i "s|ghcr.io/mathewmusango/emuplane:[0-9][0-9.]*|ghcr.io/mathewmusango/emuplane:${tag#v}|" docker-compose.all.yml
           npm --prefix site ci --no-audit --no-fund
           npm --prefix site run version "${tag#v}"
+          npm --prefix site run changelog
           python3 scripts/units.py --version "$tag" --check --skip-tag
           git add --all
           git commit --message "Release $tag"
