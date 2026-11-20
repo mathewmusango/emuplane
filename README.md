@@ -6,10 +6,11 @@
 
 <p align="center">
   <a href="https://mathewmusango.github.io/emuplane/"><img src="https://img.shields.io/badge/docs-emuplane-blue" alt="Documentation"></a>
-  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
   <img src="https://img.shields.io/badge/python-3.13_%7C_3.14_%7C_3.15-blue" alt="Python 3.13 | 3.14 | 3.15">
   <a href="https://github.com/mathewmusango/emuplane/pkgs/container/emuplane"><img src="https://img.shields.io/badge/ghcr.io-emuplane-blue?logo=github" alt="ghcr.io"></a>
   <a href="https://securityscorecards.dev/viewer/?uri=github.com/mathewmusango/emuplane"><img src="https://api.securityscorecards.dev/projects/github.com/mathewmusango/emuplane/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://www.bestpractices.dev/projects/16933"><img src="https://www.bestpractices.dev/projects/16933/badge" alt="OpenSSF Best Practices"></a>
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
 </p>
 
 <p align="center">
