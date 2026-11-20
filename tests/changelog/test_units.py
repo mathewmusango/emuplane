@@ -51,7 +51,27 @@ def test_the_docs_version_needs_both_the_list_and_the_pages(repo):
     assert _units(repo)["site/versions.json"] is True
     assert _units(repo)["versioned docs"] is False
 
-    (repo / "site" / "versioned_docs" / "version-0.2.0").mkdir(parents=True)
+    (repo / "site" / "docs").mkdir()
+    (repo / "site" / "docs" / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    assert _units(repo)["versioned docs"] is False, "an empty version directory is not frozen docs"
+
+    frozen = repo / "site" / "versioned_docs" / "version-0.2.0"
+    frozen.mkdir(parents=True)
+    (frozen / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    assert _units(repo)["versioned docs"] is True
+
+
+def test_a_frozen_version_missing_a_page_is_not_a_release(repo):
+    (repo / "site" / "docs" / "reference").mkdir(parents=True)
+    (repo / "site" / "docs" / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    (repo / "site" / "docs" / "reference" / "limits.md").write_text("# Limits\n", encoding="utf-8")
+    frozen = repo / "site" / "versioned_docs" / "version-0.2.0"
+    frozen.mkdir(parents=True)
+    (frozen / "intro.md").write_text("# Intro\n", encoding="utf-8")
+    assert _units(repo)["versioned docs"] is False
+
+    (frozen / "reference").mkdir()
+    (frozen / "reference" / "limits.md").write_text("# Limits\n", encoding="utf-8")
     assert _units(repo)["versioned docs"] is True
 
 

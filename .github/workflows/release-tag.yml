@@ -32,5 +32,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag --annotate "$tag" --message "Release $tag"
+          python3 scripts/units.py --version "$tag" --check
           git push origin "$tag"
           gh workflow run release.yml --ref "$tag"

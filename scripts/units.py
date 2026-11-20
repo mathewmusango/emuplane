@@ -43,6 +43,22 @@ def docs_versions(root: Path) -> list[str]:
         return []
 
 
+def pages(directory: Path) -> set[str]:
+    """Every file under a docs directory, named relative to it."""
+    if not directory.is_dir():
+        return set()
+    return {
+        str(path.relative_to(directory)) for path in directory.rglob("*") if path.is_file()
+    }
+
+
+def docs_mirrored(root: Path, bare: str) -> bool:
+    """The frozen version is the working docs copied out, not merely a directory."""
+    working = pages(root / "site" / "docs")
+    frozen = pages(root / "site" / "versioned_docs" / f"version-{bare}")
+    return bool(working) and frozen == working
+
+
 def tag_exists(root: Path, version: str) -> bool:
     found = subprocess.run(
         ["git", "tag", "--list", version], cwd=root, capture_output=True, text=True
@@ -78,8 +94,8 @@ def report(root: Path, version: str, number: str = "") -> list[dict]:
         {"unit": "site/versions.json", "expected": bare, "present": bare in docs},
         {
             "unit": "versioned docs",
-            "expected": f"site/versioned_docs/version-{bare}",
-            "present": (root / "site" / "versioned_docs" / f"version-{bare}").is_dir(),
+            "expected": f"site/versioned_docs/version-{bare} mirrors site/docs",
+            "present": docs_mirrored(root, bare),
         },
         {
             "unit": "compose image tags",
