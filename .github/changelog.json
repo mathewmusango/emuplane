@@ -12,6 +12,7 @@
     "skip-changelog",
     "chore",
     "internal",
+    "documentation",
     "question",
     "duplicate",
     "invalid",

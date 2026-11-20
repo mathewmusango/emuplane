@@ -18,6 +18,11 @@ picks the changelog section and the version bump — the release plan reads clos
 issues and writes [CHANGELOG.md](CHANGELOG.md) from them — so a pull request that
 closes nothing has nowhere to land.
 
+The exception is `documentation`: prose, a README line, a page that needs a sentence.
+It carries no release note and no bump, because the site deploys the moment it merges
+and documentation never decides when a release happens. Use it rather than borrowing
+`changed` for an edit nobody has to act on.
+
 Past a typo, open the issue and wait for an answer before writing the code. The
 answer confirms the scope and says what is already in flight. A large pull request
 that drifted from an unconfirmed scope is closed whatever its quality.
