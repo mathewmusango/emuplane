@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -11,6 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import release  # noqa: E402
+
+REAL = json.loads((ROOT / ".github" / "changelog.json").read_text(encoding="utf-8"))
 
 
 def issue(number: int, title: str, labels=(), reason: str = "completed") -> dict:
@@ -62,6 +65,14 @@ def test_nothing_changelog_worthy_means_no_release(config):
     decided = release.decide("v1.4.2", [issue(1, "A chore", ["chore"])], config)
     assert decided["action"] == release.NOTHING
     assert decided["version"] == "v1.4.2"
+
+
+def test_a_documentation_change_decides_nothing():
+    decided = release.decide(
+        "v1.4.2", [issue(1, "The page names a version that never shipped", ["documentation"])], REAL
+    )
+    assert "documentation" in REAL["exclude_labels"]
+    assert decided["action"] == release.NOTHING
 
 
 def test_a_closed_as_not_planned_issue_is_not_a_release(config):
