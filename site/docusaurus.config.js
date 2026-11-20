@@ -59,8 +59,8 @@ const config = {
       },
       items: [
         {
-          // The working docs, until the next version freeze makes them the default.
-          to: '/docs/next/intro',
+          type: 'docSidebar',
+          sidebarId: 'docs',
           position: 'left',
           label: 'Docs',
         },
