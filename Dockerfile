@@ -39,7 +39,7 @@ WORKDIR /app
 # One pin, installed before the sources so editing `control/` reuses this layer.
 COPY requirements.txt /app/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
-    pip install --no-compile -r requirements.txt
+    pip install --no-compile --require-hashes -r requirements.txt
 
 # The built console first, so editing `control/` only rewrites the layer after it.
 COPY --chown=10001:10001 --from=web /src/dist /app/static
