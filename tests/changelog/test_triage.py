@@ -113,3 +113,27 @@ def test_an_issue_with_a_label_passes(tmp_path, config):
     payload = {"issue": {"number": 3, "labels": [{"name": "security"}]}}
     path = _event(tmp_path, payload)
     assert triage.check_issue(json.loads(Path(path).read_text()), config) == 0
+
+
+def test_an_issue_that_names_a_page_is_not_nudged(tmp_path, config, capsys):
+    payload = {
+        "action": "opened",
+        "issue": {"number": 4, "labels": [{"name": "bug"}], "body": "Documentation: reference/limits.md"},
+    }
+    path = _event(tmp_path, payload)
+    assert triage.check_issue(json.loads(Path(path).read_text()), config) == 0
+    assert "does not say which page" not in capsys.readouterr().err
+
+
+def test_an_issue_without_a_documentation_line_is_nudged(tmp_path, config, capsys):
+    payload = {"action": "opened", "issue": {"number": 5, "labels": [{"name": "bug"}], "body": "a report"}}
+    path = _event(tmp_path, payload)
+    assert triage.check_issue(json.loads(Path(path).read_text()), config) == 0
+    assert "does not say which page" in capsys.readouterr().err
+
+
+def test_the_nudge_does_not_fire_on_every_label_change(tmp_path, config, capsys):
+    payload = {"action": "labeled", "issue": {"number": 6, "labels": [{"name": "bug"}], "body": ""}}
+    path = _event(tmp_path, payload)
+    assert triage.check_issue(json.loads(Path(path).read_text()), config) == 0
+    assert "does not say which page" not in capsys.readouterr().err

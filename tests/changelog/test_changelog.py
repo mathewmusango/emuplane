@@ -269,3 +269,23 @@ def test_a_refused_search_fails_loudly(monkeypatch):
     monkeypatch.setattr(changelog, "HTTPSConnection", Connection)
     with pytest.raises(SystemExit):
         changelog.fetch_issues("owner/name", "2026-01-01T00:00:00Z", "token")
+
+
+def test_an_issue_says_which_page_carries_it(config):
+    items = [
+        issue(1, "A fix", ["fixed"], body="Documentation: reference/configuration.md"),
+        issue(2, "Another fix", ["fixed"], body="no line here"),
+    ]
+    block = changelog.documentation_block(items, config)
+    assert "- `#1` — reference/configuration.md" in block
+    assert "- `#2` — *not stated*" in block
+
+
+def test_an_excluded_issue_is_not_asked_for_a_page(config):
+    items = [issue(9, "A chore", ["chore"])]
+    assert "Nothing in this release needs a page." in changelog.documentation_block(items, config)
+
+
+def test_a_documentation_line_is_read_however_it_is_typed(config):
+    assert changelog.documentation_line(issue(3, "x", body="documentation:   a/page.md  "), config) == "a/page.md"
+    assert changelog.documentation_line(issue(4, "x", body="Docs: nope"), config) == ""

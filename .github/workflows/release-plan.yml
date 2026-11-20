@@ -80,6 +80,7 @@ jobs:
         if: steps.write.outputs.prepared == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           tag="${{ steps.decide.outputs.tag }}"
@@ -91,6 +92,7 @@ jobs:
           found = re.search(rf"^## \[{re.escape(tag)}\].*?(?=^## \[|\Z)", text, re.M | re.S)
           print(found.group(0).strip() if found else "")
           PY
+          python3 scripts/changelog.py --documentation >> body.md
           if gh pr list --head "release/$tag" --json number --jq 'length' | grep -qv '^0$'; then
             gh pr edit "release/$tag" --body-file body.md
           else

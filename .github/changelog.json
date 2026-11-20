@@ -1,5 +1,6 @@
 {
   "prefix": "Changelog:",
+  "documentation_prefix": "Documentation:",
   "sections": [
     { "title": "Added", "labels": ["added", "feature", "enhancement"], "color": "0e8a16", "bump": "minor" },
     { "title": "Changed", "labels": ["changed", "improvement"], "color": "1d76db", "bump": "minor" },
