@@ -19,7 +19,7 @@ jobs:
   # repository is public.
   deps:
     if: ${{ !github.event.repository.private }}
-    uses: mathewmusango/my-workflows/.github/workflows/security-dependency-review.yml@0ef43783345a729741ec96a7afbd57baf957ce06 # v2026.1120.1735Z
+    uses: mathewmusango/my-workflows/.github/workflows/security-dependency-review.yml@279532bc4b3b602d7753d118ded3cd8d768aed36 # v2026.1120.2118Z
   # The reusable workflow audits at a fixed threshold and takes no allowlist; picomatch has no fix, so this names what is accepted.
   npm-audit:
     runs-on: ubuntu-latest
