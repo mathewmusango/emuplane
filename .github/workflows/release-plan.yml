@@ -70,6 +70,8 @@ jobs:
           npm --prefix site run version "${tag#v}"
           npm --prefix site run changelog
           python3 scripts/units.py --version "$tag" --check --skip-tag
+          # versions.json now serves the new release, so the claims have to name it too
+          python3 scripts/badge.py --bump-versions
           git add --all
           git commit --message "Release $tag"
           git push --force origin "HEAD:refs/heads/release/$tag"
