@@ -27,7 +27,7 @@ one; `EP_BACKEND_URL` is the only value that has to be right.
 
 ## Pull it
 
-The image is published to the GitHub Container Registry: [ghcr.io/mathewmusango/emuplane](https://github.com/mathewmusango/emuplane/pkgs/container/emuplane). Every release tags its version and moves `latest` to the same digest.
+The image is published to the GitHub Container Registry: [ghcr.io/mathewmusango/emuplane](https://github.com/mathewmusango/emuplane/pkgs/container/emuplane). Every release tags its version twice — `0.3.2` and `v0.3.2`, the same digest — and moves `latest` to it, so a tag copied from the release page works as written.
 
 ```bash
 docker pull ghcr.io/mathewmusango/emuplane:0.2.2      # the version this page documents
