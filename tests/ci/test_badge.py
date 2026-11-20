@@ -49,6 +49,21 @@ def test_an_older_release_in_a_justification_is_reported():
     assert badge.stale_versions({"x_justification": f"released as {older}"})
 
 
+def test_a_bump_names_the_newest_release_and_keeps_the_range(monkeypatch):
+    monkeypatch.setattr(badge, "newest_release", lambda: "9.9.9")
+    claims = {"x_justification": "releases v0.1.0 through v0.3.1", "x_status": "Met"}
+    bumped, change = badge.bump_versions(claims)
+    assert bumped["x_justification"] == "releases v0.1.0 through v9.9.9"
+    assert bumped["x_status"] == "Met"
+    assert change == "v0.3.1 -> v9.9.9"
+
+
+def test_a_bump_of_current_claims_changes_nothing():
+    newest = f"v{badge.newest_release()}"
+    claims = {"x_justification": f"releases v0.1.0 through {newest}"}
+    assert badge.bump_versions(claims)[1] == ""
+
+
 def test_the_justifications_name_the_newest_release():
     assert badge.stale_versions(badge.load_claims()) == []
 

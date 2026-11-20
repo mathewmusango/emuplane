@@ -24,3 +24,43 @@ jobs:
           persist-credentials: false
       - name: The entry still says what the repository claims
         run: python3 scripts/badge.py --check
+
+  claims:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Name the newest release in the claims
+        id: bump
+        run: |
+          set -euo pipefail
+          python3 scripts/badge.py --bump-versions
+          if git diff --quiet -- .bestpractices.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "version=$(python3 -c 'import json; print(json.load(open("site/versions.json"))[0])')" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Open the bump as a pull request
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="ci/badge-claims-v${{ steps.bump.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --create "$branch"
+          git commit --all --message "ci(badge): the claims name v${{ steps.bump.outputs.version }}"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "ci: the badge claims name v${{ steps.bump.outputs.version }}" \
+            --body "The claims in \`.bestpractices.json\` still named the previous release. \`scripts/badge.py --bump-versions\` moved the highest version mentioned onto **v${{ steps.bump.outputs.version }}**, ranges left intact.
+
+          Nothing else changed, and nothing was merged: the badge entry is re-saved separately with \`--push\` or the \`--urls\` link.
+
+          This pull request closes no issue, and it is authored by the workflow, so it arrives unchecked until \`RELEASE_TOKEN\` exists (E1)."
