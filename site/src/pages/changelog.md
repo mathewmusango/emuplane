@@ -4,6 +4,12 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.3.2] - 2026-11-20
+
+### Fixed
+
+- The version menu claims 0.3.2, a version that does not exist ([#174](https://github.com/mathewmusango/emuplane/issues/174))
+
 ## [v0.3.1] - 2026-11-20
 
 ### Fixed
