@@ -1,7 +1,13 @@
 ---
 sidebar_position: 1
 title: Emuplane
+hide_title: true
 ---
+
+<p align="center">
+  <img className="banner-light" src={require('@site/static/img/banners/emuplane.png').default} alt="Emuplane — the console, control API and gateway for AWS-compatible emulators" width="100%" />
+  <img className="banner-dark" src={require('@site/static/img/banners/emuplane-dark.png').default} alt="" width="100%" aria-hidden="true" />
+</p>
 
 Emuplane is a **console and control plane in front of an AWS emulator**. It gives
 you the parts of local AWS that a CLI alone cannot show: accounts you sign in to,

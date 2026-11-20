@@ -28,3 +28,14 @@
   border-radius: 8px;
   padding: 8px;
 }
+
+/* The docs banner follows the site toggle, not the operating system. */
+.banner-dark {
+  display: none;
+}
+[data-theme='dark'] .banner-light {
+  display: none;
+}
+[data-theme='dark'] .banner-dark {
+  display: block;
+}
