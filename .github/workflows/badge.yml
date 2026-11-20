@@ -1,7 +1,7 @@
 name: "CI: Best Practices"
 
-# The badge entry is answered by a human; this job only notices when the saved
-# entry and `.bestpractices.json` stop agreeing. It never writes.
+# Reads the entry saved at bestpractices.dev and compares it with
+# `.bestpractices.json`; saving the entry happens on their site, not here.
 on:
   schedule:
     - cron: "17 6 * * 1"
