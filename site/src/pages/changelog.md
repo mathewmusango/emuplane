@@ -4,6 +4,17 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.4.0] - 2026-11-20
+
+### Changed
+
+- The README hero is a bare heading; give it a banner ([#191](https://github.com/mathewmusango/emuplane/issues/191))
+- The docs intro opens on a bare heading, like the README did ([#193](https://github.com/mathewmusango/emuplane/issues/193))
+
+### Fixed
+
+- The version menu claims 0.3.2, a version that does not exist ([#174](https://github.com/mathewmusango/emuplane/issues/174))
+
 ## [v0.3.1] - 2026-11-20
 
 ### Fixed
