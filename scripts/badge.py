@@ -62,6 +62,19 @@ def entry_stale(entry: dict, newest: str) -> list[str]:
         if found and newest not in found:
             stale.append(key)
     return stale
+def bump_versions(claims: dict) -> tuple[dict, str]:
+    """The newest release in place of the highest one the claims name, ranges intact."""
+    newest = f"v{newest_release()}"
+    named = [v for key, value in claims.items() if key.endswith("_justification") for v in VERSION.findall(value)]
+    if not named:
+        return claims, ""
+    highest = max(named, key=lambda v: tuple(int(part) for part in v[1:].split(".")))
+    if highest == newest:
+        return claims, ""
+    return {
+        key: value.replace(highest, newest) if key.endswith("_justification") else value
+        for key, value in claims.items()
+    }, f"{highest} -> {newest}"
 
 
 def automation_url(claims: dict, section: str = "passing") -> str:
@@ -187,11 +200,20 @@ def main() -> int:
     verbs.add_argument("--check", action="store_true", help="compare the claims with the saved entry")
     verbs.add_argument("--check-file", action="store_true", help="fail when the file is not what --write produces")
     verbs.add_argument("--push", action="store_true", help="write the claims to the entry with a session cookie")
+    verbs.add_argument("--bump-versions", action="store_true", help="name the newest release instead of the highest one named")
     parser.add_argument("--section", default="passing", help="the badge section, e.g. passing or baseline-1")
     args = parser.parse_args()
 
     if args.push:
         return push(session_cookie())
+    if args.bump_versions:
+        claims, change = bump_versions(load_claims())
+        if not change:
+            print("the claims already name the newest release")
+            return 0
+        CLAIMS.write_text(json.dumps(normalize(claims), indent=2) + "\n", encoding="utf-8")
+        print(f"claims now name v{newest_release()}: {change}")
+        return 0
 
     if args.write:
         claims = load_claims()
