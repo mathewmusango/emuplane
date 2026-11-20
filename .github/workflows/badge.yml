@@ -1,0 +1,26 @@
+name: "CI: Best Practices"
+
+# The badge entry is answered by a human; this job only notices when the saved
+# entry and `.bestpractices.json` stop agreeing. It never writes.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: The entry still says what the repository claims
+        run: python3 scripts/badge.py --check
