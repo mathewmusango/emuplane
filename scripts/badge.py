@@ -13,6 +13,7 @@ import http.client
 import json
 import os
 import re
+import ssl
 import sys
 import urllib.parse
 from pathlib import Path
@@ -23,6 +24,9 @@ VERSIONS = ROOT / "site" / "versions.json"
 PROJECT = 16933
 HOST = "www.bestpractices.dev"
 VERSION = re.compile(r"\bv\d+\.\d+\.\d+\b")
+# Verification does not depend on the interpreter's default: the platform's trust
+# store, the certificate's host name checked, no downgrade to an unverified context.
+TLS = ssl.create_default_context()
 
 
 def newest_release() -> str:
@@ -95,7 +99,7 @@ def live_status(name: str) -> str:
 
 def fetch(url: str) -> str:
     """One GET, read whole; the badge site serves a small JSON document."""
-    connection = http.client.HTTPSConnection(HOST, timeout=30)
+    connection = http.client.HTTPSConnection(HOST, timeout=30, context=TLS)
     connection.request("GET", url, headers={"User-Agent": "emuplane-badge-check"})
     response = connection.getresponse()
     body = response.read().decode("utf-8")
@@ -138,7 +142,7 @@ def tokens(html: str) -> tuple[str, str]:
 def push(session: str) -> int:
     """Write the claims through the badge app's own form, the way its edit page does."""
     claims = load_claims()
-    connection = http.client.HTTPSConnection(HOST, timeout=30)
+    connection = http.client.HTTPSConnection(HOST, timeout=30, context=TLS)
     path = f"/en/projects/{PROJECT}/edit"
     connection.request("GET", path, headers={"Cookie": f"{COOKIE_NAME}={session}"})
     response = connection.getresponse()

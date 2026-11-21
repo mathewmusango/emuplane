@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 import sys
 from pathlib import Path
 
@@ -211,6 +212,12 @@ def test_an_excluded_issue_does_not_move_the_version(config):
     assert changelog.next_version("v1.4.2", [issue(1, "A chore", ["chore"])], config) == "1.4.3"
 
 
+def test_the_search_client_verifies_the_certificate_and_the_host_name():
+    """The token rides this connection, so verification is stated rather than inherited."""
+    assert changelog.TLS.verify_mode == ssl.CERT_REQUIRED
+    assert changelog.TLS.check_hostname is True
+
+
 def test_the_search_client_speaks_to_one_host(monkeypatch):
     """The transport is fixed-host https, so a repo name cannot move the request off api.github.com."""
     hosts: list[str] = []
@@ -226,7 +233,7 @@ def test_the_search_client_speaks_to_one_host(monkeypatch):
             return json.dumps(self._payload).encode()
 
     class Connection:
-        def __init__(self, host: str, timeout: int | None = None) -> None:
+        def __init__(self, host: str, timeout: int | None = None, context=None) -> None:
             hosts.append(host)
 
         def request(self, method: str, path: str, headers=None) -> None:
@@ -254,7 +261,7 @@ def test_a_refused_search_fails_loudly(monkeypatch):
             return b"{}"
 
     class Connection:
-        def __init__(self, host: str, timeout: int | None = None) -> None:
+        def __init__(self, host: str, timeout: int | None = None, context=None) -> None:
             pass
 
         def request(self, *args, **kwargs) -> None:

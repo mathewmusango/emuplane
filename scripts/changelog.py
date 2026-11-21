@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import re
+import ssl
 import subprocess
 import sys
 from datetime import date
@@ -26,6 +27,9 @@ ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / ".github" / "changelog.json"
 FILE = ROOT / "CHANGELOG.md"
 API_HOST = "api.github.com"
+# Verification does not depend on the interpreter's default: the platform's trust
+# store, the certificate's host name checked, no downgrade to an unverified context.
+TLS = ssl.create_default_context()
 
 
 def load_config(path: Path = CONFIG) -> dict:
@@ -289,7 +293,7 @@ def fetch_issues(repo: str, since: str, token: str) -> list[dict]:
     issues: list[dict] = []
     page = 1
     while True:
-        connection = HTTPSConnection(API_HOST, timeout=30)
+        connection = HTTPSConnection(API_HOST, timeout=30, context=TLS)
         try:
             connection.request(
                 "GET",
