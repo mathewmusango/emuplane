@@ -8,6 +8,21 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-11-21
+
+### Added
+
+- The reference has an STS coverage page ([#254](https://github.com/mathewmusango/emuplane/issues/254))
+
+### Changed
+
+- The services menu lists only services with a mark and a page ([#257](https://github.com/mathewmusango/emuplane/issues/257))
+
+### Fixed
+
+- The release plan bumps the compose tags but not the tag a page names ([#259](https://github.com/mathewmusango/emuplane/issues/259))
+- The STS page reads not yet where the console is not the answer ([#261](https://github.com/mathewmusango/emuplane/issues/261))
+
 ## [v0.6.1] - 2026-11-21
 
 ### Fixed

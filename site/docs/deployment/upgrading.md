@@ -46,7 +46,7 @@ directly, without waiting for a repository change:
 ```yaml title="docker-compose.override.yml"
 services:
   emuplane:
-    image: ghcr.io/mathewmusango/emuplane:0.6.1
+    image: ghcr.io/mathewmusango/emuplane:0.7.0
 ```
 
 Both the bare tag and the `v`-prefixed one are pushed to the same digest, so a tag
