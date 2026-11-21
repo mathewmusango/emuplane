@@ -286,12 +286,6 @@ export default function TopBar({
               <button type="button" role="menuitem" onClick={() => onNavigate('/about')}>
                 Organization
               </button>
-              <button type="button" role="menuitem" onClick={() => onNavigate('/about')}>
-                Service quotas
-              </button>
-              <button type="button" role="menuitem" onClick={() => onNavigate('/about')}>
-                Billing and Cost Management
-              </button>
               <button type="button" role="menuitem" onClick={() => onNavigate('/settings')}>
                 Security credentials
               </button>
