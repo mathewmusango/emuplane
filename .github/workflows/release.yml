@@ -106,10 +106,40 @@ jobs:
           pathlib.Path(name).write_text(json.dumps(spdx, indent=2) + "\n", encoding="utf-8")
           print(f"wrote {name}")
           PY
+      - name: The compose bundle
+        # The files a reader needs to run this exact version without cloning: both
+        # stacks, both environment examples, and the two commands that matter.
+        run: |
+          set -euo pipefail
+          version="$GITHUB_REF_NAME"
+          mkdir -p bundle
+          cp docker-compose.yml docker-compose.all.yml .env.example .env.all.example bundle/
+          cat > bundle/README.txt <<TXT
+          Emuplane ${version}: the compose files and their environment examples.
+
+          Every stack here pins the image this release published:
+            ghcr.io/${GITHUB_REPOSITORY}:${version#v}
+
+          The whole stack, emulator included:
+            cp .env.all.example .env.all
+            docker compose --env-file .env.all -f docker-compose.all.yml up -d
+
+          The control only, against an emulator you already run:
+            cp .env.example .env        # set EP_BACKEND_URL
+            docker compose up -d
+
+          Docs: https://mathewmusango.github.io/emuplane/docs/deployment/docker-podman
+          TXT
+          # Reproducible: same inputs, same bytes, so the checksum means something.
+          tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - -C bundle . \
+            | gzip -n > "emuplane-${version}-compose.tar.gz"
+          tar -tzf "emuplane-${version}-compose.tar.gz"
+
       - name: Checksums and the digest the tag resolves to
         run: |
           set -euo pipefail
-          sha256sum "emuplane-$GITHUB_REF_NAME.spdx.json" > SHA256SUMS
+          sha256sum "emuplane-$GITHUB_REF_NAME.spdx.json" \
+            "emuplane-$GITHUB_REF_NAME-compose.tar.gz" > SHA256SUMS
           docker buildx imagetools inspect "${{ steps.image.outputs.ref }}" \
             --format '{{.Manifest.Digest}}' > IMAGE-DIGEST
           cat SHA256SUMS IMAGE-DIGEST
@@ -118,5 +148,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
           gh release upload "$GITHUB_REF_NAME"
-          "emuplane-$GITHUB_REF_NAME.spdx.json" SHA256SUMS IMAGE-DIGEST
+          "emuplane-$GITHUB_REF_NAME.spdx.json" "emuplane-$GITHUB_REF_NAME-compose.tar.gz"
+          SHA256SUMS IMAGE-DIGEST
           --repo "$GITHUB_REPOSITORY" --clobber
