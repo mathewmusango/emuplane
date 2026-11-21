@@ -71,6 +71,12 @@ export default function Home() {
             Read the docs
           </Link>
         </div>
+        <p className={styles.note}>
+          Emuplane is <strong>not an emulator</strong> and not a replacement for one. It
+          runs in front of an emulator — MiniStack is the tested backend — and adds what
+          an emulator has no opinion about: accounts you sign in to, access keys you hand
+          to a tool, and console pages that read the resources rather than mock them.
+        </p>
         <img
           className={styles.screenshot}
           src={screenshot}
