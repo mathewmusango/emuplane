@@ -48,6 +48,7 @@ module.exports = {
 
   // What the console can do, operation by operation, and what it cannot.
   reference: [
+    'reference/index',
     {
       type: 'category',
       label: 'Coverage',

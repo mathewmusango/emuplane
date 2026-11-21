@@ -10,8 +10,12 @@ speaks the same API works.
 
 ## What you need
 
-- **An emulator** reachable from the Emuplane container. MiniStack on port
-  `4566` is the reference setup.
+- **An emulator** reachable from the Emuplane container, **with authentication
+  enabled**. MiniStack on port `4566` is the reference setup, and it needs
+  `AUTH=true` — the gateway resolves the account from the access key, so an
+  emulator that skips signatures gives it nothing to resolve, and no tenancy,
+  region rule or key check works. The bundled stack sets it in
+  `docker-compose.all.yml`; an emulator of your own needs it passed the same way.
 - **A container runtime** with compose: podman or docker.
 - **Three settings** — everything else has a default:
 

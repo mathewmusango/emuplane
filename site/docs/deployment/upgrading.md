@@ -46,10 +46,10 @@ directly, without waiting for a repository change:
 ```yaml title="docker-compose.override.yml"
 services:
   emuplane:
-    image: ghcr.io/mathewmusango/emuplane:0.5.1
+    image: ghcr.io/mathewmusango/emuplane:0.6.1
 ```
 
-Both the bare tag (`0.5.1`) and the `v`-prefixed one (`v0.5.1`) are pushed to the
+Both the bare tag (`0.6.1`) and the `v`-prefixed one (`v0.6.1`) are pushed to the
 same digest, so a tag copied from the release page works as written. `latest`
 exists for a quick look at the newest release; a deployment should pin, or the
 image changes under it at the next pull.
