@@ -78,13 +78,32 @@ def routes(app: Path) -> list[tuple[str, str]]:
     return sorted(found, key=lambda item: (item[1], item[0]))
 
 
+def groups(found: list[tuple[str, str]]) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Routes by the segment after /api, biggest group first."""
+    grouped: dict[str, list[tuple[str, str]]] = {}
+    for method, path in found:
+        segment = path[len(API) :].lstrip("/").split("/")[0] or "root"
+        grouped.setdefault(segment, []).append((method, path))
+    return sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))
+
+
 def table(found: list[tuple[str, str]]) -> str:
-    paths = sorted({path for _method, path in found})
-    lines = ["| Path | Methods |", "| --- | --- |"]
-    for path in paths:
-        methods = sorted({method for method, name in found if name == path})
-        lines.append(f"| `{path}` | {', '.join(methods)} |")
-    lines += ["", f"{len(found)} route/method pairs, {len(paths)} paths."]
+    lines: list[str] = []
+    for segment, items in groups(found):
+        paths = sorted({path for _method, path in items})
+        label = "path" if len(paths) == 1 else "paths"
+        lines += [
+            f"### /api/{segment} — {len(paths)} {label}",
+            "",
+            "| Path | Methods |",
+            "| --- | --- |",
+        ]
+        for path in paths:
+            methods = sorted({method for method, name in items if name == path})
+            lines.append(f"| `{path}` | {', '.join(methods)} |")
+        lines.append("")
+    paths = {path for _method, path in found}
+    lines.append(f"{len(found)} route/method pairs, {len(paths)} paths.")
     return "\n".join(lines)
 
 
