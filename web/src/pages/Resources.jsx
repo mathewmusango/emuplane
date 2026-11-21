@@ -29,6 +29,7 @@ import { useSession } from '../context'
 import { useRecent } from '../prefs'
 import { regionName } from '../regionNames'
 import { ServiceIcon } from '../serviceIcons'
+import { consoleServices } from '../serviceCatalogue'
 import { serviceLabel, serviceLongName } from '../serviceLabels'
 import { Shell, loadCatalogue } from '../components/Shell'
 import { SERVICE_ROUTES } from '../serviceRoutes'
@@ -138,16 +139,21 @@ export default function Resources() {
   }, [service, addRecent])
 
   const serviceOptions = useMemo(() => {
-    const groups = catalogue?.groups || []
-    return groups.map((group) => ({
-      label: group.label,
-      options: group.services.map((name) => ({
-        label: catalogue?.services?.[name]
-          ? `${serviceLabel(name)} · ${catalogue.services[name].operations.length} actions`
-          : serviceLabel(name),
-        value: name,
-      })),
-    }))
+    // Only the services the console can open: the rest redirect back to All services.
+    const offered = new Set(consoleServices(catalogue))
+    return (catalogue?.groups || [])
+      .map((group) => ({
+        label: group.label,
+        options: group.services
+          .filter((name) => offered.has(name))
+          .map((name) => ({
+            label: catalogue?.services?.[name]
+              ? `${serviceLabel(name)} · ${catalogue.services[name].operations.length} actions`
+              : serviceLabel(name),
+            value: name,
+          })),
+      }))
+      .filter((group) => group.options.length > 0)
   }, [catalogue])
 
   useEffect(() => {

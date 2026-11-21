@@ -38,8 +38,22 @@ export const ACTIONS = {
         },
       ],
     },
+    iam: {
+      description: 'Users, access keys and attached policies.',
+      operations: [
+        {
+          id: 'list-users',
+          label: 'List users',
+          cli: 'aws iam list-users',
+          params: [],
+        },
+      ],
+    },
   },
-  groups: [{ label: 'Core', services: ['s3'] }],
+  // The emulator's own grouping: most of these have no console page, and the menu leaves them out.
+  groups: [
+    { label: 'Core', services: ['athena', 'iam', 's3', 'states', 'sts'] },
+  ],
 }
 
 export const RESPONSES = {

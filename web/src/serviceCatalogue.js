@@ -1,6 +1,8 @@
 // The AWS-style service taxonomy the console navigates by; anything it has not been taught falls back to "Other".
 
 import { serviceLabel } from './serviceLabels'
+import { hasServiceIcon } from './serviceIcons'
+import { SERVICE_ROUTES } from './serviceRoutes'
 
 export const CATEGORY_ORDER = [
   'Analytics',
@@ -44,6 +46,7 @@ const CATEGORY = {
   appsync: 'Application Integration',
   'appsync-events': 'Application Integration',
   states: 'Application Integration',
+  stepfunctions: 'Application Integration',
   mq: 'Application Integration',
   pipes: 'Application Integration',
   scheduler: 'Application Integration',
@@ -106,6 +109,7 @@ const CATEGORY = {
   cloudformation: 'Management & Governance',
   monitoring: 'Management & Governance',
   logs: 'Management & Governance',
+  ssm: 'Management & Governance',
   cloudtrail: 'Management & Governance',
   config: 'Management & Governance',
   cloudcontrolapi: 'Management & Governance',
@@ -221,9 +225,23 @@ const DESCRIPTION = {
   servicediscovery: 'Service registry and discovery',
   budgets: 'Track cost and usage against budgets',
   cur: 'Detailed cost and usage reports',
+  s3tables: 'Managed Apache Iceberg tables',
+  s3files: 'File systems backed by S3',
+  stepfunctions: 'Coordinate distributed workflows',
 }
 
 export const categoryOf = (name) => CATEGORY[name] || 'Other'
+
+/**
+ * The services the menu offers: one the console can open — catalogue operations or a
+ * page of its own — and one it has an official mark for. Everything else the emulator
+ * answers has no console page, so listing it would only bounce the reader back here.
+ */
+export function consoleServices(catalogue) {
+  const names = new Set(Object.keys(catalogue?.services || {}))
+  for (const name of Object.keys(SERVICE_ROUTES)) names.add(name)
+  return [...names].filter(hasServiceIcon).sort()
+}
 
 /** A short line under a service name, AWS-menu style. */
 export const describeService = (name) =>

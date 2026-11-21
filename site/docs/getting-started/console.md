@@ -19,32 +19,40 @@ instead of showing an empty table.
 
 - **Region menu** (top bar) — sets the region every page acts in, and follows
   into the URL, so a page you can see is a page you can bookmark.
-- **Navigation** — services down the side. S3 is the one with purpose-built pages
-  today; every other service opens the generic service page until its own pages
-  land, so adding pages later changes the menu rather than the rule.
+- **Navigation** — services down the side, and only those with a page behind them:
+  S3 and its sub-pages, and the twelve services that carry actions. A name with
+  nothing behind it is not offered.
 - **Account menu** — the signed-in account, its access keys, its regions, and
   the sign-in screens.
 
 Signing out is a real session revocation, and a wrong password is answered as a
 wrong password rather than as "your session expired".
 
-## Every service is browsable
+## The menu is a short list, not an inventory
 
-![All services: every service the emulator advertises, grouped by category](/img/services.png)
+The emulator answers far more services than the menu shows, and that is deliberate.
+An entry is a promise that something is behind it, so two things earn one: an
+**official mark**, and a **page** — either the generic service page, with its resource
+list and API-explorer actions, or purpose-built pages of its own. A name that opens a
+page which redirects straight back to All services is worse than no name at all, so
+the services Emuplane has not built for are reachable over the wire only. The
+[coverage pages](/docs/reference/) record what each of them answers.
+
+That leaves fourteen entries. Twelve ship **actions** — `s3`, `ec2`, `sqs`, `sns`,
+`dynamodb`, `iam`, `lambda`, `logs`, `secretsmanager`, `ssm`, `kinesis`,
+`stepfunctions` — and each of those also has a resource list the console can read:
+buckets, instances, queues, functions, users, log groups, and so on, one *kind* per
+row. S3 Tables and S3 Files are children of S3 with pages of their own. The API
+explorer drives an action through one control route (`/api/exec`), with the AWS call
+it maps to shown before you press it.
+
+![All services: the fourteen entries, each with an official mark](/img/services-menu.png)
 
 <figure>
-  <figcaption>The service catalogue is read from the emulator, so a service it
-  does not answer is not in the list.</figcaption>
+  <figcaption>Fourteen entries, grouped by kind. Each one has an official mark and a
+  page behind it; a service the emulator answers but Emuplane has not built for is
+  not offered here.</figcaption>
 </figure>
-
-Every service the emulator advertises is browsable: the console reads what the
-emulator holds and groups it by kind (IAM users/roles/groups/policies, EC2
-instances/security groups/key pairs, and so on), one tab per kind.
-
-Eleven services also ship **actions** — `s3`, `ec2`, `sqs`, `sns`, `dynamodb`,
-`iam`, `logs`, `secretsmanager`, `ssm`, `kinesis`, `stepfunctions`. The API
-explorer drives those through one control route (`/api/exec`), with the AWS call
-each action maps to shown before you press it.
 
 ![The SQS service page: the resource list above, the API explorer's actions below](/img/console/api-explorer.png)
 
