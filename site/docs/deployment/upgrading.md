@@ -49,8 +49,8 @@ services:
     image: ghcr.io/mathewmusango/emuplane:0.6.1
 ```
 
-Both the bare tag (`0.6.1`) and the `v`-prefixed one (`v0.6.1`) are pushed to the
-same digest, so a tag copied from the release page works as written. `latest`
+Both the bare tag and the `v`-prefixed one are pushed to the same digest, so a tag
+copied from the release page works as written. `latest`
 exists for a quick look at the newest release; a deployment should pin, or the
 image changes under it at the next pull.
 

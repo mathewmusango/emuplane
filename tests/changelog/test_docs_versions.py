@@ -38,6 +38,17 @@ def test_the_docs_name_the_release_the_site_serves():
     )
 
 
+def test_the_release_plan_bumps_the_docs_tag_before_freezing():
+    """The freeze copies site/docs, so the plan has to bump a named tag first."""
+    plan = (ROOT / ".github" / "workflows" / "release-plan.yml").read_text(encoding="utf-8")
+    write = plan[plan.index("Write the section on a release branch"):]
+    write = write[: write.index("Open or update the release pull request")]
+    assert "site/docs" in write, "release-plan never touches site/docs"
+    assert write.index("site/docs") < write.index("npm --prefix site run version"), (
+        "the docs tag is bumped after the freeze, which copies it stale"
+    )
+
+
 def test_the_served_version_is_frozen():
     want = served()
     frozen = ROOT / "site" / "versioned_docs" / f"version-{want}"
