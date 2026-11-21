@@ -104,8 +104,7 @@ def render(spec: dict) -> str:
     if not groups and spec.get("group"):
         lines.append(
             f"- Group: **{spec['group']}** · operations: **{len(operations)}** · "
-            + ("Console actions: **none yet**" if not actions else
-               f"Console actions: **{len(actions)}**")
+            + f"Console actions: **{len(actions)}**"
         )
         lines.append("")
     lines += spec.get("intro") or []
@@ -168,7 +167,8 @@ def render(spec: dict) -> str:
             if name in pages:
                 owned.append(pages[name])
             lines.append(
-                f"| `{name}` | {', '.join(owned) or DASH} | {gui.get(name, 'not yet')} "
+                f"| `{name}` | {', '.join(owned) or DASH} | "
+                f"{not_console.get(name) or gui.get(name, 'not yet')} "
                 f"| {covered.get(name, DASH)} |"
             )
 
