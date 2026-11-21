@@ -70,30 +70,10 @@ npm run api   # reads the control checkout named by CONTROL_SRC
 
 <!-- routes:begin -->
 
+### /api/s3 — 42 paths
+
 | Path | Methods |
 | --- | --- |
-| `/api/accounts` | POST |
-| `/api/accounts/([0-9]{12})` | DELETE |
-| `/api/accounts/([0-9]{12})/disabled` | POST |
-| `/api/accounts/me` | GET |
-| `/api/actions` | GET |
-| `/api/auth/login` | POST |
-| `/api/auth/mfa` | POST |
-| `/api/auth/remember` | POST |
-| `/api/auth/switch` | POST |
-| `/api/browse` | GET |
-| `/api/buckets` | GET |
-| `/api/buckets/([^/]+)` | DELETE |
-| `/api/counts` | GET |
-| `/api/credentials` | GET, POST |
-| `/api/exec` | POST |
-| `/api/me` | POST |
-| `/api/meta` | GET |
-| `/api/nodes` | GET |
-| `/api/nodes/([^/]+)/reset` | POST |
-| `/api/refresh` | POST |
-| `/api/regions` | POST |
-| `/api/reserve` | POST |
 | `/api/s3` | GET |
 | `/api/s3/access-point-delete` | POST |
 | `/api/s3/access-point-detail` | GET |
@@ -136,9 +116,116 @@ npm run api   # reads the control checkout named by CONTROL_SRC
 | `/api/s3/upload-parts` | GET |
 | `/api/s3/uploads` | GET |
 | `/api/s3/versions` | GET |
-| `/api/services` | GET |
-| `/api/settings` | GET |
+
+### /api/accounts — 4 paths
+
+| Path | Methods |
+| --- | --- |
+| `/api/accounts` | POST |
+| `/api/accounts/([0-9]{12})` | DELETE |
+| `/api/accounts/([0-9]{12})/disabled` | POST |
+| `/api/accounts/me` | GET |
+
+### /api/auth — 4 paths
+
+| Path | Methods |
+| --- | --- |
+| `/api/auth/login` | POST |
+| `/api/auth/mfa` | POST |
+| `/api/auth/remember` | POST |
+| `/api/auth/switch` | POST |
+
+### /api/buckets — 2 paths
+
+| Path | Methods |
+| --- | --- |
+| `/api/buckets` | GET |
+| `/api/buckets/([^/]+)` | DELETE |
+
+### /api/credentials — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/credentials` | GET, POST |
+
+### /api/nodes — 2 paths
+
+| Path | Methods |
+| --- | --- |
+| `/api/nodes` | GET |
+| `/api/nodes/([^/]+)/reset` | POST |
+
+### /api/users — 1 path
+
+| Path | Methods |
+| --- | --- |
 | `/api/users` | GET, POST |
+
+### /api/actions — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/actions` | GET |
+
+### /api/browse — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/browse` | GET |
+
+### /api/counts — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/counts` | GET |
+
+### /api/exec — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/exec` | POST |
+
+### /api/me — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/me` | POST |
+
+### /api/meta — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/meta` | GET |
+
+### /api/refresh — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/refresh` | POST |
+
+### /api/regions — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/regions` | POST |
+
+### /api/reserve — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/reserve` | POST |
+
+### /api/services — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/services` | GET |
+
+### /api/settings — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/settings` | GET |
 
 73 route/method pairs, 67 paths.
 
