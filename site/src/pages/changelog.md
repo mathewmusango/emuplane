@@ -4,6 +4,20 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.6.0] - 2026-11-21
+
+### Added
+
+- Ship the compose files as a release asset ([#234](https://github.com/mathewmusango/emuplane/issues/234))
+
+### Fixed
+
+- The Console not built page names a path this repository dropped ([#235](https://github.com/mathewmusango/emuplane/issues/235))
+
+### Security
+
+- Audit Python dependencies with OSV-Scanner ([#236](https://github.com/mathewmusango/emuplane/issues/236))
+
 ## [v0.5.1] - 2026-11-21
 
 ### Security
