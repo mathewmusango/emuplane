@@ -40,10 +40,10 @@ def emulator():
 
 @pytest.fixture(scope="session")
 def s3_endpoint(emulator):
-    """The emulator's S3 surface, plus S3 Tables and S3 Files routed by the credential's service name."""
+    """The emulator's HTTP surface: the credential's service name picks the handler, S3 by default."""
 
     handlers = {"s3": emulator}
-    for name in ("s3tables", "s3files"):
+    for name in ("s3tables", "s3files", "sts"):
         try:
             handlers[name] = __import__(
                 f"ministack.services.{name}", fromlist=["handle_request"]
@@ -152,6 +152,12 @@ def s3_endpoint(emulator):
     thread.start()
     yield f"http://127.0.0.1:{server.server_address[1]}"
     server.shutdown()
+
+
+@pytest.fixture(scope="session")
+def endpoint(s3_endpoint):
+    """The same surface, named for what it is: one endpoint, and the credential says which service."""
+    return s3_endpoint
 
 
 @pytest.fixture(scope="session")

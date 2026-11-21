@@ -1,0 +1,27 @@
+{
+  "service": "STS",
+  "title": "STS coverage",
+  "page": "site/docs/reference/sts-coverage.md",
+  "ledger": "my-docs/STS.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "No console page: a session is used from a CLI or a tool, so every row is *not yet*",
+    "by design rather than by omission.",
+    "",
+    "The gateway forwards STS like any other global service, so `get-caller-identity`",
+    "against it answers the account the key was issued for.",
+    "",
+    "`GetAccessKeyInfo` and `GetWebIdentityToken` are implemented by the emulator and",
+    "absent from its README row; `tests/control/test_sts.py` exercises both. The trust",
+    "policy behind the two AssumeRole paths is only evaluated with `AUTH=true`, so the",
+    "lab matrix proves that decision, not this suite."
+  ],
+  "covered": {
+    "GetCallerIdentity": "tests/control/test_sts.py",
+    "AssumeRole": "tests/control/test_sts.py",
+    "GetSessionToken": "tests/control/test_sts.py",
+    "GetFederationToken": "tests/control/test_sts.py",
+    "AssumeRoleWithWebIdentity": "tests/control/test_sts.py"
+  }
+}

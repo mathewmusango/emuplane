@@ -58,6 +58,7 @@ module.exports = {
         'reference/s3-files-coverage',
         'reference/iam-coverage',
         'reference/account-coverage',
+        'reference/sts-coverage',
       ],
     },
     'reference/configuration',
