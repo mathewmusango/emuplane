@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ssl
 import sys
 from pathlib import Path
 
@@ -92,6 +93,12 @@ def test_a_page_without_tokens_is_a_session_problem():
         assert "not logged in" in str(exit_)
     else:
         raise AssertionError("a page with no tokens must not be written")
+
+
+def test_the_transport_verifies_the_certificate_and_the_host_name():
+    """Verification is stated, not inherited: an interpreter older than 3.4.3 would not verify."""
+    assert badge.TLS.verify_mode == ssl.CERT_REQUIRED
+    assert badge.TLS.check_hostname is True
 
 
 def test_the_session_cookie_comes_from_the_environment(monkeypatch):
