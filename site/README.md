@@ -64,8 +64,10 @@ shows them as **Next** — a draft label is honest there, and it never ships.
 running locally against MiniStack with a seeded demo account. The untracked
 `qa/shots/capture.py` does it: it boots both servers, signs up a demo account,
 creates the buckets and objects the pictures show, then drives Firefox through
-the pages with Selenium. `static/img/sign-in.png` and `static/img/services.png`
-are the two shots the README and the sign-in pages share.
+the pages with Selenium. `static/img/sign-in.png` and `static/img/services-menu.png`
+are the two shots the README and the sign-in pages share; `static/img/services.png`
+is the older capture the frozen versions still show, so it is kept as they were
+released.
 
 ## Cutting a version
 

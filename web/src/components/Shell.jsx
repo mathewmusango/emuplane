@@ -9,6 +9,7 @@ import { useThemeMode } from './themeToggle'
 import TopBar from './TopBar'
 import { serviceLabel, serviceLongName } from '../serviceLabels'
 import { serviceHref } from '../serviceRoutes'
+import { consoleServices } from '../serviceCatalogue'
 import ServicesMenu from './ServicesMenu'
 
 const navItems = () => [
@@ -88,13 +89,7 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
     loadCatalogue().then(setCatalogue).catch(() => setCatalogue(null))
   }, [])
 
-  const serviceNames = useMemo(() => {
-    const names = new Set(Object.keys(catalogue?.services || {}))
-    for (const group of catalogue?.groups || []) {
-      for (const name of group.services) names.add(name)
-    }
-    return [...names].sort()
-  }, [catalogue])
+  const serviceNames = useMemo(() => consoleServices(catalogue), [catalogue])
 
   const go = (href) => {
     if (href.startsWith('http')) {

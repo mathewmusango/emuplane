@@ -70,7 +70,7 @@ Sign in, then every service this instance backs is one page away.
 
 <p align="center">
   <img src="site/static/img/sign-in.png" alt="The sign-in screen" width="300">
-  <img src="site/static/img/services.png" alt="All services, after sign-in" width="620">
+  <img src="site/static/img/services-menu.png" alt="All services, after sign-in" width="620">
 </p>
 
 ## Accessing it

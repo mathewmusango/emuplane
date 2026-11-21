@@ -30,7 +30,7 @@ import { useFavorites } from '../prefs'
 import { serviceLabel } from '../serviceLabels'
 import { serviceHref } from '../serviceRoutes'
 import { ServiceIcon } from '../serviceIcons'
-import { groupByCategory } from '../serviceCatalogue'
+import { groupByCategory, consoleServices } from '../serviceCatalogue'
 import { Shell, loadCatalogue } from '../components/Shell'
 import './services.css'
 
@@ -69,13 +69,7 @@ export default function Services() {
       .catch((err) => setError(err.message))
   }, [])
 
-  const groups = useMemo(() => {
-    const names = new Set(Object.keys(catalogue?.services || {}))
-    for (const group of catalogue?.groups || []) {
-      for (const name of group.services) names.add(name)
-    }
-    return groupByCategory(names)
-  }, [catalogue])
+  const groups = useMemo(() => groupByCategory(consoleServices(catalogue)), [catalogue])
 
   const open = (name) => navigate(serviceHref(name))
 
