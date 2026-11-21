@@ -25,7 +25,7 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 - GET operations (Get/List/Head/Describe) shown in the console: **1** of **9**
 - Operations with no emuplane test: **20**
 
-- Group: **Infrastructure** · operations: **21** · Console actions: **none yet**
+- Group: **Infrastructure** · operations: **21** · Console actions: **0**
 
 
 

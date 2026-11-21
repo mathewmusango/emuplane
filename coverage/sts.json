@@ -6,8 +6,8 @@
   "group": "Core",
   "console_service": "",
   "intro": [
-    "No console page: a session is used from a CLI or a tool, so every row is *not yet*",
-    "by design rather than by omission.",
+    "No console page: a session is used from a CLI or a tool, so every row is",
+    "outside the console by design, not waiting on it.",
     "",
     "The gateway forwards STS like any other global service, so `get-caller-identity`",
     "against it answers the account the key was issued for.",
@@ -23,5 +23,12 @@
     "GetSessionToken": "tests/control/test_sts.py",
     "GetFederationToken": "tests/control/test_sts.py",
     "AssumeRoleWithWebIdentity": "tests/control/test_sts.py"
+  },
+  "not_console": {
+    "GetCallerIdentity": "not a console action (a session is used from a CLI or a tool)",
+    "AssumeRole": "not a console action (a session is used from a CLI or a tool)",
+    "GetSessionToken": "not a console action (a session is used from a CLI or a tool)",
+    "GetFederationToken": "not a console action (a session is used from a CLI or a tool)",
+    "AssumeRoleWithWebIdentity": "not a console action (a session is used from a CLI or a tool)"
   }
 }
