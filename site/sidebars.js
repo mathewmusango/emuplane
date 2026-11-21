@@ -19,7 +19,7 @@ module.exports = {
       type: 'category',
       label: 'Deployment',
       collapsed: false,
-      items: ['deployment/docker-podman'],
+      items: ['deployment/docker-podman', 'deployment/upgrading'],
     },
     {
       type: 'category',
@@ -31,7 +31,18 @@ module.exports = {
       type: 'category',
       label: 'Guides',
       collapsed: false,
-      items: ['guides/s3'],
+      items: ['guides/s3', 'guides/troubleshooting'],
+    },
+    {
+      // The operator side: how the thing is run, released and versioned.
+      type: 'category',
+      label: 'Operations',
+      collapsed: false,
+      items: [
+        'operations/runbook',
+        'operations/releases',
+        'operations/image-and-versions',
+      ],
     },
   ],
 

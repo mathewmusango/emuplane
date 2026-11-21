@@ -1,19 +1,26 @@
 .hero {
   max-width: 960px;
   margin: 0 auto;
-  padding: 5rem 1.5rem 4rem;
+  padding: 3rem 1.5rem 4rem;
   text-align: center;
 }
 
-.title {
-  font-size: 3.5rem;
-  margin-bottom: 0.5rem;
+/* The same banner as the docs intro, with the theme swap from custom.css. */
+.banner {
+  margin-bottom: 2.5rem;
 }
 
-.tagline {
-  font-size: 1.35rem;
-  color: var(--ifm-color-emphasis-700);
-  margin-bottom: 2.5rem;
+/* The banner is the visible title, so the h1 is for assistive technology only. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .actions {

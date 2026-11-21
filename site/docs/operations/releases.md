@@ -106,7 +106,8 @@ What a release carries, besides the notes and the image:
 | Asset | What it is |
 | --- | --- |
 | `emuplane-vX.Y.Z.spdx.json` | the image's SBOM, generated with syft from the published image |
-| `SHA256SUMS` | its digest, so a reader can check what they downloaded |
+| `emuplane-vX.Y.Z-compose.tar.gz` | both compose files, both environment examples and a README — this version runnable without cloning. Built reproducibly (sorted entries, fixed mtimes), so identical inputs give an identical checksum |
+| `SHA256SUMS` | the digests of the two files above, so a reader can check what they downloaded |
 | `IMAGE-DIGEST` | the registry digest the tag resolves to — pin this, not the tag |
 
 `workflow_dispatch` is exempt from the `GITHUB_TOKEN` recursion rule, which is why
@@ -146,6 +147,7 @@ different one.
 | Git tag | `vX.Y.Z` | `release-tag.yml`, on merge |
 | Changelog section | `CHANGELOG.md` | `changelog.py --write`, in the release PR |
 | Docs version | `site/versioned_docs/version-X.Y.Z` + `site/versions.json` | `npm --prefix site run version X.Y.Z`, in the release PR |
+| Compose image tags | `docker-compose.yml`, `docker-compose.all.yml` | `release-plan.yml` rewrites both, in the release PR |
 | Image tag | GHCR `X.Y.Z` and `latest` | the image leaf, at the tag |
 | Image digest | the release's `IMAGE-DIGEST` | the artifacts job, at the tag |
 | SBOM and checksum | `emuplane-vX.Y.Z.spdx.json`, `SHA256SUMS` | the artifacts job, from the image's attestation |

@@ -129,14 +129,14 @@ silently serves the last built image.
 ## Tokens and passwords
 
 ```bash
-docker compose exec emuplane python /app/api_token.py            # mint, printed once
+docker compose exec emuplane python /app/api_token.py --rotate   # mint or rotate, printed once
 docker compose exec emuplane python /app/api_token.py --status   # is there one?
-docker compose exec emuplane python /app/api_token.py --rotate   # the old one stops working
 docker compose exec emuplane python /app/password.py <user> --link   # a one-time /reset link
 docker compose exec emuplane python /app/password.py <user>          # set it outright
 ```
 
-Both password paths revoke that principal's sessions.
+Setting a password this way revokes that principal's sessions. `--link` mints the
+same one-time token `/forgot` mints, for a deployment with no mail relay.
 
 ## Before you push
 
