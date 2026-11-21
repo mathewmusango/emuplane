@@ -68,6 +68,12 @@ jobs:
           python3 scripts/changelog.py --version "$tag" --write
           sed -i "s|ghcr.io/mathewmusango/emuplane:[0-9][0-9.]*|ghcr.io/mathewmusango/emuplane:${tag#v}|" docker-compose.yml
           sed -i "s|ghcr.io/mathewmusango/emuplane:[0-9][0-9.]*|ghcr.io/mathewmusango/emuplane:${tag#v}|" docker-compose.all.yml
+          # A page that names a release outright follows it, like the compose pins.
+          pages=$(grep -rl "ghcr.io/mathewmusango/emuplane:" site/docs || true)
+          while IFS= read -r page; do
+            [ -n "$page" ] || continue
+            sed -i -E "s|ghcr\.io/mathewmusango/emuplane:(v?)[0-9]+\.[0-9]+\.[0-9]+|ghcr.io/mathewmusango/emuplane:\1${tag#v}|g" "$page"
+          done <<< "$pages"
           npm --prefix site ci --no-audit --no-fund
           npm --prefix site run version "${tag#v}"
           npm --prefix site run changelog
