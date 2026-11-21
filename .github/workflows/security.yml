@@ -20,7 +20,7 @@ jobs:
   deps:
     if: ${{ !github.event.repository.private }}
     uses: mathewmusango/my-workflows/.github/workflows/security-dependency-review.yml@988ca2b0ea859a18e1dd75e6acadce904acdd278 # v2026.1120.2157Z
-  # The reusable workflow audits at a fixed threshold and takes no allowlist; picomatch has no fix, so this names what is accepted.
+  # Kept for one release while OSV-Scanner is proven: its allowlist no longer matches anything.
   npm-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -31,3 +31,10 @@ jobs:
           node-version: "22"
       - name: Audit every lockfile against the allowlist
         run: python3 scripts/npm_audit.py
+  # OSV-Scanner reads every lockfile, including the hash-pinned requirements.txt no npm audit sees.
+  osv:
+    permissions:
+      actions: read
+      security-events: write
+      contents: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@32d3cd482bdadfb38b186c0ad1b031902d55d932 # v2.7.1
