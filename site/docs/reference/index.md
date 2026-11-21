@@ -13,6 +13,7 @@ than a promise, and more are landing as the console grows pages for them.
 | [S3 coverage](s3-coverage.md) | every S3 operation the emulator advertises, and whether the console can show or do it |
 | [S3 Files coverage](s3-files-coverage.md) | the S3 Files API surface the console reads |
 | [IAM coverage](iam-coverage.md) | the IAM operations, and which of them the console acts on |
+| [STS coverage](sts-coverage.md) | every security-token operation, all of them tested, none of them a console action |
 | [Account coverage](account-coverage.md) | the account APIs the emulator answers |
 | [Configuration](configuration.md) | every `EP_` setting, its default, and what it does |
 | [Limits](limits.md) | what is deliberately not done, and what each gap costs |
