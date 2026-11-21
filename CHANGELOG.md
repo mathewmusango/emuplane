@@ -8,6 +8,16 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.5.1] - 2026-11-21
+
+### Security
+
+- The dev server's uuid is past the advisory ([#211](https://github.com/mathewmusango/emuplane/issues/211))
+- The image ships libssl and zlib versions Alpine has already fixed ([#214](https://github.com/mathewmusango/emuplane/issues/214))
+- The Python dependency is pinned by version, not by hash ([#216](https://github.com/mathewmusango/emuplane/issues/216))
+- Two workflows grant write to the default token at the top level ([#218](https://github.com/mathewmusango/emuplane/issues/218))
+- The badge and changelog clients inherit TLS verification from the interpreter ([#226](https://github.com/mathewmusango/emuplane/issues/226))
+
 ## [v0.5.0] - 2026-11-20
 
 ### Changed
