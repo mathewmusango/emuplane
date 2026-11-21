@@ -9,16 +9,16 @@ Release.
 
 | Bump | When | Example |
 | --- | --- | --- |
-| minor | a feature | `0.5.1` → `0.6.0` |
-| patch | a dependency PR | `0.5.1` → `0.5.2` |
-| major | by hand | `0.5.1` → `1.0.0` |
+| minor | a feature | `0.6.1` → `0.7.0` |
+| patch | a dependency PR | `0.6.1` → `0.6.2` |
+| major | by hand | `0.6.1` → `1.0.0` |
 
 Below `1.0.0` a removal moves the **minor** number instead, because SemVer reserves
 the leading number for the first stable API. The number is computed from issue
 labels, and that rule lives in one place:
 [Releasing and the changelog](releases.md#choosing-the-version).
 
-The git tag carries a `v` (`v0.5.1`); the image tag does not (`0.5.1`). `latest`
+The git tag carries a `v` (`v0.6.1`); the image tag does not (`0.6.1`). `latest`
 follows the newest tag, and every compose file pins the release version itself —
 the release pull request rewrites the pins, and `scripts/units.py --check` refuses a
 release where any of them disagrees.

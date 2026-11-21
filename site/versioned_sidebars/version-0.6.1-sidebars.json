@@ -52,6 +52,7 @@
     }
   ],
   "reference": [
+    "reference/index",
     {
       "type": "category",
       "label": "Coverage",

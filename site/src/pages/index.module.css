@@ -34,10 +34,26 @@
 /* The one thing this page must not let a reader assume. */
 .note {
   max-width: 44rem;
-  margin: 0 auto 4rem;
+  margin: 0 auto 0.4rem;
   color: var(--ifm-color-emphasis-700);
   font-size: 1.05rem;
   line-height: 1.6;
+}
+
+/* The tested backend, as a quiet badge rather than an aside in the sentence. */
+.tested {
+  margin: 0 auto 4rem;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.25rem 0.8rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .primary,
