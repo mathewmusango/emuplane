@@ -66,7 +66,8 @@ Nothing is seeded: create the first account at `/signup`.
 
 ## The console
 
-Sign in, then every service this instance backs is one page away.
+Sign in, then the services the console has a page for are one click away. Everything
+else the instance answers is reachable over the wire.
 
 <p align="center">
   <img src="site/static/img/sign-in.png" alt="The sign-in screen" width="300">
