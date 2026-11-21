@@ -148,6 +148,7 @@ different one.
 | Changelog section | `CHANGELOG.md` | `changelog.py --write`, in the release PR |
 | Docs version | `site/versioned_docs/version-X.Y.Z` + `site/versions.json` | `npm --prefix site run version X.Y.Z`, in the release PR |
 | Compose image tags | `docker-compose.yml`, `docker-compose.all.yml` | `release-plan.yml` rewrites both, in the release PR |
+| Docs tag references | a page that names `ghcr.io/…/emuplane:X.Y.Z` outright in `site/docs` | `release-plan.yml` rewrites them **before** the freeze, in the release PR |
 | Image tag | GHCR `X.Y.Z` and `latest` | the image leaf, at the tag |
 | Image digest | the release's `IMAGE-DIGEST` | the artifacts job, at the tag |
 | SBOM and checksum | `emuplane-vX.Y.Z.spdx.json`, `SHA256SUMS` | the artifacts job, from the image's attestation |

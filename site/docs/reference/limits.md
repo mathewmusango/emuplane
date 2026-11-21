@@ -26,6 +26,15 @@ emulator, and where each of those rules lives.
   emulator directly. The shipped composition publishes no emulator port for that
   reason; a lab that publishes `4566` reopens the hole.
 
+## The console menu
+
+- **Only a service with an official mark and a page behind it is offered.** The
+  emulator answers far more than the fourteen entries in the menu; a name that
+  opened a bare table, or redirected straight back to *All services*, promised a
+  page that does not exist. Everything else is reachable over the wire only, and
+  the [coverage pages](/docs/reference/) record what each service answers. A menu
+  entry is a page plus a mark, never a line in a list.
+
 ## The S3 console
 
 - **S3 on Windows is still under development.** The console is exercised on Linux;
