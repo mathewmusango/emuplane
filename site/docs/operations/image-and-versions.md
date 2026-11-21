@@ -9,14 +9,19 @@ Release.
 
 | Bump | When | Example |
 | --- | --- | --- |
-| minor | a feature | `0.1.0` → `0.2.0`, up to `0.10.0` |
-| patch | a dependency PR | `0.1.0` → `0.1.10` |
-| major | by hand | `0.1.0` → `1.0.0` |
+| minor | a feature | `0.5.1` → `0.6.0` |
+| patch | a dependency PR | `0.5.1` → `0.5.2` |
+| major | by hand | `0.5.1` → `1.0.0` |
 
-The git tag carries a `v` (`v0.1.0`); the image tag does not (`0.1.0`). `latest`
-follows the newest tag, and `docker-compose.yml`'s default image is the release
-version itself — the release pull request rewrites it, and `scripts/units.py --check`
-refuses a release where the two disagree.
+Below `1.0.0` a removal moves the **minor** number instead, because SemVer reserves
+the leading number for the first stable API. The number is computed from issue
+labels, and that rule lives in one place:
+[Releasing and the changelog](releases.md#choosing-the-version).
+
+The git tag carries a `v` (`v0.5.1`); the image tag does not (`0.5.1`). `latest`
+follows the newest tag, and every compose file pins the release version itself —
+the release pull request rewrites the pins, and `scripts/units.py --check` refuses a
+release where any of them disagrees.
 
 ## These docs are versioned the same way
 
@@ -25,10 +30,10 @@ sees the pages that matched that tag:
 
 ```bash
 cd site
-npm run version 0.1.0
+npm run version X.Y.Z
 ```
 
-That copies `site/docs/` into `site/versioned_docs/version-0.1.0/` and writes
+That copies `site/docs/` into `site/versioned_docs/version-X.Y.Z/` and writes
 `versions.json`; `site/docs/` then becomes **Next**.
 
 ## Building the image locally

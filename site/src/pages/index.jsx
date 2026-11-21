@@ -41,11 +41,28 @@ const CARDS = [
 export default function Home() {
   const { siteConfig } = useDocusaurusContext()
   const screenshot = useBaseUrl('/img/console/console-home.png')
+  const bannerLight = useBaseUrl('/img/banners/emuplane.png')
+  const bannerDark = useBaseUrl('/img/banners/emuplane-dark.png')
   return (
     <Layout description={siteConfig.tagline}>
       <main className={styles.hero}>
-        <h1 className={styles.title}>{siteConfig.title}</h1>
-        <p className={styles.tagline}>{siteConfig.tagline}</p>
+        <div className={styles.banner}>
+          <img
+            className="banner-light"
+            src={bannerLight}
+            alt="Emuplane — the console, control API and gateway for AWS-compatible emulators"
+            width="100%"
+          />
+          <img
+            className="banner-dark"
+            src={bannerDark}
+            alt=""
+            width="100%"
+            aria-hidden="true"
+          />
+        </div>
+        {/* The banner carries the title; this keeps one h1 for a reader using a screen reader. */}
+        <h1 className={styles.srOnly}>{siteConfig.title}</h1>
         <div className={styles.actions}>
           <Link className={styles.primary} to="/docs/getting-started/quickstart">
             Get started

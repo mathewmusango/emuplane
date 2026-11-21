@@ -25,11 +25,20 @@ Adding a service is a `coverage/<service>.json` data file, not another script.
 
 ## Navigation
 
+`docusaurus.config.js` also carries the footer: four columns — **Docs**,
+**Reference**, **Project** (repository links) and **Communication** (email,
+LinkedIn, X). The footer is site-wide, so every frozen version shows the same one.
+
 `sidebars.js` is one sidebar per navbar tab — **Docs** (tutorial, concepts,
-guides), **Reference** (coverage, configuration, limits) and **API** (the
-generated route table). A page belongs to exactly one of them. **Changelog** is a
-link rather than a sidebar: its page lives in `src/pages/`, outside `docs/`, so
-freezing a version does not freeze the changelog.
+guides, deployment), **Reference** (coverage, configuration, limits) and **API**
+(the generated route table). A page belongs to exactly one of them. **Changelog**
+is a link rather than a sidebar: its page lives in `src/pages/`, outside `docs/`,
+so freezing a version does not freeze the changelog.
+
+`docs/operations/` is the operator's side of the site: a runbook, how releases are
+cut, and what the image and its versions are. It sits in the **Docs** sidebar after
+Guides, and it is versioned like every other page — a frozen copy keeps the runbook
+that matched that tag.
 
 The **Docs** tab reads the `docs` sidebar, so it follows whichever version the
 site serves. While the working docs are unfrozen, a reader who wants them takes

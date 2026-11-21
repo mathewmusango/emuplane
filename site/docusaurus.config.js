@@ -10,6 +10,9 @@ const config = {
   trailingSlash: true,
 
   onBrokenLinks: 'throw',
+  // Anchors are checked too: a section heading that moves silently breaks every
+  // `page.md#heading` that pointed at it, and several pages here link that way.
+  onBrokenAnchors: 'throw',
 
   markdown: {
     mermaid: true,
@@ -40,7 +43,8 @@ const config = {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl: 'https://github.com/mathewmusango/emuplane/tree/main/',
-          showLastUpdateTime: false,
+          // Needs full history: CI must check out with `fetch-depth: 0` for this.
+          showLastUpdateTime: true,
         },
         blog: false,
         theme: {
@@ -133,6 +137,23 @@ const config = {
             {
               label: 'Releases',
               href: 'https://github.com/mathewmusango/emuplane/releases',
+            },
+          ],
+        },
+        {
+          title: 'Communication',
+          items: [
+            {
+              label: 'Email',
+              href: 'mailto:mathewmusango@gmail.com',
+            },
+            {
+              label: 'LinkedIn',
+              href: 'https://www.linkedin.com/in/mathew-musango/',
+            },
+            {
+              label: 'X (Twitter)',
+              href: 'https://x.com/MathewMusango',
             },
           ],
         },
