@@ -43,8 +43,9 @@ jobs:
         run: git clone --quiet --depth 1 --branch "$EMULATOR_TAG" https://github.com/ministackorg/ministack "$EP_EMULATOR_SRC"
       - name: Install the control's pinned dependencies
         run: pip install --quiet --require-hashes -r requirements.txt
-      - name: Install pytest and the emulator's dependencies
-        run: pip install --quiet pytest -r "$EP_EMULATOR_SRC/requirements.txt"
+      - name: Install pytest and the emulator's tree, by hash
+        # The lock is named for the tag: a bump without regenerating it has no file to read.
+        run: pip install --quiet --require-hashes -r "tests/requirements-${EMULATOR_TAG}.txt"
       - name: Run the suite
         run: python3 -m pytest -q tests
       - name: The published coverage page is current
