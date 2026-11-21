@@ -8,6 +8,12 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.6.1] - 2026-11-21
+
+### Fixed
+
+- The release artifacts job never checked out the repository ([#245](https://github.com/mathewmusango/emuplane/issues/245))
+
 ## [v0.6.0] - 2026-11-21
 
 ### Added

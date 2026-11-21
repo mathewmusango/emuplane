@@ -4,6 +4,12 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.6.1] - 2026-11-21
+
+### Fixed
+
+- The release artifacts job never checked out the repository ([#245](https://github.com/mathewmusango/emuplane/issues/245))
+
 ## [v0.6.0] - 2026-11-21
 
 ### Added
