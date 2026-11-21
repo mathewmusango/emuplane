@@ -812,20 +812,29 @@ class Owners:
                     pass
 
 
-DB = Store()
-try:
-    DB.verify_tables()
-except (OSError, DynamoError) as exc:
-    print(f"control: cannot reach the store at {DB.dynamo.endpoint}: {exc}", flush=True)
-    raise SystemExit(1)
-except StoreNotProvisioned as exc:
-    print(f"control: {exc}", flush=True)
-    raise SystemExit(1)
+class _Lazy:
+    """Built on first use, so importing this module touches no table."""
 
-ACCOUNTS = Accounts(DB)
-USERS = UserStore(DB)
-SETTINGS = Settings(DB)
-OWNERS = Owners(DB)
+    def __init__(self, build) -> None:
+        self._build = build
+        self._value = None
+        self._lock = threading.Lock()
+
+    def __getattr__(self, name):
+        value = self._value
+        if value is None:
+            with self._lock:
+                if self._value is None:
+                    self._value = self._build()
+                value = self._value
+        return getattr(value, name)
+
+
+DB = Store()
+ACCOUNTS = _Lazy(lambda: Accounts(DB))
+USERS = _Lazy(lambda: UserStore(DB))
+SETTINGS = _Lazy(lambda: Settings(DB))
+OWNERS = _Lazy(lambda: Owners(DB))
 
 
 def seed_local_admin() -> None:
@@ -1160,7 +1169,7 @@ class Registry:
         return conflicts
 
 
-REGISTRY = Registry(DB)
+REGISTRY = _Lazy(lambda: Registry(DB))
 
 # node health + service availability, refreshed by the poller
 HEALTH: dict[str, dict] = {}
@@ -1211,9 +1220,6 @@ def load_sessions() -> None:
                 DB.delete("sessions", key)
     if restored:
         print(f"control: restored {restored} live session(s)", flush=True)
-
-
-load_sessions()
 
 
 def new_session(
@@ -5794,6 +5800,15 @@ document.getElementById('refresh').onsubmit = async (event) => {{
 
 
 def main() -> None:
+    try:
+        DB.verify_tables()
+    except (OSError, DynamoError) as exc:
+        print(f"control: cannot reach the store at {DB.dynamo.endpoint}: {exc}", flush=True)
+        raise SystemExit(1)
+    except StoreNotProvisioned as exc:
+        print(f"control: {exc}", flush=True)
+        raise SystemExit(1)
+    load_sessions()
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     control = ThreadingHTTPServer(("0.0.0.0", CONTROL_PORT), ControlHandler)
     gateway = ThreadingHTTPServer(("0.0.0.0", GATEWAY_PORT), GatewayHandler)
