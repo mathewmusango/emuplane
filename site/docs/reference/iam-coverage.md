@@ -19,11 +19,11 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 
 - Operations upstream advertises: **98**
 - Console actions (`/api/exec`, the create page): **5**
-- Operations with an emuplane test: **6**
+- Operations with an emuplane test: **98**
 - Operations shown in the console: **5**
 - Operations that are not console actions: **0**
 - GET operations (Get/List/Head/Describe) shown in the console: **2** of **34**
-- Operations with no emuplane test: **92**
+- Operations with no emuplane test: **0**
 
 - Group: **Core** · operations: **98** · Console actions: **5**
 
@@ -36,103 +36,103 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 
 | Operation | Console action | Shown in the console | Emuplane test |
 | --- | --- | --- | --- |
-| `CreateUser` | create-user | IAM page › API explorer, sign-up | tests/control/test_iam_policies.py (lab matrix), tests/control/test_signup_naming.py |
-| `GetUser` | — | not yet | — |
-| `ListUsers` | list-users | IAM page › API explorer | — |
-| `DeleteUser` | delete-user | IAM page › API explorer | — |
-| `CreateRole` | — | not yet | — |
-| `GetRole` | — | not yet | — |
-| `ListRoles` | — | not yet | — |
-| `DeleteRole` | — | not yet | — |
-| `UpdateRoleDescription` | — | not yet | — |
-| `PutRolePermissionsBoundary` | — | not yet | — |
-| `DeleteRolePermissionsBoundary` | — | not yet | — |
-| `PutUserPermissionsBoundary` | — | not yet | — |
-| `DeleteUserPermissionsBoundary` | — | not yet | — |
-| `CreatePolicy` | — | not yet | — |
-| `GetPolicy` | — | not yet | — |
-| `DeletePolicy` | — | not yet | — |
-| `AttachRolePolicy` | — | not yet | — |
-| `DetachRolePolicy` | — | not yet | — |
-| `PutRolePolicy` | — | not yet | — |
-| `GetRolePolicy` | — | not yet | — |
-| `DeleteRolePolicy` | — | not yet | — |
-| `ListRolePolicies` | — | not yet | — |
-| `ListAttachedRolePolicies` | — | not yet | — |
-| `CreateAccessKey` | create-access-key | Security credentials page › Access keys › Create access key | tests/control/test_iam_policies.py (lab matrix) |
-| `ListAccessKeys` | — | Security credentials page › Access keys | — |
-| `DeleteAccessKey` | — | not yet | — |
-| `UpdateAccessKey` | — | not yet | tests/control/test_iam_policies.py (inactive key) |
-| `GetAccessKeyLastUsed` | — | not yet | — |
-| `CreateInstanceProfile` | — | not yet | — |
-| `GetInstanceProfile` | — | not yet | — |
-| `DeleteInstanceProfile` | — | not yet | — |
-| `AddRoleToInstanceProfile` | — | not yet | — |
-| `RemoveRoleFromInstanceProfile` | — | not yet | — |
-| `ListInstanceProfiles` | — | not yet | — |
-| `TagInstanceProfile` | — | not yet | — |
-| `UntagInstanceProfile` | — | not yet | — |
-| `ListInstanceProfileTags` | — | not yet | — |
-| `CreateGroup` | — | not yet | tests/control/test_iam_policies.py (group policy) |
-| `GetGroup` | — | not yet | — |
-| `AddUserToGroup` | — | not yet | tests/control/test_iam_policies.py (group policy) |
-| `RemoveUserFromGroup` | — | not yet | — |
-| `AttachGroupPolicy` | — | not yet | — |
-| `DetachGroupPolicy` | — | not yet | — |
-| `ListAttachedGroupPolicies` | — | not yet | — |
-| `PutGroupPolicy` | — | not yet | tests/control/test_iam_policies.py (group policy) |
-| `GetGroupPolicy` | — | not yet | — |
-| `DeleteGroupPolicy` | — | not yet | — |
-| `ListGroupPolicies` | — | not yet | — |
-| `CreateServiceLinkedRole` | — | not yet | — |
-| `DeleteServiceLinkedRole` | — | not yet | — |
-| `GetServiceLinkedRoleDeletionStatus` | — | not yet | — |
-| `CreateOpenIDConnectProvider` | — | not yet | — |
-| `ListOpenIDConnectProviders` | — | not yet | — |
-| `CreateSAMLProvider` | — | not yet | — |
-| `GetSAMLProvider` | — | not yet | — |
-| `ListSAMLProviders` | — | not yet | — |
-| `UpdateSAMLProvider` | — | not yet | — |
-| `DeleteSAMLProvider` | — | not yet | — |
-| `CreateLoginProfile` | — | not yet | — |
-| `GetLoginProfile` | — | not yet | — |
-| `UpdateLoginProfile` | — | not yet | — |
-| `DeleteLoginProfile` | — | not yet | — |
-| `CreateVirtualMFADevice` | — | not yet | — |
-| `EnableMFADevice` | — | not yet | — |
-| `DeactivateMFADevice` | — | not yet | — |
-| `ResyncMFADevice` | — | not yet | — |
-| `ListMFADevices` | — | not yet | — |
-| `ListVirtualMFADevices` | — | not yet | — |
-| `DeleteVirtualMFADevice` | — | not yet | — |
-| `GetAccountAuthorizationDetails` | — | not yet | — |
-| `GenerateServiceLastAccessedDetails` | — | not yet | — |
-| `GetServiceLastAccessedDetails` | — | not yet | — |
-| `TagRole` | — | not yet | — |
-| `UntagRole` | — | not yet | — |
-| `TagUser` | — | not yet | — |
-| `UntagUser` | — | not yet | — |
-| `TagPolicy` | — | not yet | — |
-| `UntagPolicy` | — | not yet | — |
-| `GenerateCredentialReport` | — | not yet | — |
-| `GetCredentialReport` | — | not yet | — |
-| `GetAccountSummary` | — | not yet | — |
-| `GetAccountPasswordPolicy` | — | not yet | — |
-| `UpdateAccountPasswordPolicy` | — | not yet | — |
-| `DeleteAccountPasswordPolicy` | — | not yet | — |
-| `ListAccountAliases` | — | not yet | — |
-| `CreateAccountAlias` | — | not yet | — |
-| `DeleteAccountAlias` | — | not yet | — |
-| `CreateServiceSpecificCredential` | — | not yet | — |
-| `ListServiceSpecificCredentials` | — | not yet | — |
-| `UpdateServiceSpecificCredential` | — | not yet | — |
-| `ResetServiceSpecificCredential` | — | not yet | — |
-| `DeleteServiceSpecificCredential` | — | not yet | — |
-| `UploadServerCertificate` | — | not yet | — |
-| `ListServerCertificates` | — | not yet | — |
-| `GetServerCertificate` | — | not yet | — |
-| `UpdateServerCertificate` | — | not yet | — |
-| `DeleteServerCertificate` | — | not yet | — |
-| `ListServerCertificateTags` | — | not yet | — |
+| `CreateUser` | create-user | IAM page › API explorer, sign-up | tests/control/test_iam_operations.py (users round trip); lab matrix in test_iam_policies.py, tests/control/test_signup_naming.py |
+| `GetUser` | — | not yet | tests/control/test_iam_operations.py (users round trip) |
+| `ListUsers` | list-users | IAM page › API explorer | tests/control/test_iam_operations.py (users round trip, listings page on MaxItems) |
+| `DeleteUser` | delete-user | IAM page › API explorer | tests/control/test_iam_operations.py (delete refuses while it carries state) |
+| `CreateRole` | — | not yet | tests/control/test_iam_operations.py (roles round trip) |
+| `GetRole` | — | not yet | tests/control/test_iam_operations.py (roles round trip) |
+| `ListRoles` | — | not yet | tests/control/test_iam_operations.py (roles round trip) |
+| `DeleteRole` | — | not yet | tests/control/test_iam_operations.py (roles round trip) |
+| `UpdateRoleDescription` | — | not yet | tests/control/test_iam_operations.py (role description and boundary are updated) |
+| `PutRolePermissionsBoundary` | — | not yet | tests/control/test_iam_operations.py (role description and boundary are updated) |
+| `DeleteRolePermissionsBoundary` | — | not yet | tests/control/test_iam_operations.py (role description and boundary are updated) |
+| `PutUserPermissionsBoundary` | — | not yet | tests/control/test_iam_operations.py (permissions boundaries on a user) |
+| `DeleteUserPermissionsBoundary` | — | not yet | tests/control/test_iam_operations.py (permissions boundaries on a user) |
+| `CreatePolicy` | — | not yet | tests/control/test_iam_operations.py (managed policies round trip) |
+| `GetPolicy` | — | not yet | tests/control/test_iam_operations.py (managed policies round trip) |
+| `DeletePolicy` | — | not yet | tests/control/test_iam_operations.py (managed policies round trip) |
+| `AttachRolePolicy` | — | not yet | tests/control/test_iam_operations.py (managed policies attach and detach on a role) |
+| `DetachRolePolicy` | — | not yet | tests/control/test_iam_operations.py (managed policies attach and detach on a role) |
+| `PutRolePolicy` | — | not yet | tests/control/test_iam_operations.py (role inline policies) |
+| `GetRolePolicy` | — | not yet | tests/control/test_iam_operations.py (role inline policies) |
+| `DeleteRolePolicy` | — | not yet | tests/control/test_iam_operations.py (role inline policies) |
+| `ListRolePolicies` | — | not yet | tests/control/test_iam_operations.py (role inline policies) |
+| `ListAttachedRolePolicies` | — | not yet | tests/control/test_iam_operations.py (managed policies attach and detach on a role) |
+| `CreateAccessKey` | create-access-key | Security credentials page › Access keys › Create access key | tests/control/test_iam_operations.py (access key lifecycle); lab matrix in test_iam_policies.py |
+| `ListAccessKeys` | — | Security credentials page › Access keys | tests/control/test_iam_operations.py (access key lifecycle) |
+| `DeleteAccessKey` | — | not yet | tests/control/test_iam_operations.py (access key lifecycle) |
+| `UpdateAccessKey` | — | not yet | tests/control/test_iam_operations.py (access key lifecycle); lab matrix in test_iam_policies.py |
+| `GetAccessKeyLastUsed` | — | not yet | tests/control/test_iam_operations.py (access key lifecycle) |
+| `CreateInstanceProfile` | — | not yet | tests/control/test_iam_operations.py (instance profiles round trip) |
+| `GetInstanceProfile` | — | not yet | tests/control/test_iam_operations.py (instance profiles round trip) |
+| `DeleteInstanceProfile` | — | not yet | tests/control/test_iam_operations.py (instance profiles round trip) |
+| `AddRoleToInstanceProfile` | — | not yet | tests/control/test_iam_operations.py (instance profiles round trip) |
+| `RemoveRoleFromInstanceProfile` | — | not yet | tests/control/test_iam_operations.py (instance profiles round trip) |
+| `ListInstanceProfiles` | — | not yet | tests/control/test_iam_operations.py (instance profiles round trip) |
+| `TagInstanceProfile` | — | not yet | tests/control/test_iam_operations.py (instance profile tags) |
+| `UntagInstanceProfile` | — | not yet | tests/control/test_iam_operations.py (instance profile tags) |
+| `ListInstanceProfileTags` | — | not yet | tests/control/test_iam_operations.py (instance profile tags) |
+| `CreateGroup` | — | not yet | tests/control/test_iam_operations.py (groups and membership); lab matrix in test_iam_policies.py |
+| `GetGroup` | — | not yet | tests/control/test_iam_operations.py (groups and membership) |
+| `AddUserToGroup` | — | not yet | tests/control/test_iam_operations.py (groups and membership); lab matrix in test_iam_policies.py |
+| `RemoveUserFromGroup` | — | not yet | tests/control/test_iam_operations.py (groups and membership) |
+| `AttachGroupPolicy` | — | not yet | tests/control/test_iam_operations.py (group managed policies) |
+| `DetachGroupPolicy` | — | not yet | tests/control/test_iam_operations.py (group managed policies) |
+| `ListAttachedGroupPolicies` | — | not yet | tests/control/test_iam_operations.py (group managed policies) |
+| `PutGroupPolicy` | — | not yet | tests/control/test_iam_operations.py (group inline policies); lab matrix in test_iam_policies.py |
+| `GetGroupPolicy` | — | not yet | tests/control/test_iam_operations.py (group inline policies) |
+| `DeleteGroupPolicy` | — | not yet | tests/control/test_iam_operations.py (group inline policies) |
+| `ListGroupPolicies` | — | not yet | tests/control/test_iam_operations.py (group inline policies) |
+| `CreateServiceLinkedRole` | — | not yet | tests/control/test_iam_operations.py (service-linked role lifecycle) |
+| `DeleteServiceLinkedRole` | — | not yet | tests/control/test_iam_operations.py (service-linked role lifecycle) |
+| `GetServiceLinkedRoleDeletionStatus` | — | not yet | tests/control/test_iam_operations.py (service-linked role lifecycle) |
+| `CreateOpenIDConnectProvider` | — | not yet | tests/control/test_iam_operations.py (OIDC provider is created and listed) |
+| `ListOpenIDConnectProviders` | — | not yet | tests/control/test_iam_operations.py (OIDC provider is created and listed) |
+| `CreateSAMLProvider` | — | not yet | tests/control/test_iam_operations.py (SAML provider round trip) |
+| `GetSAMLProvider` | — | not yet | tests/control/test_iam_operations.py (SAML provider round trip) |
+| `ListSAMLProviders` | — | not yet | tests/control/test_iam_operations.py (SAML provider round trip) |
+| `UpdateSAMLProvider` | — | not yet | tests/control/test_iam_operations.py (SAML provider round trip) |
+| `DeleteSAMLProvider` | — | not yet | tests/control/test_iam_operations.py (SAML provider round trip) |
+| `CreateLoginProfile` | — | not yet | tests/control/test_iam_operations.py (login profile lifecycle) |
+| `GetLoginProfile` | — | not yet | tests/control/test_iam_operations.py (login profile lifecycle) |
+| `UpdateLoginProfile` | — | not yet | tests/control/test_iam_operations.py (login profile lifecycle) |
+| `DeleteLoginProfile` | — | not yet | tests/control/test_iam_operations.py (login profile lifecycle) |
+| `CreateVirtualMFADevice` | — | not yet | tests/control/test_iam_operations.py (virtual MFA devices) |
+| `EnableMFADevice` | — | not yet | tests/control/test_iam_operations.py (virtual MFA devices) |
+| `DeactivateMFADevice` | — | not yet | tests/control/test_iam_operations.py (virtual MFA devices) |
+| `ResyncMFADevice` | — | not yet | tests/control/test_iam_operations.py (virtual MFA devices) |
+| `ListMFADevices` | — | not yet | tests/control/test_iam_operations.py (virtual MFA devices) |
+| `ListVirtualMFADevices` | — | not yet | tests/control/test_iam_operations.py (virtual MFA devices) |
+| `DeleteVirtualMFADevice` | — | not yet | tests/control/test_iam_operations.py (virtual MFA devices) |
+| `GetAccountAuthorizationDetails` | — | not yet | tests/control/test_iam_operations.py (account authorization details reports every entity) |
+| `GenerateServiceLastAccessedDetails` | — | not yet | tests/control/test_iam_operations.py (service last accessed details) |
+| `GetServiceLastAccessedDetails` | — | not yet | tests/control/test_iam_operations.py (service last accessed details) |
+| `TagRole` | — | not yet | tests/control/test_iam_operations.py (role tags) |
+| `UntagRole` | — | not yet | tests/control/test_iam_operations.py (role tags) |
+| `TagUser` | — | not yet | tests/control/test_iam_operations.py (users are tagged and untagged) |
+| `UntagUser` | — | not yet | tests/control/test_iam_operations.py (users are tagged and untagged) |
+| `TagPolicy` | — | not yet | tests/control/test_iam_operations.py (policy tags) |
+| `UntagPolicy` | — | not yet | tests/control/test_iam_operations.py (policy tags) |
+| `GenerateCredentialReport` | — | not yet | tests/control/test_iam_operations.py (credential report lists the account and its users) |
+| `GetCredentialReport` | — | not yet | tests/control/test_iam_operations.py (credential report lists the account and its users) |
+| `GetAccountSummary` | — | not yet | tests/control/test_iam_operations.py (account summary reports counts) |
+| `GetAccountPasswordPolicy` | — | not yet | tests/control/test_iam_operations.py (account password policy is read, updated and deleted) |
+| `UpdateAccountPasswordPolicy` | — | not yet | tests/control/test_iam_operations.py (account password policy is read, updated and deleted) |
+| `DeleteAccountPasswordPolicy` | — | not yet | tests/control/test_iam_operations.py (account password policy is read, updated and deleted) |
+| `ListAccountAliases` | — | not yet | tests/control/test_iam_operations.py (account aliases) |
+| `CreateAccountAlias` | — | not yet | tests/control/test_iam_operations.py (account aliases) |
+| `DeleteAccountAlias` | — | not yet | tests/control/test_iam_operations.py (account aliases) |
+| `CreateServiceSpecificCredential` | — | not yet | tests/control/test_iam_operations.py (service-specific credentials) |
+| `ListServiceSpecificCredentials` | — | not yet | tests/control/test_iam_operations.py (service-specific credentials) |
+| `UpdateServiceSpecificCredential` | — | not yet | tests/control/test_iam_operations.py (service-specific credentials) |
+| `ResetServiceSpecificCredential` | — | not yet | tests/control/test_iam_operations.py (service-specific credentials) |
+| `DeleteServiceSpecificCredential` | — | not yet | tests/control/test_iam_operations.py (service-specific credentials) |
+| `UploadServerCertificate` | — | not yet | tests/control/test_iam_operations.py (server certificates round trip) |
+| `ListServerCertificates` | — | not yet | tests/control/test_iam_operations.py (server certificates round trip) |
+| `GetServerCertificate` | — | not yet | tests/control/test_iam_operations.py (server certificates round trip) |
+| `UpdateServerCertificate` | — | not yet | tests/control/test_iam_operations.py (server certificates round trip) |
+| `DeleteServerCertificate` | — | not yet | tests/control/test_iam_operations.py (server certificates round trip) |
+| `ListServerCertificateTags` | — | not yet | tests/control/test_iam_operations.py (server certificate tags) |
 
 <!-- coverage:end -->
