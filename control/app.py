@@ -3859,6 +3859,7 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
                 200,
                 {
                     "product": "Emuplane",
+                    "version": os.environ.get("EP_VERSION") or "dev",
                     "backend": BACKEND.title,
                     "backend_id": BACKEND.id,
                     "backend_logo": BACKEND.logo,

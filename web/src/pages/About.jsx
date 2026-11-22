@@ -20,7 +20,7 @@ export default function About() {
             variant="h1"
             description="A private, prod-shaped emulator of cloud APIs on one host."
           >
-            About MiniStack
+            About Emuplane
           </Header>
         }
       >
@@ -28,6 +28,10 @@ export default function About() {
           <ColumnLayout columns={3}>
             <Container header={<Header variant="h3">This instance</Header>}>
               <SpaceBetween size="xs">
+                <Box>
+                  <Box variant="awsui-key-label">Emuplane</Box>
+                  {meta?.version || 'dev'}
+                </Box>
                 <Box>
                   <Box variant="awsui-key-label">Backend</Box>
                   {meta?.backend || 'unknown'}
@@ -58,6 +62,26 @@ export default function About() {
                 <Box>
                   <Box variant="awsui-key-label">Regions known</Box>
                   {(meta?.all_regions || []).length}
+                </Box>
+              </SpaceBetween>
+            </Container>
+
+            <Container header={<Header variant="h3">Reading next</Header>}>
+              <SpaceBetween size="xs">
+                <Box>
+                  <a href="https://mathewmusango.github.io/emuplane/docs/" target="_blank" rel="noreferrer">
+                    Documentation
+                  </a>
+                </Box>
+                <Box>
+                  <a href="https://mathewmusango.github.io/emuplane/docs/reference/limits/" target="_blank" rel="noreferrer">
+                    Limits
+                  </a>
+                </Box>
+                <Box>
+                  <a href="https://github.com/mathewmusango/emuplane/releases" target="_blank" rel="noreferrer">
+                    Release notes
+                  </a>
                 </Box>
               </SpaceBetween>
             </Container>

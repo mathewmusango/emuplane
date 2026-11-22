@@ -31,6 +31,7 @@ That split is the porting contract:
 | `EP_POLL_SECONDS` | `10` | seconds between emulator health polls |
 | `EP_SESSION_SECONDS` | `28800` | session lifetime, extended on activity |
 | `EP_RECENT_LIMIT` | `5` | services under **Recently visited** |
+| `EP_VERSION` | `dev` | the version the console reports on **About**; the shipped compose stamps the release into it, so a build run from source says `dev` |
 | `TZ` | `Africa/Nairobi` | zone the console renders timestamps in |
 
 Mail is optional, for the password-reset link:
