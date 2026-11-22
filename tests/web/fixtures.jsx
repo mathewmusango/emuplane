@@ -7,6 +7,7 @@ import { SessionProvider } from '../../web/src/context'
 
 export const META = {
   product: 'Emuplane',
+  version: '0.7.0',
   backend: 'MiniStack',
   backend_id: 'ministack',
   backend_logo: '/backends/ministack.png',
