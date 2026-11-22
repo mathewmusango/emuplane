@@ -260,10 +260,10 @@ export default function Dashboard() {
                       Browse all services
                     </Link>
                     <Link
-                      href="/settings"
+                      href="/Account"
                       onFollow={(event) => {
                         event.preventDefault()
-                        navigate('/settings')
+                        navigate('/Account')
                       }}
                     >
                       Create an access key for the CLI

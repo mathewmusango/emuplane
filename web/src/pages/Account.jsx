@@ -20,7 +20,7 @@ import { useSession } from '../context'
 import { Shell } from '../components/Shell'
 import { downloadCredentials } from '../download'
 
-export default function Settings() {
+export default function Account() {
   const { meta, me, account, refresh } = useSession()
   const [error, setError] = useState('')
   const [savingRegion, setSavingRegion] = useState('')
@@ -216,14 +216,20 @@ export default function Settings() {
   const atCap = keys.length >= maxKeys
 
   return (
-    <Shell activeHref="/settings" breadcrumbs={[{ text: 'Settings', href: '/settings' }]}>
+    <Shell
+      activeHref="/Account"
+      breadcrumbs={[
+        { text: 'Billing and Cost Management' },
+        { text: 'Account', href: '/Account' },
+      ]}
+    >
       <ContentLayout
         header={
           <Header
             variant="h1"
             description="My account, session, access keys, sign-up and the regions this account can use."
           >
-            Settings
+            Account
           </Header>
         }
       >
