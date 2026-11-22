@@ -34,6 +34,19 @@ def _query(service, action, version="2010-05-08", names=(), ok=(200,), transform
     return run
 
 
+def _rest_json(service, path, names=(), build=None, ok=(200,)):
+    """A rest-json call: a JSON body to a path, with no query protocol and no target header."""
+
+    def run(params, account, region, call, rest):
+        body = build(params) if build else {
+            name: params[name] for name in names if str(params.get(name, "")).strip()
+        }
+        status, text = rest(service, account, region, "POST", path, json.dumps(body))
+        return status in ok, status, text
+
+    return run
+
+
 def _instance_ids(params):
     """EC2 lifecycle calls take a numbered list, not a bare InstanceId."""
     return {"InstanceId.1": params["InstanceId"]} if params.get("InstanceId") else {}
@@ -133,6 +146,36 @@ def _pass_state(params):
 
 
 CATALOGUE: dict[str, dict] = {
+    "account": {
+        "description": "The account the console is signed in to.",
+        "operations": [
+            {
+                "id": "get-account-information",
+                "label": "Account information",
+                "cli": "aws account get-account-information",
+                "run": _rest_json("account", "/getAccountInformation"),
+            },
+            {
+                "id": "get-contact-information",
+                "label": "Contact information",
+                "cli": "aws account get-contact-information",
+                "run": _rest_json("account", "/getContactInformation"),
+            },
+            {
+                "id": "list-regions",
+                "label": "List regions",
+                "cli": "aws account list-regions",
+                "run": _rest_json("account", "/listRegions"),
+            },
+            {
+                "id": "get-region-opt-status",
+                "label": "Region opt-in status",
+                "cli": "aws account get-region-opt-status --region-name <region>",
+                "params": [field("RegionName", "Region", True)],
+                "run": _rest_json("account", "/getRegionOptStatus", names=("RegionName",)),
+            },
+        ],
+    },
     "s3": {
         "description": "Buckets and objects. Bucket names are global across accounts.",
         "operations": [

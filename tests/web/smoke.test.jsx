@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import App from '../../web/src/App'
 import Dashboard from '../../web/src/pages/Dashboard'
-import Account from '../../web/src/pages/Account'
+import SecurityCredentials from '../../web/src/pages/SecurityCredentials'
 import About from '../../web/src/pages/About'
 import SignIn from '../../web/src/pages/SignIn'
 import { RESPONSES, installFetch, renderAt } from './fixtures'
@@ -97,10 +97,7 @@ describe('console', () => {
   })
 
   it('lists access keys masked and refuses a third key', async () => {
-    renderAt(<Account />)
-    expect(await screen.findByText('My account')).toBeTruthy()
-    expect(screen.getByDisplayValue('Mathew Musango')).toBeTruthy()
-    expect(screen.getByDisplayValue('mathew@example.com')).toBeTruthy()
+    renderAt(<SecurityCredentials />)
     expect(await screen.findByText('laptop-cli')).toBeTruthy()
     expect(screen.getByText('ci-pipeline')).toBeTruthy()
     expect(screen.getAllByText('••••••••••••').length).toBe(2)

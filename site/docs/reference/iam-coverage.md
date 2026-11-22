@@ -59,8 +59,8 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 | `DeleteRolePolicy` | — | not yet | — |
 | `ListRolePolicies` | — | not yet | — |
 | `ListAttachedRolePolicies` | — | not yet | — |
-| `CreateAccessKey` | create-access-key | Account page › Access keys › Create access key | tests/control/test_iam_policies.py (lab matrix) |
-| `ListAccessKeys` | — | Account page › Access keys | — |
+| `CreateAccessKey` | create-access-key | Security credentials page › Access keys › Create access key | tests/control/test_iam_policies.py (lab matrix) |
+| `ListAccessKeys` | — | Security credentials page › Access keys | — |
 | `DeleteAccessKey` | — | not yet | — |
 | `UpdateAccessKey` | — | not yet | tests/control/test_iam_policies.py (inactive key) |
 | `GetAccessKeyLastUsed` | — | not yet | — |

@@ -286,7 +286,7 @@ export default function TopBar({
               <button type="button" role="menuitem" onClick={() => onNavigate('/about')}>
                 Organization
               </button>
-              <button type="button" role="menuitem" onClick={() => onNavigate('/Account')}>
+              <button type="button" role="menuitem" onClick={() => onNavigate('/credentials')}>
                 Security credentials
               </button>
               {multi && identities.length > 0 && (

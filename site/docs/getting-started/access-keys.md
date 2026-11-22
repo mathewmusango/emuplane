@@ -13,7 +13,7 @@ The console signs people in with a session; a client signs with a key. An
 
    ![The sign-in screen: root user or IAM user](/img/sign-in.png)
 
-2. Open **Account** — the account menu, or **Billing and Cost Management › Account** — and find the **Access keys** table.
+2. Open **Security credentials** — the account menu — and find the **Access keys** table.
 3. Choose **Create access key**, give it a name (the machine or pipeline that will
    use it), and create it.
 4. Copy or download the **secret access key** from the success alert. **Download

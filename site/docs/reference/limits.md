@@ -35,6 +35,18 @@ emulator, and where each of those rules lives.
   the [coverage pages](/docs/reference/) record what each service answers. A menu
   entry is a page plus a mark, never a line in a list.
 
+## The account page
+
+- **The account name and contact details are the emulator's answer, not this
+  deployment's.** `GetAccountInformation` and `GetContactInformation` return fixed
+  values, and there is no write path, so the Account page shows them read-only. The
+  name the console itself uses is the account alias, which lives in Emuplane's own
+  records.
+
+- **The display name, email and password have no console page.** They are set at
+  sign-up, and changing them is `POST /api/profile`; the Account page carries the
+  account itself, not the person signed in to it.
+
 ## The S3 console
 
 - **S3 on Windows is still under development.** The console is exercised on Linux;

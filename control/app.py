@@ -141,7 +141,7 @@ REGION_CHOICES = [
 STATIC_DIR = os.environ.get("MC_STATIC_DIR", "/app/static")
 PUBLIC_DIR = os.environ.get("MC_PUBLIC_DIR", "/app/public")
 SPA_ROUTES = {"/", "/resources",
-              "/settings", "/about"}
+              "/Account", "/credentials", "/settings", "/about"}
 # Public login pages: `POST /api/auth/login` mints the session, so this route is the login page.
 PUBLIC_SPA_ROUTES = {"/login", "/signin"}
 MIME = {
@@ -3247,8 +3247,8 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
             live = bool(token) and read_reset(token) is not None
             return self._page(self._reset_page(), 200 if live else 400)
         if path in ("/accounts", "/onboarding"):
-            # Retired console pages. The account view is Settings now.
-            return self._redirect("/settings")
+            # Retired console pages. The account view is Billing and Cost Management > Account now.
+            return self._redirect("/Account")
         if path == "/favorites":
             # Favourites as a page is gone; it pins services on All services.
             return self._redirect("/services")
