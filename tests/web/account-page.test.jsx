@@ -15,4 +15,10 @@ describe('account page', () => {
     expect(screen.getAllByText('Billing and Cost Management').length).toBeGreaterThan(0)
     expect(screen.queryByRole('heading', { name: 'Settings', level: 1 })).toBeNull()
   })
+
+  it('keeps About in the sidebar, below the divider', async () => {
+    renderAt(<Account />, ['/Account'])
+
+    expect(await screen.findByRole('link', { name: 'About' })).toBeTruthy()
+  })
 })
