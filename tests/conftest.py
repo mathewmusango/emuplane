@@ -43,7 +43,7 @@ def s3_endpoint(emulator):
     """The emulator's HTTP surface: the credential's service name picks the handler, S3 by default."""
 
     handlers = {"s3": emulator}
-    for name in ("s3tables", "s3files", "sts"):
+    for name in ("s3tables", "s3files", "sts", "account"):
         try:
             handlers[name] = __import__(
                 f"ministack.services.{name}", fromlist=["handle_request"]

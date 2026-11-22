@@ -14,6 +14,7 @@ import Input from '@cloudscape-design/components/input'
 import Modal from '@cloudscape-design/components/modal'
 import SpaceBetween from '@cloudscape-design/components/space-between'
 import Table from '@cloudscape-design/components/table'
+import StatusIndicator from '@cloudscape-design/components/status-indicator'
 import Toggle from '@cloudscape-design/components/toggle'
 import { api } from '../api'
 import { useSession } from '../context'
@@ -21,7 +22,7 @@ import { Shell } from '../components/Shell'
 import { downloadCredentials } from '../download'
 
 export default function Account() {
-  const { meta, me, account, refresh } = useSession()
+  const { meta, me, account, refresh, region } = useSession()
   const [error, setError] = useState('')
   const [savingRegion, setSavingRegion] = useState('')
   const [settings, setSettings] = useState(null)
@@ -47,6 +48,10 @@ export default function Account() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileNotice, setProfileNotice] = useState('')
   const [profileError, setProfileError] = useState('')
+  const [accountFacts, setAccountFacts] = useState(null)
+  const [contactFacts, setContactFacts] = useState(null)
+  const [regionsKnown, setRegionsKnown] = useState(null)
+  const [signedRegionStatus, setSignedRegionStatus] = useState('')
 
   const loadKeys = useCallback(async () => {
     setLoadingKeys(true)
@@ -65,6 +70,37 @@ export default function Account() {
   useEffect(() => {
     loadKeys()
   }, [loadKeys])
+
+  const homeRegion = region || (meta?.regions || [])[0] || 'us-east-1'
+  useEffect(() => {
+    if (!account) return undefined
+    let cancelled = false
+    const ask = (operation, params = {}) =>
+      api.exec({ account, region: homeRegion, service: 'account', operation, params })
+    const read = (result) => {
+      try {
+        return result && result.ok ? JSON.parse(result.body) : null
+      } catch {
+        return null
+      }
+    }
+    Promise.all([
+      ask('get-account-information').catch(() => null),
+      ask('get-contact-information').catch(() => null),
+      ask('list-regions').catch(() => null),
+      ask('get-region-opt-status', { RegionName: homeRegion }).catch(() => null),
+    ]).then(([info, contact, regions, status]) => {
+      if (cancelled) return
+      setAccountFacts(read(info))
+      setContactFacts(read(contact)?.ContactInformation || null)
+      const list = read(regions)?.Regions || null
+      setRegionsKnown(list ? list.length : null)
+      setSignedRegionStatus(read(status)?.RegionOptStatus || '')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [account, homeRegion])
 
   useEffect(() => {
     let cancelled = false
@@ -227,7 +263,7 @@ export default function Account() {
         header={
           <Header
             variant="h1"
-            description="My account, session, access keys, sign-up and the regions this account can use."
+            description="The account and its contact details, this session, access keys, sign-up and the regions it can use."
           >
             Account
           </Header>
@@ -256,6 +292,96 @@ export default function Account() {
               <div>
                 <Box variant="awsui-key-label">Role</Box>
                 <Box>{me?.role || '—'}</Box>
+              </div>
+            </ColumnLayout>
+          </Container>
+
+          <ColumnLayout columns={2}>
+            <Container header={<Header variant="h2">Account details</Header>}>
+              <ColumnLayout columns={2} variant="text-grid">
+                <div>
+                  <Box variant="awsui-key-label">Name</Box>
+                  <Box>{accountFacts?.AccountName || '—'}</Box>
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">Account ID</Box>
+                  <CopyToClipboard
+                    variant="inline"
+                    textToCopy={accountFacts?.AccountId || account || ''}
+                    copyButtonAriaLabel="Copy account ID"
+                    copySuccessText="Account ID copied"
+                    copyErrorText="Could not copy the account ID"
+                    wrapText={false}
+                  />
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">ARN</Box>
+                  <CopyToClipboard
+                    variant="inline"
+                    textToCopy={
+                      accountFacts?.AccountId ? `arn:aws:account::${accountFacts.AccountId}:account` : ''
+                    }
+                    copyButtonAriaLabel="Copy account ARN"
+                    copySuccessText="Account ARN copied"
+                    copyErrorText="Could not copy the account ARN"
+                    wrapText={false}
+                  />
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">Created</Box>
+                  <Box>{accountFacts?.AccountCreatedDate || '—'}</Box>
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">State</Box>
+                  <StatusIndicator type="success">
+                    {accountFacts?.AccountState || 'unknown'}
+                  </StatusIndicator>
+                </div>
+              </ColumnLayout>
+            </Container>
+
+            <Container
+              header={
+                <Header variant="h2" description="Reported by the emulator; read-only here.">
+                  Contact information
+                </Header>
+              }
+            >
+              <ColumnLayout columns={1} variant="text-grid">
+                <div>
+                  <Box variant="awsui-key-label">Full name</Box>
+                  <Box>{contactFacts?.FullName || '—'}</Box>
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">Phone number</Box>
+                  <Box>{contactFacts?.PhoneNumber || '—'}</Box>
+                </div>
+                <div>
+                  <Box variant="awsui-key-label">Address</Box>
+                  <Box>
+                    {[
+                      contactFacts?.AddressLine1,
+                      contactFacts?.City,
+                      contactFacts?.PostalCode,
+                      contactFacts?.CountryCode,
+                    ]
+                      .filter(Boolean)
+                      .join(', ') || '—'}
+                  </Box>
+                </div>
+              </ColumnLayout>
+            </Container>
+          </ColumnLayout>
+
+          <Container header={<Header variant="h2">AWS Regions</Header>}>
+            <ColumnLayout columns={2} variant="text-grid">
+              <div>
+                <Box variant="awsui-key-label">Regions the emulator knows</Box>
+                <Box>{regionsKnown === null ? '—' : regionsKnown}</Box>
+              </div>
+              <div>
+                <Box variant="awsui-key-label">{homeRegion}</Box>
+                <Box>{signedRegionStatus || '—'}</Box>
               </div>
             </ColumnLayout>
           </Container>

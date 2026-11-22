@@ -458,17 +458,19 @@ export const RESPONSES = {
 }
 
 /** Install the fetch stub: a fixture is the answer, or a function of the request URL. */
-export const installFetch = () =>
+export const installFetch = (overrides = {}) =>
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url) => {
+    vi.fn(async (url, init) => {
       const path = String(url).split('?')[0]
-      const answer = RESPONSES[path] ?? {}
+      const answer = overrides[path] ?? RESPONSES[path] ?? {}
       return {
         ok: true,
         status: 200,
         text: async () =>
-          JSON.stringify(typeof answer === 'function' ? answer(String(url)) : answer),
+          JSON.stringify(
+            typeof answer === 'function' ? answer(String(url), init) : answer,
+          ),
       }
     }),
   )
