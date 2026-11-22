@@ -15,6 +15,8 @@ import ServicesMenu from './ServicesMenu'
 const navItems = () => [
   { type: 'link', text: 'Home', href: '/' },
   { type: 'link', text: 'All services', href: '/services' },
+  { type: 'divider' },
+  { type: 'link', text: 'About', href: '/about' },
 ]
 
 // One cached catalogue shared by the shell search and every page.
