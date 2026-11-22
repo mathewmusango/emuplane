@@ -23,6 +23,21 @@ describe('console', () => {
     expect(screen.getAllByText('us-east-1', { exact: false }).length).toBeGreaterThan(0)
   })
 
+  it('names the Emuplane version, and which backend answers beside the emulator version', async () => {
+    const original = RESPONSES['/api/nodes']
+    RESPONSES['/api/nodes'] = [{ health: { reachable: true, version: '1.5.40' } }]
+    try {
+      renderAt(<App />)
+
+      expect(await screen.findByText('0.7.0')).toBeTruthy()
+      // The backend id comes before the emulator's own version, so a second profile
+      // reads differently without the panel changing shape.
+      expect(await screen.findByText('reachable · ministack 1.5.40')).toBeTruthy()
+    } finally {
+      RESPONSES['/api/nodes'] = original
+    }
+  })
+
   it('says Copied after copying the account ID', async () => {
     Object.assign(navigator, {
       clipboard: { writeText: () => Promise.resolve() },

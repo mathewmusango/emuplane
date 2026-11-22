@@ -27,6 +27,7 @@ const HIDDEN_KEY = 'emuplane:widgets:hidden'
 const WIDGETS = [
   { id: 'recent', title: 'Recently visited' },
   { id: 'welcome', title: 'Welcome to Emuplane' },
+  { id: 'emuplane', title: 'Emuplane' },
   { id: 'health', title: 'Backend health' },
   { id: 'usage', title: 'Usage' },
   { id: 'endpoints', title: 'Endpoints' },
@@ -282,6 +283,35 @@ export default function Dashboard() {
               </Widget>
             )}
 
+            {show('emuplane') && (
+              <Widget
+                title="Emuplane"
+                actions={
+                  <Button
+                    variant="icon"
+                    iconName="close"
+                    ariaLabel="Remove this widget"
+                    onClick={() => hide('emuplane')}
+                  />
+                }
+              >
+                <SpaceBetween size="m">
+                  <div>
+                    <Box variant="awsui-key-label">Version</Box>
+                    <Box fontSize="heading-m">{meta?.version || 'dev'}</Box>
+                  </div>
+                  <div>
+                    <Box variant="awsui-key-label">API</Box>
+                    <Box>{meta?.api_version || 'v1'}</Box>
+                  </div>
+                  <div>
+                    <Box variant="awsui-key-label">Backend</Box>
+                    <Box>{meta?.backend || '—'}</Box>
+                  </div>
+                </SpaceBetween>
+              </Widget>
+            )}
+
             {show('health') && (
               <Widget
                 title="Backend health"
@@ -301,7 +331,7 @@ export default function Dashboard() {
                       type={emulator.reachable ? 'success' : 'error'}
                     >
                       {emulator.reachable
-                        ? `reachable · ${emulator.version || '?'}`
+                        ? `reachable · ${meta?.backend_id || 'emulator'} ${emulator.version || '?'}`
                         : 'unreachable'}
                     </StatusIndicator>
                   </div>
