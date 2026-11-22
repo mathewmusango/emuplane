@@ -121,7 +121,7 @@ export default function Account() {
         header={
           <Header
             variant="h1"
-            description="The account and its contact details, this session, access keys, sign-up and the regions it can use."
+            description="The account and its contact details, this session, sign-up and the regions it can use."
           >
             Account
           </Header>
