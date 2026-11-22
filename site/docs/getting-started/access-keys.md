@@ -21,7 +21,9 @@ The console signs people in with a session; a client signs with a key. An
    reads. It is shown once: afterwards the table shows only a masked id and a
    masked secret.
 
-![Access key created: the id and the secret with copy buttons, and Download .csv. The secret is masked in this picture](/img/console/access-key-created.png)
+![Security credentials: the access-key table before any key exists](/img/console/security-credentials.png)
+
+![Access key created: the id and the secret with copy buttons, and Download .csv. The secret is masked in this picture](/img/console/security-credentials-created.png)
 
 An account holds up to **two** keys, so a new key can be minted and proved before
 the old one is deleted. Deleting a key stops every client still using it, with no

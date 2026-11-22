@@ -46,6 +46,10 @@ emulator, and where each of those rules lives.
 - **The display name, email and password have no console page.** They are set at
   sign-up, and changing them is `POST /api/profile`; the Account page carries the
   account itself, not the person signed in to it.
+- **Three cards from AWS's Account page are absent on purpose.** *IAM user and role
+  access to Billing information*, *Reserved instance marketplace settings* and *Account
+  contract information* have no operation behind them in the emulator, so the page would
+  only be drawing switches that change nothing.
 
 ## The S3 console
 

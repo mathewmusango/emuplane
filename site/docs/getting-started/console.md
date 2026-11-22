@@ -71,6 +71,21 @@ flowchart TB
   browse --> reader["signed read, as the account root"]
 ```
 
+## Account and About
+
+**Account** and **About** sit under every service list, on every page. Account is the
+account itself — its name and ARN, the emulator's contact block, and the regions it
+answers — read from the account API rather than from Emuplane's own records. Access
+keys have their own page, **Security credentials**, in the account menu.
+
+![The Account page: Account details, Contact information and the emulator's regions](/img/console/account.png)
+
+<figure>
+  <figcaption>Billing and Cost Management › Account: four account operations, shown
+  as they answer. The account name and contact details are the emulator's, and
+  read-only.</figcaption>
+</figure>
+
 ## S3
 
 ![The buckets page: every bucket in the account, each row carrying its own region](/img/console/buckets.png)
