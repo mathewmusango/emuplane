@@ -68,7 +68,7 @@ const IAM_HELP =
   'An IAM user belongs to exactly one account. The account ID or alias is the tenancy boundary; the username only has to be unique inside that account.'
 
 const RESET_HELP =
-  'Password reset in this deployment is local, with no mail: an administrator who can reach this account sets a new password. If you are the platform owner, run ./scripts/password.sh <username> in the service directory. Settings also offers a password change once you are signed in.'
+  'Password reset in this deployment is local, with no mail: an administrator who can reach this account sets a new password. If you are the platform owner, run ./scripts/password.sh <username> in the service directory. The Account page also offers a password change once you are signed in.'
 
 const ACCOUNT_HELP =
   'The account ID is the 12 digits on the onboarding receipt. The alias is the short name the account was created with; either one identifies the tenancy.'

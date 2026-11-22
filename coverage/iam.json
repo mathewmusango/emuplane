@@ -6,7 +6,7 @@
   "console_service": "iam",
   "intro": [
     "Users, roles, policies, keys and identity providers. The console drives five",
-    "identity actions and reads access keys on the Settings page; everything else is",
+    "identity actions and reads access keys on the Account page (Billing and Cost Management); everything else is",
     "reachable over the wire and through the IAM API explorer.",
     "",
     "The identity policies are enforced, not decoration: `tests/control/test_iam_policies.py`",
@@ -21,8 +21,8 @@
     "attach-user-policy": ["AttachUserPolicy"]
   },
   "gui": {
-    "ListAccessKeys": "Settings page › Access keys",
-    "CreateAccessKey": "Settings page › Access keys › Create access key",
+    "ListAccessKeys": "Account page › Access keys",
+    "CreateAccessKey": "Account page › Access keys › Create access key",
     "ListUsers": "IAM page › API explorer",
     "CreateUser": "IAM page › API explorer, sign-up",
     "DeleteUser": "IAM page › API explorer",

@@ -202,7 +202,7 @@ export default function TopBar({
                   type="button"
                   role="menuitem"
                   onClick={() => {
-                    onNavigate('/settings')
+                    onNavigate('/Account')
                     setRegionOpen(false)
                   }}
                 >
@@ -280,13 +280,13 @@ export default function TopBar({
               )}
 
               <hr />
-              <button type="button" role="menuitem" onClick={() => onNavigate('/settings')}>
+              <button type="button" role="menuitem" onClick={() => onNavigate('/Account')}>
                 Account
               </button>
               <button type="button" role="menuitem" onClick={() => onNavigate('/about')}>
                 Organization
               </button>
-              <button type="button" role="menuitem" onClick={() => onNavigate('/settings')}>
+              <button type="button" role="menuitem" onClick={() => onNavigate('/Account')}>
                 Security credentials
               </button>
               {multi && identities.length > 0 && (
