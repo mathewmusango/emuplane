@@ -4,6 +4,24 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.8.0] - 2026-11-22
+
+### Added
+
+- About shows the emulator's version but not Emuplane's ([#267](https://github.com/mathewmusango/emuplane/issues/267))
+- The Account page reads the four account operations the emulator answers ([#274](https://github.com/mathewmusango/emuplane/issues/274))
+- Home has no Emuplane widget, and the health line does not name the backend ([#279](https://github.com/mathewmusango/emuplane/issues/279))
+
+### Changed
+
+- The account dropdown offers Service quotas and Billing, which go nowhere ([#265](https://github.com/mathewmusango/emuplane/issues/265))
+- The System menu is gone and Settings is Billing and Cost Management › Account ([#270](https://github.com/mathewmusango/emuplane/issues/270))
+
+### Fixed
+
+- Taking out the System group also removed About from the sidebar ([#272](https://github.com/mathewmusango/emuplane/issues/272))
+- The Account page drops the profile and key cards, and /Account was a 404 ([#276](https://github.com/mathewmusango/emuplane/issues/276))
+
 ## [v0.7.0] - 2026-11-21
 
 ### Added
