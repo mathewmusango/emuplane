@@ -43,6 +43,10 @@ emulator, and where each of those rules lives.
   name the console itself uses is the account alias, which lives in Emuplane's own
   records.
 
+- **The display name, email and password have no console page.** They are set at
+  sign-up, and changing them is `POST /api/profile`; the Account page carries the
+  account itself, not the person signed in to it.
+
 ## The S3 console
 
 - **S3 on Windows is still under development.** The console is exercised on Linux;

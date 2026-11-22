@@ -12,12 +12,17 @@ import { serviceHref } from '../serviceRoutes'
 import { consoleServices } from '../serviceCatalogue'
 import ServicesMenu from './ServicesMenu'
 
+// Account and About sit under every service list, on every page.
+const accountItems = () => [
+  { type: 'link', text: 'Account', href: '/Account' },
+  { type: 'link', text: 'About', href: '/about' },
+]
+
 const navItems = () => [
   { type: 'link', text: 'Home', href: '/' },
   { type: 'link', text: 'All services', href: '/services' },
   { type: 'divider' },
-  { type: 'link', text: 'Account', href: '/Account' },
-  { type: 'link', text: 'About', href: '/about' },
+  ...accountItems(),
 ]
 
 // One cached catalogue shared by the shell search and every page.
@@ -134,12 +139,16 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
         },
         { type: 'divider' },
         { type: 'link', text: 'All services', href: '/services' },
+        { type: 'divider' },
+        ...accountItems(),
       ]
     }
     return [
       { type: 'link', text: 'Resources', href: serviceBase },
       { type: 'divider' },
       { type: 'link', text: 'All services', href: '/services' },
+      { type: 'divider' },
+      ...accountItems(),
     ]
   }
 

@@ -9,6 +9,7 @@ import BucketDetail from './pages/BucketDetail'
 import AccessPoints from './pages/AccessPoints'
 import CreateAccessPoint from './pages/CreateAccessPoint'
 import Account from './pages/Account'
+import SecurityCredentials from './pages/SecurityCredentials'
 import About from './pages/About'
 import SignIn from './pages/SignIn'
 import { useSession } from './context'
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/:service/home" element={<Resources />} />
         <Route path="/resources/:service" element={<ServiceRedirect />} />
         <Route path="/Account" element={<Account />} />
+        <Route path="/credentials" element={<SecurityCredentials />} />
         <Route path="/settings" element={<Navigate to="/Account" replace />} />
         <Route path="/about" element={<About />} />
         {/* The sign-in screens are the login page: the route works without a session, and POST /api/auth/login mints the cookie. */}
