@@ -59,3 +59,8 @@ report belongs to the emulator's project.
 
 Only the latest release. Emuplane is pre-1.0, versions are cut from `main`, and
 `CHANGELOG.md` names what changed.
+
+| Version | Supported |
+| --- | --- |
+| 0.8.0 | :white_check_mark: |
+| < 0.8.0 | :x: |
