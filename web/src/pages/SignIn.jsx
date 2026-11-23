@@ -116,16 +116,19 @@ export default function SignIn() {
   const justReset = params.get('reset') === '1'
   const adding = params.get('add') === '1'
   const popup = params.get('popup') === '1'
+  // A sign-in link can name the account: the IAM form opens with it filled in.
+  const linkedAccount = params.get('account') || ''
 
-  const [step, setStep] = useState('type')
-  const [userType, setUserType] = useState('root')
+  const [step, setStep] = useState(linkedAccount ? 'iam-password' : 'type')
+  const [userType, setUserType] = useState(linkedAccount ? 'iam' : 'root')
   const [email, setEmail] = useState('')
-  const [account, setAccount] = useState(readRemembered)
+  const [account, setAccount] = useState(linkedAccount || readRemembered)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(() => Boolean(readRemembered()))
   const [code, setCode] = useState('')
+  const [mfaToken, setMfaToken] = useState('')
   const [errors, setErrors] = useState({})
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -237,6 +240,7 @@ export default function SignIn() {
       }
       setPassword('')
       if (result.mfa_required) {
+        setMfaToken(result.mfa_token || '')
         setStep('mfa')
         return
       }
@@ -257,7 +261,7 @@ export default function SignIn() {
     }
     setBusy(true)
     try {
-      await api.verifyMfa({ code: code.trim() })
+      await api.verifyMfa({ code: code.trim(), token: mfaToken })
       finish()
     } catch (err) {
       setError(err.message)

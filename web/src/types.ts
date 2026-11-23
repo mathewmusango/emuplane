@@ -582,6 +582,18 @@ export interface SettingsResult {
 }
 
 // The answer to POST /api/auth/login; `mfa_required` decides whether the code screen appears.
+export interface MfaDevice {
+  serial: string
+  user: string
+  enabled: boolean
+}
+
+export interface MfaStatus {
+  enabled: boolean
+  serial: string
+  devices: MfaDevice[]
+}
+
 export interface SignInResult {
   ok: boolean
   mfa_required: boolean
@@ -591,4 +603,6 @@ export interface SignInResult {
   role: string
   /** Present only when the caller asked for multi-session. */
   token?: string
+  /** Present only when the password was right and a TOTP code is still owed. */
+  mfa_token?: string
 }

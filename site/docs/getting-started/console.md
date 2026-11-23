@@ -20,8 +20,8 @@ instead of showing an empty table.
 - **Region menu** (top bar) — sets the region every page acts in, and follows
   into the URL, so a page you can see is a page you can bookmark.
 - **Navigation** — services down the side, and only those with a page behind them:
-  S3 and its sub-pages, and the twelve services that carry actions. A name with
-  nothing behind it is not offered.
+  S3 and its sub-pages, IAM's own console section, and the twelve services that
+  carry actions. A name with nothing behind it is not offered.
 - **Account menu** — the signed-in account, its access keys, its regions, and
   the sign-in screens.
 
@@ -104,6 +104,30 @@ Two pages carry the console's own shape rather than the emulator's:
 [S3](/docs/guides/s3) covers what each of those does, with a screenshot of every
 tab; [S3 coverage](/docs/reference/s3-coverage) records which operations are
 reachable and which are not.
+
+## IAM
+
+IAM is the second purpose-built section. Its sidebar is the AWS one: a dashboard,
+the four identity lists, account settings, the credential report and the API
+explorer for everything the pages do not draw.
+
+![The IAM dashboard: security recommendations for the signed-in identity, the account card with the IAM users' sign-in URL, the resource counts and the virtual MFA devices](/img/console/iam-dashboard.png)
+
+| Page | What it is |
+| --- | --- |
+| **IAM users** | Every IAM user the emulator holds, with groups, MFA and whether it can sign in to this console; create, delete and set a password. |
+| **Roles** | Each role's trusted entity and path, with create and delete. |
+| **Policies** | AWS-managed and customer-managed policies, attachment counts and descriptions. |
+| **Groups / Identity providers** | Members and attached policies; OIDC and SAML providers by type. |
+| **Account settings** | The emulator's password policy and its account alias (the sign-in URL carries it). |
+| **Credential report** | Generated and downloaded as the CSV the emulator answers. |
+
+![The IAM users page: the users the emulator holds, a console sign-in column, and MFA per user](/img/console/iam-users.png)
+
+![The Roles page: a service role, a service-linked role, a cross-account trust, an OIDC trust and two instance-profile roles, each with its path](/img/console/iam-roles.png)
+
+[IAM coverage](/docs/reference/iam-coverage) records every advertised operation,
+which of them the console reaches, and the test that exercises it.
 
 ## Where the console is deliberately plain
 

@@ -5,6 +5,7 @@ import Services from './pages/Services'
 import Resources from './pages/Resources'
 import CreateBucket from './pages/CreateBucket'
 import S3Section from './pages/S3Section'
+import IAMSection from './pages/IAMSection'
 import BucketDetail from './pages/BucketDetail'
 import AccessPoints from './pages/AccessPoints'
 import CreateAccessPoint from './pages/CreateAccessPoint'
@@ -38,6 +39,14 @@ export default function App() {
         {/* Access points are S3 Control, so their pages hang off S3's nav; directory buckets have no backend here. */}
         <Route path="/s3/access-points" element={<AccessPoints />} />
         <Route path="/s3/access-points/create" element={<CreateAccessPoint />} />
+        <Route path="/iam/dashboard" element={<IAMSection section="dashboard" />} />
+        <Route path="/iam/users" element={<IAMSection section="users" />} />
+        <Route path="/iam/groups" element={<IAMSection section="groups" />} />
+        <Route path="/iam/roles" element={<IAMSection section="roles" />} />
+        <Route path="/iam/policies" element={<IAMSection section="policies" />} />
+        <Route path="/iam/providers" element={<IAMSection section="providers" />} />
+        <Route path="/iam/settings" element={<IAMSection section="settings" />} />
+        <Route path="/iam/report" element={<IAMSection section="report" />} />
         <Route path="/:service/home" element={<Resources />} />
         <Route path="/resources/:service" element={<ServiceRedirect />} />
         <Route path="/Account" element={<Account />} />

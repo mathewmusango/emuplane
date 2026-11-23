@@ -27,6 +27,7 @@ import signed  # noqa: E402  (local module: the root-signed calls)
 import s3extra  # noqa: E402  (local module: S3 Tables / S3 Files listings)
 import accesspoints  # noqa: E402  (local module: S3 Control access points)
 import mail  # noqa: E402  (local module: the one outbound message)
+import totp  # noqa: E402  (local module: the RFC 6238 code check)
 from dynamo import DynamoError  # noqa: E402
 from backends import profile  # noqa: E402
 from store import Store, StoreNotProvisioned  # noqa: E402
@@ -425,10 +426,47 @@ class Accounts:
             account = self.accounts.get(account_id)
             if account is None or self._key(username) in account["users"]:
                 return None
-            principal = {"username": username, "role": role}
+            principal = {"username": username, "role": role, "iam_user": username}
             account["users"][self._key(username)] = principal
             self._put(account)
             return principal
+
+    def remove_principal(self, account_id: str, username: str) -> bool:
+        """Drop one IAM principal from an account; False when it was not there."""
+        with self.lock:
+            account = self.accounts.get(account_id)
+            if account is None:
+                return False
+            key = self._key(username)
+            if key not in account["users"]:
+                return False
+            account["users"].pop(key)
+            self._put(account)
+            return True
+
+    def set_mfa(self, account_id: str, username: str, serial: str, secret: str) -> bool:
+        """Record an enrolled TOTP device on the principal the sign-in will ask it of."""
+        with self.lock:
+            account = self.accounts.get(account_id)
+            user = ((account or {}).get("users") or {}).get(self._key(username))
+            if user is None:
+                return False
+            user["mfa_enabled"] = True
+            user["mfa_serial"] = serial
+            user["mfa_secret"] = secret
+            self._put(account)
+            return True
+
+    def clear_mfa(self, account_id: str, username: str) -> bool:
+        with self.lock:
+            account = self.accounts.get(account_id)
+            user = ((account or {}).get("users") or {}).get(self._key(username))
+            if user is None:
+                return False
+            for key in ("mfa_enabled", "mfa_serial", "mfa_secret"):
+                user.pop(key, None)
+            self._put(account)
+            return True
 
     def set_name(self, account_id: str, name: str) -> dict | None:
         """Record the human-readable account name shown in the console."""
@@ -749,6 +787,13 @@ class UserStore:
                 user["password_hash"] = self._hash(password)
                 self._save(account_id, username, user)
 
+    def delete(self, account_id: str, username: str) -> None:
+        """Forget one principal's console record; sessions are purged by the caller."""
+        with self.lock:
+            key = self._key(account_id, username)
+            self.users.pop(key, None)
+            self.db.delete("users", key)
+
 
 class Settings:
     """Small persisted control-plane settings (sign-up toggle, ...)."""
@@ -984,24 +1029,51 @@ def public_keys(principal: dict) -> list[dict]:
     ]
 
 
+def purge_iam_user(account_id: str, name: str) -> str:
+    """Delete one IAM user after clearing the state that blocks DeleteUser. Returns "" or an error."""
+    _, body = iam_request(account_id, "ListAccessKeys", UserName=name)
+    for key in re.findall(r"<AccessKeyId>([^<]+)</AccessKeyId>", body):
+        iam_request(account_id, "DeleteAccessKey", UserName=name, AccessKeyId=key)
+    _, body = iam_request(account_id, "ListUserPolicies", UserName=name)
+    for policy in xml_members(body, "PolicyNames") or re.findall(
+        r"<PolicyName>([^<]+)</PolicyName>", body
+    ):
+        iam_request(account_id, "DeleteUserPolicy", UserName=name, PolicyName=policy)
+    _, body = iam_request(account_id, "ListAttachedUserPolicies", UserName=name)
+    for policy in re.findall(r"<PolicyArn>([^<]+)</PolicyArn>", body):
+        iam_request(account_id, "DetachUserPolicy", UserName=name, PolicyArn=policy)
+    _, body = iam_request(account_id, "ListGroupsForUser", UserName=name)
+    for group in re.findall(r"<GroupName>([^<]+)</GroupName>", body):
+        iam_request(account_id, "RemoveUserFromGroup", GroupName=group, UserName=name)
+    _, body = iam_request(account_id, "ListMFADevices", UserName=name)
+    for serial in re.findall(r"<SerialNumber>([^<]+)</SerialNumber>", body):
+        iam_request(account_id, "DeactivateMFADevice", UserName=name, SerialNumber=serial)
+        iam_request(account_id, "DeleteVirtualMFADevice", SerialNumber=serial)
+    ok, body = iam_request(account_id, "DeleteUser", UserName=name)
+    if not ok and "NoSuchEntity" not in body:
+        return f"DeleteUser failed: {body[:120]}"
+    return ""
+
+
+def delete_principal(account: dict, principal: dict) -> str:
+    """Remove one principal's IAM user and console record. Returns "" or an error."""
+    account_id = account["account_id"]
+    name = principal.get("iam_user") or principal["username"]
+    problem = purge_iam_user(account_id, name)
+    if problem:
+        return problem
+    ACCOUNTS.remove_principal(account_id, principal["username"])
+    USERS.delete(account_id, principal["username"])
+    purge_user_sessions(account_id, principal["username"])
+    return ""
+
+
 def delete_account(account: dict) -> None:
     """Remove an account, its IAM principals and its bucket-name claims."""
     account_id = account["account_id"]
     for principal in list(account.get("users", {}).values()):
         name = principal.get("iam_user") or principal.get("username")
-        _, body = iam_request(account_id, "ListAccessKeys", UserName=name)
-        for key in re.findall(r"<AccessKeyId>([^<]+)</AccessKeyId>", body):
-            iam_request(
-                account_id, "DeleteAccessKey", UserName=name, AccessKeyId=key
-            )
-        _, body = iam_request(account_id, "ListUserPolicies", UserName=name)
-        for policy in xml_members(body, "PolicyNames") or re.findall(
-            r"<PolicyName>([^<]+)</PolicyName>", body
-        ):
-            iam_request(
-                account_id, "DeleteUserPolicy", UserName=name, PolicyName=policy
-            )
-        iam_request(account_id, "DeleteUser", UserName=name)
+        purge_iam_user(account_id, name)
     USERS.delete_account(account_id)
     ACCOUNTS.delete(account_id)
     OWNERS.forget(account_id)
@@ -1178,6 +1250,9 @@ HEALTH_LOCK = threading.Lock()
 # control-plane sessions (in memory, write-through to the `sessions` store)
 SESSIONS: dict[str, dict] = {}
 SESSIONS_LOCK = threading.Lock()
+# A correct password that still owes a second factor: short-lived and memory-only.
+MFA_PENDING: dict[str, dict] = {}
+MFA_PENDING_SECONDS = 300
 
 
 def session_key(token: str) -> str:
@@ -2240,7 +2315,7 @@ def is_console_route(path: str) -> bool:
     parts = [part for part in path.split("/") if part]
     if not parts:
         return False
-    if parts[0] == "s3":
+    if parts[0] in ("s3", "iam"):
         return True
     return len(parts) == 2 and parts[1] in ("home", "create")
 
@@ -2801,9 +2876,26 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
                 403, {"error": "Root credentials for this account are disabled."}
             )
         if principal.get("mfa_enabled"):
-            # The contract is in place; the enrolment flow is not (slice 3b).
+            # The password is right; the second factor is a separate, short-lived step.
+            mfa_token = secrets.token_urlsafe(24)
+            MFA_PENDING[mfa_token] = {
+                "user": username,
+                "account": account["account_id"],
+                "role": principal["role"],
+                "alias": account["alias"],
+                "expires": time.time() + MFA_PENDING_SECONDS,
+            }
             return self._json(
-                501, {"error": "MFA enrolment is not implemented yet."}
+                200,
+                {
+                    "ok": True,
+                    "mfa_required": True,
+                    "mfa_token": mfa_token,
+                    "user": username,
+                    "account": account["account_id"],
+                    "alias": account["alias"],
+                    "role": principal["role"],
+                },
             )
 
         token = new_session(
@@ -2825,6 +2917,48 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
             answer,
             cookie=(
                 f"emuplane_session={token}; Path=/; Max-Age={SESSION_SECONDS}; "
+                "HttpOnly; SameSite=Lax"
+            ),
+        )
+
+    def _auth_mfa(self) -> None:
+        """Finish a sign-in that owes a code: verify the TOTP and mint the session."""
+        payload = self._body()
+        token = str(payload.get("mfa_token") or payload.get("token") or "").strip()
+        code = str(payload.get("code") or "").strip()
+        pending = MFA_PENDING.get(token)
+        if pending is None or pending.get("expires", 0) <= time.time():
+            MFA_PENDING.pop(token, None)
+            return self._json(
+                400, {"error": "This sign-in request expired. Sign in again."}
+            )
+        account = ACCOUNTS.by_ref(pending["account"])
+        principal = ((account or {}).get("users") or {}).get(
+            ACCOUNTS._key(pending["user"])
+        )
+        if principal is None or not principal.get("mfa_enabled"):
+            MFA_PENDING.pop(token, None)
+            return self._json(400, {"error": "MFA is not enabled for this user."})
+        if not totp.matches(principal.get("mfa_secret", ""), code):
+            return self._json(
+                401, {"error": "That code is not valid. Try the next one."}
+            )
+        MFA_PENDING.pop(token, None)
+        session = new_session(
+            pending["user"], account["account_id"], principal["role"], account["alias"]
+        )
+        self._json(
+            200,
+            {
+                "ok": True,
+                "mfa_required": False,
+                "user": pending["user"],
+                "account": account["account_id"],
+                "alias": account["alias"],
+                "role": principal["role"],
+            },
+            cookie=(
+                f"emuplane_session={session}; Path=/; Max-Age={SESSION_SECONDS}; "
                 "HttpOnly; SameSite=Lax"
             ),
         )
@@ -3274,6 +3408,8 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
         elif not self._authenticated():
             return self._redirect("/login?next=" + quote(path))
 
+        if path == "/api/mfa":
+            return self._mfa_status()
         if path == "/api/accounts/me":
             info = session_info(self._session_token()) or {}
             account = ACCOUNTS.by_ref(info.get("account", "")) if info else None
@@ -4122,6 +4258,185 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
             },
         )
 
+    def _delete_user(self, username: str) -> None:
+        """Delete one IAM principal: its emulator identity, keys and console record."""
+        params = parse_qs(urlsplit(self.path).query)
+        hint = (params.get("account") or [""])[0].strip()
+        info = self._caller()
+        account = ACCOUNTS.by_ref(hint) if hint else None
+        if account is None and info.get("account"):
+            account = ACCOUNTS.by_ref(info["account"])
+        if account is None:
+            return self._json(404, {"error": "unknown account"})
+        account_id = account["account_id"]
+        if not self._can_touch(info, account_id):
+            return self._json(
+                403, {"error": "this user belongs to a different account"}
+            )
+        principal = (account.get("users") or {}).get(ACCOUNTS._key(username))
+        record = USERS.get(account_id, username)
+        role = (principal or record or {}).get("role")
+        name = (principal or record or {}).get("username") or username
+        if role == "root" or name == "root":
+            return self._json(400, {"error": "the account root cannot be deleted"})
+        if info and info.get("user") == name:
+            return self._json(
+                400, {"error": "you cannot delete the principal you are signed in to"}
+            )
+        ok, _ = iam_request(account_id, "GetUser", UserName=name)
+        if principal is None and record is None and not ok:
+            return self._json(404, {"error": "unknown user"})
+        if principal is None:
+            principal = {"username": name, "iam_user": name}
+        problem = delete_principal(account, principal)
+        if problem:
+            return self._json(502, {"error": problem})
+        return self._json(200, {"deleted": name, "account": account_id})
+
+    def _signed_in_principal(self):
+        """The caller's account and principal, or an answer already sent for a bearer caller."""
+        info = self._caller()
+        account = ACCOUNTS.by_ref(info.get("account", "")) if info else None
+        principal = (
+            ((account or {}).get("users") or {}).get(
+                ACCOUNTS._key(info.get("user", ""))
+            )
+            if info
+            else None
+        )
+        if account is None or principal is None:
+            self._json(400, {"error": "sign in to manage your own MFA device"})
+            return None, None, None
+        return info, account, principal
+
+    def _mfa_device(self) -> None:
+        """Mint a fresh virtual device; a new name each time, so an old one never blocks it."""
+        self._body()  # drain an empty POST body so keep-alive does not read it as a new request
+        _info, account, principal = self._signed_in_principal()
+        if account is None:
+            return
+        if principal.get("role") == "root":
+            return self._json(
+                400, {"error": "the account root has no IAM MFA device"}
+            )
+        name = f"{principal['username']}-mfa-{secrets.token_hex(3)}"
+        ok, body = iam_request(
+            account["account_id"], "CreateVirtualMFADevice", VirtualMFADeviceName=name
+        )
+        if not ok:
+            return self._json(
+                502, {"error": f"CreateVirtualMFADevice failed: {body[:120]}"}
+            )
+        serial = re.search(r"<SerialNumber>([^<]+)</SerialNumber>", body)
+        if not serial:
+            return self._json(502, {"error": "the emulator returned no MFA serial"})
+        # A valid RFC 4648 base32 secret, which is what an authenticator expects. The
+        # emulator's own seed is a UUID, not base32, so it is not used here.
+        seed = base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
+        return self._json(
+            200, {"ok": True, "serial": serial.group(1), "seed": seed}
+        )
+
+    def _mfa_enrol(self) -> None:
+        """Verify a code for the pending seed, enable the device, and remember the seed."""
+        _info, account, principal = self._signed_in_principal()
+        if account is None:
+            return
+        payload = self._body()
+        serial = str(payload.get("serial") or "").strip()
+        seed = str(payload.get("seed") or "").strip()
+        code = str(payload.get("code") or "").strip()
+        if not serial or not seed:
+            return self._json(
+                400, {"error": "the device serial and its seed are required"}
+            )
+        account_id = account["account_id"]
+        _, unassigned = iam_request(
+            account_id, "ListVirtualMFADevices", AssignmentStatus="Unassigned"
+        )
+        if serial not in unassigned:
+            return self._json(
+                400, {"error": "that device is not an unassigned device in this account"}
+            )
+        if not totp.matches(seed, code):
+            iam_request(account_id, "DeleteVirtualMFADevice", SerialNumber=serial)
+            return self._json(
+                400, {"error": "that code did not match the device; add it again"}
+            )
+        ok, body = iam_request(
+            account_id,
+            "EnableMFADevice",
+            UserName=principal["username"],
+            SerialNumber=serial,
+            AuthenticationCode1=code,
+            AuthenticationCode2=code,
+        )
+        if not ok:
+            iam_request(account_id, "DeleteVirtualMFADevice", SerialNumber=serial)
+            return self._json(502, {"error": f"EnableMFADevice failed: {body[:120]}"})
+        ACCOUNTS.set_mfa(account_id, principal["username"], serial, seed)
+        return self._json(200, {"ok": True, "serial": serial})
+
+    def _mfa_status(self) -> None:
+        """The signed-in principal's MFA state, plus every virtual device in the account."""
+        _info, account, principal = self._signed_in_principal()
+        if account is None:
+            return
+        _, body = iam_request(
+            account["account_id"], "ListVirtualMFADevices", AssignmentStatus="Any"
+        )
+        devices = []
+        for member in xml_members(body, "VirtualMFADevices"):
+            user = xml_value(member, "UserName")
+            devices.append(
+                {
+                    "serial": xml_value(member, "SerialNumber"),
+                    "user": user,
+                    "enabled": bool(user),
+                }
+            )
+        return self._json(
+            200,
+            {
+                "enabled": bool(principal.get("mfa_enabled")),
+                "serial": principal.get("mfa_serial", ""),
+                "devices": devices,
+            },
+        )
+
+    def _mfa_remove(self) -> None:
+        """Remove the caller's device, or an unassigned one left behind."""
+        _info, account, principal = self._signed_in_principal()
+        if account is None:
+            return
+        params = parse_qs(urlsplit(self.path).query)
+        serial = (params.get("serial") or [""])[0].strip()
+        own = principal.get("mfa_serial") or ""
+        if not serial:
+            serial = own
+        if not serial:
+            return self._json(404, {"error": "no MFA device to remove"})
+        account_id = account["account_id"]
+        if serial == own:
+            iam_request(
+                account_id,
+                "DeactivateMFADevice",
+                UserName=principal["username"],
+                SerialNumber=serial,
+            )
+            iam_request(account_id, "DeleteVirtualMFADevice", SerialNumber=serial)
+            ACCOUNTS.clear_mfa(account_id, principal["username"])
+            return self._json(200, {"ok": True, "removed": serial})
+        _, unassigned = iam_request(
+            account_id, "ListVirtualMFADevices", AssignmentStatus="Unassigned"
+        )
+        if serial in unassigned:
+            iam_request(account_id, "DeleteVirtualMFADevice", SerialNumber=serial)
+            return self._json(200, {"ok": True, "removed": serial})
+        return self._json(
+            403, {"error": "that MFA device belongs to another user"}
+        )
+
     def _update_me(self) -> None:
         """Let a signed-in principal change its own name, email and password."""
         info = session_info(self._session_token())
@@ -4187,9 +4502,7 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
         if path == "/api/auth/switch":
             return self._auth_switch()
         if path == "/api/auth/mfa":
-            return self._json(
-                501, {"error": "MFA enrolment is not implemented yet."}
-            )
+            return self._auth_mfa()
         if path == "/api/auth/remember":
             # Multi-session opt-in: hand this session's own token back so the browser can switch to it.
             token = self._session_token()
@@ -4247,6 +4560,11 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
             if principal is None:
                 return self._json(409, {"error": "that username is already taken"})
             USERS.create(username, email, password, target["account_id"], role)
+            problem = ensure_iam_user(target, principal)
+            if problem:
+                ACCOUNTS.remove_principal(target["account_id"], username)
+                USERS.delete(target["account_id"], username)
+                return self._json(502, {"error": problem})
             return self._json(
                 200,
                 {
@@ -4262,6 +4580,10 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
         reset_link = re.fullmatch(r"/api/users/([^/]+)/reset-link", path)
         if reset_link:
             return self._issue_reset_link(unquote(reset_link.group(1)))
+        if path == "/api/mfa/device":
+            return self._mfa_device()
+        if path == "/api/mfa/enrol":
+            return self._mfa_enrol()
         if path == "/api/credentials":
             payload = self._body()
             info = session_info(self._session_token()) or {}
@@ -5423,6 +5745,11 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path.startswith("/api"):
             path = self._api_path(path)
+        user = re.fullmatch(r"/api/users/([^/]+)", path)
+        if user:
+            return self._delete_user(unquote(user.group(1)))
+        if path == "/api/mfa":
+            return self._mfa_remove()
         match = re.fullmatch(r"/api/accounts/([0-9]{12})", path)
         if match:
             info = self._caller()

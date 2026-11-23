@@ -135,6 +135,14 @@ npm run api   # reads the control checkout named by CONTROL_SRC
 | `/api/auth/remember` | POST |
 | `/api/auth/switch` | POST |
 
+### /api/mfa — 3 paths
+
+| Path | Methods |
+| --- | --- |
+| `/api/mfa` | DELETE, GET |
+| `/api/mfa/device` | POST |
+| `/api/mfa/enrol` | POST |
+
 ### /api/buckets — 2 paths
 
 | Path | Methods |
@@ -227,6 +235,6 @@ npm run api   # reads the control checkout named by CONTROL_SRC
 | --- | --- |
 | `/api/settings` | GET |
 
-73 route/method pairs, 67 paths.
+77 route/method pairs, 70 paths.
 
 <!-- routes:end -->

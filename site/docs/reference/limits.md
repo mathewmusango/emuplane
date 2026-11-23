@@ -51,6 +51,67 @@ emulator, and where each of those rules lives.
   contract information* have no operation behind them in the emulator, so the page would
   only be drawing switches that change nothing.
 
+## The IAM console
+
+- **The pages AWS draws for features the emulator does not implement are absent.**
+  Access Analyzer (resource analysis, unused access, analyzer settings), the policy
+  simulator, root access management, temporary delegation requests and multi-account
+  access borrow DNS and organisations the emulator has no operations for. The IAM
+  sidebar offers Dashboard, Roles, Policies, IAM users, IAM user groups, Identity
+  providers, Account settings and the Credential report — every one a real read.
+
+- **The identity pages create and delete; the rest is the API explorer.** Roles,
+  policies, groups, identity providers, the password policy and the account alias
+  are read, created and deleted from their pages. Attaching a policy, permissions
+  boundaries, instance profiles, login profiles, service-specific credentials and
+  server certificates are reachable through the IAM API explorer (`/iam/home`), not
+  drawn as controls.
+
+- **The API explorer draws one value per parameter.** Operations whose request is a
+  list — several tags, several client IDs, several filter values — take only the
+  first member from the form. Everything is still reachable, but a multi-value
+  request belongs to the AWS CLI or a client, not the explorer.
+
+- **Alias sign-in URLs stop at a query parameter.** The dashboard links IAM users to
+  `/login?account=<alias>`, and the form opens on the IAM step with the account filled
+  in. `https://<alias>.emuplane.<domain>/login` needs wildcard DNS/TLS and a Host lookup
+  the deployment does not do yet, so it is tracked as issue #285 rather than advertised.
+
+- **MFA is Emuplane's own TOTP check, with no recovery path.** Enrolling a device
+  stores its base32 secret on the principal in the accounts table, and signing in
+  stops at a six-digit code before the session is minted. **One device per
+  principal**: enrolling again replaces the stored secret rather than adding a
+  second. Enrolment and removal are **self-service** — the dashboard acts on the
+  signed-in user, and there is no admin control for someone else's device. A
+  pending challenge lives in memory only, so a control restart mid-sign-in asks
+  for the password again. A lost authenticator has no recovery code — remove the
+  device from a signed-in session, or clear `mfa_enabled`, `mfa_serial` and
+  `mfa_secret` from the account row with the deployment's own tools.
+
+- **The root cannot enrol MFA.** The emulator has no root IAM user to attach a
+  device to, so the root dashboard shows the account-summary flag (which counts
+  any device in use) and offers no *Add MFA* action; only an IAM user can be
+  challenged at sign-in.
+
+- **The MFA devices card is account-wide.** It lists every virtual device the
+  emulator holds with its serial and assignment, which is what makes an orphaned
+  device removable; it never returns a seed.
+
+- **The sign-in URL uses the emulator's IAM alias.** It is not Emuplane's account
+  name, so an account can show one alias in the top bar and a different one in
+  this link. Editing or deleting it changes only the emulator's record.
+
+- **A user created outside Emuplane has no console password.** The IAM users page
+  lists every IAM user the emulator holds; one made by Terraform or the CLI has no
+  console record, so *Set password* does not apply and the row says so. Deleting it
+  from the page still clears its keys, policies and groups first.
+
+- **A console-created user carries the emulator's admin policy.** Creating a user
+  pairs `CreateUser` with an inline `ministack-admin` policy (`Allow *`), the same
+  pairing the console has always used when it issues a key. Narrowing a user's
+  permissions is done from the IAM API explorer until per-user policy editing is
+  drawn.
+
 ## The S3 console
 
 - **S3 on Windows is still under development.** The console is exercised on Linux;
