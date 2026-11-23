@@ -47,10 +47,11 @@ the gateway's public address instead of `localhost:4571`.
 
 - **Sign-up creates a root account.** Root owns its tenancy — buckets, keys,
   regions — and nothing outside it.
-- **IAM users are not created by the console yet.** The control API creates them
-  from a terminal (`POST /api/users`, see the
-  [control API reference](/docs/reference/control-api)); they then sign in at
-  `/login` choosing **IAM user**, with the account name, the user name and their
-  password.
+- **IAM users are created and managed in the console.** The **IAM users** page
+  lists them, creates one with a console password, sets a new password and deletes
+  the identity with its keys and policies. The control API keeps the same operations
+  (`POST /api/users`, see the [control API reference](/docs/reference/control-api));
+  an IAM user signs in at `/login` choosing **IAM user**, with the account name, the
+  user name and their password.
 - A key belongs to one principal. An IAM user's key reaches that account and no
   other, exactly like root's.

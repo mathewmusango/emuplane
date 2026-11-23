@@ -18,6 +18,7 @@ import type {
   DeleteAccountResult,
   Meta,
   MeResult,
+  MfaStatus,
   NewAccessKeyResult,
   NodeRow,
   ObjectAnnotation,
@@ -106,11 +107,45 @@ export const api = {
   remember: () => request<SignInResult>('/api/auth/remember', { method: 'POST' }),
   switchIdentity: (token: string) =>
     request<SignInResult>('/api/auth/switch', { method: 'POST', body: { token } }),
-  verifyMfa: (payload: { code: string }) =>
+  verifyMfa: (payload: { code: string; token: string }) =>
     request<{ ok: boolean }>('/api/auth/mfa', { method: 'POST', body: payload }),
   actions: () => request<ActionCatalogue>('/api/actions'),
   services: () => request<Record<string, Record<string, unknown>>>('/api/services'),
   users: () => request<UserAccount[]>('/api/users'),
+  mfa: () => request<MfaStatus>('/api/mfa'),
+  startMfa: () =>
+    request<{ ok: boolean; serial: string; seed: string }>('/api/mfa/device', {
+      method: 'POST',
+    }),
+  enrolMfa: (payload: { serial: string; seed: string; code: string }) =>
+    request<{ ok: boolean; serial: string }>('/api/mfa/enrol', {
+      method: 'POST',
+      body: payload,
+    }),
+  disableMfa: (serial?: string) =>
+    request<{ ok: boolean; removed: string }>(
+      `/api/mfa${serial ? `?${query({ serial })}` : ''}`,
+      { method: 'DELETE' },
+    ),
+  createUser: (payload: {
+    username: string
+    password: string
+    email?: string
+    account?: string
+  }) => request<{ user: string; role: string; account: string; alias: string }>(
+    '/api/users',
+    { method: 'POST', body: payload },
+  ),
+  deleteUser: (username: string, account: string) =>
+    request<{ deleted: string; account: string }>(
+      `/api/users/${encodeURIComponent(username)}?${query({ account })}`,
+      { method: 'DELETE' },
+    ),
+  setUserPassword: (username: string, password: string, account: string) =>
+    request<{ user: string; account: string; sessions_revoked: boolean }>(
+      `/api/users/${encodeURIComponent(username)}/password`,
+      { method: 'POST', body: { password, account } },
+    ),
   nodes: () => request<NodeRow[]>('/api/nodes'),
   browse: (account: string, region: string, service: string) =>
     request<BrowseResult>(`/api/browse?${query({ account, region, service })}`),

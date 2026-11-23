@@ -102,11 +102,17 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
   const serviceHome = (() => {
     const parts = location.pathname.split('/').filter(Boolean)
     if (parts[0] === 's3') return 's3'
+    if (parts[0] === 'iam') return 'iam'
     return parts.length === 2 && (parts[1] === 'home' || parts[1] === 'create')
       ? parts[0]
       : ''
   })()
-  const serviceBase = serviceHome ? `/${serviceHome}/home` : ''
+  const serviceBase =
+    serviceHome === 'iam'
+      ? '/iam/dashboard'
+      : serviceHome
+        ? `/${serviceHome}/home`
+        : ''
 
   const serviceNav = () => {
     if (serviceHome === 's3') {
@@ -138,6 +144,33 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
           ],
         },
         { type: 'divider' },
+        { type: 'link', text: 'All services', href: '/services' },
+        { type: 'divider' },
+        ...accountItems(),
+      ]
+    }
+    if (serviceHome === 'iam') {
+      return [
+        { type: 'link', text: 'Dashboard', href: '/iam/dashboard' },
+        {
+          type: 'section',
+          text: 'Access Management',
+          items: [
+            { type: 'link', text: 'Roles', href: '/iam/roles' },
+            { type: 'link', text: 'Policies', href: '/iam/policies' },
+            { type: 'link', text: 'IAM users', href: '/iam/users' },
+            { type: 'link', text: 'IAM user groups', href: '/iam/groups' },
+            { type: 'link', text: 'Identity providers', href: '/iam/providers' },
+            { type: 'link', text: 'Account settings', href: '/iam/settings' },
+          ],
+        },
+        {
+          type: 'section',
+          text: 'Access reports',
+          items: [{ type: 'link', text: 'Credential report', href: '/iam/report' }],
+        },
+        { type: 'divider' },
+        { type: 'link', text: 'API explorer', href: '/iam/home' },
         { type: 'link', text: 'All services', href: '/services' },
         { type: 'divider' },
         ...accountItems(),
@@ -218,7 +251,13 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
           <SideNavigation
             header={
               serviceHome
-                ? { text: serviceLongName(serviceHome), href: serviceBase }
+                ? {
+                    text:
+                      serviceHome === 'iam'
+                        ? 'Identity and Access Management (IAM)'
+                        : serviceLongName(serviceHome),
+                    href: serviceBase,
+                  }
                 : undefined
             }
             activeHref={
@@ -228,9 +267,11 @@ export function Shell({ activeHref, breadcrumbs = [], children }) {
                   : ['/s3/table-buckets', '/s3/files'].includes(location.pathname)
                     ? location.pathname
                     : serviceBase
-                : serviceHome
-                  ? serviceBase
-                  : activeHref || location.pathname
+                : serviceHome === 'iam'
+                  ? location.pathname
+                  : serviceHome
+                    ? serviceBase
+                    : activeHref || location.pathname
             }
             items={serviceHome ? serviceNav() : navItems()}
             onFollow={({ detail }) => {

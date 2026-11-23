@@ -5,9 +5,14 @@
   "group": "Core",
   "console_service": "iam",
   "intro": [
-    "Users, roles, policies, keys and identity providers. The console drives five",
-    "identity actions and reads access keys on the Security credentials page; everything else is",
-    "reachable over the wire and through the IAM API explorer.",
+    "Users, roles, policies, keys and identity providers, laid out like AWS's IAM",
+    "console: a dashboard, the identity lists, account settings and the credential",
+    "report. The IAM users page is the one place the console owns state of its own —",
+    "it creates, deletes and re-passwords console principals over the control API.",
+    "",
+    "Everything else is the emulator's own API, run through the console catalogue;",
+    "the generic API explorer at `/iam/home` still runs the actions the dedicated",
+    "pages do not draw.",
     "",
     "`tests/control/test_iam_operations.py` drives every advertised operation through the",
     "emulator's own query protocol and reads the state back, so the test column has no gaps.",
@@ -18,19 +23,492 @@
     "without one, because the in-process emulator runs with `AUTH` off)."
   ],
   "action_operations": {
-    "list-users": ["ListUsers"],
-    "create-user": ["CreateUser"],
-    "delete-user": ["DeleteUser"],
-    "create-access-key": ["CreateAccessKey"],
-    "attach-user-policy": ["AttachUserPolicy"]
+    "get-account-summary": [
+      "GetAccountSummary"
+    ],
+    "list-users": [
+      "ListUsers"
+    ],
+    "get-user": [
+      "GetUser"
+    ],
+    "create-user": [
+      "CreateUser"
+    ],
+    "delete-user": [
+      "DeleteUser"
+    ],
+    "list-access-keys": [
+      "ListAccessKeys"
+    ],
+    "list-groups-for-user": [
+      "ListGroupsForUser"
+    ],
+    "list-attached-user-policies": [
+      "ListAttachedUserPolicies"
+    ],
+    "list-user-policies": [
+      "ListUserPolicies"
+    ],
+    "list-mfa-devices": [
+      "ListMFADevices"
+    ],
+    "list-groups": [
+      "ListGroups"
+    ],
+    "get-group": [
+      "GetGroup"
+    ],
+    "create-group": [
+      "CreateGroup"
+    ],
+    "delete-group": [
+      "DeleteGroup"
+    ],
+    "list-attached-group-policies": [
+      "ListAttachedGroupPolicies"
+    ],
+    "list-group-policies": [
+      "ListGroupPolicies"
+    ],
+    "list-roles": [
+      "ListRoles"
+    ],
+    "get-role": [
+      "GetRole"
+    ],
+    "create-role": [
+      "CreateRole"
+    ],
+    "delete-role": [
+      "DeleteRole"
+    ],
+    "list-attached-role-policies": [
+      "ListAttachedRolePolicies"
+    ],
+    "list-role-policies": [
+      "ListRolePolicies"
+    ],
+    "list-policies": [
+      "ListPolicies"
+    ],
+    "get-policy": [
+      "GetPolicy"
+    ],
+    "create-policy": [
+      "CreatePolicy"
+    ],
+    "delete-policy": [
+      "DeletePolicy"
+    ],
+    "list-policy-versions": [
+      "ListPolicyVersions"
+    ],
+    "list-open-id-connect-providers": [
+      "ListOpenIDConnectProviders"
+    ],
+    "get-open-id-connect-provider": [
+      "GetOpenIDConnectProvider"
+    ],
+    "create-open-id-connect-provider": [
+      "CreateOpenIDConnectProvider"
+    ],
+    "delete-open-id-connect-provider": [
+      "DeleteOpenIDConnectProvider"
+    ],
+    "list-saml-providers": [
+      "ListSAMLProviders"
+    ],
+    "create-saml-provider": [
+      "CreateSAMLProvider"
+    ],
+    "delete-saml-provider": [
+      "DeleteSAMLProvider"
+    ],
+    "get-account-password-policy": [
+      "GetAccountPasswordPolicy"
+    ],
+    "update-account-password-policy": [
+      "UpdateAccountPasswordPolicy"
+    ],
+    "delete-account-password-policy": [
+      "DeleteAccountPasswordPolicy"
+    ],
+    "list-account-aliases": [
+      "ListAccountAliases"
+    ],
+    "create-account-alias": [
+      "CreateAccountAlias"
+    ],
+    "delete-account-alias": [
+      "DeleteAccountAlias"
+    ],
+    "generate-credential-report": [
+      "GenerateCredentialReport"
+    ],
+    "get-credential-report": [
+      "GetCredentialReport"
+    ],
+    "create-access-key": [
+      "CreateAccessKey"
+    ],
+    "attach-user-policy": [
+      "AttachUserPolicy"
+    ],
+    "create-virtual-mfa-device": [
+      "CreateVirtualMFADevice"
+    ],
+    "enable-mfa-device": [
+      "EnableMFADevice"
+    ],
+    "add-user-to-group": [
+      "AddUserToGroup"
+    ],
+    "remove-user-from-group": [
+      "RemoveUserFromGroup"
+    ],
+    "attach-group-policy": [
+      "AttachGroupPolicy"
+    ],
+    "detach-group-policy": [
+      "DetachGroupPolicy"
+    ],
+    "update-role-description": [
+      "UpdateRoleDescription"
+    ],
+    "update-assume-role-policy": [
+      "UpdateAssumeRolePolicy"
+    ],
+    "put-role-permissions-boundary": [
+      "PutRolePermissionsBoundary"
+    ],
+    "delete-role-permissions-boundary": [
+      "DeleteRolePermissionsBoundary"
+    ],
+    "put-user-permissions-boundary": [
+      "PutUserPermissionsBoundary"
+    ],
+    "delete-user-permissions-boundary": [
+      "DeleteUserPermissionsBoundary"
+    ],
+    "attach-role-policy": [
+      "AttachRolePolicy"
+    ],
+    "detach-role-policy": [
+      "DetachRolePolicy"
+    ],
+    "put-role-policy": [
+      "PutRolePolicy"
+    ],
+    "get-role-policy": [
+      "GetRolePolicy"
+    ],
+    "delete-role-policy": [
+      "DeleteRolePolicy"
+    ],
+    "detach-user-policy": [
+      "DetachUserPolicy"
+    ],
+    "put-user-policy": [
+      "PutUserPolicy"
+    ],
+    "get-user-policy": [
+      "GetUserPolicy"
+    ],
+    "delete-user-policy": [
+      "DeleteUserPolicy"
+    ],
+    "tag-role": [
+      "TagRole"
+    ],
+    "untag-role": [
+      "UntagRole"
+    ],
+    "list-role-tags": [
+      "ListRoleTags"
+    ],
+    "tag-user": [
+      "TagUser"
+    ],
+    "untag-user": [
+      "UntagUser"
+    ],
+    "list-user-tags": [
+      "ListUserTags"
+    ],
+    "tag-policy": [
+      "TagPolicy"
+    ],
+    "untag-policy": [
+      "UntagPolicy"
+    ],
+    "list-policy-tags": [
+      "ListPolicyTags"
+    ],
+    "create-instance-profile": [
+      "CreateInstanceProfile"
+    ],
+    "get-instance-profile": [
+      "GetInstanceProfile"
+    ],
+    "delete-instance-profile": [
+      "DeleteInstanceProfile"
+    ],
+    "list-instance-profiles": [
+      "ListInstanceProfiles"
+    ],
+    "add-role-to-instance-profile": [
+      "AddRoleToInstanceProfile"
+    ],
+    "remove-role-from-instance-profile": [
+      "RemoveRoleFromInstanceProfile"
+    ],
+    "list-instance-profiles-for-role": [
+      "ListInstanceProfilesForRole"
+    ],
+    "tag-instance-profile": [
+      "TagInstanceProfile"
+    ],
+    "untag-instance-profile": [
+      "UntagInstanceProfile"
+    ],
+    "list-instance-profile-tags": [
+      "ListInstanceProfileTags"
+    ],
+    "create-service-linked-role": [
+      "CreateServiceLinkedRole"
+    ],
+    "delete-service-linked-role": [
+      "DeleteServiceLinkedRole"
+    ],
+    "get-service-linked-role-deletion-status": [
+      "GetServiceLinkedRoleDeletionStatus"
+    ],
+    "update-access-key": [
+      "UpdateAccessKey"
+    ],
+    "delete-access-key": [
+      "DeleteAccessKey"
+    ],
+    "get-access-key-last-used": [
+      "GetAccessKeyLastUsed"
+    ],
+    "deactivate-m-f-a-device": [
+      "DeactivateMFADevice"
+    ],
+    "resync-m-f-a-device": [
+      "ResyncMFADevice"
+    ],
+    "delete-virtual-m-f-a-device": [
+      "DeleteVirtualMFADevice"
+    ],
+    "list-virtual-m-f-a-devices": [
+      "ListVirtualMFADevices"
+    ],
+    "create-login-profile": [
+      "CreateLoginProfile"
+    ],
+    "get-login-profile": [
+      "GetLoginProfile"
+    ],
+    "update-login-profile": [
+      "UpdateLoginProfile"
+    ],
+    "delete-login-profile": [
+      "DeleteLoginProfile"
+    ],
+    "get-account-authorization-details": [
+      "GetAccountAuthorizationDetails"
+    ],
+    "generate-service-last-accessed-details": [
+      "GenerateServiceLastAccessedDetails"
+    ],
+    "get-service-last-accessed-details": [
+      "GetServiceLastAccessedDetails"
+    ],
+    "create-service-specific-credential": [
+      "CreateServiceSpecificCredential"
+    ],
+    "list-service-specific-credentials": [
+      "ListServiceSpecificCredentials"
+    ],
+    "update-service-specific-credential": [
+      "UpdateServiceSpecificCredential"
+    ],
+    "reset-service-specific-credential": [
+      "ResetServiceSpecificCredential"
+    ],
+    "delete-service-specific-credential": [
+      "DeleteServiceSpecificCredential"
+    ],
+    "upload-server-certificate": [
+      "UploadServerCertificate"
+    ],
+    "list-server-certificates": [
+      "ListServerCertificates"
+    ],
+    "get-server-certificate": [
+      "GetServerCertificate"
+    ],
+    "update-server-certificate": [
+      "UpdateServerCertificate"
+    ],
+    "delete-server-certificate": [
+      "DeleteServerCertificate"
+    ],
+    "list-server-certificate-tags": [
+      "ListServerCertificateTags"
+    ],
+    "create-policy-version": [
+      "CreatePolicyVersion"
+    ],
+    "get-policy-version": [
+      "GetPolicyVersion"
+    ],
+    "delete-policy-version": [
+      "DeletePolicyVersion"
+    ],
+    "list-entities-for-policy": [
+      "ListEntitiesForPolicy"
+    ],
+    "update-s-a-m-l-provider": [
+      "UpdateSAMLProvider"
+    ],
+    "delete-group-policy": [
+      "DeleteGroupPolicy"
+    ],
+    "put-group-policy": [
+      "PutGroupPolicy"
+    ],
+    "get-group-policy": [
+      "GetGroupPolicy"
+    ],
+    "get-saml-provider": [
+      "GetSAMLProvider"
+    ]
   },
   "gui": {
-    "ListAccessKeys": "Security credentials page › Access keys",
+    "GetAccountSummary": "IAM Dashboard › Security recommendations",
+    "ListAccountAliases": "IAM Dashboard › AWS account; Account settings › Account alias",
+    "ListUsers": "IAM users page",
+    "CreateUser": "IAM users page › Create user",
+    "DeleteUser": "IAM users page › Delete user",
+    "GetUser": "IAM API explorer",
+    "ListAccessKeys": "Security credentials page › Access keys; IAM users page › user details",
     "CreateAccessKey": "Security credentials page › Access keys › Create access key",
-    "ListUsers": "IAM page › API explorer",
-    "CreateUser": "IAM page › API explorer, sign-up",
-    "DeleteUser": "IAM page › API explorer",
-    "AttachUserPolicy": "IAM page › API explorer"
+    "ListGroupsForUser": "IAM users page › user details",
+    "ListAttachedUserPolicies": "IAM users page › user details",
+    "ListUserPolicies": "IAM users page › user details",
+    "ListMFADevices": "IAM users page; IAM Dashboard",
+    "ListGroups": "IAM user groups page",
+    "GetGroup": "IAM user groups page",
+    "CreateGroup": "IAM user groups page › Create group",
+    "DeleteGroup": "IAM user groups page › Delete",
+    "ListAttachedGroupPolicies": "IAM user groups page",
+    "ListGroupPolicies": "IAM user groups page",
+    "ListRoles": "Roles page",
+    "GetRole": "Roles page",
+    "CreateRole": "Roles page › Create role",
+    "DeleteRole": "Roles page › Delete",
+    "ListAttachedRolePolicies": "IAM API explorer",
+    "ListRolePolicies": "IAM API explorer",
+    "ListPolicies": "Policies page",
+    "GetPolicy": "Policies page",
+    "CreatePolicy": "Policies page › Create policy",
+    "DeletePolicy": "Policies page › Delete",
+    "ListPolicyVersions": "IAM API explorer",
+    "ListOpenIDConnectProviders": "Identity providers page",
+    "GetOpenIDConnectProvider": "Identity providers page",
+    "CreateOpenIDConnectProvider": "Identity providers page › Add provider",
+    "DeleteOpenIDConnectProvider": "Identity providers page › Delete",
+    "ListSAMLProviders": "Identity providers page",
+    "CreateSAMLProvider": "Identity providers page › Add provider",
+    "DeleteSAMLProvider": "Identity providers page › Delete",
+    "GetAccountPasswordPolicy": "Account settings page › Password policy",
+    "UpdateAccountPasswordPolicy": "Account settings page › Password policy › Edit",
+    "DeleteAccountPasswordPolicy": "Account settings page › Password policy › Delete policy",
+    "CreateAccountAlias": "Account settings page › Account alias",
+    "DeleteAccountAlias": "Account settings page › Account alias › Delete",
+    "GenerateCredentialReport": "Credential report page › Generate and download report",
+    "GetCredentialReport": "Credential report page › Generate and download report",
+    "CreateVirtualMFADevice": "IAM Dashboard › Add MFA",
+    "EnableMFADevice": "IAM Dashboard › Add MFA",
+    "AddUserToGroup": "IAM API explorer",
+    "RemoveUserFromGroup": "IAM API explorer",
+    "AttachGroupPolicy": "IAM API explorer",
+    "DetachGroupPolicy": "IAM API explorer",
+    "AttachUserPolicy": "IAM API explorer",
+    "UpdateRoleDescription": "IAM API explorer",
+    "UpdateAssumeRolePolicy": "IAM API explorer",
+    "PutRolePermissionsBoundary": "IAM API explorer",
+    "DeleteRolePermissionsBoundary": "IAM API explorer",
+    "PutUserPermissionsBoundary": "IAM API explorer",
+    "DeleteUserPermissionsBoundary": "IAM API explorer",
+    "AttachRolePolicy": "IAM API explorer",
+    "DetachRolePolicy": "IAM API explorer",
+    "PutRolePolicy": "IAM API explorer",
+    "GetRolePolicy": "IAM API explorer",
+    "DeleteRolePolicy": "IAM API explorer",
+    "DetachUserPolicy": "IAM API explorer",
+    "PutUserPolicy": "IAM API explorer",
+    "GetUserPolicy": "IAM API explorer",
+    "DeleteUserPolicy": "IAM API explorer",
+    "TagRole": "IAM API explorer",
+    "UntagRole": "IAM API explorer",
+    "ListRoleTags": "IAM API explorer",
+    "TagUser": "IAM API explorer",
+    "UntagUser": "IAM API explorer",
+    "ListUserTags": "IAM API explorer",
+    "TagPolicy": "IAM API explorer",
+    "UntagPolicy": "IAM API explorer",
+    "ListPolicyTags": "IAM API explorer",
+    "CreateInstanceProfile": "IAM API explorer",
+    "GetInstanceProfile": "IAM API explorer",
+    "DeleteInstanceProfile": "IAM API explorer",
+    "ListInstanceProfiles": "IAM API explorer",
+    "AddRoleToInstanceProfile": "IAM API explorer",
+    "RemoveRoleFromInstanceProfile": "IAM API explorer",
+    "ListInstanceProfilesForRole": "IAM API explorer",
+    "TagInstanceProfile": "IAM API explorer",
+    "UntagInstanceProfile": "IAM API explorer",
+    "ListInstanceProfileTags": "IAM API explorer",
+    "CreateServiceLinkedRole": "IAM API explorer",
+    "DeleteServiceLinkedRole": "IAM API explorer",
+    "GetServiceLinkedRoleDeletionStatus": "IAM API explorer",
+    "UpdateAccessKey": "IAM API explorer",
+    "DeleteAccessKey": "IAM API explorer",
+    "GetAccessKeyLastUsed": "IAM API explorer",
+    "DeactivateMFADevice": "IAM API explorer",
+    "ResyncMFADevice": "IAM API explorer",
+    "DeleteVirtualMFADevice": "IAM API explorer",
+    "ListVirtualMFADevices": "IAM API explorer",
+    "CreateLoginProfile": "IAM API explorer",
+    "GetLoginProfile": "IAM API explorer",
+    "UpdateLoginProfile": "IAM API explorer",
+    "DeleteLoginProfile": "IAM API explorer",
+    "GetAccountAuthorizationDetails": "IAM API explorer",
+    "GenerateServiceLastAccessedDetails": "IAM API explorer",
+    "GetServiceLastAccessedDetails": "IAM API explorer",
+    "CreateServiceSpecificCredential": "IAM API explorer",
+    "ListServiceSpecificCredentials": "IAM API explorer",
+    "UpdateServiceSpecificCredential": "IAM API explorer",
+    "ResetServiceSpecificCredential": "IAM API explorer",
+    "DeleteServiceSpecificCredential": "IAM API explorer",
+    "UploadServerCertificate": "IAM API explorer",
+    "ListServerCertificates": "IAM API explorer",
+    "GetServerCertificate": "IAM API explorer",
+    "UpdateServerCertificate": "IAM API explorer",
+    "DeleteServerCertificate": "IAM API explorer",
+    "ListServerCertificateTags": "IAM API explorer",
+    "CreatePolicyVersion": "IAM API explorer",
+    "GetPolicyVersion": "IAM API explorer",
+    "DeletePolicyVersion": "IAM API explorer",
+    "ListEntitiesForPolicy": "IAM API explorer",
+    "UpdateSAMLProvider": "IAM API explorer",
+    "DeleteGroupPolicy": "IAM API explorer",
+    "PutGroupPolicy": "IAM API explorer",
+    "GetGroupPolicy": "IAM API explorer",
+    "GetSAMLProvider": "IAM API explorer"
   },
   "covered": {
     "CreateUser": "tests/control/test_iam_operations.py (users round trip); lab matrix in test_iam_policies.py, tests/control/test_signup_naming.py",

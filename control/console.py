@@ -426,21 +426,38 @@ CATALOGUE: dict[str, dict] = {
         ],
     },
     "iam": {
-        "description": "Users, access keys and attached policies (global service).",
+        "description": "Identities, policies and access keys (global service).",
         "operations": [
+            {
+                "id": "get-account-summary",
+                "label": "Account summary",
+                "cli": "aws iam get-account-summary",
+                "params": [],
+                "run": _query("iam", "GetAccountSummary"),
+            },
             {
                 "id": "list-users",
                 "label": "List users",
                 "cli": "aws iam list-users",
-                "params": [],
-                "run": _query("iam", "ListUsers"),
+                "params": [field("PathPrefix", "Path prefix")],
+                "run": _query("iam", "ListUsers", names=("PathPrefix",)),
+            },
+            {
+                "id": "get-user",
+                "label": "Get user",
+                "cli": "aws iam get-user --user-name <name>",
+                "params": [field("UserName", "User name", True)],
+                "run": _query("iam", "GetUser", names=("UserName",)),
             },
             {
                 "id": "create-user",
                 "label": "Create user",
                 "cli": "aws iam create-user --user-name <name>",
-                "params": [field("UserName", "User name", True)],
-                "run": _query("iam", "CreateUser", names=("UserName",)),
+                "params": [
+                    field("UserName", "User name", True),
+                    field("Path", "Path", False, placeholder="/"),
+                ],
+                "run": _query("iam", "CreateUser", names=("UserName", "Path")),
             },
             {
                 "id": "delete-user",
@@ -449,6 +466,491 @@ CATALOGUE: dict[str, dict] = {
                 "destructive": True,
                 "params": [field("UserName", "User name", True)],
                 "run": _query("iam", "DeleteUser", names=("UserName",)),
+            },
+            {
+                "id": "list-access-keys",
+                "label": "List access keys",
+                "cli": "aws iam list-access-keys --user-name <name>",
+                "params": [field("UserName", "User name", True)],
+                "run": _query("iam", "ListAccessKeys", names=("UserName",)),
+            },
+            {
+                "id": "list-groups-for-user",
+                "label": "List groups for user",
+                "cli": "aws iam list-groups-for-user --user-name <name>",
+                "params": [field("UserName", "User name", True)],
+                "run": _query("iam", "ListGroupsForUser", names=("UserName",)),
+            },
+            {
+                "id": "list-attached-user-policies",
+                "label": "List attached user policies",
+                "cli": "aws iam list-attached-user-policies --user-name <name>",
+                "params": [field("UserName", "User name", True)],
+                "run": _query(
+                    "iam", "ListAttachedUserPolicies", names=("UserName",)
+                ),
+            },
+            {
+                "id": "list-user-policies",
+                "label": "List inline user policies",
+                "cli": "aws iam list-user-policies --user-name <name>",
+                "params": [field("UserName", "User name", True)],
+                "run": _query("iam", "ListUserPolicies", names=("UserName",)),
+            },
+            {
+                "id": "list-mfa-devices",
+                "label": "List MFA devices",
+                "cli": "aws iam list-mfa-devices --user-name <name>",
+                "params": [field("UserName", "User name", True)],
+                "run": _query("iam", "ListMFADevices", names=("UserName",)),
+            },
+            {
+                "id": "create-virtual-mfa-device",
+                "label": "Create virtual MFA device",
+                "cli": "aws iam create-virtual-mfa-device --virtual-mfa-device-name <name>",
+                "params": [field("VirtualMFADeviceName", "Device name", True)],
+                "run": _query(
+                    "iam",
+                    "CreateVirtualMFADevice",
+                    names=("VirtualMFADeviceName",),
+                ),
+            },
+            {
+                "id": "enable-mfa-device",
+                "label": "Enable MFA device",
+                "cli": "aws iam enable-mfa-device --user-name … --serial-number … --authentication-code-1 … --authentication-code-2 …",
+                "params": [
+                    field("UserName", "User name", True),
+                    field("SerialNumber", "Serial number", True),
+                    field("AuthenticationCode1", "Code 1", True, placeholder="123456"),
+                    field("AuthenticationCode2", "Code 2", True, placeholder="654321"),
+                ],
+                "run": _query(
+                    "iam",
+                    "EnableMFADevice",
+                    names=(
+                        "UserName",
+                        "SerialNumber",
+                        "AuthenticationCode1",
+                        "AuthenticationCode2",
+                    ),
+                ),
+            },
+            {
+                "id": "list-groups",
+                "label": "List groups",
+                "cli": "aws iam list-groups",
+                "params": [field("PathPrefix", "Path prefix")],
+                "run": _query("iam", "ListGroups", names=("PathPrefix",)),
+            },
+            {
+                "id": "get-group",
+                "label": "Get group",
+                "cli": "aws iam get-group --group-name <name>",
+                "params": [field("GroupName", "Group name", True)],
+                "run": _query("iam", "GetGroup", names=("GroupName",)),
+            },
+            {
+                "id": "create-group",
+                "label": "Create group",
+                "cli": "aws iam create-group --group-name <name>",
+                "params": [
+                    field("GroupName", "Group name", True),
+                    field("Path", "Path", False, placeholder="/"),
+                ],
+                "run": _query("iam", "CreateGroup", names=("GroupName", "Path")),
+            },
+            {
+                "id": "delete-group",
+                "label": "Delete group",
+                "cli": "aws iam delete-group --group-name <name>",
+                "destructive": True,
+                "params": [field("GroupName", "Group name", True)],
+                "run": _query("iam", "DeleteGroup", names=("GroupName",)),
+            },
+            {
+                "id": "list-attached-group-policies",
+                "label": "List attached group policies",
+                "cli": "aws iam list-attached-group-policies --group-name <name>",
+                "params": [field("GroupName", "Group name", True)],
+                "run": _query(
+                    "iam", "ListAttachedGroupPolicies", names=("GroupName",)
+                ),
+            },
+            {
+                "id": "attach-group-policy",
+                "label": "Attach group policy",
+                "cli": "aws iam attach-group-policy --group-name … --policy-arn …",
+                "params": [
+                    field("GroupName", "Group name", True),
+                    field("PolicyArn", "Policy ARN", True),
+                ],
+                "run": _query(
+                    "iam", "AttachGroupPolicy", names=("GroupName", "PolicyArn")
+                ),
+            },
+            {
+                "id": "detach-group-policy",
+                "label": "Detach group policy",
+                "cli": "aws iam detach-group-policy --group-name … --policy-arn …",
+                "destructive": True,
+                "params": [
+                    field("GroupName", "Group name", True),
+                    field("PolicyArn", "Policy ARN", True),
+                ],
+                "run": _query(
+                    "iam", "DetachGroupPolicy", names=("GroupName", "PolicyArn")
+                ),
+            },
+            {
+                "id": "list-group-policies",
+                "label": "List inline group policies",
+                "cli": "aws iam list-group-policies --group-name <name>",
+                "params": [field("GroupName", "Group name", True)],
+                "run": _query("iam", "ListGroupPolicies", names=("GroupName",)),
+            },
+            {
+                "id": "delete-group-policy",
+                "label": "Delete inline group policy",
+                "cli": "aws iam delete-group-policy --group-name … --policy-name …",
+                "destructive": True,
+                "params": [
+                    field("GroupName", "Group name", True),
+                    field("PolicyName", "Policy name", True),
+                ],
+                "run": _query(
+                    "iam", "DeleteGroupPolicy", names=("GroupName", "PolicyName")
+                ),
+            },
+            {
+                "id": "put-group-policy",
+                "label": "Put inline group policy",
+                "cli": "aws iam put-group-policy --group-name … --policy-name … --policy-document file://policy.json",
+                "params": [
+                    field("GroupName", "Group name", True),
+                    field("PolicyName", "Policy name", True),
+                    field("PolicyDocument", "Policy document (JSON)", True, kind="textarea"),
+                ],
+                "run": _query(
+                    "iam",
+                    "PutGroupPolicy",
+                    names=("GroupName", "PolicyName", "PolicyDocument"),
+                ),
+            },
+            {
+                "id": "get-group-policy",
+                "label": "Get inline group policy",
+                "cli": "aws iam get-group-policy --group-name … --policy-name …",
+                "params": [
+                    field("GroupName", "Group name", True),
+                    field("PolicyName", "Policy name", True),
+                ],
+                "run": _query(
+                    "iam", "GetGroupPolicy", names=("GroupName", "PolicyName")
+                ),
+            },
+            {
+                "id": "add-user-to-group",
+                "label": "Add user to group",
+                "cli": "aws iam add-user-to-group --group-name … --user-name …",
+                "params": [
+                    field("GroupName", "Group name", True),
+                    field("UserName", "User name", True),
+                ],
+                "run": _query(
+                    "iam", "AddUserToGroup", names=("GroupName", "UserName")
+                ),
+            },
+            {
+                "id": "remove-user-from-group",
+                "label": "Remove user from group",
+                "cli": "aws iam remove-user-from-group --group-name … --user-name …",
+                "destructive": True,
+                "params": [
+                    field("GroupName", "Group name", True),
+                    field("UserName", "User name", True),
+                ],
+                "run": _query(
+                    "iam", "RemoveUserFromGroup", names=("GroupName", "UserName")
+                ),
+            },
+            {
+                "id": "list-roles",
+                "label": "List roles",
+                "cli": "aws iam list-roles",
+                "params": [field("PathPrefix", "Path prefix")],
+                "run": _query("iam", "ListRoles", names=("PathPrefix",)),
+            },
+            {
+                "id": "get-role",
+                "label": "Get role",
+                "cli": "aws iam get-role --role-name <name>",
+                "params": [field("RoleName", "Role name", True)],
+                "run": _query("iam", "GetRole", names=("RoleName",)),
+            },
+            {
+                "id": "create-role",
+                "label": "Create role",
+                "cli": "aws iam create-role --role-name … --assume-role-policy-document file://trust.json",
+                "params": [
+                    field("RoleName", "Role name", True),
+                    field("Path", "Path", False, placeholder="/"),
+                    field("Description", "Description"),
+                    field("AssumeRolePolicyDocument", "Trust policy (JSON)", True,
+                          kind="textarea",
+                          placeholder='{"Version": "2012-10-17", "Statement": []}'),
+                ],
+                "run": _query(
+                    "iam",
+                    "CreateRole",
+                    names=("RoleName", "Path", "Description", "AssumeRolePolicyDocument"),
+                ),
+            },
+            {
+                "id": "delete-role",
+                "label": "Delete role",
+                "cli": "aws iam delete-role --role-name <name>",
+                "destructive": True,
+                "params": [field("RoleName", "Role name", True)],
+                "run": _query("iam", "DeleteRole", names=("RoleName",)),
+            },
+            {
+                "id": "list-attached-role-policies",
+                "label": "List attached role policies",
+                "cli": "aws iam list-attached-role-policies --role-name <name>",
+                "params": [field("RoleName", "Role name", True)],
+                "run": _query(
+                    "iam", "ListAttachedRolePolicies", names=("RoleName",)
+                ),
+            },
+            {
+                "id": "list-role-policies",
+                "label": "List inline role policies",
+                "cli": "aws iam list-role-policies --role-name <name>",
+                "params": [field("RoleName", "Role name", True)],
+                "run": _query("iam", "ListRolePolicies", names=("RoleName",)),
+            },
+            {
+                "id": "list-policies",
+                "label": "List policies",
+                "cli": "aws iam list-policies",
+                "params": [
+                    field("Scope", "Scope", False, placeholder="Local"),
+                    field("PathPrefix", "Path prefix"),
+                ],
+                "run": _query("iam", "ListPolicies", names=("Scope", "PathPrefix")),
+            },
+            {
+                "id": "get-policy",
+                "label": "Get policy",
+                "cli": "aws iam get-policy --policy-arn <arn>",
+                "params": [field("PolicyArn", "Policy ARN", True)],
+                "run": _query("iam", "GetPolicy", names=("PolicyArn",)),
+            },
+            {
+                "id": "create-policy",
+                "label": "Create policy",
+                "cli": "aws iam create-policy --policy-name … --policy-document file://policy.json",
+                "params": [
+                    field("PolicyName", "Policy name", True),
+                    field("Description", "Description"),
+                    field("PolicyDocument", "Policy document (JSON)", True,
+                          kind="textarea",
+                          placeholder='{"Version": "2012-10-17", "Statement": []}'),
+                ],
+                "run": _query(
+                    "iam",
+                    "CreatePolicy",
+                    names=("PolicyName", "Description", "PolicyDocument"),
+                ),
+            },
+            {
+                "id": "delete-policy",
+                "label": "Delete policy",
+                "cli": "aws iam delete-policy --policy-arn <arn>",
+                "destructive": True,
+                "params": [field("PolicyArn", "Policy ARN", True)],
+                "run": _query("iam", "DeletePolicy", names=("PolicyArn",)),
+            },
+            {
+                "id": "list-policy-versions",
+                "label": "List policy versions",
+                "cli": "aws iam list-policy-versions --policy-arn <arn>",
+                "params": [field("PolicyArn", "Policy ARN", True)],
+                "run": _query("iam", "ListPolicyVersions", names=("PolicyArn",)),
+            },
+            {
+                "id": "list-open-id-connect-providers",
+                "label": "List OIDC providers",
+                "cli": "aws iam list-open-id-connect-providers",
+                "params": [],
+                "run": _query("iam", "ListOpenIDConnectProviders"),
+            },
+            {
+                "id": "get-open-id-connect-provider",
+                "label": "Get OIDC provider",
+                "cli": "aws iam get-open-id-connect-provider --open-id-connect-provider-arn <arn>",
+                "params": [field("OpenIDConnectProviderArn", "Provider ARN", True)],
+                "run": _query(
+                    "iam",
+                    "GetOpenIDConnectProvider",
+                    names=("OpenIDConnectProviderArn",),
+                ),
+            },
+            {
+                "id": "create-open-id-connect-provider",
+                "label": "Create OIDC provider",
+                "cli": "aws iam create-open-id-connect-provider --url … --client-id-list … --thumbprint-list …",
+                "params": [
+                    field("Url", "Provider URL", True, placeholder="https://oidc.example.com"),
+                    field("ClientIDList.member.1", "Client ID", True),
+                    field("ThumbprintList.member.1", "Thumbprint", True),
+                ],
+                "run": _query(
+                    "iam",
+                    "CreateOpenIDConnectProvider",
+                    names=(
+                        "Url",
+                        "ClientIDList.member.1",
+                        "ThumbprintList.member.1",
+                    ),
+                ),
+            },
+            {
+                "id": "delete-open-id-connect-provider",
+                "label": "Delete OIDC provider",
+                "cli": "aws iam delete-open-id-connect-provider --open-id-connect-provider-arn <arn>",
+                "destructive": True,
+                "params": [field("OpenIDConnectProviderArn", "Provider ARN", True)],
+                "run": _query(
+                    "iam",
+                    "DeleteOpenIDConnectProvider",
+                    names=("OpenIDConnectProviderArn",),
+                ),
+            },
+            {
+                "id": "list-saml-providers",
+                "label": "List SAML providers",
+                "cli": "aws iam list-saml-providers",
+                "params": [],
+                "run": _query("iam", "ListSAMLProviders"),
+            },
+            {
+                "id": "create-saml-provider",
+                "label": "Create SAML provider",
+                "cli": "aws iam create-saml-provider --name … --saml-metadata-document file://metadata.xml",
+                "params": [
+                    field("Name", "Provider name", True),
+                    field("SAMLMetadataDocument", "Metadata XML", True, kind="textarea"),
+                ],
+                "run": _query(
+                    "iam",
+                    "CreateSAMLProvider",
+                    names=("Name", "SAMLMetadataDocument"),
+                ),
+            },
+            {
+                "id": "delete-saml-provider",
+                "label": "Delete SAML provider",
+                "cli": "aws iam delete-saml-provider --saml-provider-arn <arn>",
+                "destructive": True,
+                "params": [field("SAMLProviderArn", "Provider ARN", True)],
+                "run": _query(
+                    "iam", "DeleteSAMLProvider", names=("SAMLProviderArn",)
+                ),
+            },
+            {
+                "id": "get-saml-provider",
+                "label": "Get SAML provider",
+                "cli": "aws iam get-saml-provider --saml-provider-arn <arn>",
+                "params": [field("SAMLProviderArn", "Provider ARN", True)],
+                "run": _query(
+                    "iam", "GetSAMLProvider", names=("SAMLProviderArn",)
+                ),
+            },
+            {
+                "id": "get-account-password-policy",
+                "label": "Get password policy",
+                "cli": "aws iam get-account-password-policy",
+                "params": [],
+                "run": _query("iam", "GetAccountPasswordPolicy"),
+            },
+            {
+                "id": "update-account-password-policy",
+                "label": "Update password policy",
+                "cli": "aws iam update-account-password-policy --minimum-password-length 12",
+                "params": [
+                    field("MinimumPasswordLength", "Minimum length"),
+                    field("MaxPasswordAge", "Expire after (days)"),
+                    field("PasswordReusePrevention", "Reuse prevention (generations)"),
+                    field("RequireSymbols", "Require symbols"),
+                    field("RequireNumbers", "Require numbers"),
+                    field("RequireUppercaseCharacters", "Require upper case"),
+                    field("RequireLowercaseCharacters", "Require lower case"),
+                    field("AllowUsersToChangePassword", "Allow users to change"),
+                ],
+                "run": _query(
+                    "iam",
+                    "UpdateAccountPasswordPolicy",
+                    names=(
+                        "MinimumPasswordLength",
+                        "MaxPasswordAge",
+                        "PasswordReusePrevention",
+                        "RequireSymbols",
+                        "RequireNumbers",
+                        "RequireUppercaseCharacters",
+                        "RequireLowercaseCharacters",
+                        "AllowUsersToChangePassword",
+                    ),
+                ),
+            },
+            {
+                "id": "delete-account-password-policy",
+                "label": "Delete password policy",
+                "cli": "aws iam delete-account-password-policy",
+                "destructive": True,
+                "params": [],
+                "run": _query("iam", "DeleteAccountPasswordPolicy"),
+            },
+            {
+                "id": "list-account-aliases",
+                "label": "List account aliases",
+                "cli": "aws iam list-account-aliases",
+                "params": [],
+                "run": _query("iam", "ListAccountAliases"),
+            },
+            {
+                "id": "create-account-alias",
+                "label": "Create account alias",
+                "cli": "aws iam create-account-alias --account-alias <alias>",
+                "params": [field("AccountAlias", "Alias", True)],
+                "run": _query(
+                    "iam", "CreateAccountAlias", names=("AccountAlias",)
+                ),
+            },
+            {
+                "id": "delete-account-alias",
+                "label": "Delete account alias",
+                "cli": "aws iam delete-account-alias --account-alias <alias>",
+                "destructive": True,
+                "params": [field("AccountAlias", "Alias", True)],
+                "run": _query(
+                    "iam", "DeleteAccountAlias", names=("AccountAlias",)
+                ),
+            },
+            {
+                "id": "generate-credential-report",
+                "label": "Generate credential report",
+                "cli": "aws iam generate-credential-report",
+                "params": [],
+                "run": _query("iam", "GenerateCredentialReport"),
+            },
+            {
+                "id": "get-credential-report",
+                "label": "Get credential report",
+                "cli": "aws iam get-credential-report",
+                "params": [],
+                "run": _query("iam", "GetCredentialReport"),
             },
             {
                 "id": "create-access-key",
@@ -469,6 +971,687 @@ CATALOGUE: dict[str, dict] = {
                 "run": _query(
                     "iam", "AttachUserPolicy", names=("UserName", "PolicyArn")
                 ),
+            },
+            {
+                "id": 'update-role-description',
+                "label": 'Update Role Description',
+                "cli": "aws iam update-role-description",
+                
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('Description', 'Description', False),
+                ],
+                "run": _query("iam", 'UpdateRoleDescription', names=('RoleName', 'Description',)),
+            },
+            {
+                "id": 'update-assume-role-policy',
+                "label": 'Update Assume Role Policy',
+                "cli": "aws iam update-assume-role-policy",
+                
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('PolicyDocument', 'PolicyDocument', True, kind="textarea"),
+                ],
+                "run": _query("iam", 'UpdateAssumeRolePolicy', names=('RoleName', 'PolicyDocument',)),
+            },
+            {
+                "id": 'put-role-permissions-boundary',
+                "label": 'Put Role Permissions Boundary',
+                "cli": "aws iam put-role-permissions-boundary",
+                
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('PermissionsBoundary', 'PermissionsBoundary', True),
+                ],
+                "run": _query("iam", 'PutRolePermissionsBoundary', names=('RoleName', 'PermissionsBoundary',)),
+            },
+            {
+                "id": 'delete-role-permissions-boundary',
+                "label": 'Delete Role Permissions Boundary',
+                "cli": "aws iam delete-role-permissions-boundary",
+                
+                "params": [field('RoleName', 'RoleName', True)],
+                "run": _query("iam", 'DeleteRolePermissionsBoundary', names=('RoleName',)),
+            },
+            {
+                "id": 'put-user-permissions-boundary',
+                "label": 'Put User Permissions Boundary',
+                "cli": "aws iam put-user-permissions-boundary",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('PermissionsBoundary', 'PermissionsBoundary', True),
+                ],
+                "run": _query("iam", 'PutUserPermissionsBoundary', names=('UserName', 'PermissionsBoundary',)),
+            },
+            {
+                "id": 'delete-user-permissions-boundary',
+                "label": 'Delete User Permissions Boundary',
+                "cli": "aws iam delete-user-permissions-boundary",
+                
+                "params": [field('UserName', 'UserName', True)],
+                "run": _query("iam", 'DeleteUserPermissionsBoundary', names=('UserName',)),
+            },
+            {
+                "id": 'attach-role-policy',
+                "label": 'Attach Role Policy',
+                "cli": "aws iam attach-role-policy",
+                
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('PolicyArn', 'PolicyArn', True),
+                ],
+                "run": _query("iam", 'AttachRolePolicy', names=('RoleName', 'PolicyArn',)),
+            },
+            {
+                "id": 'detach-role-policy',
+                "label": 'Detach Role Policy',
+                "cli": "aws iam detach-role-policy",
+                'destructive': True,
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('PolicyArn', 'PolicyArn', True),
+                ],
+                "run": _query("iam", 'DetachRolePolicy', names=('RoleName', 'PolicyArn',)),
+            },
+            {
+                "id": 'put-role-policy',
+                "label": 'Put Role Policy',
+                "cli": "aws iam put-role-policy",
+                
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('PolicyName', 'PolicyName', True),
+                    field('PolicyDocument', 'PolicyDocument', True, kind="textarea"),
+                ],
+                "run": _query("iam", 'PutRolePolicy', names=('RoleName', 'PolicyName', 'PolicyDocument',)),
+            },
+            {
+                "id": 'get-role-policy',
+                "label": 'Get Role Policy',
+                "cli": "aws iam get-role-policy",
+                
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('PolicyName', 'PolicyName', True),
+                ],
+                "run": _query("iam", 'GetRolePolicy', names=('RoleName', 'PolicyName',)),
+            },
+            {
+                "id": 'delete-role-policy',
+                "label": 'Delete Role Policy',
+                "cli": "aws iam delete-role-policy",
+                'destructive': True,
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('PolicyName', 'PolicyName', True),
+                ],
+                "run": _query("iam", 'DeleteRolePolicy', names=('RoleName', 'PolicyName',)),
+            },
+            {
+                "id": 'detach-user-policy',
+                "label": 'Detach User Policy',
+                "cli": "aws iam detach-user-policy",
+                'destructive': True,
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('PolicyArn', 'PolicyArn', True),
+                ],
+                "run": _query("iam", 'DetachUserPolicy', names=('UserName', 'PolicyArn',)),
+            },
+            {
+                "id": 'put-user-policy',
+                "label": 'Put User Policy',
+                "cli": "aws iam put-user-policy",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('PolicyName', 'PolicyName', True),
+                    field('PolicyDocument', 'PolicyDocument', True, kind="textarea"),
+                ],
+                "run": _query("iam", 'PutUserPolicy', names=('UserName', 'PolicyName', 'PolicyDocument',)),
+            },
+            {
+                "id": 'get-user-policy',
+                "label": 'Get User Policy',
+                "cli": "aws iam get-user-policy",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('PolicyName', 'PolicyName', True),
+                ],
+                "run": _query("iam", 'GetUserPolicy', names=('UserName', 'PolicyName',)),
+            },
+            {
+                "id": 'delete-user-policy',
+                "label": 'Delete User Policy',
+                "cli": "aws iam delete-user-policy",
+                'destructive': True,
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('PolicyName', 'PolicyName', True),
+                ],
+                "run": _query("iam", 'DeleteUserPolicy', names=('UserName', 'PolicyName',)),
+            },
+            {
+                "id": 'tag-role',
+                "label": 'Tag Role',
+                "cli": "aws iam tag-role",
+                
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('Tags.member.1.Key', 'Tags member 1 Key', True),
+                    field('Tags.member.1.Value', 'Tags member 1 Value', False),
+                ],
+                "run": _query("iam", 'TagRole', names=('RoleName', 'Tags.member.1.Key', 'Tags.member.1.Value',)),
+            },
+            {
+                "id": 'untag-role',
+                "label": 'Untag Role',
+                "cli": "aws iam untag-role",
+                
+                "params": [
+                    field('RoleName', 'RoleName', True),
+                    field('TagKeys.member.1', 'TagKeys member 1', True),
+                ],
+                "run": _query("iam", 'UntagRole', names=('RoleName', 'TagKeys.member.1',)),
+            },
+            {
+                "id": 'list-role-tags',
+                "label": 'List Role Tags',
+                "cli": "aws iam list-role-tags",
+                
+                "params": [field('RoleName', 'RoleName', True)],
+                "run": _query("iam", 'ListRoleTags', names=('RoleName',)),
+            },
+            {
+                "id": 'tag-user',
+                "label": 'Tag User',
+                "cli": "aws iam tag-user",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('Tags.member.1.Key', 'Tags member 1 Key', True),
+                    field('Tags.member.1.Value', 'Tags member 1 Value', False),
+                ],
+                "run": _query("iam", 'TagUser', names=('UserName', 'Tags.member.1.Key', 'Tags.member.1.Value',)),
+            },
+            {
+                "id": 'untag-user',
+                "label": 'Untag User',
+                "cli": "aws iam untag-user",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('TagKeys.member.1', 'TagKeys member 1', True),
+                ],
+                "run": _query("iam", 'UntagUser', names=('UserName', 'TagKeys.member.1',)),
+            },
+            {
+                "id": 'list-user-tags',
+                "label": 'List User Tags',
+                "cli": "aws iam list-user-tags",
+                
+                "params": [field('UserName', 'UserName', True)],
+                "run": _query("iam", 'ListUserTags', names=('UserName',)),
+            },
+            {
+                "id": 'tag-policy',
+                "label": 'Tag Policy',
+                "cli": "aws iam tag-policy",
+                
+                "params": [
+                    field('PolicyArn', 'PolicyArn', True),
+                    field('Tags.member.1.Key', 'Tags member 1 Key', True),
+                    field('Tags.member.1.Value', 'Tags member 1 Value', False),
+                ],
+                "run": _query("iam", 'TagPolicy', names=('PolicyArn', 'Tags.member.1.Key', 'Tags.member.1.Value',)),
+            },
+            {
+                "id": 'untag-policy',
+                "label": 'Untag Policy',
+                "cli": "aws iam untag-policy",
+                
+                "params": [
+                    field('PolicyArn', 'PolicyArn', True),
+                    field('TagKeys.member.1', 'TagKeys member 1', True),
+                ],
+                "run": _query("iam", 'UntagPolicy', names=('PolicyArn', 'TagKeys.member.1',)),
+            },
+            {
+                "id": 'list-policy-tags',
+                "label": 'List Policy Tags',
+                "cli": "aws iam list-policy-tags",
+                
+                "params": [field('PolicyArn', 'PolicyArn', True)],
+                "run": _query("iam", 'ListPolicyTags', names=('PolicyArn',)),
+            },
+            {
+                "id": 'create-instance-profile',
+                "label": 'Create Instance Profile',
+                "cli": "aws iam create-instance-profile",
+                
+                "params": [
+                    field('InstanceProfileName', 'InstanceProfileName', True),
+                    field('Path', 'Path', False),
+                ],
+                "run": _query("iam", 'CreateInstanceProfile', names=('InstanceProfileName', 'Path',)),
+            },
+            {
+                "id": 'get-instance-profile',
+                "label": 'Get Instance Profile',
+                "cli": "aws iam get-instance-profile",
+                
+                "params": [field('InstanceProfileName', 'InstanceProfileName', True)],
+                "run": _query("iam", 'GetInstanceProfile', names=('InstanceProfileName',)),
+            },
+            {
+                "id": 'delete-instance-profile',
+                "label": 'Delete Instance Profile',
+                "cli": "aws iam delete-instance-profile",
+                'destructive': True,
+                "params": [field('InstanceProfileName', 'InstanceProfileName', True)],
+                "run": _query("iam", 'DeleteInstanceProfile', names=('InstanceProfileName',)),
+            },
+            {
+                "id": 'list-instance-profiles',
+                "label": 'List Instance Profiles',
+                "cli": "aws iam list-instance-profiles",
+                
+                "params": [field('PathPrefix', 'PathPrefix', False)],
+                "run": _query("iam", 'ListInstanceProfiles', names=('PathPrefix',)),
+            },
+            {
+                "id": 'add-role-to-instance-profile',
+                "label": 'Add Role To Instance Profile',
+                "cli": "aws iam add-role-to-instance-profile",
+                
+                "params": [
+                    field('InstanceProfileName', 'InstanceProfileName', True),
+                    field('RoleName', 'RoleName', True),
+                ],
+                "run": _query("iam", 'AddRoleToInstanceProfile', names=('InstanceProfileName', 'RoleName',)),
+            },
+            {
+                "id": 'remove-role-from-instance-profile',
+                "label": 'Remove Role From Instance Profile',
+                "cli": "aws iam remove-role-from-instance-profile",
+                'destructive': True,
+                "params": [
+                    field('InstanceProfileName', 'InstanceProfileName', True),
+                    field('RoleName', 'RoleName', True),
+                ],
+                "run": _query("iam", 'RemoveRoleFromInstanceProfile', names=('InstanceProfileName', 'RoleName',)),
+            },
+            {
+                "id": 'list-instance-profiles-for-role',
+                "label": 'List Instance Profiles For Role',
+                "cli": "aws iam list-instance-profiles-for-role",
+                
+                "params": [field('RoleName', 'RoleName', True)],
+                "run": _query("iam", 'ListInstanceProfilesForRole', names=('RoleName',)),
+            },
+            {
+                "id": 'tag-instance-profile',
+                "label": 'Tag Instance Profile',
+                "cli": "aws iam tag-instance-profile",
+                
+                "params": [
+                    field('InstanceProfileName', 'InstanceProfileName', True),
+                    field('Tags.member.1.Key', 'Tags member 1 Key', True),
+                    field('Tags.member.1.Value', 'Tags member 1 Value', False),
+                ],
+                "run": _query("iam", 'TagInstanceProfile', names=('InstanceProfileName', 'Tags.member.1.Key', 'Tags.member.1.Value',)),
+            },
+            {
+                "id": 'untag-instance-profile',
+                "label": 'Untag Instance Profile',
+                "cli": "aws iam untag-instance-profile",
+                
+                "params": [
+                    field('InstanceProfileName', 'InstanceProfileName', True),
+                    field('TagKeys.member.1', 'TagKeys member 1', True),
+                ],
+                "run": _query("iam", 'UntagInstanceProfile', names=('InstanceProfileName', 'TagKeys.member.1',)),
+            },
+            {
+                "id": 'list-instance-profile-tags',
+                "label": 'List Instance Profile Tags',
+                "cli": "aws iam list-instance-profile-tags",
+                
+                "params": [field('InstanceProfileName', 'InstanceProfileName', True)],
+                "run": _query("iam", 'ListInstanceProfileTags', names=('InstanceProfileName',)),
+            },
+            {
+                "id": 'create-service-linked-role',
+                "label": 'Create Service Linked Role',
+                "cli": "aws iam create-service-linked-role",
+                
+                "params": [
+                    field('AWSServiceName', 'AWSServiceName', True),
+                    field('CustomSuffix', 'CustomSuffix', False),
+                    field('Description', 'Description', False),
+                ],
+                "run": _query("iam", 'CreateServiceLinkedRole', names=('AWSServiceName', 'CustomSuffix', 'Description',)),
+            },
+            {
+                "id": 'delete-service-linked-role',
+                "label": 'Delete Service Linked Role',
+                "cli": "aws iam delete-service-linked-role",
+                'destructive': True,
+                "params": [field('RoleName', 'RoleName', True)],
+                "run": _query("iam", 'DeleteServiceLinkedRole', names=('RoleName',)),
+            },
+            {
+                "id": 'get-service-linked-role-deletion-status',
+                "label": 'Get Service Linked Role Deletion Status',
+                "cli": "aws iam get-service-linked-role-deletion-status",
+                
+                "params": [field('DeletionTaskId', 'DeletionTaskId', True)],
+                "run": _query("iam", 'GetServiceLinkedRoleDeletionStatus', names=('DeletionTaskId',)),
+            },
+            {
+                "id": 'update-access-key',
+                "label": 'Update Access Key',
+                "cli": "aws iam update-access-key",
+                
+                "params": [
+                    field('AccessKeyId', 'AccessKeyId', True),
+                    field('Status', 'Status', True),
+                    field('UserName', 'UserName', False),
+                ],
+                "run": _query("iam", 'UpdateAccessKey', names=('AccessKeyId', 'Status', 'UserName',)),
+            },
+            {
+                "id": 'delete-access-key',
+                "label": 'Delete Access Key',
+                "cli": "aws iam delete-access-key",
+                'destructive': True,
+                "params": [field('AccessKeyId', 'AccessKeyId', True)],
+                "run": _query("iam", 'DeleteAccessKey', names=('AccessKeyId',)),
+            },
+            {
+                "id": 'get-access-key-last-used',
+                "label": 'Get Access Key Last Used',
+                "cli": "aws iam get-access-key-last-used",
+                
+                "params": [field('AccessKeyId', 'AccessKeyId', True)],
+                "run": _query("iam", 'GetAccessKeyLastUsed', names=('AccessKeyId',)),
+            },
+            {
+                "id": 'deactivate-m-f-a-device',
+                "label": 'Deactivate M F A Device',
+                "cli": "aws iam deactivate-m-f-a-device",
+                'destructive': True,
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('SerialNumber', 'SerialNumber', True),
+                ],
+                "run": _query("iam", 'DeactivateMFADevice', names=('UserName', 'SerialNumber',)),
+            },
+            {
+                "id": 'resync-m-f-a-device',
+                "label": 'Resync M F A Device',
+                "cli": "aws iam resync-m-f-a-device",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('SerialNumber', 'SerialNumber', True),
+                    field('AuthenticationCode1', 'AuthenticationCode1', True),
+                    field('AuthenticationCode2', 'AuthenticationCode2', True),
+                ],
+                "run": _query("iam", 'ResyncMFADevice', names=('UserName', 'SerialNumber', 'AuthenticationCode1', 'AuthenticationCode2',)),
+            },
+            {
+                "id": 'delete-virtual-m-f-a-device',
+                "label": 'Delete Virtual M F A Device',
+                "cli": "aws iam delete-virtual-m-f-a-device",
+                'destructive': True,
+                "params": [field('SerialNumber', 'SerialNumber', True)],
+                "run": _query("iam", 'DeleteVirtualMFADevice', names=('SerialNumber',)),
+            },
+            {
+                "id": 'list-virtual-m-f-a-devices',
+                "label": 'List Virtual M F A Devices',
+                "cli": "aws iam list-virtual-m-f-a-devices",
+                
+                "params": [field('AssignmentStatus', 'AssignmentStatus', False)],
+                "run": _query("iam", 'ListVirtualMFADevices', names=('AssignmentStatus',)),
+            },
+            {
+                "id": 'create-login-profile',
+                "label": 'Create Login Profile',
+                "cli": "aws iam create-login-profile",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('Password', 'Password', True),
+                    field('PasswordResetRequired', 'PasswordResetRequired', False),
+                ],
+                "run": _query("iam", 'CreateLoginProfile', names=('UserName', 'Password', 'PasswordResetRequired',)),
+            },
+            {
+                "id": 'get-login-profile',
+                "label": 'Get Login Profile',
+                "cli": "aws iam get-login-profile",
+                
+                "params": [field('UserName', 'UserName', True)],
+                "run": _query("iam", 'GetLoginProfile', names=('UserName',)),
+            },
+            {
+                "id": 'update-login-profile',
+                "label": 'Update Login Profile',
+                "cli": "aws iam update-login-profile",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('Password', 'Password', True),
+                    field('PasswordResetRequired', 'PasswordResetRequired', False),
+                ],
+                "run": _query("iam", 'UpdateLoginProfile', names=('UserName', 'Password', 'PasswordResetRequired',)),
+            },
+            {
+                "id": 'delete-login-profile',
+                "label": 'Delete Login Profile',
+                "cli": "aws iam delete-login-profile",
+                'destructive': True,
+                "params": [field('UserName', 'UserName', True)],
+                "run": _query("iam", 'DeleteLoginProfile', names=('UserName',)),
+            },
+            {
+                "id": 'get-account-authorization-details',
+                "label": 'Get Account Authorization Details',
+                "cli": "aws iam get-account-authorization-details",
+                
+                "params": [field('Filter.member.1', 'Filter member 1', False)],
+                "run": _query("iam", 'GetAccountAuthorizationDetails', names=('Filter.member.1',)),
+            },
+            {
+                "id": 'generate-service-last-accessed-details',
+                "label": 'Generate Service Last Accessed Details',
+                "cli": "aws iam generate-service-last-accessed-details",
+                
+                "params": [field('Arn', 'Arn', True)],
+                "run": _query("iam", 'GenerateServiceLastAccessedDetails', names=('Arn',)),
+            },
+            {
+                "id": 'get-service-last-accessed-details',
+                "label": 'Get Service Last Accessed Details',
+                "cli": "aws iam get-service-last-accessed-details",
+                
+                "params": [field('JobId', 'JobId', True)],
+                "run": _query("iam", 'GetServiceLastAccessedDetails', names=('JobId',)),
+            },
+            {
+                "id": 'create-service-specific-credential',
+                "label": 'Create Service Specific Credential',
+                "cli": "aws iam create-service-specific-credential",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('ServiceName', 'ServiceName', True),
+                ],
+                "run": _query("iam", 'CreateServiceSpecificCredential', names=('UserName', 'ServiceName',)),
+            },
+            {
+                "id": 'list-service-specific-credentials',
+                "label": 'List Service Specific Credentials',
+                "cli": "aws iam list-service-specific-credentials",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('ServiceName', 'ServiceName', False),
+                ],
+                "run": _query("iam", 'ListServiceSpecificCredentials', names=('UserName', 'ServiceName',)),
+            },
+            {
+                "id": 'update-service-specific-credential',
+                "label": 'Update Service Specific Credential',
+                "cli": "aws iam update-service-specific-credential",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('ServiceSpecificCredentialId', 'ServiceSpecificCredentialId', True),
+                    field('Status', 'Status', True),
+                ],
+                "run": _query("iam", 'UpdateServiceSpecificCredential', names=('UserName', 'ServiceSpecificCredentialId', 'Status',)),
+            },
+            {
+                "id": 'reset-service-specific-credential',
+                "label": 'Reset Service Specific Credential',
+                "cli": "aws iam reset-service-specific-credential",
+                
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('ServiceSpecificCredentialId', 'ServiceSpecificCredentialId', True),
+                ],
+                "run": _query("iam", 'ResetServiceSpecificCredential', names=('UserName', 'ServiceSpecificCredentialId',)),
+            },
+            {
+                "id": 'delete-service-specific-credential',
+                "label": 'Delete Service Specific Credential',
+                "cli": "aws iam delete-service-specific-credential",
+                'destructive': True,
+                "params": [
+                    field('UserName', 'UserName', True),
+                    field('ServiceSpecificCredentialId', 'ServiceSpecificCredentialId', True),
+                ],
+                "run": _query("iam", 'DeleteServiceSpecificCredential', names=('UserName', 'ServiceSpecificCredentialId',)),
+            },
+            {
+                "id": 'upload-server-certificate',
+                "label": 'Upload Server Certificate',
+                "cli": "aws iam upload-server-certificate",
+                
+                "params": [
+                    field('ServerCertificateName', 'ServerCertificateName', True),
+                    field('CertificateBody', 'CertificateBody', True, kind="textarea"),
+                    field('PrivateKey', 'PrivateKey', True, kind="textarea"),
+                    field('CertificateChain', 'CertificateChain', False, kind="textarea"),
+                    field('Path', 'Path', False),
+                ],
+                "run": _query("iam", 'UploadServerCertificate', names=('ServerCertificateName', 'CertificateBody', 'PrivateKey', 'CertificateChain', 'Path',)),
+            },
+            {
+                "id": 'list-server-certificates',
+                "label": 'List Server Certificates',
+                "cli": "aws iam list-server-certificates",
+                
+                "params": [field('PathPrefix', 'PathPrefix', False)],
+                "run": _query("iam", 'ListServerCertificates', names=('PathPrefix',)),
+            },
+            {
+                "id": 'get-server-certificate',
+                "label": 'Get Server Certificate',
+                "cli": "aws iam get-server-certificate",
+                
+                "params": [field('ServerCertificateName', 'ServerCertificateName', True)],
+                "run": _query("iam", 'GetServerCertificate', names=('ServerCertificateName',)),
+            },
+            {
+                "id": 'update-server-certificate',
+                "label": 'Update Server Certificate',
+                "cli": "aws iam update-server-certificate",
+                
+                "params": [
+                    field('ServerCertificateName', 'ServerCertificateName', True),
+                    field('NewServerCertificateName', 'NewServerCertificateName', False),
+                    field('NewPath', 'NewPath', False),
+                ],
+                "run": _query("iam", 'UpdateServerCertificate', names=('ServerCertificateName', 'NewServerCertificateName', 'NewPath',)),
+            },
+            {
+                "id": 'delete-server-certificate',
+                "label": 'Delete Server Certificate',
+                "cli": "aws iam delete-server-certificate",
+                'destructive': True,
+                "params": [field('ServerCertificateName', 'ServerCertificateName', True)],
+                "run": _query("iam", 'DeleteServerCertificate', names=('ServerCertificateName',)),
+            },
+            {
+                "id": 'list-server-certificate-tags',
+                "label": 'List Server Certificate Tags',
+                "cli": "aws iam list-server-certificate-tags",
+                
+                "params": [field('ServerCertificateName', 'ServerCertificateName', True)],
+                "run": _query("iam", 'ListServerCertificateTags', names=('ServerCertificateName',)),
+            },
+            {
+                "id": 'create-policy-version',
+                "label": 'Create Policy Version',
+                "cli": "aws iam create-policy-version",
+                
+                "params": [
+                    field('PolicyArn', 'PolicyArn', True),
+                    field('PolicyDocument', 'PolicyDocument', True, kind="textarea"),
+                    field('SetAsDefault', 'SetAsDefault', False),
+                ],
+                "run": _query("iam", 'CreatePolicyVersion', names=('PolicyArn', 'PolicyDocument', 'SetAsDefault',)),
+            },
+            {
+                "id": 'get-policy-version',
+                "label": 'Get Policy Version',
+                "cli": "aws iam get-policy-version",
+                
+                "params": [
+                    field('PolicyArn', 'PolicyArn', True),
+                    field('VersionId', 'VersionId', True),
+                ],
+                "run": _query("iam", 'GetPolicyVersion', names=('PolicyArn', 'VersionId',)),
+            },
+            {
+                "id": 'delete-policy-version',
+                "label": 'Delete Policy Version',
+                "cli": "aws iam delete-policy-version",
+                'destructive': True,
+                "params": [
+                    field('PolicyArn', 'PolicyArn', True),
+                    field('VersionId', 'VersionId', True),
+                ],
+                "run": _query("iam", 'DeletePolicyVersion', names=('PolicyArn', 'VersionId',)),
+            },
+            {
+                "id": 'list-entities-for-policy',
+                "label": 'List Entities For Policy',
+                "cli": "aws iam list-entities-for-policy",
+                
+                "params": [
+                    field('PolicyArn', 'PolicyArn', True),
+                    field('EntityFilter', 'EntityFilter', False),
+                ],
+                "run": _query("iam", 'ListEntitiesForPolicy', names=('PolicyArn', 'EntityFilter',)),
+            },
+            {
+                "id": 'update-s-a-m-l-provider',
+                "label": 'Update S A M L Provider',
+                "cli": "aws iam update-s-a-m-l-provider",
+                
+                "params": [
+                    field('SAMLProviderArn', 'SAMLProviderArn', True),
+                    field('SAMLMetadataDocument', 'SAMLMetadataDocument', True, kind="textarea"),
+                    field('AssertionEncryptionMode', 'AssertionEncryptionMode', False),
+                ],
+                "run": _query("iam", 'UpdateSAMLProvider', names=('SAMLProviderArn', 'SAMLMetadataDocument', 'AssertionEncryptionMode',)),
             },
         ],
     },
@@ -791,6 +1974,6 @@ def run_action(service, operation, params, account, region, call, s3):
         "ok": ok,
         "status": status,
         "cli": op.get("cli", ""),
-        "body": body[:20000],
+        "body": body[:200000],
         "error": "" if ok else _error_message(body, status),
     }
