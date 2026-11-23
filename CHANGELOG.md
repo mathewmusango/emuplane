@@ -8,6 +8,12 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.9.0] - 2026-11-23
+
+### Added
+
+- An IAM console: users, roles, policies, groups, providers, settings, MFA and sign-in links ([#134](https://github.com/mathewmusango/emuplane/issues/134))
+
 ## [v0.8.0] - 2026-11-22
 
 ### Added
