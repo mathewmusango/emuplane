@@ -20,15 +20,15 @@ flowchart LR
 
 ## The console
 
-**The Backend health widget says `unreachable`.** The control is up and cannot
-reach the emulator. Hover the widget for the error; the usual cause is
+**About says the backend is `unreachable`.** The control is up and cannot reach
+the emulator. The row carries the error; the usual cause is
 `EP_BACKEND_URL` naming `localhost`, which inside a container is the container
 itself. Name the emulator the way *the control* sees it — the service name on a
 shared network, or `host.containers.internal` / `host.docker.internal` for one on
 the host. Then note what the health check does not tell you: `/health` is
 liveness only and answers `200` while the emulator is down, and the compose
 healthcheck calls exactly that. **A healthy container is not a working console** —
-the widget and a read are the real checks. See
+the row on **About** and a read are the real checks. See
 [Docker and Podman](../deployment/docker-podman.md) and
 [Configuration](../reference/configuration.md).
 
@@ -155,7 +155,7 @@ Four things turn a report into a fix, because each one rules out a layer:
 1. The **exact** message, quoted — the gateway's and the bootstrap job's are
    unique sentences, and this page is indexed by them.
 2. `docker compose logs bootstrap emuplane` (or `podman-compose logs`).
-3. Whether the **Backend health** widget says `reachable`, and the version beside it.
+3. What **About** says about the backend (reachable, id) and the version beside it.
 4. Whether the same call works **from the console**, which separates a gateway
    fault from an emulator one.
 

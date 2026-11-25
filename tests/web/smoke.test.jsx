@@ -17,25 +17,16 @@ describe('console', () => {
   })
   it('renders the dashboard shell with the account and region', async () => {
     renderAt(<App />)
-    expect(await screen.findByText('Services answering')).toBeTruthy()
+    expect(await screen.findByText(/Emuplane is the control plane/)).toBeTruthy()
     expect(screen.getAllByText('Home').length).toBeGreaterThan(0)
     expect(screen.getAllByText('111111111111', { exact: false }).length).toBeGreaterThan(0)
     expect(screen.getAllByText('us-east-1', { exact: false }).length).toBeGreaterThan(0)
   })
 
-  it('names the Emuplane version, and which backend answers beside the emulator version', async () => {
-    const original = RESPONSES['/api/nodes']
-    RESPONSES['/api/nodes'] = [{ health: { reachable: true, version: '1.5.40' } }]
-    try {
-      renderAt(<App />)
-
-      expect(await screen.findByText('0.7.0')).toBeTruthy()
-      // The backend id comes before the emulator's own version, so a second profile
-      // reads differently without the panel changing shape.
-      expect(await screen.findByText('reachable · ministack 1.5.40')).toBeTruthy()
-    } finally {
-      RESPONSES['/api/nodes'] = original
-    }
+  it('keeps the instance and backend readings on About, not Home', async () => {
+    renderAt(<App />)
+    expect(await screen.findByText(/Emuplane is the control plane/)).toBeTruthy()
+    expect(screen.queryByText('Backend health')).toBeNull()
   })
 
   it('says Copied after copying the account ID', async () => {
@@ -125,7 +116,7 @@ describe('console', () => {
     localStorage.clear()
     localStorage.setItem('emuplane:recent', JSON.stringify(['s3']))
     const first = renderAt(<Dashboard />)
-    expect(await screen.findByText('Services answering')).toBeTruthy()
+    expect(await screen.findByText(/Emuplane is the control plane/)).toBeTruthy()
     // The widget is always present; with no history it says so.
     expect(
       await screen.findByText(/Nothing yet. Open a service/),
@@ -166,7 +157,7 @@ describe('console', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
     // No MFA on this principal: the code screen must not appear.
-    expect(await screen.findByText('Services answering')).toBeTruthy()
+    expect(await screen.findByText(/Emuplane is the control plane/)).toBeTruthy()
     expect(screen.queryByText('Additional verification required')).toBeNull()
   })
 
@@ -186,7 +177,7 @@ describe('console', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByText('Services answering')).toBeTruthy()
+    expect(await screen.findByText(/Emuplane is the control plane/)).toBeTruthy()
     const stored = JSON.parse(localStorage.getItem('emuplane:identities') || '[]')
     expect(stored[0]?.token).toBe('login-token')
     localStorage.clear()
@@ -220,7 +211,7 @@ describe('console', () => {
       fireEvent.change(screen.getByLabelText('MFA code'), { target: { value: '123456' } })
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-      expect(await screen.findByText('Services answering')).toBeTruthy()
+      expect(await screen.findByText(/Emuplane is the control plane/)).toBeTruthy()
     } finally {
       RESPONSES['/api/auth/login'] = original
     }
