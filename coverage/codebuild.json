@@ -1,0 +1,28 @@
+{
+  "service": "CodeBuild",
+  "title": "CodeBuild coverage",
+  "page": "site/docs/reference/codebuild-coverage.md",
+  "ledger": "my-docs/CodeBuild.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every CodeBuild operation the emulator advertises, and what Emuplane does with it.",
+    "The service is JSON 1.1 under the `codebuild` credential scope with the",
+    "`CodeBuild_20161006` target prefix, and has no console action. Projects are keyed by",
+    "name; builds are metadata-only unless the emulator is started with",
+    "`MINISTACK_CODEBUILD_EXECUTE=1`, so a build lands `SUCCEEDED` synchronously."
+  ],
+  "covered": {
+    "CreateProject": "tests/control/test_codebuild_operations.py",
+    "BatchGetProjects": "tests/control/test_codebuild_operations.py",
+    "ListProjects": "tests/control/test_codebuild_operations.py",
+    "UpdateProject": "tests/control/test_codebuild_operations.py",
+    "DeleteProject": "tests/control/test_codebuild_operations.py",
+    "StartBuild": "tests/control/test_codebuild_operations.py",
+    "BatchGetBuilds": "tests/control/test_codebuild_operations.py",
+    "StopBuild": "tests/control/test_codebuild_operations.py",
+    "ListBuilds": "tests/control/test_codebuild_operations.py",
+    "ListBuildsForProject": "tests/control/test_codebuild_operations.py",
+    "BatchDeleteBuilds": "tests/control/test_codebuild_operations.py"
+  }
+}

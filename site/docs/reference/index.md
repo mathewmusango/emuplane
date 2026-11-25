@@ -29,7 +29,7 @@ npm run coverage   # regenerates the index and every service page
 
 <!-- coverage-index:begin -->
 
-**54 services** · 1441 operations · 1421 tested · 0 blocked. Each page names the test behind every operation it counts.
+**79 services** · 2326 operations · 2324 tested · 2 blocked. Each page names the test behind every operation it counts.
 
 ### Core {#core}
 
@@ -88,12 +88,37 @@ npm run coverage   # regenerates the index and every service page
 | Service | Operations | Tested | Blocked | Page |
 | --- | ---: | ---: | ---: | --- |
 | Account | 4 | 4 | 0 | [account-coverage](account-coverage.md) |
+| AppConfig | 33 | 33 | 0 | [appconfig-coverage](appconfig-coverage.md) |
+| Athena | 32 | 32 | 0 | [athena-coverage](athena-coverage.md) |
+| Aurora DSQL | 16 | 16 | 0 | [dsql-coverage](dsql-coverage.md) |
+| AutoScaling | 23 | 23 | 0 | [autoscaling-coverage](autoscaling-coverage.md) |
+| Batch | 10 | 10 | 0 | [batch-coverage](batch-coverage.md) |
+| Cloud Map | 29 | 29 | 0 | [cloud-map-coverage](cloud-map-coverage.md) |
+| CodeBuild | 11 | 11 | 0 | [codebuild-coverage](codebuild-coverage.md) |
+| Cognito | 101 | 101 | 0 | [cognito-coverage](cognito-coverage.md) |
 | EBS | 17 | 17 | 0 | [ebs-coverage](ebs-coverage.md) |
+| EC2 | 157 | 155 | 2 | [ec2-coverage](ec2-coverage.md) |
+| ECR | 26 | 26 | 0 | [ecr-coverage](ecr-coverage.md) |
+| ECS | 47 | 47 | 0 | [ecs-coverage](ecs-coverage.md) |
 | EFS | 28 | 28 | 0 | [efs-coverage](efs-coverage.md) |
+| ElastiCache | 41 | 41 | 0 | [elasticache-coverage](elasticache-coverage.md) |
+| EMR | 22 | 22 | 0 | [emr-coverage](emr-coverage.md) |
+| EventBridge Scheduler | 12 | 12 | 0 | [eventbridge-scheduler-coverage](eventbridge-scheduler-coverage.md) |
+| Firehose | 12 | 12 | 0 | [firehose-coverage](firehose-coverage.md) |
+| Glue | 83 | 83 | 0 | [glue-coverage](glue-coverage.md) |
+| IoT Core | 75 | 75 | 0 | [iot-coverage](iot-coverage.md) |
+| IoT Jobs | 20 | 20 | 0 | [iot-jobs-coverage](iot-jobs-coverage.md) |
+| IoT Wireless | 1 | 1 | 0 | [iot-wireless-coverage](iot-wireless-coverage.md) |
+| OpenSearch Serverless | 19 | 19 | 0 | [opensearch-serverless-coverage](opensearch-serverless-coverage.md) |
+| OpenSearch Service | 13 | 13 | 0 | [opensearch-coverage](opensearch-coverage.md) |
 | Organizations | 28 | 28 | 0 | [organizations-coverage](organizations-coverage.md) |
-| S3 Files | 21 | 1 | 0 | [s3-files-coverage](s3-files-coverage.md) |
+| RDS | 66 | 66 | 0 | [rds-coverage](rds-coverage.md) |
+| RDS Data API | 5 | 5 | 0 | [rds-data-api-coverage](rds-data-api-coverage.md) |
+| Route53 | 19 | 19 | 0 | [route53-coverage](route53-coverage.md) |
+| S3 Files | 21 | 21 | 0 | [s3-files-coverage](s3-files-coverage.md) |
 | S3 Tables | 39 | 39 | 0 | [s3tables-coverage](s3tables-coverage.md) |
 | Signer | 9 | 9 | 0 | [signer-coverage](signer-coverage.md) |
+| Transfer Family | 12 | 12 | 0 | [transfer-coverage](transfer-coverage.md) |
 
 ### CloudFormation {#cloudformation}
 

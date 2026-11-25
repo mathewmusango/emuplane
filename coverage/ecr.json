@@ -1,0 +1,43 @@
+{
+  "service": "ECR",
+  "title": "Amazon ECR coverage",
+  "page": "site/docs/reference/ecr-coverage.md",
+  "ledger": "my-docs/ECR.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Amazon ECR operation the emulator advertises, and what Emuplane does with",
+    "it. The service is JSON 1.1 under the `ecr` credential scope with the",
+    "`AmazonEC2ContainerRegistry_V20150921` target prefix, and has no console action.",
+    "A repository is keyed by name; images are keyed by digest and tag; layers are",
+    "metadata stubs, so the upload sequence runs without a blob store."
+  ],
+  "covered": {
+    "CreateRepository": "tests/control/test_ecr_operations.py",
+    "DescribeRepositories": "tests/control/test_ecr_operations.py",
+    "DeleteRepository": "tests/control/test_ecr_operations.py",
+    "ListImages": "tests/control/test_ecr_operations.py",
+    "DescribeImages": "tests/control/test_ecr_operations.py",
+    "PutImage": "tests/control/test_ecr_operations.py",
+    "BatchGetImage": "tests/control/test_ecr_operations.py",
+    "BatchDeleteImage": "tests/control/test_ecr_operations.py",
+    "GetAuthorizationToken": "tests/control/test_ecr_operations.py",
+    "GetRepositoryPolicy": "tests/control/test_ecr_operations.py",
+    "SetRepositoryPolicy": "tests/control/test_ecr_operations.py",
+    "DeleteRepositoryPolicy": "tests/control/test_ecr_operations.py",
+    "PutLifecyclePolicy": "tests/control/test_ecr_operations.py",
+    "GetLifecyclePolicy": "tests/control/test_ecr_operations.py",
+    "DeleteLifecyclePolicy": "tests/control/test_ecr_operations.py",
+    "ListTagsForResource": "tests/control/test_ecr_operations.py",
+    "TagResource": "tests/control/test_ecr_operations.py",
+    "UntagResource": "tests/control/test_ecr_operations.py",
+    "PutImageTagMutability": "tests/control/test_ecr_operations.py",
+    "PutImageScanningConfiguration": "tests/control/test_ecr_operations.py",
+    "DescribeRegistry": "tests/control/test_ecr_operations.py",
+    "GetDownloadUrlForLayer": "tests/control/test_ecr_operations.py",
+    "BatchCheckLayerAvailability": "tests/control/test_ecr_operations.py",
+    "InitiateLayerUpload": "tests/control/test_ecr_operations.py",
+    "UploadLayerPart": "tests/control/test_ecr_operations.py",
+    "CompleteLayerUpload": "tests/control/test_ecr_operations.py"
+  }
+}

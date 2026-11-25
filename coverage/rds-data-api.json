@@ -1,0 +1,33 @@
+{
+  "service": "RDS Data API",
+  "title": "RDS Data API coverage",
+  "page": "site/docs/reference/rds-data-api-coverage.md",
+  "ledger": "my-docs/RDSDataAPI.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "The five RDS Data API operations the emulator advertises. The service is REST-JSON",
+    "under the `rds-data` credential scope at `/Execute`, `/BeginTransaction`,",
+    "`/CommitTransaction`, `/RollbackTransaction` and `/BatchExecute`.",
+    "`ExecuteStatement` runs against the emulator's in-memory SQL stub when the target has",
+    "no container-backed endpoint, which is how a serverless cluster answers. Batch and the",
+    "three transaction operations bind a real database connection, so their tests create a",
+    "PostgreSQL instance on a lab whose emulator can start containers and prove each effect",
+    "by reading it back; without that socket they skip and name the dependant."
+  ],
+  "operations": [
+    "ExecuteStatement",
+    "BatchExecuteStatement",
+    "BeginTransaction",
+    "CommitTransaction",
+    "RollbackTransaction"
+  ],
+  "covered": {
+    "ExecuteStatement": "tests/control/test_rds_data_api_operations.py",
+    "BatchExecuteStatement": "tests/control/test_rds_data_api_live_operations.py",
+    "BeginTransaction": "tests/control/test_rds_data_api_live_operations.py",
+    "CommitTransaction": "tests/control/test_rds_data_api_live_operations.py",
+    "RollbackTransaction": "tests/control/test_rds_data_api_live_operations.py"
+  },
+  "blocked": {}
+}

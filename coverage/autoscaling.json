@@ -1,0 +1,40 @@
+{
+  "service": "AutoScaling",
+  "title": "Amazon EC2 Auto Scaling coverage",
+  "page": "site/docs/reference/autoscaling-coverage.md",
+  "ledger": "my-docs/AutoScaling.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Auto Scaling operation the emulator advertises, and what Emuplane does with",
+    "it. The service is the EC2 Query API (form-encoded `Action=...`) under the",
+    "`autoscaling` credential scope, and has no console action. Groups, launch",
+    "configurations, policies, hooks and scheduled actions are keyed by name; no",
+    "instances actually run."
+  ],
+  "covered": {
+    "CreateAutoScalingGroup": "tests/control/test_autoscaling_operations.py",
+    "DescribeAutoScalingGroups": "tests/control/test_autoscaling_operations.py",
+    "UpdateAutoScalingGroup": "tests/control/test_autoscaling_operations.py",
+    "DeleteAutoScalingGroup": "tests/control/test_autoscaling_operations.py",
+    "SetDesiredCapacity": "tests/control/test_autoscaling_operations.py",
+    "DescribeAutoScalingInstances": "tests/control/test_autoscaling_operations.py",
+    "CreateLaunchConfiguration": "tests/control/test_autoscaling_operations.py",
+    "DescribeLaunchConfigurations": "tests/control/test_autoscaling_operations.py",
+    "DeleteLaunchConfiguration": "tests/control/test_autoscaling_operations.py",
+    "PutScalingPolicy": "tests/control/test_autoscaling_operations.py",
+    "DescribePolicies": "tests/control/test_autoscaling_operations.py",
+    "DeletePolicy": "tests/control/test_autoscaling_operations.py",
+    "PutLifecycleHook": "tests/control/test_autoscaling_operations.py",
+    "DescribeLifecycleHooks": "tests/control/test_autoscaling_operations.py",
+    "DeleteLifecycleHook": "tests/control/test_autoscaling_operations.py",
+    "CompleteLifecycleAction": "tests/control/test_autoscaling_operations.py",
+    "RecordLifecycleActionHeartbeat": "tests/control/test_autoscaling_operations.py",
+    "PutScheduledUpdateGroupAction": "tests/control/test_autoscaling_operations.py",
+    "DescribeScheduledActions": "tests/control/test_autoscaling_operations.py",
+    "DeleteScheduledAction": "tests/control/test_autoscaling_operations.py",
+    "CreateOrUpdateTags": "tests/control/test_autoscaling_operations.py",
+    "DescribeTags": "tests/control/test_autoscaling_operations.py",
+    "DeleteTags": "tests/control/test_autoscaling_operations.py"
+  }
+}

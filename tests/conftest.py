@@ -19,6 +19,11 @@ ROOT = Path(__file__).resolve().parent.parent
 EMULATOR = Path(os.environ.get("EP_EMULATOR_SRC") or ROOT.parent / "ministack-src")
 # A lab sweep signs as a real account, so the resources land where a person can see them.
 LIVE_ENDPOINT = os.environ.get("EP_LAB_EMULATOR")
+# The in-process stand-in tests the API records, not the container engine: a host
+# that has a runtime would start real containers, so a create would spend the test
+# waiting on an image pull. A lab sweep keeps the socket it was given.
+if not LIVE_ENDPOINT:
+    os.environ["DOCKER_HOST"] = "unix:///nonexistent/emuplane-in-process"
 
 sys.path[:0] = [str(ROOT / "control"), str(EMULATOR)]
 

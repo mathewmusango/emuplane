@@ -1,0 +1,28 @@
+{
+  "service": "Transfer Family",
+  "title": "Transfer Family coverage",
+  "page": "site/docs/reference/transfer-coverage.md",
+  "ledger": "my-docs/TRANSFER.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Transfer Family operation the emulator advertises, and what Emuplane does",
+    "with it. There is no console action: servers, users and SSH public keys are",
+    "managed over the wire. The emulator also runs a real SFTP listener on `:2222`;",
+    "these tests cover the control plane only."
+  ],
+  "covered": {
+    "CreateServer": "tests/control/test_transfer_operations.py",
+    "DescribeServer": "tests/control/test_transfer_operations.py",
+    "DeleteServer": "tests/control/test_transfer_operations.py",
+    "ListServers": "tests/control/test_transfer_operations.py",
+    "StartServer": "tests/control/test_transfer_operations.py",
+    "StopServer": "tests/control/test_transfer_operations.py",
+    "CreateUser": "tests/control/test_transfer_operations.py",
+    "DescribeUser": "tests/control/test_transfer_operations.py",
+    "DeleteUser": "tests/control/test_transfer_operations.py",
+    "ListUsers": "tests/control/test_transfer_operations.py",
+    "ImportSshPublicKey": "tests/control/test_transfer_operations.py",
+    "DeleteSshPublicKey": "tests/control/test_transfer_operations.py"
+  }
+}
