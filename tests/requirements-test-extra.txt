@@ -2,18 +2,20 @@
 # requirements.txt, plus the one library a test module uses directly.
 #
 # pyyaml is imported at module load by the CloudFormation provisioners;
-# cryptography is what the KMS tests build real key material with.
+# cryptography is what the KMS tests build real key material with;
+# graphql-core is what the emulator builds its AppSync introspection document with.
 #
-# The Dockerfile installs both ("pyyaml>=6.0", "cryptography>=41.0") and no
-# requirements file names them, so a client-side install of the tree does not
-# get them. Hash-pinned like every other third-party install, so the suite runs
-# against the tree the image carries instead of whatever the interpreter
-# happens to have installed. cffi and pycparser are cryptography's own tree and
-# must be pinned with it, because --require-hashes is all or nothing per file.
+# The Dockerfile installs all three ("pyyaml>=6.0", "cryptography>=41.0",
+# "graphql-core==3.2.12") and no requirements file names them, so a client-side
+# install of the tree does not get them. Hash-pinned like every other third-party
+# install, so the suite runs against the tree the image carries instead of
+# whatever the interpreter happens to have installed. cffi and pycparser are
+# cryptography's own tree and must be pinned with it, because --require-hashes is
+# all or nothing per file.
 #
 # The hashes are the x86_64 wheels an ubuntu-latest runner resolves: per-version
 # wheels for pyyaml and cffi, an abi3 wheel for cryptography, and the universal
-# wheel for pycparser.
+# wheels for pycparser and graphql-core.
 pyyaml==6.0.4 \
     --hash=sha256:50588147ab2c6a59b5f990a4905db80899a6c2bd197e046a6201f1e67587e794 \
     --hash=sha256:c604dc2613c417130479cdd6e55c2faa691b6365aa82b3dafddfcecc2eaf1ac7 \
@@ -28,3 +30,5 @@ cffi==2.1.1 \
     --hash=sha256:aeae0e330c9f6acd681f647d46cefd30c29f93e3392882e792e82080c9691399
 pycparser==3.12 \
     --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e
+graphql-core==3.2.12 \
+    --hash=sha256:3d8f104532070485e13caa4092c1e71cda2ba6cffd96e98f285111ee10ed1e51
