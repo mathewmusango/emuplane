@@ -1,15 +1,30 @@
-# What the emulator imports but does not declare in requirements.txt.
+# What the emulator installs from its Dockerfile and does not declare in
+# requirements.txt, plus the one library a test module uses directly.
 #
-# The Dockerfile installs pyyaml for the CloudFormation provisioners
-# (ministack/services/cloudformation/provisioners.py imports it at module load),
-# so an image carries it and a client-side install of the emulator's tree does
-# not. Named here, and hash-pinned like every other third-party install, so the
-# suite tests the tree the image carries instead of whatever the interpreter
-# happens to have installed.
+# pyyaml is imported at module load by the CloudFormation provisioners;
+# cryptography is what the KMS tests build real key material with.
 #
-# The hashes are the manylinux x86_64 wheels for the three tested interpreters;
-# the runners are ubuntu-latest, so a wheel is always the file pip selects.
+# The Dockerfile installs both ("pyyaml>=6.0", "cryptography>=41.0") and no
+# requirements file names them, so a client-side install of the tree does not
+# get them. Hash-pinned like every other third-party install, so the suite runs
+# against the tree the image carries instead of whatever the interpreter
+# happens to have installed. cffi and pycparser are cryptography's own tree and
+# must be pinned with it, because --require-hashes is all or nothing per file.
+#
+# The hashes are the x86_64 wheels an ubuntu-latest runner resolves: per-version
+# wheels for pyyaml and cffi, an abi3 wheel for cryptography, and the universal
+# wheel for pycparser.
 pyyaml==6.0.4 \
     --hash=sha256:50588147ab2c6a59b5f990a4905db80899a6c2bd197e046a6201f1e67587e794 \
     --hash=sha256:c604dc2613c417130479cdd6e55c2faa691b6365aa82b3dafddfcecc2eaf1ac7 \
     --hash=sha256:c57e40928738c4a202852759f9e1ee2c7063429a9469ee1ac15651bbf7d69963
+cryptography==50.0.2 \
+    --hash=sha256:630ebfea3bf689d075f82316324ff7433dc447fe6bc1bfc76524b74b4a9567d2 \
+    --hash=sha256:4061c0079120205fb760c58acab6443e217307dcf05e3702cf970e0689972856 \
+    --hash=sha256:9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079
+cffi==2.1.1 \
+    --hash=sha256:a931079504ecc49efed7744c476a5c343a92fabf66dec2db95edb1b2fdc770e2 \
+    --hash=sha256:b0431303acaea1089ad4b3e9ce4e6518193def1118d4073ca848635ee4ea2e96 \
+    --hash=sha256:aeae0e330c9f6acd681f647d46cefd30c29f93e3392882e792e82080c9691399
+pycparser==3.12 \
+    --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e
