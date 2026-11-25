@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Alert from '@cloudscape-design/components/alert'
 import Box from '@cloudscape-design/components/box'
@@ -11,7 +11,6 @@ import Header from '@cloudscape-design/components/header'
 import Link from '@cloudscape-design/components/link'
 import Modal from '@cloudscape-design/components/modal'
 import SpaceBetween from '@cloudscape-design/components/space-between'
-import StatusIndicator from '@cloudscape-design/components/status-indicator'
 import { api } from '../api'
 import { useSession } from '../context'
 import { useRecent } from '../prefs'
@@ -27,8 +26,6 @@ const HIDDEN_KEY = 'emuplane:widgets:hidden'
 const WIDGETS = [
   { id: 'recent', title: 'Recently visited' },
   { id: 'welcome', title: 'Welcome to Emuplane' },
-  { id: 'emuplane', title: 'Emuplane' },
-  { id: 'health', title: 'Backend health' },
   { id: 'usage', title: 'Usage' },
   { id: 'endpoints', title: 'Endpoints' },
 ]
@@ -42,17 +39,6 @@ const readHidden = () => {
   }
 }
 
-function formatUptime(seconds) {
-  if (!Number.isFinite(seconds) || seconds < 0) return '—'
-  const days = Math.floor(seconds / 86400)
-  const hours = Math.floor((seconds % 86400) / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  if (days) return `${days}d ${hours}h`
-  if (hours) return `${hours}h ${minutes}m`
-  return `${minutes}m`
-}
-
-/** One card in the grid, with the title bar the console's widgets carry. */
 function Widget({ title, description, actions, children }) {
   return (
     <Container
@@ -71,11 +57,8 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { meta, account, region, refresh: refreshMeta } = useSession()
   const { recent } = useRecent(meta?.me?.account)
-  const [services, setServices] = useState({})
   const [counts, setCounts] = useState({})
-  const [nodes, setNodes] = useState([])
   const [catalogue, setCatalogue] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [hidden, setHidden] = useState(readHidden)
   const [choosing, setChoosing] = useState(false)
@@ -84,23 +67,16 @@ export default function Dashboard() {
   )
 
   const load = useCallback(async () => {
-    setLoading(true)
     try {
-      const [states, cat, countData, nodeRows] = await Promise.all([
-        api.services(),
+      const [cat, countData] = await Promise.all([
         loadCatalogue(),
         account && region ? api.counts(account, region) : Promise.resolve({ counts: {} }),
-        api.nodes(),
       ])
-      setServices(states || {})
       setCatalogue(cat)
       setCounts(countData?.counts || {})
-      setNodes(Array.isArray(nodeRows) ? nodeRows : [])
       setError('')
     } catch (err) {
       setError(err.message)
-    } finally {
-      setLoading(false)
     }
   }, [account, region])
 
@@ -127,16 +103,11 @@ export default function Dashboard() {
     }
   }
 
-  const available = useMemo(
-    () => Object.values(services).filter((state) => state?.available !== false).length,
-    [services],
-  )
   const actionServices = Object.keys(catalogue?.services || {}).length
   const totalResources = Object.values(counts).reduce(
     (sum, value) => sum + (Number(value) || 0),
     0,
   )
-  const emulator = nodes[0]?.health || {}
 
   const dismissWelcome = () => {
     setWelcomeDismissed(true)
@@ -279,70 +250,6 @@ export default function Dashboard() {
                       Read what this instance is
                     </Link>
                   </SpaceBetween>
-                </SpaceBetween>
-              </Widget>
-            )}
-
-            {show('emuplane') && (
-              <Widget
-                title="Emuplane"
-                actions={
-                  <Button
-                    variant="icon"
-                    iconName="close"
-                    ariaLabel="Remove this widget"
-                    onClick={() => hide('emuplane')}
-                  />
-                }
-              >
-                <SpaceBetween size="m">
-                  <div>
-                    <Box variant="awsui-key-label">Version</Box>
-                    <Box fontSize="heading-m">{meta?.version || 'dev'}</Box>
-                  </div>
-                  <div>
-                    <Box variant="awsui-key-label">API</Box>
-                    <Box>{meta?.api_version || 'v1'}</Box>
-                  </div>
-                  <div>
-                    <Box variant="awsui-key-label">Backend</Box>
-                    <Box>{meta?.backend || '—'}</Box>
-                  </div>
-                </SpaceBetween>
-              </Widget>
-            )}
-
-            {show('health') && (
-              <Widget
-                title="Backend health"
-                actions={
-                  <Button
-                    variant="icon"
-                    iconName="close"
-                    ariaLabel="Remove this widget"
-                    onClick={() => hide('health')}
-                  />
-                }
-              >
-                <SpaceBetween size="m">
-                  <div>
-                    <Box variant="awsui-key-label">Emulator</Box>
-                    <StatusIndicator
-                      type={emulator.reachable ? 'success' : 'error'}
-                    >
-                      {emulator.reachable
-                        ? `reachable · ${meta?.backend_id || 'emulator'} ${emulator.version || '?'}`
-                        : 'unreachable'}
-                    </StatusIndicator>
-                  </div>
-                  <div>
-                    <Box variant="awsui-key-label">Services answering</Box>
-                    <Box fontSize="heading-m">{loading ? '—' : available}</Box>
-                  </div>
-                  <div>
-                    <Box variant="awsui-key-label">Control plane uptime</Box>
-                    <Box>{formatUptime(meta?.uptime_seconds)}</Box>
-                  </div>
                 </SpaceBetween>
               </Widget>
             )}

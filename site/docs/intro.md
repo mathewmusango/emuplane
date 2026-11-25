@@ -35,12 +35,12 @@ flowchart LR
 Nothing is seeded. The first account is made at `/signup`, and the deployment's
 bearer token is minted once inside the container (`python /app/api_token.py`).
 
-![Console Home: the Emuplane version, the emulator it fronts, the account's usage and the endpoints](/img/console/console-home.png)
+![Console Home: recently visited services, the welcome panel, usage and the two endpoints](/img/console/console-home.png)
 
 <figure>
   <figcaption>Not a mock-up of AWS: each panel is a call the control plane made as the
-  account's root, with what the emulator answered — and the version this build is
-  running.</figcaption>
+  account's root, with what the emulator answered. The instance's own readings —
+  versions, backend health, uptime — are on <b>About</b>.</figcaption>
 </figure>
 
 ## What it is not
@@ -62,7 +62,7 @@ bearer token is minted once inside the container (`python /app/api_token.py`).
 - [Beyond the emulator](concepts/extensions.md) — what Emuplane adds that the
   emulator has no opinion about, MFA delete included.
 - [S3](/docs/guides/s3) — the pages, and what each one is allowed to claim.
-- [S3 coverage](/docs/reference/s3-coverage) — every operation, and whether the
-  console can show or do it.
+- [Coverage](/docs/reference/) — every service the emulator advertises, how many of
+  its operations Emuplane tests, and a page for each one.
 - [Control API](/docs/reference/control-api) — the routes the console calls, and
   how to call them yourself.

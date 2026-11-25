@@ -7,12 +7,13 @@ The console is the reason Emuplane exists: every claim it makes is backed by a
 read the console can actually perform. A page that cannot read something says so
 instead of showing an empty table.
 
-![The console home page: recent services, backend health, usage and the two endpoints](/img/console/console-home.png)
+![The console home page: recently visited services, the welcome panel, usage and the two endpoints](/img/console/console-home.png)
 
 <figure>
   <figcaption>Console Home is a grid of widgets, every one of them a read: the
-  emulator's health, the account's resource counts, and the addresses to point a
-  CLI at.</figcaption>
+  services this account has opened, the account's resource counts, and the
+  addresses to point a CLI at. The instance's own readings — versions, backend,
+  emulator reachability and uptime — live on <b>About</b>, not here.</figcaption>
 </figure>
 
 ## The frame
@@ -77,6 +78,12 @@ flowchart TB
 account itself — its name and ARN, the emulator's contact block, and the regions it
 answers — read from the account API rather than from Emuplane's own records. Access
 keys have their own page, **Security credentials**, in the account menu.
+
+**About** is the instance's own page: the Emuplane and backend versions, the API
+version, whether the emulator answers and which version it reports, how many services
+are answering, how long the control plane has been up, and the addresses it serves.
+Home deliberately carries none of that — it is about the account's work, not about
+the process serving it.
 
 ![The Account page: Account details, Contact information and the emulator's regions](/img/console/account.png)
 
