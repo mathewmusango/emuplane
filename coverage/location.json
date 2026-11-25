@@ -1,0 +1,25 @@
+{
+  "service": "Amazon Location (trackers)",
+  "title": "Amazon Location (trackers) coverage",
+  "page": "site/docs/reference/location-coverage.md",
+  "ledger": "my-docs/LOCATION.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Amazon Location tracker operation the emulator advertises, and what",
+    "Emuplane does with it. There is no console action: trackers and device positions",
+    "are driven over the wire (credential scope `geo`), and every advertised operation",
+    "is exercised by the API tests."
+  ],
+  "covered": {
+    "CreateTracker": "tests/control/test_location_operations.py",
+    "DescribeTracker": "tests/control/test_location_operations.py",
+    "UpdateTracker": "tests/control/test_location_operations.py",
+    "ListTrackers": "tests/control/test_location_operations.py",
+    "DeleteTracker": "tests/control/test_location_operations.py",
+    "BatchUpdateDevicePosition": "tests/control/test_location_operations.py",
+    "GetDevicePosition": "tests/control/test_location_operations.py",
+    "BatchGetDevicePosition": "tests/control/test_location_operations.py",
+    "GetDevicePositionHistory": "tests/control/test_location_operations.py"
+  }
+}

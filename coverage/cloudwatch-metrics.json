@@ -1,0 +1,38 @@
+{
+  "service": "CloudWatch Metrics",
+  "title": "CloudWatch Metrics coverage",
+  "page": "site/docs/reference/cloudwatch-metrics-coverage.md",
+  "ledger": "my-docs/CLOUDWATCH-METRICS.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every CloudWatch Metrics operation the emulator advertises, and what Emuplane",
+    "does with it. The service is signed with the `monitoring` credential scope and",
+    "answers the JSON, CBOR and Query protocols; there is no console action. Metrics,",
+    "alarms, composite alarms and dashboards are records held in memory, and an alarm",
+    "is evaluated against the data points already published to its metric. Tags apply",
+    "to an alarm's ARN, so an alarm has to exist before it can be tagged."
+  ],
+  "covered": {
+    "PutMetricData": "tests/control/test_cloudwatch_metrics_operations.py",
+    "GetMetricStatistics": "tests/control/test_cloudwatch_metrics_operations.py",
+    "GetMetricData": "tests/control/test_cloudwatch_metrics_operations.py",
+    "ListMetrics": "tests/control/test_cloudwatch_metrics_operations.py",
+    "PutMetricAlarm": "tests/control/test_cloudwatch_metrics_operations.py",
+    "PutCompositeAlarm": "tests/control/test_cloudwatch_metrics_operations.py",
+    "DescribeAlarms": "tests/control/test_cloudwatch_metrics_operations.py",
+    "DescribeAlarmsForMetric": "tests/control/test_cloudwatch_metrics_operations.py",
+    "DescribeAlarmHistory": "tests/control/test_cloudwatch_metrics_operations.py",
+    "DeleteAlarms": "tests/control/test_cloudwatch_metrics_operations.py",
+    "SetAlarmState": "tests/control/test_cloudwatch_metrics_operations.py",
+    "EnableAlarmActions": "tests/control/test_cloudwatch_metrics_operations.py",
+    "DisableAlarmActions": "tests/control/test_cloudwatch_metrics_operations.py",
+    "TagResource": "tests/control/test_cloudwatch_metrics_operations.py",
+    "UntagResource": "tests/control/test_cloudwatch_metrics_operations.py",
+    "ListTagsForResource": "tests/control/test_cloudwatch_metrics_operations.py",
+    "PutDashboard": "tests/control/test_cloudwatch_metrics_operations.py",
+    "GetDashboard": "tests/control/test_cloudwatch_metrics_operations.py",
+    "DeleteDashboards": "tests/control/test_cloudwatch_metrics_operations.py",
+    "ListDashboards": "tests/control/test_cloudwatch_metrics_operations.py"
+  }
+}

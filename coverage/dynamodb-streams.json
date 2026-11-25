@@ -1,0 +1,22 @@
+{
+  "service": "DynamoDB Streams",
+  "title": "DynamoDB Streams coverage",
+  "page": "site/docs/reference/dynamodb-streams-coverage.md",
+  "ledger": "my-docs/DYNAMODB-STREAMS.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every DynamoDB Streams operation the emulator advertises, and what Emuplane does",
+    "with it. The service reads the records the main DynamoDB service emits on every write",
+    "that changes an item; it signs with the `dynamodb` credential scope and is told apart",
+    "by the `DynamoDBStreams_20120810` target prefix. There is no console action.",
+    "A table gets one synthetic shard and no shard splitting. Iterator tokens are opaque",
+    "and expire after 15 minutes, and a disabled stream stays readable for 24 hours."
+  ],
+  "covered": {
+    "ListStreams": "tests/control/test_dynamodb_streams_operations.py",
+    "DescribeStream": "tests/control/test_dynamodb_streams_operations.py",
+    "GetShardIterator": "tests/control/test_dynamodb_streams_operations.py",
+    "GetRecords": "tests/control/test_dynamodb_streams_operations.py"
+  }
+}

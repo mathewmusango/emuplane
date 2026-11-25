@@ -1,0 +1,31 @@
+{
+  "service": "AWS Config",
+  "title": "AWS Config coverage",
+  "page": "site/docs/reference/aws-config-coverage.md",
+  "ledger": "my-docs/Config.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every AWS Config operation the emulator advertises, and what Emuplane does with",
+    "it. The service is JSON 1.1 under the `config` credential scope with the",
+    "`StarlingDoveService` target prefix, and has no console action. Rules, the",
+    "configuration recorder and the delivery channel are upserts keyed by name; no",
+    "evaluation engine runs, so compliance is the documented `INSUFFICIENT_DATA` shape."
+  ],
+  "covered": {
+    "PutConfigRule": "tests/control/test_config_operations.py",
+    "DescribeConfigRules": "tests/control/test_config_operations.py",
+    "DeleteConfigRule": "tests/control/test_config_operations.py",
+    "PutConfigurationRecorder": "tests/control/test_config_operations.py",
+    "DescribeConfigurationRecorders": "tests/control/test_config_operations.py",
+    "DescribeConfigurationRecorderStatus": "tests/control/test_config_operations.py",
+    "PutDeliveryChannel": "tests/control/test_config_operations.py",
+    "DescribeDeliveryChannels": "tests/control/test_config_operations.py",
+    "DescribeDeliveryChannelStatus": "tests/control/test_config_operations.py",
+    "StartConfigurationRecorder": "tests/control/test_config_operations.py",
+    "StopConfigurationRecorder": "tests/control/test_config_operations.py",
+    "DescribeComplianceByConfigRule": "tests/control/test_config_operations.py",
+    "GetComplianceDetailsByConfigRule": "tests/control/test_config_operations.py",
+    "DescribeConfigRuleEvaluationStatus": "tests/control/test_config_operations.py"
+  }
+}

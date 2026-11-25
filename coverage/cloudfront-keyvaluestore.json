@@ -1,0 +1,33 @@
+{
+  "service": "CloudFront KeyValueStore (data plane)",
+  "title": "CloudFront KeyValueStore coverage",
+  "page": "site/docs/reference/cloudfront-kvs-coverage.md",
+  "ledger": "my-docs/CloudFrontKeyValueStore.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every CloudFront KeyValueStore data-plane operation the emulator advertises, and",
+    "what Emuplane does with it. A separate `cloudfront-keyvaluestore` SDK service",
+    "(REST/JSON, signing name `cloudfront-keyvaluestore`); the store itself is created",
+    "on the management plane, and both planes share it by ARN.",
+    "Every mutating call sends `If-Match` with the `ETag` the previous read answered,",
+    "and the suite re-reads it before each write because one write invalidates it.",
+    "`UpdateKeys` is atomic: the whole batch is validated before anything is stored."
+  ],
+  "operations": [
+    "DescribeKeyValueStore",
+    "ListKeys",
+    "GetKey",
+    "PutKey",
+    "DeleteKey",
+    "UpdateKeys"
+  ],
+  "covered": {
+    "DescribeKeyValueStore": "tests/control/test_cloudfront_kvs_operations.py",
+    "ListKeys": "tests/control/test_cloudfront_kvs_operations.py",
+    "GetKey": "tests/control/test_cloudfront_kvs_operations.py",
+    "PutKey": "tests/control/test_cloudfront_kvs_operations.py",
+    "DeleteKey": "tests/control/test_cloudfront_kvs_operations.py",
+    "UpdateKeys": "tests/control/test_cloudfront_kvs_operations.py"
+  }
+}

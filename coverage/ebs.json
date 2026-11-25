@@ -1,0 +1,34 @@
+{
+  "service": "EBS",
+  "title": "EBS coverage",
+  "page": "site/docs/reference/ebs-coverage.md",
+  "ledger": "my-docs/EBS.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every EBS operation the emulator advertises, and what Emuplane does with it.",
+    "EBS is part of the EC2 Query/XML service, so it is signed with the `ec2`",
+    "credential scope; there is no console action. Volumes are records, attach and",
+    "detach move a volume between `available` and `in-use`, a modification completes",
+    "synchronously, and a snapshot is stored `completed` immediately."
+  ],
+  "covered": {
+    "CreateVolume": "tests/control/test_ebs_operations.py",
+    "DeleteVolume": "tests/control/test_ebs_operations.py",
+    "DescribeVolumes": "tests/control/test_ebs_operations.py",
+    "DescribeVolumeStatus": "tests/control/test_ebs_operations.py",
+    "AttachVolume": "tests/control/test_ebs_operations.py",
+    "DetachVolume": "tests/control/test_ebs_operations.py",
+    "ModifyVolume": "tests/control/test_ebs_operations.py",
+    "DescribeVolumesModifications": "tests/control/test_ebs_operations.py",
+    "EnableVolumeIO": "tests/control/test_ebs_operations.py",
+    "ModifyVolumeAttribute": "tests/control/test_ebs_operations.py",
+    "DescribeVolumeAttribute": "tests/control/test_ebs_operations.py",
+    "CreateSnapshot": "tests/control/test_ebs_operations.py",
+    "DeleteSnapshot": "tests/control/test_ebs_operations.py",
+    "DescribeSnapshots": "tests/control/test_ebs_operations.py",
+    "CopySnapshot": "tests/control/test_ebs_operations.py",
+    "ModifySnapshotAttribute": "tests/control/test_ebs_operations.py",
+    "DescribeSnapshotAttribute": "tests/control/test_ebs_operations.py"
+  }
+}

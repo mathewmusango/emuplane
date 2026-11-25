@@ -1,0 +1,32 @@
+{
+  "service": "AmazonMQ",
+  "title": "AmazonMQ coverage",
+  "page": "site/docs/reference/amazonmq-coverage.md",
+  "ledger": "my-docs/AMAZONMQ.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every AmazonMQ operation the emulator advertises, and what Emuplane does with it.",
+    "There is no console action: brokers, users and tags are managed over the wire, and",
+    "every advertised operation is exercised by the API tests. The emulator is",
+    "metadata-only — no broker runs a container."
+  ],
+  "covered": {
+    "CreateBroker": "tests/control/test_mq_operations.py",
+    "ListBrokers": "tests/control/test_mq_operations.py",
+    "DescribeBrokers": "tests/control/test_mq_operations.py",
+    "DeleteBrokers": "tests/control/test_mq_operations.py",
+    "UpdateBroker": "tests/control/test_mq_operations.py",
+    "RebootBroker": "tests/control/test_mq_operations.py",
+    "DescribeBrokerEngineTypes": "tests/control/test_mq_operations.py",
+    "DescribeBrokerInstanceOptions": "tests/control/test_mq_operations.py",
+    "CreateTags": "tests/control/test_mq_operations.py",
+    "ListTags": "tests/control/test_mq_operations.py",
+    "DeleteTags": "tests/control/test_mq_operations.py",
+    "CreateUser": "tests/control/test_mq_operations.py",
+    "DeleteUser": "tests/control/test_mq_operations.py",
+    "ListUsers": "tests/control/test_mq_operations.py",
+    "UpdateUser": "tests/control/test_mq_operations.py",
+    "DescribeUser": "tests/control/test_mq_operations.py"
+  }
+}

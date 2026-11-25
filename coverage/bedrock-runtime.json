@@ -1,0 +1,30 @@
+{
+  "service": "Bedrock Runtime",
+  "title": "Bedrock Runtime coverage",
+  "page": "site/docs/reference/bedrock-runtime-coverage.md",
+  "ledger": "my-docs/BedrockRuntime.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Bedrock Runtime operation the emulator advertises, and what Emuplane does",
+    "with it. The service is REST/JSON on `/model/{modelId}`, `/guardrail/…` and",
+    "`/async-invoke`, signed with the `bedrock-runtime` credential scope, and has no",
+    "console action.",
+    "Model calls answer a deterministic, family-aware mock reply unless",
+    "`MINISTACK_BEDROCK_PROXY_URL` points at an OpenAI-compatible endpoint, so a test",
+    "asserts the wire shape rather than model output. Both streaming operations answer",
+    "a real eventstream. `ApplyGuardrail` uses a guardrail created through the Bedrock",
+    "control plane, and the async-invoke operations keep the invocation readable after",
+    "`StartAsyncInvoke` returns."
+  ],
+  "covered": {
+    "Converse": "tests/control/test_bedrock_runtime_operations.py",
+    "ConverseStream": "tests/control/test_bedrock_runtime_operations.py",
+    "InvokeModel": "tests/control/test_bedrock_runtime_operations.py",
+    "InvokeModelWithResponseStream": "tests/control/test_bedrock_runtime_operations.py",
+    "ApplyGuardrail": "tests/control/test_bedrock_runtime_operations.py",
+    "StartAsyncInvoke": "tests/control/test_bedrock_runtime_operations.py",
+    "GetAsyncInvoke": "tests/control/test_bedrock_runtime_operations.py",
+    "ListAsyncInvokes": "tests/control/test_bedrock_runtime_operations.py"
+  }
+}
