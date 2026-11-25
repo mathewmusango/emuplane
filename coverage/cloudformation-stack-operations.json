@@ -1,0 +1,29 @@
+{
+  "service": "Stack Operations",
+  "title": "Stack Operations coverage",
+  "page": "site/docs/reference/stack-operations-coverage.md",
+  "ledger": "my-docs/CFN-STACK-OPERATIONS.md",
+  "group": "CloudFormation",
+  "console_service": "",
+  "intro": [
+    "Every CloudFormation stack operation the emulator advertises, and what Emuplane",
+    "does with it. There is no console action: stacks are created, read, updated,",
+    "rolled back and deleted over the wire. Stacks deploy asynchronously, so the",
+    "in-process stand-in cancels the deploy before completion and the live sweep",
+    "proves the completed lifecycle; the operations themselves are all covered."
+  ],
+  "covered": {
+    "CreateStack": "tests/control/test_cloudformation_operations.py",
+    "UpdateStack": "tests/control/test_cloudformation_operations.py",
+    "DeleteStack": "tests/control/test_cloudformation_operations.py",
+    "DescribeStacks": "tests/control/test_cloudformation_operations.py",
+    "ListStacks": "tests/control/test_cloudformation_operations.py",
+    "DescribeStackEvents": "tests/control/test_cloudformation_operations.py",
+    "DescribeStackResource": "tests/control/test_cloudformation_operations.py",
+    "DescribeStackResources": "tests/control/test_cloudformation_operations.py",
+    "GetTemplate": "tests/control/test_cloudformation_operations.py",
+    "ValidateTemplate": "tests/control/test_cloudformation_operations.py",
+    "GetTemplateSummary": "tests/control/test_cloudformation_operations.py",
+    "RollbackStack": "tests/control/test_cloudformation_operations.py"
+  }
+}

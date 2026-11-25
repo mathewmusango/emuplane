@@ -15,8 +15,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-ACCOUNT = "111111111111"
-OTHER = "222222222222"
+# A lab sweep signs as the account under test, so the resources are visible in its console.
+ACCOUNT = os.environ.get("EP_LAB_ACCOUNT") or "111111111111"
+OTHER = os.environ.get("EP_LAB_ACCOUNT2") or "222222222222"
 TOKEN = "test-bearer-token"
 
 
