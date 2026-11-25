@@ -4,19 +4,49 @@ title: Reference
 ---
 
 What the console can do, operation by operation; the settings it reads; and what it
-deliberately does not do. **Not only S3** — every coverage page is generated from the
-emulator's own operation list, so a service that answers APIs gets a page here rather
-than a promise, and more are landing as the console grows pages for them.
+deliberately does not do. Every coverage page is generated from the emulator's own
+operation list, so a service that answers APIs gets a page here rather than a promise.
 
-| Page | What it answers |
-| --- | --- |
-| [S3 coverage](s3-coverage.md) | every S3 operation the emulator advertises, and whether the console can show or do it |
-| [S3 Files coverage](s3-files-coverage.md) | the S3 Files API surface the console reads |
-| [IAM coverage](iam-coverage.md) | the IAM operations, and which of them the console acts on |
-| [STS coverage](sts-coverage.md) | every security-token operation, all of them tested, none of them a console action |
-| [Account coverage](account-coverage.md) | the account APIs the emulator answers |
-| [Configuration](configuration.md) | every `EP_` setting, its default, and what it does |
-| [Limits](limits.md) | what is deliberately not done, and what each gap costs |
+**This index is the map.** One row per service, grouped the way the emulator groups
+them, and one page behind each row. The sidebar does not list the services: a list
+that grows a line per service is a list nobody reads at 90 entries, and a table with
+counts answers the same question better. Jump to a group: [Core](#core) ·
+[Extended](#extended) · [Infrastructure](#infrastructure) ·
+[CloudFormation](#cloudformation).
+
+Two rules shape the pages. A page counts only what the emulator **advertises**, and
+every operation it counts names the test behind it — a service with an operation and
+no test shows up as untested here rather than being quietly omitted. A new service is
+a `coverage/<service>.json` ledger, a page with `coverage:begin`/`coverage:end`
+markers, and the tests the ledger names.
+
+This index is generated from `coverage/*.json` by the same script that renders the
+pages, so adding a service never means editing it by hand.
+
+```bash
+npm run coverage   # regenerates the index and every service page
+```
+
+<!-- coverage-index:begin -->
+
+**5 services** · 212 operations · 192 tested · 0 blocked. Each page names the test behind every operation it counts.
+
+### Core {#core}
+
+| Service | Operations | Tested | Blocked | Page |
+| --- | ---: | ---: | ---: | --- |
+| IAM | 98 | 98 | 0 | [iam-coverage](iam-coverage.md) |
+| S3 | 84 | 84 | 0 | [s3-coverage](s3-coverage.md) |
+| STS | 5 | 5 | 0 | [sts-coverage](sts-coverage.md) |
+
+### Infrastructure {#infrastructure}
+
+| Service | Operations | Tested | Blocked | Page |
+| --- | ---: | ---: | ---: | --- |
+| Account | 4 | 4 | 0 | [account-coverage](account-coverage.md) |
+| S3 Files | 21 | 1 | 0 | [s3-files-coverage](s3-files-coverage.md) |
+
+<!-- coverage-index:end -->
 
 The control API's own route table is generated from its dispatcher and sits under
 **API** rather than here: it is a reference for callers, not a description of the

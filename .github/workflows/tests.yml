@@ -37,6 +37,12 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
+          # Both hash-locked installs below read from this cache; the key follows
+          # their contents, so a bump misses only the first job after it.
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tests/requirements-v1.5.40.txt
       - name: Where the emulator source goes
         run: echo "EP_EMULATOR_SRC=$RUNNER_TEMP/ministack" >> "$GITHUB_ENV"
       - name: Check out the emulator at the tested tag
@@ -47,8 +53,18 @@ jobs:
         # The lock is named for the tag: a bump without regenerating it has no file to read.
         run: pip install --quiet --require-hashes -r "tests/requirements-${EMULATOR_TAG}.txt"
       - name: Run the suite
-        run: python3 -m pytest -q tests
+        # One process, and deliberately no pytest-xdist: the suite finishes in under
+        # a minute, so a worker per core would buy seconds while making the live-
+        # gated modules (streams, WebSocket, RDS Data API) order-dependent. Revisit
+        # with `-n auto --dist loadfile` if this ever passes ~3 minutes.
+        # --durations keeps the slowest tests in the log, so a regression shows up
+        # in the job output rather than as a job that quietly got slower.
+        run: python3 -m pytest -q --durations=10 tests
       - name: The published coverage page is current
+        # File-only checks: one interpreter is enough, and they do not depend on
+        # the Python version under test.
+        if: matrix.python-version == '3.13'
         run: python3 scripts/coverage.py --check
       - name: Ledger, secrets and compile checks
+        if: matrix.python-version == '3.13'
         run: python3 scripts/qa_check.py
