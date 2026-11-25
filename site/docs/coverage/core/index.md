@@ -40,6 +40,7 @@ observability — the ones a stack is built on before anything else is called.
 | Lambda | 55 | 55 | 0 | [lambda-coverage](../../reference/lambda-coverage.md) |
 | Managed Service for Apache Flink | 15 | 15 | 0 | [flink-coverage](../../reference/flink-coverage.md) |
 | MSK | 17 | 17 | 0 | [msk-coverage](../../reference/msk-coverage.md) |
+| Resource Groups | 19 | 19 | 0 | [resource-groups-coverage](../../reference/resource-groups-coverage.md) |
 | S3 | 84 | 84 | 0 | [s3-coverage](../../reference/s3-coverage.md) |
 | SecretsManager | 21 | 21 | 0 | [secretsmanager-coverage](../../reference/secretsmanager-coverage.md) |
 | SES | 35 | 35 | 0 | [ses-coverage](../../reference/ses-coverage.md) |

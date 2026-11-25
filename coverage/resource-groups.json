@@ -1,0 +1,36 @@
+{
+  "service": "Resource Groups",
+  "title": "AWS Resource Groups coverage",
+  "page": "site/docs/reference/resource-groups-coverage.md",
+  "ledger": "my-docs/ResourceGroups.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every AWS Resource Groups operation the emulator advertises, and what Emuplane does",
+    "with it. The service is REST/JSON under the `resource-groups` credential scope, with",
+    "group lifecycle as POST routes and tags addressed by group ARN, and has no console",
+    "action. A group is keyed by name; `SearchResources` answers an empty index because",
+    "the emulator keeps no global resource index."
+  ],
+  "covered": {
+    "CreateGroup": "tests/control/test_resourcegroups_operations.py",
+    "GetGroup": "tests/control/test_resourcegroups_operations.py",
+    "DeleteGroup": "tests/control/test_resourcegroups_operations.py",
+    "UpdateGroup": "tests/control/test_resourcegroups_operations.py",
+    "ListGroups": "tests/control/test_resourcegroups_operations.py",
+    "GetGroupQuery": "tests/control/test_resourcegroups_operations.py",
+    "UpdateGroupQuery": "tests/control/test_resourcegroups_operations.py",
+    "GetGroupConfiguration": "tests/control/test_resourcegroups_operations.py",
+    "PutGroupConfiguration": "tests/control/test_resourcegroups_operations.py",
+    "GroupResources": "tests/control/test_resourcegroups_operations.py",
+    "UngroupResources": "tests/control/test_resourcegroups_operations.py",
+    "ListGroupResources": "tests/control/test_resourcegroups_operations.py",
+    "ListGroupingStatuses": "tests/control/test_resourcegroups_operations.py",
+    "SearchResources": "tests/control/test_resourcegroups_operations.py",
+    "Tag": "tests/control/test_resourcegroups_operations.py",
+    "Untag": "tests/control/test_resourcegroups_operations.py",
+    "GetTags": "tests/control/test_resourcegroups_operations.py",
+    "GetAccountSettings": "tests/control/test_resourcegroups_operations.py",
+    "UpdateAccountSettings": "tests/control/test_resourcegroups_operations.py"
+  }
+}
