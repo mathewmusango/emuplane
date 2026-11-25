@@ -28,8 +28,8 @@ const CARDS = [
   },
   {
     title: 'Coverage',
-    to: '/docs/reference/s3-coverage',
-    text: 'Every operation the emulator advertises, and whether the console can show or do it.',
+    to: '/docs/reference/',
+    text: 'Every service the emulator advertises, grouped, with the test behind each operation.',
   },
   {
     title: 'Limits',

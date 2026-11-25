@@ -15,9 +15,12 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 
 <!-- coverage:begin -->
 
+*Part of the [coverage index](index.md).*
+
 - Operations upstream advertises: **4**
 - Console actions (`/api/exec`, the create page): **4**
 - Operations with an emuplane test: **4**
+- Operations blocked on a dependant: **0**
 - Operations shown in the console: **4**
 - Operations that are not console actions: **0**
 - GET operations (Get/List/Head/Describe) shown in the console: **4** of **4**

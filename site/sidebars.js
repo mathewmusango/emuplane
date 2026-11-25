@@ -47,20 +47,10 @@ module.exports = {
   ],
 
   // What the console can do, operation by operation, and what it cannot.
+  // One page per service sits behind the generated reference index; the sidebar
+  // does not grow a line per service, because that list is the index's table.
   reference: [
     'reference/index',
-    {
-      type: 'category',
-      label: 'Coverage',
-      collapsed: false,
-      items: [
-        'reference/s3-coverage',
-        'reference/s3-files-coverage',
-        'reference/iam-coverage',
-        'reference/account-coverage',
-        'reference/sts-coverage',
-      ],
-    },
     'reference/configuration',
     'reference/limits',
   ],

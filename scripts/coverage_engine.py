@@ -28,6 +28,14 @@ NOT_CONSOLE = "not a console action"
 # Sections of the ledger that are evidence, not the published claim.
 SKIP = {"Console actions"}
 TEST_FILE = re.compile(r"tests/[\w/]+\.\w+(?:\.\w+)*")
+# The reference index is generated too, so a new service never needs a hand edit.
+# It is the map: every service page is reached from it, and no sidebar grows a
+# line per service as the count climbs.
+INDEX = ROOT / "site" / "docs" / "reference" / "index.md"
+INDEX_BEGIN = "<!-- coverage-index:begin -->"
+INDEX_END = "<!-- coverage-index:end -->"
+INDEX_LINK = "*Part of the [coverage index](index.md).*\n\n"
+GROUP_ORDER = ("Core", "Extended", "Infrastructure", "CloudFormation")
 
 
 def is_read(operation: str) -> bool:
@@ -66,20 +74,44 @@ def upstream_operations(service: str) -> list[str]:
     for line in README.read_text(encoding="utf-8").splitlines():
         if line.startswith(marker):
             cell = line.split("|")[2]
-            return [part.strip() for part in cell.split(",") if part.strip()]
+            # A structured row labels its sections; split on both separators, keep every entry.
+            cell = re.sub(r"\*\*[^*]+\*\*:", " ", cell)
+            return [part.strip() for part in re.split(r"[,;]", cell) if part.strip()]
     raise SystemExit(f"coverage: no `{marker}` row in the emulator README")
+
+
+def operations_for(spec: dict) -> list[str]:
+    """The row's operations minus any entry the ledger excludes as not an operation."""
+    # A summary row (`List* (17 ops), Get*, ...`) names no operations; such a ledger lists them.
+    if spec.get("operations"):
+        return list(spec["operations"])
+    excluded = set(spec.get("exclude") or [])
+    return [op for op in upstream_operations(spec["service"]) if op not in excluded]
 
 
 def render(spec: dict) -> str:
     service = spec["service"]
-    operations = upstream_operations(service)
+    operations = operations_for(spec)
     groups = spec.get("groups") or []
     gui = spec.get("gui") or {}
     covered = spec.get("covered") or {}
+    blocked = spec.get("blocked") or {}
     not_console = spec.get("not_console") or {}
     pages = spec.get("pages") or {}
     action_operations = spec.get("action_operations") or {}
     actions = console_actions(spec.get("console_service", ""))
+    tested_count = len([o for o in operations if o in covered])
+    blocked_count = len([o for o in operations if o in blocked and o not in covered])
+    untested_count = len(
+        [o for o in operations if o not in covered and o not in blocked]
+    )
+
+    def evidence(name: str) -> str:
+        if name in covered:
+            return covered[name]
+        if name in blocked:
+            return f"blocked — {blocked[name]}"
+        return DASH
 
     lines = [
         f"# {spec['title']}",
@@ -90,7 +122,8 @@ def render(spec: dict) -> str:
         "",
         f"- Operations upstream advertises: **{len(operations)}**",
         f"- Console actions (`/api/exec`, the create page): **{len(actions)}**",
-        f"- Operations with an emuplane test: **{len([o for o in operations if o in covered])}**",
+        f"- Operations with an emuplane test: **{tested_count}**",
+        f"- Operations blocked on a dependant: **{blocked_count}**",
         f"- Operations shown in the console: **{len([o for o in operations if o in gui])}**",
         f"- Operations that are not console actions: "
         f"**{len([o for o in operations if o in not_console])}**",
@@ -98,7 +131,7 @@ def render(spec: dict) -> str:
         f"**{len([o for o in operations if is_read(o) and o in gui])}** of "
         f"**{len([o for o in operations if is_read(o)])}**",
         f"- Operations with no emuplane test: "
-        f"**{len([o for o in operations if o not in covered])}**",
+        f"**{untested_count}**",
         "",
     ]
     if not groups and spec.get("group"):
@@ -132,7 +165,7 @@ def render(spec: dict) -> str:
             if name in pages:
                 owned.append(pages[name])
             action = ", ".join(owned)
-            test = covered.get(name, DASH)
+            test = evidence(name)
             shown = not_console.get(name) or gui.get(name, DASH)
             lines.append(f"| `{name}` | {action or DASH} | {shown} | {test} |")
 
@@ -169,7 +202,7 @@ def render(spec: dict) -> str:
             lines.append(
                 f"| `{name}` | {', '.join(owned) or DASH} | "
                 f"{not_console.get(name) or gui.get(name, 'not yet')} "
-                f"| {covered.get(name, DASH)} |"
+                f"| {evidence(name)} |"
             )
 
     if actions:
@@ -239,10 +272,98 @@ def write(spec: dict) -> None:
     head, _, rest = current.partition(BEGIN)
     _, _, tail = rest.partition(END)
     page.write_text(
-        head + BEGIN + "\n\n" + published(text) + "\n\n" + END + tail, encoding="utf-8"
+        head + BEGIN + "\n\n" + INDEX_LINK + published(text) + "\n\n" + END + tail,
+        encoding="utf-8",
     )
     where = f"{ledger.relative_to(ROOT)} and " if ledger is not None else ""
     print(f"wrote {where}{page.relative_to(ROOT)}")
+
+
+def index_rows() -> list[dict]:
+    """One row per service: the counts the summary uses, plus the page and sidebar id."""
+    rows = []
+    for name in services():
+        spec = load(name)
+        operations = operations_for(spec)
+        covered = set(spec.get("covered") or {})
+        blocked = set(spec.get("blocked") or {})
+        page = spec["page"].rsplit("reference/", 1)[-1]
+        rows.append(
+            {
+                "service": spec["service"],
+                "group": spec.get("group") or "Other",
+                "operations": len(operations),
+                "tested": len([op for op in operations if op in covered]),
+                "blocked": len([op for op in operations if op in blocked and op not in covered]),
+                "page": page,
+                "id": f"reference/{page.removesuffix('.md')}",
+            }
+        )
+    return rows
+
+
+def group_order(rows: list[dict]) -> list[str]:
+    """The emulator's own group order, then any label a ledger adds on its own."""
+    known = [group for group in GROUP_ORDER if any(row["group"] == group for row in rows)]
+    return known + sorted({row["group"] for row in rows} - set(known))
+
+
+def render_index() -> str:
+    rows = index_rows()
+    totals = {key: sum(row[key] for row in rows) for key in ("operations", "tested", "blocked")}
+    lines = [
+        f"**{len(rows)} services** · {totals['operations']} operations · "
+        f"{totals['tested']} tested · {totals['blocked']} blocked. Each page names the "
+        "test behind every operation it counts.",
+        "",
+    ]
+    for group in group_order(rows):
+        members = sorted(
+            (row for row in rows if row["group"] == group),
+            key=lambda row: row["service"].lower(),
+        )
+        anchor = re.sub(r"[^a-z0-9]+", "-", group.lower()).strip("-")
+        lines += [
+            f"### {group} {{#{anchor}}}",
+            "",
+            "| Service | Operations | Tested | Blocked | Page |",
+            "| --- | ---: | ---: | ---: | --- |",
+        ]
+        for row in members:
+            label = row["page"].removesuffix(".md")
+            lines.append(
+                f"| {row['service']} | {row['operations']} | {row['tested']} "
+                f"| {row['blocked']} | [{label}]({row['page']}) |"
+            )
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+
+def write_index() -> None:
+    current = INDEX.read_text(encoding="utf-8")
+    if INDEX_BEGIN not in current or INDEX_END not in current:
+        raise SystemExit(f"coverage: {INDEX.relative_to(ROOT)} has no coverage-index markers")
+    head, _, rest = current.partition(INDEX_BEGIN)
+    _, _, tail = rest.partition(INDEX_END)
+    INDEX.write_text(
+        head + INDEX_BEGIN + "\n\n" + render_index() + "\n\n" + INDEX_END + tail,
+        encoding="utf-8",
+    )
+    print(f"wrote {INDEX.relative_to(ROOT)}")
+
+
+
+def check_index() -> bool:
+    block = INDEX.read_text(encoding="utf-8").partition(INDEX_BEGIN)[2].partition(INDEX_END)[0]
+    if block.strip() != render_index():
+        print(
+            "site/docs/reference/index.md is out of date: run scripts/coverage.py",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
 
 
 def write_summary() -> None:
@@ -250,10 +371,11 @@ def write_summary() -> None:
     rows = []
     for name in services():
         spec = load(name)
-        operations = upstream_operations(spec["service"])
+        operations = operations_for(spec)
         actions = console_actions(spec.get("console_service", ""))
         gui = spec.get("gui") or {}
         covered = spec.get("covered") or {}
+        blocked = spec.get("blocked") or {}
         rows.append(
             {
                 "service": spec["service"],
@@ -262,6 +384,9 @@ def write_summary() -> None:
                 "actions": len(actions),
                 "shown": len([o for o in operations if o in gui]),
                 "tested": len([o for o in operations if o in covered]),
+                "blocked": len(
+                    [o for o in operations if o in blocked and o not in covered]
+                ),
                 "page": spec["page"].rsplit("reference/", 1)[-1],
             }
         )
@@ -274,23 +399,24 @@ def write_summary() -> None:
         "README. One row per service: the operations the endpoint advertises, the",
         "actions the console drives, and how many are shown or tested.",
         "",
-        "| Service | Group | Operations | Console actions | Shown | Tested | Page |",
-        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+        "| Service | Group | Operations | Console actions | Shown | Tested | Blocked | Page |",
+        "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in rows:
         lines.append(
             f"| {row['service']} | {row['group']} | {row['operations']} "
-            f"| {row['actions']} | {row['shown']} | {row['tested']} | {row['page']} |"
+            f"| {row['actions']} | {row['shown']} | {row['tested']} "
+            f"| {row['blocked']} | {row['page']} |"
         )
     totals = {
         key: sum(row[key] for row in rows)
-        for key in ("operations", "actions", "shown", "tested")
+        for key in ("operations", "actions", "shown", "tested", "blocked")
     }
     lines += [
         "",
         f"**{len(rows)} services** · {totals['operations']} operations · "
         f"{totals['actions']} console actions · {totals['shown']} shown · "
-        f"{totals['tested']} tested.",
+        f"{totals['tested']} tested · {totals['blocked']} blocked.",
         "",
     ]
     path = ROOT / "my-docs" / "COVERAGE.md"
@@ -309,7 +435,7 @@ def check(spec: dict) -> bool:
         return False
     page = page_path(spec)
     current = block(page.read_text(encoding="utf-8")) if page.is_file() else ""
-    if current != published(render(spec)):
+    if current != INDEX_LINK + published(render(spec)):
         print(
             f"{page.relative_to(ROOT)} is out of date: run scripts/coverage.py",
             file=sys.stderr,
@@ -329,8 +455,10 @@ def main(argv: list[str]) -> int:
                 print(f"{spec['title']} is current")
             else:
                 ok = False
+        ok = check_index() and ok
         return 0 if ok else 1
     for name in targets:
         write(load(name))
     write_summary()
+    write_index()
     return 0
