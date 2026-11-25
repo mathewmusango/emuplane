@@ -1,0 +1,30 @@
+{
+  "service": "ECS Task Metadata V4",
+  "title": "ECS Task Metadata V4 coverage",
+  "page": "site/docs/reference/ecs-task-metadata-coverage.md",
+  "ledger": "my-docs/ECSTaskMetadata.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "The four ECS Task Metadata V4 routes the emulator advertises. Each is an HTTP GET",
+    "keyed by a per-container token that a real task receives in",
+    "`ECS_CONTAINER_METADATA_URI_V4`; the emulator registers it from `services/ecs.py`",
+    "when the container starts, and a test process is never inside that container. The",
+    "suite therefore registers the token through the emulator's own `register_container`",
+    "with the same payloads and then asks over HTTP, and it skips on a lab where the",
+    "token belongs to the emulator's process."
+  ],
+  "operations": [
+    "GET /v4/<token>",
+    "GET /v4/<token>/task",
+    "GET /v4/<token>/stats",
+    "GET /v4/<token>/task/stats"
+  ],
+  "covered": {
+    "GET /v4/<token>": "tests/control/test_ecs_task_metadata_operations.py",
+    "GET /v4/<token>/task": "tests/control/test_ecs_task_metadata_operations.py",
+    "GET /v4/<token>/stats": "tests/control/test_ecs_task_metadata_operations.py",
+    "GET /v4/<token>/task/stats": "tests/control/test_ecs_task_metadata_operations.py"
+  },
+  "blocked": {}
+}
