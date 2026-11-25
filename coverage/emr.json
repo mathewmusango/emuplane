@@ -1,0 +1,39 @@
+{
+  "service": "EMR",
+  "title": "Amazon EMR coverage",
+  "page": "site/docs/reference/emr-coverage.md",
+  "ledger": "my-docs/EMR.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Amazon EMR operation the emulator advertises, and what Emuplane does with it.",
+    "The service is JSON 1.1 under the `elasticmapreduce` credential scope with the",
+    "`ElasticMapReduce` target prefix, and has no console action. A cluster is created",
+    "by `RunJobFlow`; no Spark/Hadoop execution happens, so steps land `COMPLETED` and a",
+    "cluster is `WAITING` or `TERMINATED`."
+  ],
+  "covered": {
+    "RunJobFlow": "tests/control/test_emr_operations.py",
+    "DescribeCluster": "tests/control/test_emr_operations.py",
+    "ListClusters": "tests/control/test_emr_operations.py",
+    "TerminateJobFlows": "tests/control/test_emr_operations.py",
+    "ModifyCluster": "tests/control/test_emr_operations.py",
+    "SetTerminationProtection": "tests/control/test_emr_operations.py",
+    "SetVisibleToAllUsers": "tests/control/test_emr_operations.py",
+    "AddJobFlowSteps": "tests/control/test_emr_operations.py",
+    "DescribeStep": "tests/control/test_emr_operations.py",
+    "ListSteps": "tests/control/test_emr_operations.py",
+    "CancelSteps": "tests/control/test_emr_operations.py",
+    "AddInstanceFleet": "tests/control/test_emr_operations.py",
+    "ListInstanceFleets": "tests/control/test_emr_operations.py",
+    "ModifyInstanceFleet": "tests/control/test_emr_operations.py",
+    "AddInstanceGroups": "tests/control/test_emr_operations.py",
+    "ListInstanceGroups": "tests/control/test_emr_operations.py",
+    "ModifyInstanceGroups": "tests/control/test_emr_operations.py",
+    "ListBootstrapActions": "tests/control/test_emr_operations.py",
+    "AddTags": "tests/control/test_emr_operations.py",
+    "RemoveTags": "tests/control/test_emr_operations.py",
+    "GetBlockPublicAccessConfiguration": "tests/control/test_emr_operations.py",
+    "PutBlockPublicAccessConfiguration": "tests/control/test_emr_operations.py"
+  }
+}

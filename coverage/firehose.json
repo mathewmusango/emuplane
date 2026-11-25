@@ -1,0 +1,29 @@
+{
+  "service": "Firehose",
+  "title": "Data Firehose coverage",
+  "page": "site/docs/reference/firehose-coverage.md",
+  "ledger": "my-docs/Firehose.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Data Firehose operation the emulator advertises, and what Emuplane does with",
+    "it. The service is JSON 1.1 under the `firehose` credential scope with the",
+    "`Firehose_20150804` target prefix, and has no console action. A stream is keyed by",
+    "name; a stream may carry no destination, and a destination is updated by id against",
+    "the stream's current version."
+  ],
+  "covered": {
+    "CreateDeliveryStream": "tests/control/test_firehose_operations.py",
+    "DeleteDeliveryStream": "tests/control/test_firehose_operations.py",
+    "DescribeDeliveryStream": "tests/control/test_firehose_operations.py",
+    "ListDeliveryStreams": "tests/control/test_firehose_operations.py",
+    "PutRecord": "tests/control/test_firehose_operations.py",
+    "PutRecordBatch": "tests/control/test_firehose_operations.py",
+    "UpdateDestination": "tests/control/test_firehose_operations.py",
+    "TagDeliveryStream": "tests/control/test_firehose_operations.py",
+    "UntagDeliveryStream": "tests/control/test_firehose_operations.py",
+    "ListTagsForDeliveryStream": "tests/control/test_firehose_operations.py",
+    "StartDeliveryStreamEncryption": "tests/control/test_firehose_operations.py",
+    "StopDeliveryStreamEncryption": "tests/control/test_firehose_operations.py"
+  }
+}

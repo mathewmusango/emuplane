@@ -1,0 +1,95 @@
+{
+  "service": "IoT Jobs",
+  "title": "IoT Jobs coverage",
+  "page": "site/docs/reference/iot-jobs-coverage.md",
+  "ledger": "my-docs/IoTJobs.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every AWS IoT Jobs operation the emulator advertises, and what Emuplane does with",
+    "it. The row names **16 control-plane operations** in the `iot` scope and **4 device",
+    "data-plane operations** in `iot-jobs-data`; both planes share the `iot` module's",
+    "job store. There is no console action.",
+    "`DescribeJobExecution` exists on **both planes**, so it appears under each heading",
+    "and the total counts it twice, as the README row does. A job targets a thing, which",
+    "is created first; a new job materializes each target's execution as `QUEUED`, and the",
+    "device plane starts and reports it. Documents are JSON strings, and a job template",
+    "is a record a job may copy its document and configuration from. Delete actions",
+    "create their own job or template and remove it."
+  ],
+  "operations": [
+    "CreateJob",
+    "UpdateJob",
+    "DescribeJob",
+    "ListJobs",
+    "GetJobDocument",
+    "CancelJob",
+    "DeleteJob",
+    "ListJobExecutionsForThing",
+    "ListJobExecutionsForJob",
+    "DescribeJobExecution",
+    "CancelJobExecution",
+    "DeleteJobExecution",
+    "CreateJobTemplate",
+    "DescribeJobTemplate",
+    "ListJobTemplates",
+    "DeleteJobTemplate",
+    "GetPendingJobExecutions",
+    "StartNextPendingJobExecution",
+    "DescribeJobExecution",
+    "UpdateJobExecution"
+  ],
+  "groups": [
+    [
+      "Control plane (`iot`)",
+      [
+        "CreateJob",
+        "UpdateJob",
+        "DescribeJob",
+        "ListJobs",
+        "GetJobDocument",
+        "CancelJob",
+        "DeleteJob",
+        "ListJobExecutionsForThing",
+        "ListJobExecutionsForJob",
+        "DescribeJobExecution",
+        "CancelJobExecution",
+        "DeleteJobExecution",
+        "CreateJobTemplate",
+        "DescribeJobTemplate",
+        "ListJobTemplates",
+        "DeleteJobTemplate"
+      ]
+    ],
+    [
+      "Device data plane (`iot-jobs-data`)",
+      [
+        "GetPendingJobExecutions",
+        "StartNextPendingJobExecution",
+        "DescribeJobExecution",
+        "UpdateJobExecution"
+      ]
+    ]
+  ],
+  "covered": {
+    "CreateJob": "tests/control/test_iot_jobs_operations.py",
+    "UpdateJob": "tests/control/test_iot_jobs_operations.py",
+    "DescribeJob": "tests/control/test_iot_jobs_operations.py",
+    "ListJobs": "tests/control/test_iot_jobs_operations.py",
+    "GetJobDocument": "tests/control/test_iot_jobs_operations.py",
+    "CancelJob": "tests/control/test_iot_jobs_operations.py",
+    "DeleteJob": "tests/control/test_iot_jobs_operations.py",
+    "ListJobExecutionsForThing": "tests/control/test_iot_jobs_operations.py",
+    "ListJobExecutionsForJob": "tests/control/test_iot_jobs_operations.py",
+    "DescribeJobExecution": "tests/control/test_iot_jobs_operations.py (control plane and device plane)",
+    "CancelJobExecution": "tests/control/test_iot_jobs_operations.py",
+    "DeleteJobExecution": "tests/control/test_iot_jobs_operations.py",
+    "CreateJobTemplate": "tests/control/test_iot_jobs_operations.py",
+    "DescribeJobTemplate": "tests/control/test_iot_jobs_operations.py",
+    "ListJobTemplates": "tests/control/test_iot_jobs_operations.py",
+    "DeleteJobTemplate": "tests/control/test_iot_jobs_operations.py",
+    "GetPendingJobExecutions": "tests/control/test_iot_jobs_operations.py",
+    "StartNextPendingJobExecution": "tests/control/test_iot_jobs_operations.py",
+    "UpdateJobExecution": "tests/control/test_iot_jobs_operations.py"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "service": "OpenSearch Service",
+  "title": "Amazon OpenSearch Service coverage",
+  "page": "site/docs/reference/opensearch-coverage.md",
+  "ledger": "my-docs/OpenSearch.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Amazon OpenSearch Service operation the emulator advertises, and what",
+    "Emuplane does with it. The service is REST/JSON under the `opensearch` credential",
+    "scope at `/2021-01-01/*`, and has no console action. With the dataplane disabled,",
+    "a domain reports a stub endpoint, so the management plane works without a cluster."
+  ],
+  "covered": {
+    "CreateDomain": "tests/control/test_opensearch_operations.py",
+    "DescribeDomain": "tests/control/test_opensearch_operations.py",
+    "DescribeDomains": "tests/control/test_opensearch_operations.py",
+    "DeleteDomain": "tests/control/test_opensearch_operations.py",
+    "ListDomainNames": "tests/control/test_opensearch_operations.py",
+    "UpdateDomainConfig": "tests/control/test_opensearch_operations.py",
+    "DescribeDomainConfig": "tests/control/test_opensearch_operations.py",
+    "DescribeDomainChangeProgress": "tests/control/test_opensearch_operations.py",
+    "ListVersions": "tests/control/test_opensearch_operations.py",
+    "GetCompatibleVersions": "tests/control/test_opensearch_operations.py",
+    "AddTags": "tests/control/test_opensearch_operations.py",
+    "ListTags": "tests/control/test_opensearch_operations.py",
+    "RemoveTags": "tests/control/test_opensearch_operations.py"
+  }
+}

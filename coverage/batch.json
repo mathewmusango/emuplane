@@ -1,0 +1,26 @@
+{
+  "service": "Batch",
+  "title": "AWS Batch coverage",
+  "page": "site/docs/reference/batch-coverage.md",
+  "ledger": "my-docs/Batch.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every AWS Batch operation the emulator advertises, and what Emuplane does with it.",
+    "The service is REST/JSON under the `batch` credential scope at `/v1/*`, and has no",
+    "console action. Compute environments, job queues and job definitions are records",
+    "keyed by name; a submitted job is a stub that lands `SUCCEEDED` immediately."
+  ],
+  "covered": {
+    "CreateComputeEnvironment": "tests/control/test_batch_operations.py",
+    "UpdateComputeEnvironment": "tests/control/test_batch_operations.py",
+    "DescribeComputeEnvironments": "tests/control/test_batch_operations.py",
+    "CreateJobQueue": "tests/control/test_batch_operations.py",
+    "DescribeJobQueues": "tests/control/test_batch_operations.py",
+    "RegisterJobDefinition": "tests/control/test_batch_operations.py",
+    "DescribeJobDefinitions": "tests/control/test_batch_operations.py",
+    "SubmitJob": "tests/control/test_batch_operations.py",
+    "DescribeJobs": "tests/control/test_batch_operations.py",
+    "ListJobs": "tests/control/test_batch_operations.py"
+  }
+}

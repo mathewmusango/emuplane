@@ -1,0 +1,36 @@
+{
+  "service": "OpenSearch Serverless",
+  "title": "Amazon OpenSearch Serverless coverage",
+  "page": "site/docs/reference/opensearch-serverless-coverage.md",
+  "ledger": "my-docs/OpenSearchServerless.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Amazon OpenSearch Serverless operation the emulator advertises, and what",
+    "Emuplane does with it. The control plane is JSON 1.0 under the `aoss` signing name",
+    "with the `OpenSearchServerless` target prefix, and has no console action. A",
+    "collection needs a matching encryption security policy before it can be created;",
+    "provisioning is asynchronous, so a read waits for `ACTIVE`."
+  ],
+  "covered": {
+    "CreateCollection": "tests/control/test_aoss_operations.py",
+    "BatchGetCollection": "tests/control/test_aoss_operations.py",
+    "ListCollections": "tests/control/test_aoss_operations.py",
+    "UpdateCollection": "tests/control/test_aoss_operations.py",
+    "DeleteCollection": "tests/control/test_aoss_operations.py",
+    "CreateSecurityPolicy": "tests/control/test_aoss_operations.py",
+    "GetSecurityPolicy": "tests/control/test_aoss_operations.py",
+    "UpdateSecurityPolicy": "tests/control/test_aoss_operations.py",
+    "DeleteSecurityPolicy": "tests/control/test_aoss_operations.py",
+    "ListSecurityPolicies": "tests/control/test_aoss_operations.py",
+    "CreateAccessPolicy": "tests/control/test_aoss_operations.py",
+    "GetAccessPolicy": "tests/control/test_aoss_operations.py",
+    "UpdateAccessPolicy": "tests/control/test_aoss_operations.py",
+    "DeleteAccessPolicy": "tests/control/test_aoss_operations.py",
+    "ListAccessPolicies": "tests/control/test_aoss_operations.py",
+    "GetPoliciesStats": "tests/control/test_aoss_operations.py",
+    "TagResource": "tests/control/test_aoss_operations.py",
+    "UntagResource": "tests/control/test_aoss_operations.py",
+    "ListTagsForResource": "tests/control/test_aoss_operations.py"
+  }
+}

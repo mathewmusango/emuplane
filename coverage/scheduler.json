@@ -1,0 +1,28 @@
+{
+  "service": "EventBridge Scheduler",
+  "title": "EventBridge Scheduler coverage",
+  "page": "site/docs/reference/eventbridge-scheduler-coverage.md",
+  "ledger": "my-docs/Scheduler.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every EventBridge Scheduler operation the emulator advertises, and what Emuplane",
+    "does with it. The service is REST/JSON under the `scheduler` credential scope at",
+    "`/schedules/*` and `/schedule-groups/*`, and has no console action. A schedule is",
+    "keyed by `group/name`, a group by name, and tags by the resource ARN."
+  ],
+  "covered": {
+    "CreateSchedule": "tests/control/test_scheduler_operations.py",
+    "GetSchedule": "tests/control/test_scheduler_operations.py",
+    "UpdateSchedule": "tests/control/test_scheduler_operations.py",
+    "DeleteSchedule": "tests/control/test_scheduler_operations.py",
+    "ListSchedules": "tests/control/test_scheduler_operations.py",
+    "CreateScheduleGroup": "tests/control/test_scheduler_operations.py",
+    "GetScheduleGroup": "tests/control/test_scheduler_operations.py",
+    "DeleteScheduleGroup": "tests/control/test_scheduler_operations.py",
+    "ListScheduleGroups": "tests/control/test_scheduler_operations.py",
+    "TagResource": "tests/control/test_scheduler_operations.py",
+    "UntagResource": "tests/control/test_scheduler_operations.py",
+    "ListTagsForResource": "tests/control/test_scheduler_operations.py"
+  }
+}

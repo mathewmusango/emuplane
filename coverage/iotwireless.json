@@ -1,0 +1,17 @@
+{
+  "service": "IoT Wireless",
+  "title": "AWS IoT Wireless coverage",
+  "page": "site/docs/reference/iot-wireless-coverage.md",
+  "ledger": "my-docs/IoTWireless.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "The one IoT Wireless operation the emulator advertises, and what Emuplane does with",
+    "it. The service is REST-JSON under the `iotwireless` credential scope at",
+    "`POST /position-estimate`, and has no console action. The response body is the raw",
+    "GeoJSON payload, not a JSON envelope."
+  ],
+  "covered": {
+    "GetPositionEstimate": "tests/control/test_iotwireless_operations.py"
+  }
+}

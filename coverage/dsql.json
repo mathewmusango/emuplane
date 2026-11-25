@@ -1,0 +1,38 @@
+{
+  "service": "Aurora DSQL",
+  "title": "Aurora DSQL coverage",
+  "page": "site/docs/reference/dsql-coverage.md",
+  "ledger": "my-docs/AuroraDSQL.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Aurora DSQL operation the emulator advertises, and what Emuplane does with",
+    "it. The API is REST-JSON routed on method + path and signed with the `dsql`",
+    "credential scope; there is no console action.",
+    "Unless `DSQL_STRICT=1` and Docker are available, a cluster is metadata-only and",
+    "`ACTIVE` at creation — nothing listens on its port — so the tests need no",
+    "backend. Cluster policies carry a version; a CDC stream targets a Kinesis stream,",
+    "which the test creates under the `kinesis` scope, and with `AUTH=true` the target",
+    "role must exist in IAM, so the test creates that too. Nothing is delivered to the",
+    "stream. Stable names carry the read and update rows; delete actions make their",
+    "own cluster or stream."
+  ],
+  "covered": {
+    "CreateCluster": "tests/control/test_dsql_operations.py",
+    "GetCluster": "tests/control/test_dsql_operations.py",
+    "UpdateCluster": "tests/control/test_dsql_operations.py",
+    "DeleteCluster": "tests/control/test_dsql_operations.py",
+    "ListClusters": "tests/control/test_dsql_operations.py",
+    "PutClusterPolicy": "tests/control/test_dsql_operations.py",
+    "GetClusterPolicy": "tests/control/test_dsql_operations.py",
+    "DeleteClusterPolicy": "tests/control/test_dsql_operations.py",
+    "CreateStream": "tests/control/test_dsql_operations.py",
+    "GetStream": "tests/control/test_dsql_operations.py",
+    "ListStreams": "tests/control/test_dsql_operations.py",
+    "DeleteStream": "tests/control/test_dsql_operations.py",
+    "GetVpcEndpointServiceName": "tests/control/test_dsql_operations.py",
+    "TagResource": "tests/control/test_dsql_operations.py",
+    "UntagResource": "tests/control/test_dsql_operations.py",
+    "ListTagsForResource": "tests/control/test_dsql_operations.py"
+  }
+}

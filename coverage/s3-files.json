@@ -14,6 +14,26 @@
     "ListFileSystems": "Files page › table, bucket page › File systems"
   },
   "covered": {
-    "ListFileSystems": "tests/s3/test_children.py (listing parsed)"
+    "ListFileSystems": "tests/s3/test_children.py (listing parsed)",
+    "CreateFileSystem": "tests/s3/test_s3files_operations.py (create file system is read back by get and list)",
+    "GetFileSystem": "tests/s3/test_s3files_operations.py (create file system is read back by get and list)",
+    "DeleteFileSystem": "tests/s3/test_s3files_operations.py (delete file system removes the file system it created)",
+    "CreateMountTarget": "tests/s3/test_s3files_operations.py (mount target lifecycle)",
+    "GetMountTarget": "tests/s3/test_s3files_operations.py (mount target lifecycle)",
+    "ListMountTargets": "tests/s3/test_s3files_operations.py (mount target lifecycle)",
+    "UpdateMountTarget": "tests/s3/test_s3files_operations.py (mount target lifecycle)",
+    "DeleteMountTarget": "tests/s3/test_s3files_operations.py (mount target lifecycle)",
+    "CreateAccessPoint": "tests/s3/test_s3files_operations.py (access point lifecycle)",
+    "GetAccessPoint": "tests/s3/test_s3files_operations.py (access point lifecycle)",
+    "ListAccessPoints": "tests/s3/test_s3files_operations.py (access point lifecycle)",
+    "DeleteAccessPoint": "tests/s3/test_s3files_operations.py (access point lifecycle)",
+    "GetFileSystemPolicy": "tests/s3/test_s3files_operations.py (file system policy is put read and deleted)",
+    "PutFileSystemPolicy": "tests/s3/test_s3files_operations.py (file system policy is put read and deleted)",
+    "DeleteFileSystemPolicy": "tests/s3/test_s3files_operations.py (file system policy is put read and deleted)",
+    "GetSynchronizationConfiguration": "tests/s3/test_s3files_operations.py (synchronization configuration is put and read)",
+    "PutSynchronizationConfiguration": "tests/s3/test_s3files_operations.py (synchronization configuration is put and read)",
+    "TagResource": "tests/s3/test_s3files_operations.py (tags are tagged listed and untagged)",
+    "UntagResource": "tests/s3/test_s3files_operations.py (tags are tagged listed and untagged)",
+    "ListTagsForResource": "tests/s3/test_s3files_operations.py (tags are tagged listed and untagged)"
   }
 }
