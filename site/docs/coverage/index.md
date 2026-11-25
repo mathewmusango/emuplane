@@ -19,12 +19,13 @@ npm run coverage   # regenerates this map and every service page
 
 <!-- coverage-index:begin -->
 
-**10 services** · 236 operations · 216 tested · 0 blocked. Each page names the test behind every operation it counts.
+**86 services** · 2533 operations · 2531 tested · 2 blocked. Each page names the test behind every operation it counts.
 
 | Group | Services | Operations | Tested | Blocked |
 | --- | ---: | ---: | ---: | ---: |
-| [Core](core/index.md) | 3 | 187 | 187 | 0 |
-| [Infrastructure](infrastructure/index.md) | 2 | 25 | 5 | 0 |
+| [Core](core/index.md) | 43 | 1263 | 1263 | 0 |
+| [Extended](extended/index.md) | 4 | 166 | 166 | 0 |
+| [Infrastructure](infrastructure/index.md) | 34 | 1080 | 1078 | 2 |
 | [CloudFormation](cloudformation/index.md) | 5 | 24 | 24 | 0 |
 
 <!-- coverage-index:end -->

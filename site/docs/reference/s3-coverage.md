@@ -34,7 +34,7 @@ npm run coverage   # regenerates every service's coverage page
 
 <!-- coverage:begin -->
 
-*Part of the [coverage index](index.md).*
+*Part of the [coverage map](../coverage/index.md).*
 
 - Operations upstream advertises: **84**
 - Console actions (`/api/exec`, the create page): **5**

@@ -5,7 +5,7 @@ title: AWS Config coverage
 
 <!-- coverage:begin -->
 
-*Part of the [coverage index](index.md).*
+*Part of the [coverage map](../coverage/index.md).*
 
 - Operations upstream advertises: **14**
 - Console actions (`/api/exec`, the create page): **0**
