@@ -5,7 +5,7 @@ title: Amazon OpenSearch Service coverage
 
 <!-- coverage:begin -->
 
-*Part of the [coverage index](index.md).*
+*Part of the [coverage map](../coverage/index.md).*
 
 - Operations upstream advertises: **13**
 - Console actions (`/api/exec`, the create page): **0**

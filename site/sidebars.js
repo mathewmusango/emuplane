@@ -9,6 +9,7 @@ module.exports = {
       label: 'Getting started',
       collapsed: false,
       items: [
+        'getting-started/index',
         'getting-started/quickstart',
         'getting-started/access',
         'getting-started/console',
@@ -20,6 +21,7 @@ module.exports = {
       label: 'Deployment',
       collapsed: false,
       items: [
+        'deployment/index',
         'deployment/docker-podman',
         'deployment/docker',
         'deployment/podman',
@@ -30,13 +32,18 @@ module.exports = {
       type: 'category',
       label: 'Concepts',
       collapsed: false,
-      items: ['concepts/architecture', 'concepts/tenancy', 'concepts/extensions'],
+      items: [
+        'concepts/index',
+        'concepts/architecture',
+        'concepts/tenancy',
+        'concepts/extensions',
+      ],
     },
     {
       type: 'category',
       label: 'Guides',
       collapsed: false,
-      items: ['guides/s3', 'guides/troubleshooting'],
+      items: ['guides/index', 'guides/s3', 'guides/troubleshooting'],
     },
     {
       // The operator side: how the thing is run, released and versioned.
@@ -44,6 +51,7 @@ module.exports = {
       label: 'Operations',
       collapsed: false,
       items: [
+        'operations/index',
         'operations/runbook',
         'operations/releases',
         'operations/image-and-versions',
@@ -51,11 +59,23 @@ module.exports = {
     },
   ],
 
-  // What the console can do, operation by operation, and what it cannot.
-  // One page per service sits behind the generated reference index; the sidebar
-  // does not grow a line per service, because that list is the index's table.
+  // What the console can do, operation by operation, and what it cannot. The
+  // coverage map's group pages are the only per-service navigation; no sidebar
+  // grows a line per service, because that list is the group page's table.
   reference: [
     'reference/index',
+    {
+      type: 'category',
+      label: 'Coverage',
+      collapsed: false,
+      items: [
+        'coverage/index',
+        'coverage/core/index',
+        'coverage/extended/index',
+        'coverage/infrastructure/index',
+        'coverage/cloudformation/index',
+      ],
+    },
     'reference/configuration',
     'reference/limits',
   ],

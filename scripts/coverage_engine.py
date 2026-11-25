@@ -28,14 +28,22 @@ NOT_CONSOLE = "not a console action"
 # Sections of the ledger that are evidence, not the published claim.
 SKIP = {"Console actions"}
 TEST_FILE = re.compile(r"tests/[\w/]+\.\w+(?:\.\w+)*")
-# The reference index is generated too, so a new service never needs a hand edit.
-# It is the map: every service page is reached from it, and no sidebar grows a
-# line per service as the count climbs.
-INDEX = ROOT / "site" / "docs" / "reference" / "index.md"
+# The coverage section is generated too, so a new service never needs a hand edit.
+# It is the map: one row per group, one page per group, one page per service, and
+# no sidebar grows a line per service as the count climbs.
+COVERAGE = ROOT / "site" / "docs" / "coverage"
+INDEX = COVERAGE / "index.md"
 INDEX_BEGIN = "<!-- coverage-index:begin -->"
 INDEX_END = "<!-- coverage-index:end -->"
-INDEX_LINK = "*Part of the [coverage index](index.md).*\n\n"
-GROUP_ORDER = ("Core", "Extended", "Infrastructure", "CloudFormation")
+INDEX_LINK = "*Part of the [coverage map](../coverage/index.md).*\n\n"
+GROUP_ORDER = ("Core", "Extended", "Infrastructure", "CloudFormation", "Other")
+GROUP_SLUGS = {
+    "Core": "core",
+    "Extended": "extended",
+    "Infrastructure": "infrastructure",
+    "CloudFormation": "cloudformation",
+    "Other": "other",
+}
 
 
 def is_read(operation: str) -> bool:
@@ -296,7 +304,6 @@ def index_rows() -> list[dict]:
                 "tested": len([op for op in operations if op in covered]),
                 "blocked": len([op for op in operations if op in blocked and op not in covered]),
                 "page": page,
-                "id": f"reference/{page.removesuffix('.md')}",
             }
         )
     return rows
@@ -308,7 +315,33 @@ def group_order(rows: list[dict]) -> list[str]:
     return known + sorted({row["group"] for row in rows} - set(known))
 
 
+def group_rows(group: str) -> list[dict]:
+    """One group's services, in the order the group page prints them."""
+    return sorted(
+        (row for row in index_rows() if row["group"] == group),
+        key=lambda row: row["service"].lower(),
+    )
+
+
+def render_group(group: str) -> str:
+    rows = group_rows(group)
+    if not rows:
+        return "No service in this group has a page yet."
+    lines = [
+        "| Service | Operations | Tested | Blocked | Page |",
+        "| --- | ---: | ---: | ---: | --- |",
+    ]
+    for row in rows:
+        label = row["page"].removesuffix(".md")
+        lines.append(
+            f"| {row['service']} | {row['operations']} | {row['tested']} | {row['blocked']} "
+            f"| [{label}](../../reference/{row['page']}) |"
+        )
+    return "\n".join(lines)
+
+
 def render_index() -> str:
+    """The map: one row per group, with the counts its page repeats service by service."""
     rows = index_rows()
     totals = {key: sum(row[key] for row in rows) for key in ("operations", "tested", "blocked")}
     lines = [
@@ -316,53 +349,65 @@ def render_index() -> str:
         f"{totals['tested']} tested · {totals['blocked']} blocked. Each page names the "
         "test behind every operation it counts.",
         "",
+        "| Group | Services | Operations | Tested | Blocked |",
+        "| --- | ---: | ---: | ---: | ---: |",
     ]
     for group in group_order(rows):
-        members = sorted(
-            (row for row in rows if row["group"] == group),
-            key=lambda row: row["service"].lower(),
+        members = group_rows(group)
+        lines.append(
+            f"| [{group}]({GROUP_SLUGS[group]}/index.md) | {len(members)} "
+            f"| {sum(row['operations'] for row in members)} "
+            f"| {sum(row['tested'] for row in members)} "
+            f"| {sum(row['blocked'] for row in members)} |"
         )
-        anchor = re.sub(r"[^a-z0-9]+", "-", group.lower()).strip("-")
-        lines += [
-            f"### {group} {{#{anchor}}}",
-            "",
-            "| Service | Operations | Tested | Blocked | Page |",
-            "| --- | ---: | ---: | ---: | --- |",
-        ]
-        for row in members:
-            label = row["page"].removesuffix(".md")
-            lines.append(
-                f"| {row['service']} | {row['operations']} | {row['tested']} "
-                f"| {row['blocked']} | [{label}]({row['page']}) |"
-            )
-        lines.append("")
     return "\n".join(lines).strip()
 
 
+def group_page(group: str) -> Path:
+    return COVERAGE / GROUP_SLUGS[group] / "index.md"
 
-def write_index() -> None:
-    current = INDEX.read_text(encoding="utf-8")
+
+def group_pages() -> list[tuple[str, Path, str]]:
+    """Every group's page, an empty one included, so the URL the map links to exists."""
+    present = set(group_order(index_rows()))
+    groups = [group for group in GROUP_ORDER if group != "Other" or "Other" in present]
+    return [(group, group_page(group), render_group(group)) for group in groups]
+
+
+def index_block(path: Path) -> str:
+    """The generated block of a map page, which carries its own markers."""
+    page = path.read_text(encoding="utf-8")
+    if INDEX_BEGIN not in page or INDEX_END not in page:
+        raise SystemExit(f"coverage: {path.relative_to(ROOT)} has no coverage-index markers")
+    return page.partition(INDEX_BEGIN)[2].partition(INDEX_END)[0].strip()
+
+
+def replace_block(path: Path, text: str) -> None:
+    current = path.read_text(encoding="utf-8")
     if INDEX_BEGIN not in current or INDEX_END not in current:
-        raise SystemExit(f"coverage: {INDEX.relative_to(ROOT)} has no coverage-index markers")
+        raise SystemExit(f"coverage: {path.relative_to(ROOT)} has no coverage-index markers")
     head, _, rest = current.partition(INDEX_BEGIN)
     _, _, tail = rest.partition(INDEX_END)
-    INDEX.write_text(
-        head + INDEX_BEGIN + "\n\n" + render_index() + "\n\n" + INDEX_END + tail,
-        encoding="utf-8",
+    path.write_text(
+        head + INDEX_BEGIN + "\n\n" + text + "\n\n" + INDEX_END + tail, encoding="utf-8"
     )
-    print(f"wrote {INDEX.relative_to(ROOT)}")
+    print(f"wrote {path.relative_to(ROOT)}")
 
+
+def write_index() -> None:
+    replace_block(INDEX, render_index())
+    for _, path, text in group_pages():
+        replace_block(path, text)
 
 
 def check_index() -> bool:
-    block = INDEX.read_text(encoding="utf-8").partition(INDEX_BEGIN)[2].partition(INDEX_END)[0]
-    if block.strip() != render_index():
-        print(
-            "site/docs/reference/index.md is out of date: run scripts/coverage.py",
-            file=sys.stderr,
-        )
-        return False
-    return True
+    ok = True
+    expected = [(INDEX, render_index())] + [(path, text) for _, path, text in group_pages()]
+    for path, text in expected:
+        if not path.is_file() or index_block(path) != text:
+            print(f"{path.relative_to(ROOT)} is out of date: run scripts/coverage.py", file=sys.stderr)
+            ok = False
+    return ok
 
 
 

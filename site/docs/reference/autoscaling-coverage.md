@@ -5,7 +5,7 @@ title: Amazon EC2 Auto Scaling coverage
 
 <!-- coverage:begin -->
 
-*Part of the [coverage index](index.md).*
+*Part of the [coverage map](../coverage/index.md).*
 
 - Operations upstream advertises: **23**
 - Console actions (`/api/exec`, the create page): **0**

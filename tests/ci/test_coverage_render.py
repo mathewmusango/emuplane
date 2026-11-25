@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
@@ -38,30 +37,29 @@ def test_the_published_sts_page_reads_as_out_of_scope():
     assert "Operations that are not console actions: **5**" in page
 
 
-def test_the_index_is_grouped_and_links_every_ledger():
-    """One generated index row per ledger, under the emulator's own group headings."""
+def test_the_map_counts_every_group_it_lists():
+    """One row per group on the map, and the totals above it agree with the service pages."""
     rows = engine.index_rows()
     text = engine.render_index()
     assert f"**{len(rows)} services**" in text
     for group in {row["group"] for row in rows}:
-        assert f"### {group} " in text
-    for row in rows:
-        label = row["page"].removesuffix(".md")
-        assert f"[{label}]({row['page']})" in text
-    # Every ledger is counted exactly once, so a duplicated service cannot hide a missing one.
-    assert text.count("| [") == len(rows)
+        members = engine.group_rows(group)
+        assert f"| [{group}]({engine.GROUP_SLUGS[group]}/index.md) | {len(members)} " in text
+    # The map links a group, never a service, so a new ledger cannot make it grow by a line.
+    assert text.count("| [") == len({row["group"] for row in rows})
 
 
-def test_the_index_headings_carry_anchors():
-    """A group is linkable, so the index can be the only navigation entry."""
-    text = engine.render_index()
-    for group in {row["group"] for row in engine.index_rows()}:
-        anchor = re.sub(r"[^a-z0-9]+", "-", group.lower()).strip("-")
-        assert f"### {group} {{#{anchor}}}" in text
+def test_every_group_has_a_page_that_matches_its_services():
+    """A group page exists even when empty, and its table is the group's services."""
+    for group, path, expected in engine.group_pages():
+        assert path.is_file(), path
+        assert engine.index_block(path) == expected
+        if expected.startswith("|"):
+            assert expected.count("| [") == len(engine.group_rows(group)), group
 
 
-def test_every_page_points_back_at_the_index():
-    """The index is the map; a growing sidebar per service is what this replaced."""
+def test_every_page_points_back_at_the_map():
+    """The map is the navigation; a growing sidebar per service is what this replaced."""
     assert not (ROOT / "site" / "sidebars.coverage.json").exists()
     for row in engine.index_rows():
         page = ROOT / "site" / "docs" / "reference" / row["page"]
