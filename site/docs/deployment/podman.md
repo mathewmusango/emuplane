@@ -28,13 +28,24 @@ ls -l /run/user/$(id -u)/podman/podman.sock
 
 **2. Hand it to the emulator at the path the client looks for.** Inside the
 container the socket belongs at `/var/run/docker.sock`, which is the Docker
-client's default, so **no `DOCKER_HOST` is needed** and one compose overlay serves
-both runtimes:
+client's default, so **no `DOCKER_HOST` is needed**. Save this overlay beside the
+compose file:
+
+```yaml
+# compose.socket.yml
+services:
+  ministack:
+    volumes:
+      - "${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock"
+```
+
+Then bring the stack up with it — the overlay is named explicitly because neither
+compose implementation picks one up on its own:
 
 ```bash
 DOCKER_SOCKET=/run/user/$(id -u)/podman/podman.sock \
   podman-compose --env-file .env.all \
-    -f docker-compose.all.yml -f docker-compose.socket.yml up -d
+    -f docker-compose.all.yml -f compose.socket.yml up -d
 ```
 
 Standalone, the same thing:

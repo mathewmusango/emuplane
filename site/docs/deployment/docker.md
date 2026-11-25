@@ -24,17 +24,28 @@ a record:
 | RDS | the database instance |
 | RDS Data API | the same database, for `BatchExecuteStatement` and the three transaction calls |
 
-Everything else works without this step. Add the overlay to enable them:
+Everything else works without this step. Save this overlay beside the compose
+file:
+
+```yaml
+# compose.socket.yml
+services:
+  ministack:
+    volumes:
+      - "${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock"
+```
+
+and bring the stack up with it:
 
 ```bash
 docker compose --env-file .env.all \
-  -f docker-compose.all.yml -f docker-compose.socket.yml up -d
+  -f docker-compose.all.yml -f compose.socket.yml up -d
 ```
 
-`docker-compose.socket.yml` mounts `${DOCKER_SOCKET:-/var/run/docker.sock}` into
-the emulator. On Docker the socket is already at that path, so nothing else is
-needed — and because it is the Docker client's default path, **no `DOCKER_HOST`
-is set**. If your daemon listens somewhere else, name it:
+The overlay mounts the runtime's socket at `/var/run/docker.sock` inside the
+emulator. On Docker that is where it already lives, so nothing else is needed —
+and because it is the Docker client's default path, **no `DOCKER_HOST` is set**.
+If your daemon listens somewhere else, name it:
 `DOCKER_SOCKET=/run/docker.sock docker compose …`.
 
 The daemon the emulator reaches is the host's, so it creates containers beside
