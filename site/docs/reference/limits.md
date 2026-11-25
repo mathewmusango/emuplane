@@ -243,6 +243,16 @@ a `ListBucketResult`), and an object GET as the object's own bytes (`200`). So a
 fall-through is why `?abac` and `?policyStatus` cannot be probed by asking once:
 the console shows no panel for them because there is no document to read.
 
+### Bedrock Agent versions have no create route
+
+MiniStack 1.5.40 serves `ListAgentVersions`, `GetAgentVersion` and
+`DeleteAgentVersion`, but nothing in its dispatcher creates a version record —
+`PrepareAgent` promotes the draft and leaves `AgentVersion` at `DRAFT`. The three
+operations are therefore exercised against a record seeded from the module's own
+state store, and they only appear in a lab after a state restore. They are not
+counted as blocked on the coverage page because each handler is genuinely tested;
+the missing half is the emulator's create path.
+
 ### How the emulator decides an S3 authorisation
 
 Measured against a two-account lab (`qa/bucket-policy-matrix.md`); the cells are

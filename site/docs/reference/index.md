@@ -29,7 +29,7 @@ npm run coverage   # regenerates the index and every service page
 
 <!-- coverage-index:begin -->
 
-**83 services** · 2456 operations · 2454 tested · 2 blocked. Each page names the test behind every operation it counts.
+**84 services** · 2528 operations · 2526 tested · 2 blocked. Each page names the test behind every operation it counts.
 
 ### Core {#core}
 
@@ -44,6 +44,7 @@ npm run coverage   # regenerates the index and every service page
 | AWS Config | 14 | 14 | 0 | [aws-config-coverage](aws-config-coverage.md) |
 | Backup | 21 | 21 | 0 | [backup-coverage](backup-coverage.md) |
 | Bedrock | 66 | 66 | 0 | [bedrock-coverage](bedrock-coverage.md) |
+| Bedrock Agent | 72 | 72 | 0 | [bedrock-agent-coverage](bedrock-agent-coverage.md) |
 | Bedrock Agent Runtime | 27 | 27 | 0 | [bedrock-agent-runtime-coverage](bedrock-agent-runtime-coverage.md) |
 | Bedrock AgentCore | 35 | 35 | 0 | [bedrock-agentcore-coverage](bedrock-agentcore-coverage.md) |
 | Bedrock Runtime | 8 | 8 | 0 | [bedrock-runtime-coverage](bedrock-runtime-coverage.md) |
