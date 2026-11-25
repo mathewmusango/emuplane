@@ -1,0 +1,22 @@
+{
+  "service": "Change Sets",
+  "title": "Change Sets coverage",
+  "page": "site/docs/reference/change-sets-coverage.md",
+  "ledger": "my-docs/CFN-CHANGE-SETS.md",
+  "group": "CloudFormation",
+  "console_service": "",
+  "intro": [
+    "Every CloudFormation change-set operation the emulator advertises, and what",
+    "Emuplane does with it. A change set previews the difference a stack update would",
+    "make; it is created, described, listed, executed or deleted over the Query",
+    "protocol, and there is no console action. A set with no changes ends FAILED and",
+    "cannot be executed, as on AWS."
+  ],
+  "covered": {
+    "CreateChangeSet": "tests/control/test_change_sets_operations.py",
+    "DescribeChangeSet": "tests/control/test_change_sets_operations.py",
+    "ExecuteChangeSet": "tests/control/test_change_sets_operations.py",
+    "DeleteChangeSet": "tests/control/test_change_sets_operations.py",
+    "ListChangeSets": "tests/control/test_change_sets_operations.py"
+  }
+}

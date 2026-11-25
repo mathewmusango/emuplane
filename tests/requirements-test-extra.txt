@@ -1,0 +1,15 @@
+# What the emulator imports but does not declare in requirements.txt.
+#
+# The Dockerfile installs pyyaml for the CloudFormation provisioners
+# (ministack/services/cloudformation/provisioners.py imports it at module load),
+# so an image carries it and a client-side install of the emulator's tree does
+# not. Named here, and hash-pinned like every other third-party install, so the
+# suite tests the tree the image carries instead of whatever the interpreter
+# happens to have installed.
+#
+# The hashes are the manylinux x86_64 wheels for the three tested interpreters;
+# the runners are ubuntu-latest, so a wheel is always the file pip selects.
+pyyaml==6.0.4 \
+    --hash=sha256:50588147ab2c6a59b5f990a4905db80899a6c2bd197e046a6201f1e67587e794 \
+    --hash=sha256:c604dc2613c417130479cdd6e55c2faa691b6365aa82b3dafddfcecc2eaf1ac7 \
+    --hash=sha256:c57e40928738c4a202852759f9e1ee2c7063429a9469ee1ac15651bbf7d69963

@@ -1,0 +1,22 @@
+{
+  "service": "StackSets",
+  "title": "StackSets coverage",
+  "page": "site/docs/reference/stacksets-coverage.md",
+  "ledger": "my-docs/CFN-STACKSETS.md",
+  "group": "CloudFormation",
+  "console_service": "",
+  "intro": [
+    "The StackSet read operations the emulator advertises, and what Emuplane does",
+    "with them. The README row describes the set created by an",
+    "`AWS::CloudFormation::StackSet` resource rather than listing an operation set,",
+    "so the universe here is the two operations it names."
+  ],
+  "covered": {
+    "DescribeStackSet": "tests/control/test_cloudformation_operations.py",
+    "ListStackInstances": "tests/control/test_cloudformation_operations.py"
+  },
+  "operations": [
+    "DescribeStackSet",
+    "ListStackInstances"
+  ]
+}

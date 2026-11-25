@@ -1,0 +1,29 @@
+{
+  "service": "Drift Detection",
+  "title": "Drift Detection coverage",
+  "page": "site/docs/reference/drift-detection-coverage.md",
+  "ledger": "my-docs/CFN-DRIFT.md",
+  "group": "CloudFormation",
+  "console_service": "",
+  "operations": [
+    "DetectStackDrift",
+    "DescribeStackDriftDetectionStatus",
+    "DetectStackResourceDrift",
+    "DescribeStackResourceDrifts"
+  ],
+  "intro": [
+    "Every CloudFormation drift operation the emulator advertises, and what Emuplane",
+    "does with it. Detection completes synchronously: it compares the properties the",
+    "template set with the service's current record, and records `DriftInformation`",
+    "on the stack and on each checked resource. There is no console action.",
+    "The README row also describes property-level drift for a set of resource types",
+    "and assigns `NOT_CHECKED` to every other type; those are behaviour notes rather",
+    "than operations, so the ledger lists only the four callable operations."
+  ],
+  "covered": {
+    "DetectStackDrift": "tests/control/test_drift_detection_operations.py",
+    "DescribeStackDriftDetectionStatus": "tests/control/test_drift_detection_operations.py",
+    "DetectStackResourceDrift": "tests/control/test_drift_detection_operations.py",
+    "DescribeStackResourceDrifts": "tests/control/test_drift_detection_operations.py"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "service": "Exports",
+  "title": "Exports coverage",
+  "page": "site/docs/reference/exports-coverage.md",
+  "ledger": "my-docs/CFN-EXPORTS.md",
+  "group": "CloudFormation",
+  "console_service": "",
+  "operations": [
+    "ListExports"
+  ],
+  "intro": [
+    "The one CloudFormation export operation the emulator advertises, and what",
+    "Emuplane does with it: `ListExports` reads the cross-stack values a stack's",
+    "`Outputs` publish through `Export.Name` and that another stack consumes with",
+    "`Fn::ImportValue`. There is no console action.",
+    "The README row also names `Fn::ImportValue`, which is a template function rather",
+    "than an API operation, so it is not counted here."
+  ],
+  "covered": {
+    "ListExports": "tests/control/test_exports_operations.py"
+  }
+}

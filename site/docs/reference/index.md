@@ -29,7 +29,7 @@ npm run coverage   # regenerates the index and every service page
 
 <!-- coverage-index:begin -->
 
-**5 services** · 212 operations · 192 tested · 0 blocked. Each page names the test behind every operation it counts.
+**10 services** · 236 operations · 216 tested · 0 blocked. Each page names the test behind every operation it counts.
 
 ### Core {#core}
 
@@ -45,6 +45,16 @@ npm run coverage   # regenerates the index and every service page
 | --- | ---: | ---: | ---: | --- |
 | Account | 4 | 4 | 0 | [account-coverage](account-coverage.md) |
 | S3 Files | 21 | 1 | 0 | [s3-files-coverage](s3-files-coverage.md) |
+
+### CloudFormation {#cloudformation}
+
+| Service | Operations | Tested | Blocked | Page |
+| --- | ---: | ---: | ---: | --- |
+| Change Sets | 5 | 5 | 0 | [change-sets-coverage](change-sets-coverage.md) |
+| Drift Detection | 4 | 4 | 0 | [drift-detection-coverage](drift-detection-coverage.md) |
+| Exports | 1 | 1 | 0 | [exports-coverage](exports-coverage.md) |
+| Stack Operations | 12 | 12 | 0 | [stack-operations-coverage](stack-operations-coverage.md) |
+| StackSets | 2 | 2 | 0 | [stacksets-coverage](stacksets-coverage.md) |
 
 <!-- coverage-index:end -->
 
