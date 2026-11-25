@@ -1,0 +1,32 @@
+{
+  "service": "DocumentDB",
+  "title": "Amazon DocumentDB coverage",
+  "page": "site/docs/reference/documentdb-coverage.md",
+  "ledger": "my-docs/DocumentDB.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every DocumentDB operation the emulator advertises, and what Emuplane does with it.",
+    "The control plane is the RDS Query API (`Action=...`, XML answers) signed with the",
+    "`rds` credential scope and claimed by `Engine=docdb`, a cluster or instance it",
+    "holds, or a resource ARN. Subnet and parameter groups are shared with RDS; a",
+    "backing container starts only when Docker is available."
+  ],
+  "covered": {
+    "CreateDBCluster": "tests/control/test_documentdb_operations.py",
+    "CreateDBInstance": "tests/control/test_documentdb_operations.py",
+    "DescribeDBClusters": "tests/control/test_documentdb_operations.py",
+    "DescribeDBInstances": "tests/control/test_documentdb_operations.py",
+    "ModifyDBCluster": "tests/control/test_documentdb_operations.py",
+    "ModifyDBInstance": "tests/control/test_documentdb_operations.py",
+    "RebootDBInstance": "tests/control/test_documentdb_operations.py",
+    "StartDBCluster": "tests/control/test_documentdb_operations.py",
+    "StopDBCluster": "tests/control/test_documentdb_operations.py",
+    "FailoverDBCluster": "tests/control/test_documentdb_operations.py",
+    "DeleteDBCluster": "tests/control/test_documentdb_operations.py",
+    "DeleteDBInstance": "tests/control/test_documentdb_operations.py",
+    "AddTagsToResource": "tests/control/test_documentdb_operations.py",
+    "RemoveTagsFromResource": "tests/control/test_documentdb_operations.py",
+    "ListTagsForResource": "tests/control/test_documentdb_operations.py"
+  }
+}

@@ -29,7 +29,7 @@ npm run coverage   # regenerates the index and every service page
 
 <!-- coverage-index:begin -->
 
-**79 services** · 2326 operations · 2324 tested · 2 blocked. Each page names the test behind every operation it counts.
+**82 services** · 2390 operations · 2388 tested · 2 blocked. Each page names the test behind every operation it counts.
 
 ### Core {#core}
 
@@ -60,6 +60,7 @@ npm run coverage   # regenerates the index and every service page
 | Inspector2 | 14 | 14 | 0 | [inspector2-coverage](inspector2-coverage.md) |
 | KMS | 41 | 41 | 0 | [kms-coverage](kms-coverage.md) |
 | Lambda | 55 | 55 | 0 | [lambda-coverage](lambda-coverage.md) |
+| Managed Service for Apache Flink | 15 | 15 | 0 | [flink-coverage](flink-coverage.md) |
 | MSK | 17 | 17 | 0 | [msk-coverage](msk-coverage.md) |
 | S3 | 84 | 84 | 0 | [s3-coverage](s3-coverage.md) |
 | SecretsManager | 21 | 21 | 0 | [secretsmanager-coverage](secretsmanager-coverage.md) |
@@ -96,11 +97,13 @@ npm run coverage   # regenerates the index and every service page
 | Cloud Map | 29 | 29 | 0 | [cloud-map-coverage](cloud-map-coverage.md) |
 | CodeBuild | 11 | 11 | 0 | [codebuild-coverage](codebuild-coverage.md) |
 | Cognito | 101 | 101 | 0 | [cognito-coverage](cognito-coverage.md) |
+| DocumentDB | 15 | 15 | 0 | [documentdb-coverage](documentdb-coverage.md) |
 | EBS | 17 | 17 | 0 | [ebs-coverage](ebs-coverage.md) |
 | EC2 | 157 | 155 | 2 | [ec2-coverage](ec2-coverage.md) |
 | ECR | 26 | 26 | 0 | [ecr-coverage](ecr-coverage.md) |
 | ECS | 47 | 47 | 0 | [ecs-coverage](ecs-coverage.md) |
 | EFS | 28 | 28 | 0 | [efs-coverage](efs-coverage.md) |
+| EKS | 34 | 34 | 0 | [eks-coverage](eks-coverage.md) |
 | ElastiCache | 41 | 41 | 0 | [elasticache-coverage](elasticache-coverage.md) |
 | EMR | 22 | 22 | 0 | [emr-coverage](emr-coverage.md) |
 | EventBridge Scheduler | 12 | 12 | 0 | [eventbridge-scheduler-coverage](eventbridge-scheduler-coverage.md) |

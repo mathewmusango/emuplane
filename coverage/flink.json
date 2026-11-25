@@ -1,0 +1,31 @@
+{
+  "service": "Managed Service for Apache Flink",
+  "title": "Managed Service for Apache Flink coverage",
+  "page": "site/docs/reference/flink-coverage.md",
+  "ledger": "my-docs/ManagedFlink.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Managed Service for Apache Flink operation the emulator advertises, and",
+    "what Emuplane does with it. The service is JSON 1.1 under the `kinesisanalytics`",
+    "credential scope, has no console action, and its `FLINK-*` applications are",
+    "control-plane records whose transitional status settles on the next read."
+  ],
+  "covered": {
+    "CreateApplication": "tests/control/test_flink_operations.py",
+    "DescribeApplication": "tests/control/test_flink_operations.py",
+    "UpdateApplication": "tests/control/test_flink_operations.py",
+    "DeleteApplication": "tests/control/test_flink_operations.py",
+    "StartApplication": "tests/control/test_flink_operations.py",
+    "StopApplication": "tests/control/test_flink_operations.py",
+    "CreateApplicationSnapshot": "tests/control/test_flink_operations.py",
+    "ListApplicationSnapshots": "tests/control/test_flink_operations.py",
+    "DescribeApplicationSnapshot": "tests/control/test_flink_operations.py",
+    "DeleteApplicationSnapshot": "tests/control/test_flink_operations.py",
+    "AddApplicationCloudWatchLoggingOption": "tests/control/test_flink_operations.py",
+    "DeleteApplicationCloudWatchLoggingOption": "tests/control/test_flink_operations.py",
+    "TagResource": "tests/control/test_flink_operations.py",
+    "UntagResource": "tests/control/test_flink_operations.py",
+    "ListTagsForResource": "tests/control/test_flink_operations.py"
+  }
+}
