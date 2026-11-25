@@ -1,0 +1,33 @@
+{
+  "service": "AWS Budgets",
+  "title": "AWS Budgets coverage",
+  "page": "site/docs/reference/aws-budgets-coverage.md",
+  "ledger": "my-docs/Budgets.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every AWS Budgets operation the emulator advertises, and what Emuplane does with",
+    "it. The service is JSON 1.1 under the `budgets` credential scope with the",
+    "`AWSBudgetServiceGateway` target prefix, and has no console action. A budget is",
+    "keyed by name; a notification is keyed by its type, operator, threshold and",
+    "threshold type; a subscriber is the notification's `(type, address)` pair."
+  ],
+  "covered": {
+    "CreateBudget": "tests/control/test_budgets_operations.py",
+    "DescribeBudget": "tests/control/test_budgets_operations.py",
+    "DescribeBudgets": "tests/control/test_budgets_operations.py",
+    "UpdateBudget": "tests/control/test_budgets_operations.py",
+    "DeleteBudget": "tests/control/test_budgets_operations.py",
+    "CreateNotification": "tests/control/test_budgets_operations.py",
+    "UpdateNotification": "tests/control/test_budgets_operations.py",
+    "DeleteNotification": "tests/control/test_budgets_operations.py",
+    "DescribeNotificationsForBudget": "tests/control/test_budgets_operations.py",
+    "CreateSubscriber": "tests/control/test_budgets_operations.py",
+    "UpdateSubscriber": "tests/control/test_budgets_operations.py",
+    "DeleteSubscriber": "tests/control/test_budgets_operations.py",
+    "DescribeSubscribersForNotification": "tests/control/test_budgets_operations.py",
+    "TagResource": "tests/control/test_budgets_operations.py",
+    "UntagResource": "tests/control/test_budgets_operations.py",
+    "ListTagsForResource": "tests/control/test_budgets_operations.py"
+  }
+}

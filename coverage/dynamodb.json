@@ -1,0 +1,91 @@
+{
+  "service": "DynamoDB",
+  "title": "DynamoDB coverage",
+  "page": "site/docs/reference/dynamodb-coverage.md",
+  "ledger": "my-docs/DYNAMODB.md",
+  "group": "Core",
+  "console_service": "dynamodb",
+  "intro": [
+    "Every DynamoDB operation the emulator advertises, and what Emuplane does with it.",
+    "The console lists, creates, deletes, scans and puts items; queries, batches,",
+    "transactions, TTL, backups, tags and streaming destinations are reachable over the",
+    "wire and are exercised by the API tests."
+  ],
+  "action_operations": {
+    "list-tables": [
+      "ListTables"
+    ],
+    "create-table": [
+      "CreateTable"
+    ],
+    "delete-table": [
+      "DeleteTable"
+    ],
+    "scan": [
+      "Scan"
+    ],
+    "put-item": [
+      "PutItem"
+    ]
+  },
+  "gui": {
+    "ListTables": "DynamoDB page › List tables",
+    "CreateTable": "DynamoDB page › Create table",
+    "DeleteTable": "DynamoDB page › Delete table",
+    "Scan": "DynamoDB page › Scan table",
+    "PutItem": "DynamoDB page › Put item"
+  },
+  "not_console": {
+    "UpdateTable": "not a console action",
+    "DescribeTable": "not a console action",
+    "GetItem": "not a console action",
+    "DeleteItem": "not a console action",
+    "UpdateItem": "not a console action",
+    "Query": "not a console action",
+    "BatchWriteItem": "not a console action",
+    "BatchGetItem": "not a console action",
+    "TransactWriteItems": "not a console action",
+    "TransactGetItems": "not a console action",
+    "DescribeTimeToLive": "not a console action",
+    "UpdateTimeToLive": "not a console action",
+    "DescribeContinuousBackups": "not a console action",
+    "UpdateContinuousBackups": "not a console action",
+    "DescribeEndpoints": "not a console action",
+    "TagResource": "not a console action",
+    "UntagResource": "not a console action",
+    "ListTagsOfResource": "not a console action",
+    "EnableKinesisStreamingDestination": "not a console action",
+    "DisableKinesisStreamingDestination": "not a console action",
+    "DescribeKinesisStreamingDestination": "not a console action",
+    "UpdateKinesisStreamingDestination": "not a console action"
+  },
+  "covered": {
+    "CreateTable": "tests/control/test_dynamodb_operations.py",
+    "UpdateTable": "tests/control/test_dynamodb_operations.py",
+    "DeleteTable": "tests/control/test_dynamodb_operations.py",
+    "DescribeTable": "tests/control/test_dynamodb_operations.py",
+    "ListTables": "tests/control/test_dynamodb_operations.py",
+    "PutItem": "tests/control/test_dynamodb_operations.py",
+    "GetItem": "tests/control/test_dynamodb_operations.py",
+    "DeleteItem": "tests/control/test_dynamodb_operations.py",
+    "UpdateItem": "tests/control/test_dynamodb_operations.py",
+    "Query": "tests/control/test_dynamodb_operations.py",
+    "Scan": "tests/control/test_dynamodb_operations.py",
+    "BatchWriteItem": "tests/control/test_dynamodb_operations.py",
+    "BatchGetItem": "tests/control/test_dynamodb_operations.py",
+    "TransactWriteItems": "tests/control/test_dynamodb_operations.py",
+    "TransactGetItems": "tests/control/test_dynamodb_operations.py",
+    "DescribeTimeToLive": "tests/control/test_dynamodb_operations.py",
+    "UpdateTimeToLive": "tests/control/test_dynamodb_operations.py",
+    "DescribeContinuousBackups": "tests/control/test_dynamodb_operations.py",
+    "UpdateContinuousBackups": "tests/control/test_dynamodb_operations.py",
+    "DescribeEndpoints": "tests/control/test_dynamodb_operations.py",
+    "TagResource": "tests/control/test_dynamodb_operations.py",
+    "UntagResource": "tests/control/test_dynamodb_operations.py",
+    "ListTagsOfResource": "tests/control/test_dynamodb_operations.py",
+    "EnableKinesisStreamingDestination": "tests/control/test_dynamodb_operations.py",
+    "DisableKinesisStreamingDestination": "tests/control/test_dynamodb_operations.py",
+    "DescribeKinesisStreamingDestination": "tests/control/test_dynamodb_operations.py",
+    "UpdateKinesisStreamingDestination": "tests/control/test_dynamodb_operations.py"
+  }
+}

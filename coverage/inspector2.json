@@ -1,0 +1,31 @@
+{
+  "service": "Inspector2",
+  "title": "Amazon Inspector2 coverage",
+  "page": "site/docs/reference/inspector2-coverage.md",
+  "ledger": "my-docs/Inspector2.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Amazon Inspector2 operation the emulator advertises, and what Emuplane does",
+    "with it. The service is REST-JSON under the `inspector2` credential scope with",
+    "fixed paths (`/enable`, `/findings/*`, `/coverage/*`, `/filters/*`, `/tags/{arn}`),",
+    "and has no console action. Findings and coverage exist only while a resource type",
+    "is enabled."
+  ],
+  "covered": {
+    "Enable": "tests/control/test_inspector2_operations.py",
+    "Disable": "tests/control/test_inspector2_operations.py",
+    "ListFindings": "tests/control/test_inspector2_operations.py",
+    "BatchGetFindingDetails": "tests/control/test_inspector2_operations.py",
+    "ListCoverage": "tests/control/test_inspector2_operations.py",
+    "ListCoverageStatistics": "tests/control/test_inspector2_operations.py",
+    "ListFindingAggregations": "tests/control/test_inspector2_operations.py",
+    "SearchVulnerabilities": "tests/control/test_inspector2_operations.py",
+    "TagResource": "tests/control/test_inspector2_operations.py",
+    "UntagResource": "tests/control/test_inspector2_operations.py",
+    "ListTagsForResource": "tests/control/test_inspector2_operations.py",
+    "CreateFilter": "tests/control/test_inspector2_operations.py",
+    "ListFilters": "tests/control/test_inspector2_operations.py",
+    "DeleteFilter": "tests/control/test_inspector2_operations.py"
+  }
+}

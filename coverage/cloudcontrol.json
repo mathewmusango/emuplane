@@ -1,0 +1,26 @@
+{
+  "service": "Cloud Control API",
+  "title": "Cloud Control API coverage",
+  "page": "site/docs/reference/cloud-control-coverage.md",
+  "ledger": "my-docs/CloudControl.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Cloud Control API operation the emulator advertises, and what Emuplane does",
+    "with it. The service is JSON 1.1 under the `cloudcontrol` credential scope with the",
+    "`CloudApiService` target prefix, and has no console action. The same eight",
+    "operations manage every resource type: a resource is keyed by `(TypeName,",
+    "Identifier)`, and mutations complete synchronously, so `CancelResourceRequest` is",
+    "exercised as the documented conflict against a terminal request."
+  ],
+  "covered": {
+    "CreateResource": "tests/control/test_cloudcontrol_operations.py",
+    "GetResource": "tests/control/test_cloudcontrol_operations.py",
+    "UpdateResource": "tests/control/test_cloudcontrol_operations.py",
+    "DeleteResource": "tests/control/test_cloudcontrol_operations.py",
+    "ListResources": "tests/control/test_cloudcontrol_operations.py",
+    "ListResourceRequests": "tests/control/test_cloudcontrol_operations.py",
+    "GetResourceRequestStatus": "tests/control/test_cloudcontrol_operations.py",
+    "CancelResourceRequest": "tests/control/test_cloudcontrol_operations.py"
+  }
+}

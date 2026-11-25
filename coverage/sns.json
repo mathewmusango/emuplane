@@ -1,0 +1,87 @@
+{
+  "service": "SNS",
+  "title": "SNS coverage",
+  "page": "site/docs/reference/sns-coverage.md",
+  "ledger": "my-docs/SNS.md",
+  "group": "Core",
+  "console_service": "sns",
+  "intro": [
+    "Every SNS operation the emulator advertises, and what Emuplane does with it.",
+    "The console creates, deletes and publishes topics; subscriptions, attributes,",
+    "permissions, platform applications and endpoints and tags are reachable over the",
+    "wire and are exercised by the API tests."
+  ],
+  "action_operations": {
+    "create-topic": [
+      "CreateTopic"
+    ],
+    "delete-topic": [
+      "DeleteTopic"
+    ],
+    "publish": [
+      "Publish"
+    ]
+  },
+  "gui": {
+    "CreateTopic": "SNS page › Create topic",
+    "DeleteTopic": "SNS page › Delete topic",
+    "Publish": "SNS page › Publish"
+  },
+  "not_console": {
+    "ListTopics": "not a console action",
+    "GetTopicAttributes": "not a console action",
+    "SetTopicAttributes": "not a console action",
+    "AddPermission": "not a console action",
+    "RemovePermission": "not a console action",
+    "Subscribe": "not a console action",
+    "Unsubscribe": "not a console action",
+    "ListSubscriptions": "not a console action",
+    "ListSubscriptionsByTopic": "not a console action",
+    "GetSubscriptionAttributes": "not a console action",
+    "SetSubscriptionAttributes": "not a console action",
+    "ConfirmSubscription": "not a console action",
+    "PublishBatch": "not a console action",
+    "TagResource": "not a console action",
+    "UntagResource": "not a console action",
+    "ListTagsForResource": "not a console action",
+    "CreatePlatformApplication": "not a console action",
+    "ListPlatformApplications": "not a console action",
+    "GetPlatformApplicationAttributes": "not a console action",
+    "SetPlatformApplicationAttributes": "not a console action",
+    "CreatePlatformEndpoint": "not a console action",
+    "GetEndpointAttributes": "not a console action",
+    "SetEndpointAttributes": "not a console action",
+    "DeleteEndpoint": "not a console action",
+    "DeletePlatformApplication": "not a console action"
+  },
+  "covered": {
+    "CreateTopic": "tests/control/test_sns_operations.py",
+    "DeleteTopic": "tests/control/test_sns_operations.py",
+    "ListTopics": "tests/control/test_sns_operations.py",
+    "GetTopicAttributes": "tests/control/test_sns_operations.py",
+    "SetTopicAttributes": "tests/control/test_sns_operations.py",
+    "AddPermission": "tests/control/test_sns_operations.py",
+    "RemovePermission": "tests/control/test_sns_operations.py",
+    "Subscribe": "tests/control/test_sns_operations.py",
+    "Unsubscribe": "tests/control/test_sns_operations.py",
+    "ListSubscriptions": "tests/control/test_sns_operations.py",
+    "ListSubscriptionsByTopic": "tests/control/test_sns_operations.py",
+    "GetSubscriptionAttributes": "tests/control/test_sns_operations.py",
+    "SetSubscriptionAttributes": "tests/control/test_sns_operations.py",
+    "ConfirmSubscription": "tests/control/test_sns_operations.py",
+    "Publish": "tests/control/test_sns_operations.py",
+    "PublishBatch": "tests/control/test_sns_operations.py",
+    "TagResource": "tests/control/test_sns_operations.py",
+    "UntagResource": "tests/control/test_sns_operations.py",
+    "ListTagsForResource": "tests/control/test_sns_operations.py",
+    "CreatePlatformApplication": "tests/control/test_sns_operations.py",
+    "ListPlatformApplications": "tests/control/test_sns_operations.py",
+    "GetPlatformApplicationAttributes": "tests/control/test_sns_operations.py",
+    "SetPlatformApplicationAttributes": "tests/control/test_sns_operations.py",
+    "CreatePlatformEndpoint": "tests/control/test_sns_operations.py",
+    "GetEndpointAttributes": "tests/control/test_sns_operations.py",
+    "SetEndpointAttributes": "tests/control/test_sns_operations.py",
+    "DeleteEndpoint": "tests/control/test_sns_operations.py",
+    "DeletePlatformApplication": "tests/control/test_sns_operations.py"
+  }
+}

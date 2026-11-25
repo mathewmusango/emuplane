@@ -1,0 +1,24 @@
+{
+  "service": "Cost & Usage Reports",
+  "title": "Cost & Usage Reports coverage",
+  "page": "site/docs/reference/cost-usage-reports-coverage.md",
+  "ledger": "my-docs/CUR.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Cost & Usage Reports operation the emulator advertises, and what Emuplane",
+    "does with it. The service is JSON 1.1 under the `cur` credential scope with the",
+    "`AWSOrigamiServiceGateway` target prefix, and has no console action. A report",
+    "definition is keyed by name, so a put is proven by a describe; tags are read back",
+    "after every write."
+  ],
+  "covered": {
+    "DeleteReportDefinition": "tests/control/test_cur_operations.py",
+    "DescribeReportDefinitions": "tests/control/test_cur_operations.py",
+    "ListTagsForResource": "tests/control/test_cur_operations.py",
+    "ModifyReportDefinition": "tests/control/test_cur_operations.py",
+    "PutReportDefinition": "tests/control/test_cur_operations.py",
+    "TagResource": "tests/control/test_cur_operations.py",
+    "UntagResource": "tests/control/test_cur_operations.py"
+  }
+}

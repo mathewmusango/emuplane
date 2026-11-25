@@ -1,0 +1,21 @@
+{
+  "service": "Transcribe",
+  "title": "Transcribe coverage",
+  "page": "site/docs/reference/transcribe-coverage.md",
+  "ledger": "my-docs/TRANSCRIBE.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Transcribe operation the emulator advertises, and what Emuplane does with",
+    "it. There is no console action: batch transcription jobs are started, read,",
+    "listed and deleted over the wire. Jobs run on a background worker, so the",
+    "in-process stand-in skips the completion assertions and the live sweep proves",
+    "them; the operations themselves are all covered."
+  ],
+  "covered": {
+    "StartTranscriptionJob": "tests/control/test_transcribe_operations.py",
+    "GetTranscriptionJob": "tests/control/test_transcribe_operations.py",
+    "ListTranscriptionJobs": "tests/control/test_transcribe_operations.py",
+    "DeleteTranscriptionJob": "tests/control/test_transcribe_operations.py"
+  }
+}

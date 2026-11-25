@@ -1,0 +1,32 @@
+{
+  "service": "CloudTrail",
+  "title": "AWS CloudTrail coverage",
+  "page": "site/docs/reference/cloudtrail-coverage.md",
+  "ledger": "my-docs/CloudTrail.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every CloudTrail operation the emulator advertises, and what Emuplane does with",
+    "it. The service is JSON 1.1 under the `cloudtrail` credential scope with the",
+    "`CloudTrail_20131101` target suffix, and has no console action. A trail is keyed",
+    "by name; recording is off by default, so `LookupEvents` answers the empty audit",
+    "log the emulator documents."
+  ],
+  "covered": {
+    "LookupEvents": "tests/control/test_cloudtrail_operations.py",
+    "CreateTrail": "tests/control/test_cloudtrail_operations.py",
+    "DeleteTrail": "tests/control/test_cloudtrail_operations.py",
+    "GetTrail": "tests/control/test_cloudtrail_operations.py",
+    "DescribeTrails": "tests/control/test_cloudtrail_operations.py",
+    "ListTrails": "tests/control/test_cloudtrail_operations.py",
+    "UpdateTrail": "tests/control/test_cloudtrail_operations.py",
+    "GetTrailStatus": "tests/control/test_cloudtrail_operations.py",
+    "StartLogging": "tests/control/test_cloudtrail_operations.py",
+    "StopLogging": "tests/control/test_cloudtrail_operations.py",
+    "PutEventSelectors": "tests/control/test_cloudtrail_operations.py",
+    "GetEventSelectors": "tests/control/test_cloudtrail_operations.py",
+    "AddTags": "tests/control/test_cloudtrail_operations.py",
+    "ListTags": "tests/control/test_cloudtrail_operations.py",
+    "RemoveTags": "tests/control/test_cloudtrail_operations.py"
+  }
+}

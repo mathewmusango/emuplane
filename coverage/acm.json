@@ -1,0 +1,27 @@
+{
+  "service": "ACM",
+  "title": "ACM coverage",
+  "page": "site/docs/reference/acm-coverage.md",
+  "ledger": "my-docs/ACM.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every ACM operation the emulator advertises, and what Emuplane does with it.",
+    "There is no console action: certificates are requested, imported and tagged over",
+    "the wire, and every advertised operation is exercised by the API tests."
+  ],
+  "covered": {
+    "RequestCertificate": "tests/control/test_acm_operations.py",
+    "DescribeCertificate": "tests/control/test_acm_operations.py",
+    "ListCertificates": "tests/control/test_acm_operations.py",
+    "DeleteCertificate": "tests/control/test_acm_operations.py",
+    "GetCertificate": "tests/control/test_acm_operations.py",
+    "ImportCertificate": "tests/control/test_acm_operations.py",
+    "AddTagsToCertificate": "tests/control/test_acm_operations.py",
+    "RemoveTagsFromCertificate": "tests/control/test_acm_operations.py",
+    "ListTagsForCertificate": "tests/control/test_acm_operations.py",
+    "UpdateCertificateOptions": "tests/control/test_acm_operations.py",
+    "RenewCertificate": "tests/control/test_acm_operations.py",
+    "ResendValidationEmail": "tests/control/test_acm_operations.py"
+  }
+}

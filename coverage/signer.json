@@ -1,0 +1,28 @@
+{
+  "service": "Signer",
+  "title": "Signer coverage",
+  "page": "site/docs/reference/signer-coverage.md",
+  "ledger": "my-docs/SIGNER.md",
+  "group": "Infrastructure",
+  "console_service": "",
+  "intro": [
+    "Every Signer operation the emulator advertises, and what Emuplane does with it.",
+    "The service is REST/JSON on `/signing-jobs` and `/signing-profiles`, signed with the",
+    "`signer` credential scope, and has no console action. Signing is synchronous: a job",
+    "reads its source object out of the local S3 store and writes the signed object to the",
+    "destination bucket before `StartSigningJob` returns, so the job is already `Succeeded`.",
+    "Without ACM-held signing material the object is a JSON receipt rather than a signature.",
+    "Profiles are records; a cancelled profile keeps its name and its permissions."
+  ],
+  "covered": {
+    "StartSigningJob": "tests/control/test_signer_operations.py",
+    "DescribeSigningJob": "tests/control/test_signer_operations.py",
+    "ListSigningJobs": "tests/control/test_signer_operations.py",
+    "PutSigningProfile": "tests/control/test_signer_operations.py",
+    "GetSigningProfile": "tests/control/test_signer_operations.py",
+    "CancelSigningProfile": "tests/control/test_signer_operations.py",
+    "AddProfilePermission": "tests/control/test_signer_operations.py",
+    "ListProfilePermissions": "tests/control/test_signer_operations.py",
+    "RemoveProfilePermission": "tests/control/test_signer_operations.py"
+  }
+}

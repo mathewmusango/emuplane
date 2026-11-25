@@ -1,0 +1,70 @@
+{
+  "service": "SQS",
+  "title": "SQS coverage",
+  "page": "site/docs/reference/sqs-coverage.md",
+  "ledger": "my-docs/SQS.md",
+  "group": "Core",
+  "console_service": "sqs",
+  "intro": [
+    "Every SQS operation the emulator advertises, and what Emuplane does with it.",
+    "The console creates, deletes, sends, receives and purges; attributes, visibility,",
+    "batches and tags are reachable over the wire and are exercised by the API tests."
+  ],
+  "action_operations": {
+    "create-queue": [
+      "CreateQueue"
+    ],
+    "delete-queue": [
+      "DeleteQueue"
+    ],
+    "send-message": [
+      "SendMessage"
+    ],
+    "receive-message": [
+      "ReceiveMessage"
+    ],
+    "purge-queue": [
+      "PurgeQueue"
+    ]
+  },
+  "gui": {
+    "CreateQueue": "SQS page › Create queue",
+    "DeleteQueue": "SQS page › Delete queue",
+    "SendMessage": "SQS page › Send message",
+    "ReceiveMessage": "SQS page › Receive message",
+    "PurgeQueue": "SQS page › Purge queue"
+  },
+  "not_console": {
+    "ListQueues": "not a console action",
+    "GetQueueUrl": "not a console action",
+    "GetQueueAttributes": "not a console action",
+    "SetQueueAttributes": "not a console action",
+    "DeleteMessage": "not a console action",
+    "ChangeMessageVisibility": "not a console action",
+    "ChangeMessageVisibilityBatch": "not a console action",
+    "SendMessageBatch": "not a console action",
+    "DeleteMessageBatch": "not a console action",
+    "TagQueue": "not a console action",
+    "UntagQueue": "not a console action",
+    "ListQueueTags": "not a console action"
+  },
+  "covered": {
+    "CreateQueue": "tests/control/test_sqs_operations.py",
+    "DeleteQueue": "tests/control/test_sqs_operations.py",
+    "ListQueues": "tests/control/test_sqs_operations.py",
+    "GetQueueUrl": "tests/control/test_sqs_operations.py",
+    "GetQueueAttributes": "tests/control/test_sqs_operations.py",
+    "SetQueueAttributes": "tests/control/test_sqs_operations.py",
+    "PurgeQueue": "tests/control/test_sqs_operations.py",
+    "SendMessage": "tests/control/test_sqs_operations.py",
+    "ReceiveMessage": "tests/control/test_sqs_operations.py",
+    "DeleteMessage": "tests/control/test_sqs_operations.py",
+    "ChangeMessageVisibility": "tests/control/test_sqs_operations.py",
+    "ChangeMessageVisibilityBatch": "tests/control/test_sqs_operations.py",
+    "SendMessageBatch": "tests/control/test_sqs_operations.py",
+    "DeleteMessageBatch": "tests/control/test_sqs_operations.py",
+    "TagQueue": "tests/control/test_sqs_operations.py",
+    "UntagQueue": "tests/control/test_sqs_operations.py",
+    "ListQueueTags": "tests/control/test_sqs_operations.py"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "service": "Backup",
+  "title": "AWS Backup coverage",
+  "page": "site/docs/reference/backup-coverage.md",
+  "ledger": "my-docs/Backup.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every AWS Backup operation the emulator advertises, and what Emuplane does with it.",
+    "The service is REST/JSON under the `backup` credential scope at `/backup-vaults`,",
+    "`/backup/plans`, `/backup-jobs` and `/tags/{arn}`, and has no console action. A",
+    "vault and a plan are keyed by name; a job completes immediately."
+  ],
+  "covered": {
+    "CreateBackupVault": "tests/control/test_backup_operations.py",
+    "DescribeBackupVault": "tests/control/test_backup_operations.py",
+    "DeleteBackupVault": "tests/control/test_backup_operations.py",
+    "ListBackupVaults": "tests/control/test_backup_operations.py",
+    "CreateBackupPlan": "tests/control/test_backup_operations.py",
+    "GetBackupPlan": "tests/control/test_backup_operations.py",
+    "UpdateBackupPlan": "tests/control/test_backup_operations.py",
+    "DeleteBackupPlan": "tests/control/test_backup_operations.py",
+    "ListBackupPlans": "tests/control/test_backup_operations.py",
+    "ListBackupPlanVersions": "tests/control/test_backup_operations.py",
+    "CreateBackupSelection": "tests/control/test_backup_operations.py",
+    "GetBackupSelection": "tests/control/test_backup_operations.py",
+    "DeleteBackupSelection": "tests/control/test_backup_operations.py",
+    "ListBackupSelections": "tests/control/test_backup_operations.py",
+    "StartBackupJob": "tests/control/test_backup_operations.py",
+    "StopBackupJob": "tests/control/test_backup_operations.py",
+    "DescribeBackupJob": "tests/control/test_backup_operations.py",
+    "ListBackupJobs": "tests/control/test_backup_operations.py",
+    "TagResource": "tests/control/test_backup_operations.py",
+    "UntagResource": "tests/control/test_backup_operations.py",
+    "ListTags": "tests/control/test_backup_operations.py"
+  }
+}

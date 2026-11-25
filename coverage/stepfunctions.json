@@ -1,0 +1,79 @@
+{
+  "service": "Step Functions",
+  "title": "Step Functions coverage",
+  "page": "site/docs/reference/stepfunctions-coverage.md",
+  "ledger": "my-docs/STEPFUNCTIONS.md",
+  "group": "Core",
+  "console_service": "stepfunctions",
+  "intro": [
+    "Every Step Functions operation the emulator advertises, and what Emuplane does",
+    "with it. The console lists, creates and deletes state machines; executions,",
+    "history, activities, callbacks, tags and `TestState` are reachable over the wire",
+    "and are exercised by the API tests."
+  ],
+  "action_operations": {
+    "list-state-machines": [
+      "ListStateMachines"
+    ],
+    "create-state-machine": [
+      "CreateStateMachine"
+    ],
+    "delete-state-machine": [
+      "DeleteStateMachine"
+    ]
+  },
+  "gui": {
+    "ListStateMachines": "Step Functions page › List state machines",
+    "CreateStateMachine": "Step Functions page › Create state machine",
+    "DeleteStateMachine": "Step Functions page › Delete state machine"
+  },
+  "not_console": {
+    "DescribeStateMachine": "not a console action",
+    "UpdateStateMachine": "not a console action",
+    "StartExecution": "not a console action",
+    "StartSyncExecution": "not a console action",
+    "StopExecution": "not a console action",
+    "DescribeExecution": "not a console action",
+    "DescribeStateMachineForExecution": "not a console action",
+    "ListExecutions": "not a console action",
+    "GetExecutionHistory": "not a console action",
+    "SendTaskSuccess": "not a console action",
+    "SendTaskFailure": "not a console action",
+    "SendTaskHeartbeat": "not a console action",
+    "CreateActivity": "not a console action",
+    "DeleteActivity": "not a console action",
+    "DescribeActivity": "not a console action",
+    "ListActivities": "not a console action",
+    "GetActivityTask": "not a console action",
+    "TestState": "not a console action",
+    "TagResource": "not a console action",
+    "UntagResource": "not a console action",
+    "ListTagsForResource": "not a console action"
+  },
+  "covered": {
+    "CreateStateMachine": "tests/control/test_stepfunctions_operations.py",
+    "DeleteStateMachine": "tests/control/test_stepfunctions_operations.py",
+    "DescribeStateMachine": "tests/control/test_stepfunctions_operations.py",
+    "UpdateStateMachine": "tests/control/test_stepfunctions_operations.py",
+    "ListStateMachines": "tests/control/test_stepfunctions_operations.py",
+    "StartExecution": "tests/control/test_stepfunctions_operations.py",
+    "StartSyncExecution": "tests/control/test_stepfunctions_operations.py",
+    "StopExecution": "tests/control/test_stepfunctions_operations.py",
+    "DescribeExecution": "tests/control/test_stepfunctions_operations.py",
+    "DescribeStateMachineForExecution": "tests/control/test_stepfunctions_operations.py",
+    "ListExecutions": "tests/control/test_stepfunctions_operations.py",
+    "GetExecutionHistory": "tests/control/test_stepfunctions_operations.py",
+    "SendTaskSuccess": "tests/control/test_stepfunctions_operations.py",
+    "SendTaskFailure": "tests/control/test_stepfunctions_operations.py",
+    "SendTaskHeartbeat": "tests/control/test_stepfunctions_operations.py",
+    "CreateActivity": "tests/control/test_stepfunctions_operations.py",
+    "DeleteActivity": "tests/control/test_stepfunctions_operations.py",
+    "DescribeActivity": "tests/control/test_stepfunctions_operations.py",
+    "ListActivities": "tests/control/test_stepfunctions_operations.py",
+    "GetActivityTask": "tests/control/test_stepfunctions_operations.py",
+    "TestState": "tests/control/test_stepfunctions_operations.py",
+    "TagResource": "tests/control/test_stepfunctions_operations.py",
+    "UntagResource": "tests/control/test_stepfunctions_operations.py",
+    "ListTagsForResource": "tests/control/test_stepfunctions_operations.py"
+  }
+}

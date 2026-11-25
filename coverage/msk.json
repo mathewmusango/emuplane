@@ -1,0 +1,33 @@
+{
+  "service": "MSK",
+  "title": "Amazon MSK coverage",
+  "page": "site/docs/reference/msk-coverage.md",
+  "ledger": "my-docs/MSK.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Amazon MSK operation the emulator advertises, and what Emuplane does with it.",
+    "The service is REST/JSON under the `kafka` credential scope at `/v1/clusters`,",
+    "`/v1/configurations`, `/v1/tags/{arn}` and the per-cluster SCRAM routes, and has no",
+    "console action. A cluster is keyed by name and a configuration by name."
+  ],
+  "covered": {
+    "CreateCluster": "tests/control/test_msk_operations.py",
+    "ListClusters": "tests/control/test_msk_operations.py",
+    "DescribeCluster": "tests/control/test_msk_operations.py",
+    "DeleteCluster": "tests/control/test_msk_operations.py",
+    "GetBootstrapBrokers": "tests/control/test_msk_operations.py",
+    "ListNodes": "tests/control/test_msk_operations.py",
+    "CreateConfiguration": "tests/control/test_msk_operations.py",
+    "ListConfigurations": "tests/control/test_msk_operations.py",
+    "DescribeConfiguration": "tests/control/test_msk_operations.py",
+    "ListConfigurationRevisions": "tests/control/test_msk_operations.py",
+    "DescribeConfigurationRevision": "tests/control/test_msk_operations.py",
+    "BatchAssociateScramSecret": "tests/control/test_msk_operations.py",
+    "BatchDisassociateScramSecret": "tests/control/test_msk_operations.py",
+    "ListScramSecrets": "tests/control/test_msk_operations.py",
+    "TagResource": "tests/control/test_msk_operations.py",
+    "UntagResource": "tests/control/test_msk_operations.py",
+    "ListTagsForResource": "tests/control/test_msk_operations.py"
+  }
+}

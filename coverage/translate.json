@@ -1,0 +1,21 @@
+{
+  "service": "Translate",
+  "title": "Translate coverage",
+  "page": "site/docs/reference/translate-coverage.md",
+  "ledger": "my-docs/TRANSLATE.md",
+  "group": "Core",
+  "console_service": "",
+  "intro": [
+    "Every Translate operation the emulator advertises, and what Emuplane does with it.",
+    "There is no console action: batch text translation jobs are started, read, listed",
+    "and stopped over the wire. Jobs run on a background worker, so the in-process",
+    "stand-in skips the completion and stop assertions and the live sweep proves them;",
+    "the operations themselves are all covered."
+  ],
+  "covered": {
+    "StartTextTranslationJob": "tests/control/test_translate_operations.py",
+    "DescribeTextTranslationJob": "tests/control/test_translate_operations.py",
+    "ListTextTranslationJobs": "tests/control/test_translate_operations.py",
+    "StopTextTranslationJob": "tests/control/test_translate_operations.py"
+  }
+}
