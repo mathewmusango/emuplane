@@ -8,6 +8,7 @@ import re
 import sys
 import threading
 import types
+import warnings
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -145,8 +146,9 @@ def s3_endpoint(emulator):
             handlers[name] = __import__(
                 f"ministack.services.{module}", fromlist=["handle_request"]
             )
-        except ImportError:  # pragma: no cover - an older emulator checkout
-            pass
+        except ImportError as exc:  # pragma: no cover - an older emulator checkout
+            # A silent fallback answers as S3, so name the module that is missing instead.
+            warnings.warn(f"tests: ministack.services.{module} is not importable ({exc})")
 
     def bedrock_service(method: str, path: str, body: bytes = b"") -> str:
         """All four Bedrock planes sign as `bedrock`; the path picks one, as in the emulator's router."""

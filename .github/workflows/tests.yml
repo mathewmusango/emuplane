@@ -37,12 +37,13 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
-          # Both hash-locked installs below read from this cache; the key follows
+          # Every hash-locked install below reads from this cache; the key follows
           # their contents, so a bump misses only the first job after it.
           cache: pip
           cache-dependency-path: |
             requirements.txt
             tests/requirements-v1.5.40.txt
+            tests/requirements-test-extra.txt
       - name: Where the emulator source goes
         run: echo "EP_EMULATOR_SRC=$RUNNER_TEMP/ministack" >> "$GITHUB_ENV"
       - name: Check out the emulator at the tested tag
@@ -52,6 +53,9 @@ jobs:
       - name: Install pytest and the emulator's tree, by hash
         # The lock is named for the tag: a bump without regenerating it has no file to read.
         run: pip install --quiet --require-hashes -r "tests/requirements-${EMULATOR_TAG}.txt"
+      - name: Install what the emulator imports but does not declare
+        # The image gets these from the emulator's Dockerfile; the tag's lock does not name them.
+        run: pip install --quiet --require-hashes -r tests/requirements-test-extra.txt
       - name: Run the suite
         # One process, and deliberately no pytest-xdist: the suite finishes in under
         # a minute, so a worker per core would buy seconds while making the live-
