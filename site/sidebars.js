@@ -19,7 +19,12 @@ module.exports = {
       type: 'category',
       label: 'Deployment',
       collapsed: false,
-      items: ['deployment/docker-podman', 'deployment/upgrading'],
+      items: [
+        'deployment/docker-podman',
+        'deployment/docker',
+        'deployment/podman',
+        'deployment/upgrading',
+      ],
     },
     {
       type: 'category',

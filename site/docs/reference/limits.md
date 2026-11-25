@@ -243,6 +243,56 @@ a `ListBucketResult`), and an object GET as the object's own bytes (`200`). So a
 fall-through is why `?abac` and `?policyStatus` cannot be probed by asking once:
 the console shows no panel for them because there is no document to read.
 
+### Services that need a container
+
+Some advertised operations are records that work without Docker, and some need a
+container to mean anything. The coverage pages name which is which; this is the
+list to check before wondering why a cluster is empty.
+
+| Service | Works without Docker | Needs Docker |
+| --- | --- | --- |
+| EKS | every advertised operation: a cluster settles `ACTIVE` and its control plane answers | the k3s API server — rootless Podman does not give one (see [EKS on rootless Podman](#eks-on-rootless-podman)) |
+| DocumentDB | every advertised operation: clusters and instances are records | the MongoDB container behind a cluster's endpoint |
+| Managed Service for Apache Flink | every advertised operation, including start/stop status transitions | a Flink job actually running |
+| Bedrock Agent | every advertised operation; ingestion reads the S3 source for real | nothing: agents, flows, prompts and ingestion are control-plane records |
+| RDS Data API | `ExecuteStatement`, answered by the in-memory SQL stub | a database container for `BatchExecuteStatement` and the three transaction operations, which bind a real connection |
+| ECS Task Metadata V4 | every route, once a token is registered | nothing for the routes themselves; the token comes from a task that is running |
+| ECS Container Credentials | the one route | nothing: the emulator answers it for any container UUID and does not validate the token |
+
+### How the container-facing routes are tested
+
+`GET /v4/<token>` is only addressable with a token a running task received in
+`ECS_CONTAINER_METADATA_URI_V4`, and a test process is never inside that container.
+The suite registers the token through the emulator's own
+`ecs_metadata.register_container` with the payloads `services/ecs.py` builds, then
+calls the route over HTTP; on a lab the token belongs to the emulator's process, so
+those tests skip there. `GET /v2/credentials/<uuid>` needs no token at all: the
+emulator serves the task-role document for any UUID, so the test reads it and
+asserts its shape.
+
+`PostToConnection`, `GetConnection` and `DeleteConnection` are exercised against a
+real upgraded socket on a lab only (`test_apigateway_ws_operations.py`): the
+in-process stand-in is plain HTTP, so a connection id cannot exist there.
+
+### EKS on rootless Podman
+
+`CreateCluster` starts a real `rancher/k3s` container and the cluster settles
+`ACTIVE`. Two things then stand between that container and an API server. First,
+k3s wants the `cpuset` controller, which a rootless session does not delegate to
+user units by default: it exits with `failed to find cpuset cgroup (v2)` and the
+cluster stays a control-plane record. [Running Podman](../deployment/podman.md#eks-needs-the-cpuset-controller)
+has the drop-in that delegates it. After that the in-container kubelet still needs
+`KubeletInUserNamespace`, a nested overlay snapshotter and a `kubepods` cgroup it
+can own, so no API server comes up and the returned kubeconfig is not expected to
+work; a rootful Docker daemon has none of these constraints.
+
+An exec against a container the emulator started fails as well when the
+Docker-compatible API is Podman's: it creates containers with `oom_score_adj=200`,
+and an exec session cannot lower that without `CAP_SYS_RESOURCE` in the initial
+user namespace, so `crun` refuses. EKS reads the cluster certificate through such
+an exec, which is why `certificateAuthority.data` can come back empty while the
+cluster is genuinely running.
+
 ### Bedrock Agent versions have no create route
 
 MiniStack 1.5.40 serves `ListAgentVersions`, `GetAgentVersion` and

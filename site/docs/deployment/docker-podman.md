@@ -59,6 +59,7 @@ and what it does is on the [configuration](../reference/configuration.md) page.
 | --- | --- |
 | [`docker-compose.yml`](https://github.com/mathewmusango/emuplane/blob/main/docker-compose.yml) | the control only |
 | [`docker-compose.all.yml`](https://github.com/mathewmusango/emuplane/blob/main/docker-compose.all.yml) | MiniStack, its first-setup job and the control, on one network |
+| [`docker-compose.socket.yml`](https://github.com/mathewmusango/emuplane/blob/main/docker-compose.socket.yml) | an overlay that gives the emulator the runtime's socket — see [Running Docker](docker.md) or [Running Podman](podman.md) |
 
 Both pin a released image tag, so bringing one up never changes the image under
 you; `latest` is there for a quick look instead.
@@ -87,19 +88,18 @@ docker compose up -d emuplane
 
 Both are published on loopback only.
 
-## Podman
+## Runtime guides
 
-The same files, with `podman-compose` in place of `docker compose`:
+The parts that differ are on their own pages:
 
-```bash
-podman-compose up -d
-podman-compose ps
-```
+- [Running Docker](docker.md) — the default socket, and the opt-in compose overlay
+  that gives it to the emulator.
+- [Running Podman](podman.md) — the rootless user socket, the SELinux label, and the
+  cgroup delegation EKS needs.
 
-A rootless Podman publishes the loopback ports exactly as Docker does, and the
-image's healthcheck runs unprivileged. On an SELinux host, a bind mount needs the
-`:Z` label — the untracked dev overlay that mounts the console and control source
-adds it for you.
+Both mount the runtime's socket at `/var/run/docker.sock`, which is where the Docker
+client looks by default — so **no `DOCKER_HOST` is set**, and the same overlay
+(`docker-compose.socket.yml`) serves both.
 
 This section will grow to cover Kubernetes, Helm, Argo CD and other deployment
 shapes as they are built; nothing here claims them today.
