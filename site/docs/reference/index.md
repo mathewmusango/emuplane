@@ -29,7 +29,7 @@ npm run coverage   # regenerates the index and every service page
 
 <!-- coverage-index:begin -->
 
-**84 services** · 2528 operations · 2526 tested · 2 blocked. Each page names the test behind every operation it counts.
+**86 services** · 2533 operations · 2531 tested · 2 blocked. Each page names the test behind every operation it counts.
 
 ### Core {#core}
 
@@ -57,6 +57,8 @@ npm run coverage   # regenerates the index and every service page
 | Cost & Usage Reports | 7 | 7 | 0 | [cost-usage-reports-coverage](cost-usage-reports-coverage.md) |
 | DynamoDB | 27 | 27 | 0 | [dynamodb-coverage](dynamodb-coverage.md) |
 | DynamoDB Streams | 4 | 4 | 0 | [dynamodb-streams-coverage](dynamodb-streams-coverage.md) |
+| ECS Container Credentials | 1 | 1 | 0 | [ecs-container-credentials-coverage](ecs-container-credentials-coverage.md) |
+| ECS Task Metadata V4 | 4 | 4 | 0 | [ecs-task-metadata-coverage](ecs-task-metadata-coverage.md) |
 | ELBv2 / ALB | 32 | 32 | 0 | [alb-coverage](alb-coverage.md) |
 | IAM | 98 | 98 | 0 | [iam-coverage](iam-coverage.md) |
 | Inspector2 | 14 | 14 | 0 | [inspector2-coverage](inspector2-coverage.md) |
