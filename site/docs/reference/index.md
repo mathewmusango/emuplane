@@ -29,7 +29,7 @@ npm run coverage   # regenerates the index and every service page
 
 <!-- coverage-index:begin -->
 
-**50 services** · 1275 operations · 1255 tested · 0 blocked. Each page names the test behind every operation it counts.
+**54 services** · 1441 operations · 1421 tested · 0 blocked. Each page names the test behind every operation it counts.
 
 ### Core {#core}
 
@@ -73,6 +73,15 @@ npm run coverage   # regenerates the index and every service page
 | Translate | 4 | 4 | 0 | [translate-coverage](translate-coverage.md) |
 | WAF (Classic + Regional) | 20 | 20 | 0 | [waf-classic-coverage](waf-classic-coverage.md) |
 | WAF v2 | 29 | 29 | 0 | [wafv2-coverage](wafv2-coverage.md) |
+
+### Extended {#extended}
+
+| Service | Operations | Tested | Blocked | Page |
+| --- | ---: | ---: | ---: | --- |
+| AppSync | 55 | 55 | 0 | [appsync-coverage](appsync-coverage.md) |
+| EventBridge | 57 | 57 | 0 | [eventbridge-coverage](eventbridge-coverage.md) |
+| Kinesis | 30 | 30 | 0 | [kinesis-coverage](kinesis-coverage.md) |
+| SSM Parameter Store | 24 | 24 | 0 | [ssm-coverage](ssm-coverage.md) |
 
 ### Infrastructure {#infrastructure}
 

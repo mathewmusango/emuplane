@@ -1,0 +1,82 @@
+{
+  "service": "SSM Parameter Store",
+  "title": "SSM Parameter Store coverage",
+  "page": "site/docs/reference/ssm-coverage.md",
+  "ledger": "my-docs/SSM.md",
+  "group": "Extended",
+  "console_service": "ssm",
+  "intro": [
+    "Every Parameter Store operation the emulator advertises, and what Emuplane does",
+    "with it. The console describes, puts, gets and deletes parameters; hierarchy,",
+    "history, labels, tags, service settings, documents and automations are reachable",
+    "over the wire and are exercised by the API tests."
+  ],
+  "action_operations": {
+    "describe-parameters": [
+      "DescribeParameters"
+    ],
+    "put-parameter": [
+      "PutParameter"
+    ],
+    "get-parameter": [
+      "GetParameter"
+    ],
+    "delete-parameter": [
+      "DeleteParameter"
+    ]
+  },
+  "gui": {
+    "DescribeParameters": "SSM Parameter Store page › List parameters",
+    "PutParameter": "SSM Parameter Store page › Put parameter",
+    "GetParameter": "SSM Parameter Store page › Get parameter",
+    "DeleteParameter": "SSM Parameter Store page › Delete parameter"
+  },
+  "not_console": {
+    "GetParameters": "not a console action",
+    "GetParametersByPath": "not a console action",
+    "DeleteParameters": "not a console action",
+    "GetParameterHistory": "not a console action",
+    "LabelParameterVersion": "not a console action",
+    "AddTagsToResource": "not a console action",
+    "RemoveTagsFromResource": "not a console action",
+    "ListTagsForResource": "not a console action",
+    "GetServiceSetting": "not a console action",
+    "UpdateServiceSetting": "not a console action",
+    "ResetServiceSetting": "not a console action",
+    "CreateDocument": "not a console action",
+    "DescribeDocument": "not a console action",
+    "GetDocument": "not a console action",
+    "ListDocuments": "not a console action",
+    "DeleteDocument": "not a console action",
+    "StartAutomationExecution": "not a console action",
+    "GetAutomationExecution": "not a console action",
+    "DescribeAutomationExecutions": "not a console action",
+    "StopAutomationExecution": "not a console action"
+  },
+  "covered": {
+    "PutParameter": "tests/control/test_ssm_operations.py",
+    "GetParameter": "tests/control/test_ssm_operations.py",
+    "GetParameters": "tests/control/test_ssm_operations.py",
+    "GetParametersByPath": "tests/control/test_ssm_operations.py",
+    "DeleteParameter": "tests/control/test_ssm_operations.py",
+    "DeleteParameters": "tests/control/test_ssm_operations.py",
+    "DescribeParameters": "tests/control/test_ssm_operations.py",
+    "GetParameterHistory": "tests/control/test_ssm_operations.py",
+    "LabelParameterVersion": "tests/control/test_ssm_operations.py",
+    "AddTagsToResource": "tests/control/test_ssm_operations.py",
+    "RemoveTagsFromResource": "tests/control/test_ssm_operations.py",
+    "ListTagsForResource": "tests/control/test_ssm_operations.py",
+    "GetServiceSetting": "tests/control/test_ssm_operations.py",
+    "UpdateServiceSetting": "tests/control/test_ssm_operations.py",
+    "ResetServiceSetting": "tests/control/test_ssm_operations.py",
+    "CreateDocument": "tests/control/test_ssm_operations.py",
+    "DescribeDocument": "tests/control/test_ssm_operations.py",
+    "GetDocument": "tests/control/test_ssm_operations.py",
+    "ListDocuments": "tests/control/test_ssm_operations.py",
+    "DeleteDocument": "tests/control/test_ssm_operations.py",
+    "StartAutomationExecution": "tests/control/test_ssm_operations.py",
+    "GetAutomationExecution": "tests/control/test_ssm_operations.py",
+    "DescribeAutomationExecutions": "tests/control/test_ssm_operations.py",
+    "StopAutomationExecution": "tests/control/test_ssm_operations.py"
+  }
+}

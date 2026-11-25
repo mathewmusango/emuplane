@@ -1,0 +1,94 @@
+{
+  "service": "Kinesis",
+  "title": "Kinesis coverage",
+  "page": "site/docs/reference/kinesis-coverage.md",
+  "ledger": "my-docs/KINESIS.md",
+  "group": "Extended",
+  "console_service": "kinesis",
+  "intro": [
+    "Every Kinesis operation the emulator advertises, and what Emuplane does with it.",
+    "The console lists, creates and deletes streams; shards, records, retention,",
+    "encryption, monitoring, consumers, tags and resource policies are reachable over",
+    "the wire and are exercised by the API tests. `SubscribeToShard` answers an",
+    "eventstream held open for up to 300 s, so its test reads the opening messages and",
+    "hangs up, which is what a subscriber does at shutdown."
+  ],
+  "action_operations": {
+    "list-streams": [
+      "ListStreams"
+    ],
+    "create-stream": [
+      "CreateStream"
+    ],
+    "delete-stream": [
+      "DeleteStream"
+    ]
+  },
+  "gui": {
+    "ListStreams": "Kinesis page \u203a List streams",
+    "CreateStream": "Kinesis page \u203a Create stream",
+    "DeleteStream": "Kinesis page \u203a Delete stream"
+  },
+  "not_console": {
+    "DescribeStream": "not a console action",
+    "DescribeStreamSummary": "not a console action",
+    "ListShards": "not a console action",
+    "PutRecord": "not a console action",
+    "PutRecords": "not a console action",
+    "GetShardIterator": "not a console action",
+    "GetRecords": "not a console action",
+    "IncreaseStreamRetentionPeriod": "not a console action",
+    "DecreaseStreamRetentionPeriod": "not a console action",
+    "MergeShards": "not a console action",
+    "SplitShard": "not a console action",
+    "UpdateShardCount": "not a console action",
+    "StartStreamEncryption": "not a console action",
+    "StopStreamEncryption": "not a console action",
+    "EnableEnhancedMonitoring": "not a console action",
+    "DisableEnhancedMonitoring": "not a console action",
+    "RegisterStreamConsumer": "not a console action",
+    "DeregisterStreamConsumer": "not a console action",
+    "ListStreamConsumers": "not a console action",
+    "DescribeStreamConsumer": "not a console action",
+    "SubscribeToShard": "not a console action",
+    "AddTagsToStream": "not a console action",
+    "RemoveTagsFromStream": "not a console action",
+    "ListTagsForStream": "not a console action",
+    "PutResourcePolicy": "not a console action",
+    "GetResourcePolicy": "not a console action",
+    "DeleteResourcePolicy": "not a console action"
+  },
+  "covered": {
+    "CreateStream": "tests/control/test_kinesis_operations.py",
+    "DeleteStream": "tests/control/test_kinesis_operations.py",
+    "DescribeStream": "tests/control/test_kinesis_operations.py",
+    "DescribeStreamSummary": "tests/control/test_kinesis_operations.py",
+    "ListStreams": "tests/control/test_kinesis_operations.py",
+    "ListShards": "tests/control/test_kinesis_operations.py",
+    "PutRecord": "tests/control/test_kinesis_operations.py",
+    "PutRecords": "tests/control/test_kinesis_operations.py",
+    "GetShardIterator": "tests/control/test_kinesis_operations.py",
+    "GetRecords": "tests/control/test_kinesis_operations.py",
+    "IncreaseStreamRetentionPeriod": "tests/control/test_kinesis_operations.py",
+    "DecreaseStreamRetentionPeriod": "tests/control/test_kinesis_operations.py",
+    "MergeShards": "tests/control/test_kinesis_operations.py",
+    "SplitShard": "tests/control/test_kinesis_operations.py",
+    "UpdateShardCount": "tests/control/test_kinesis_operations.py",
+    "StartStreamEncryption": "tests/control/test_kinesis_operations.py",
+    "StopStreamEncryption": "tests/control/test_kinesis_operations.py",
+    "EnableEnhancedMonitoring": "tests/control/test_kinesis_operations.py",
+    "DisableEnhancedMonitoring": "tests/control/test_kinesis_operations.py",
+    "RegisterStreamConsumer": "tests/control/test_kinesis_operations.py",
+    "DeregisterStreamConsumer": "tests/control/test_kinesis_operations.py",
+    "ListStreamConsumers": "tests/control/test_kinesis_operations.py",
+    "DescribeStreamConsumer": "tests/control/test_kinesis_operations.py",
+    "AddTagsToStream": "tests/control/test_kinesis_operations.py",
+    "RemoveTagsFromStream": "tests/control/test_kinesis_operations.py",
+    "ListTagsForStream": "tests/control/test_kinesis_operations.py",
+    "PutResourcePolicy": "tests/control/test_kinesis_operations.py",
+    "GetResourcePolicy": "tests/control/test_kinesis_operations.py",
+    "DeleteResourcePolicy": "tests/control/test_kinesis_operations.py",
+    "SubscribeToShard": "tests/control/test_kinesis_operations.py"
+  },
+  "blocked": {}
+}
