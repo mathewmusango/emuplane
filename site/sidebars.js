@@ -8,8 +8,8 @@ module.exports = {
       type: 'category',
       label: 'Getting started',
       collapsed: false,
+      link: {type: 'doc', id: 'getting-started/index'},
       items: [
-        'getting-started/index',
         'getting-started/quickstart',
         'getting-started/access',
         'getting-started/console',
@@ -20,8 +20,8 @@ module.exports = {
       type: 'category',
       label: 'Deployment',
       collapsed: false,
+      link: {type: 'doc', id: 'deployment/index'},
       items: [
-        'deployment/index',
         'deployment/docker',
         'deployment/podman',
         'deployment/upgrading',
@@ -31,8 +31,8 @@ module.exports = {
       type: 'category',
       label: 'Concepts',
       collapsed: false,
+      link: {type: 'doc', id: 'concepts/index'},
       items: [
-        'concepts/index',
         'concepts/architecture',
         'concepts/tenancy',
         'concepts/extensions',
@@ -42,15 +42,16 @@ module.exports = {
       type: 'category',
       label: 'Guides',
       collapsed: false,
-      items: ['guides/index', 'guides/s3', 'guides/troubleshooting'],
+      link: {type: 'doc', id: 'guides/index'},
+      items: ['guides/s3', 'guides/troubleshooting'],
     },
     {
       // The operator side: how the thing is run, released and versioned.
       type: 'category',
       label: 'Operations',
       collapsed: false,
+      link: {type: 'doc', id: 'operations/index'},
       items: [
-        'operations/index',
         'operations/runbook',
         'operations/releases',
         'operations/image-and-versions',
@@ -67,8 +68,8 @@ module.exports = {
       type: 'category',
       label: 'Coverage',
       collapsed: false,
+      link: {type: 'doc', id: 'coverage/index'},
       items: [
-        'coverage/index',
         'coverage/core/index',
         'coverage/extended/index',
         'coverage/infrastructure/index',
