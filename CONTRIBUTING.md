@@ -71,11 +71,16 @@ cd web && npx tsc --noEmit && npm test
 npm --prefix site run build
 ```
 
-The three are [the QA check][qa], [the console's TypeScript and tests][web] and [the
-documentation build][docs-site]. The last is the one that catches a broken
+The three are [the QA check][qa], [the console's TypeScript and tests][web] and the
+[documentation build][docs-site]. The last is the one that catches a broken
 documentation link; `dev` will serve one happily. The docs workflow re-runs the
 generators and fails on a dirty tree, so a tree it would rewrite is a closed pull
 request rather than a rebase.
+
+While writing, `npm --prefix site run dev` rebuilds on save (port 3000; the working
+pages are `/emuplane/docs/next/…`). `npm --prefix site run serve` serves the last
+`build/` and never watches, so a page edited after that build looks unchanged until
+the next build — run `build` before pushing either way.
 
 [qa]: scripts/qa_check.py
 [web]: web
