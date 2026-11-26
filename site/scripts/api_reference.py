@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -14,16 +13,9 @@ PAGE = ROOT / "docs" / "reference" / "control-api.md"
 BEGIN = "<!-- routes:begin -->"
 END = "<!-- routes:end -->"
 
-METHODS = {
-    "_route_get": "GET",
-    "_route_post": "POST",
-    "_route_delete": "DELETE",
-}
+sys.path.insert(0, str(REPOSITORY / "scripts"))
 
-IF_PATH = re.compile(r'^\s*if path (?:==|in) ')
-FULLMATCH = re.compile(r'^\s*match = re\.fullmatch\(r"([^"]+)"')
-LITERAL = re.compile(r'"([^"]*)"')
-API = "/api"
+from control_routes import API, routes  # noqa: E402
 
 
 def control_dir() -> Path:
@@ -33,49 +25,6 @@ def control_dir() -> Path:
     if named:
         return Path(named).resolve()
     return REPOSITORY
-
-
-def dispatchers(lines: list[str]) -> dict[str, tuple[int, int]]:
-    found = {}
-    for index, line in enumerate(lines):
-        match = re.match(r"^    def (_route_(?:get|post|delete))\(self\)", line)
-        if match:
-            found[match.group(1)] = index
-    if not found:
-        raise SystemExit("api_reference: no `_route_*` dispatchers in app.py")
-
-    ranges = {}
-    starts = sorted(found.items(), key=lambda item: item[1])
-    for position, (name, start) in enumerate(starts):
-        end = starts[position + 1][1] if position + 1 < len(starts) else len(lines)
-        ranges[name] = (start, end)
-    return ranges
-
-
-def routes(app: Path) -> list[tuple[str, str]]:
-    lines = app.read_text(encoding="utf-8").splitlines()
-    found: set[tuple[str, str]] = set()
-    for name, (start, end) in dispatchers(lines).items():
-        method = METHODS[name]
-        block = lines[start:end]
-        index = 0
-        while index < len(block):
-            line = block[index]
-            if IF_PATH.match(line):
-                condition = line
-                depth = line.count("(") - line.count(")")
-                while depth > 0 and index + 1 < len(block):
-                    index += 1
-                    condition += block[index]
-                    depth += block[index].count("(") - block[index].count(")")
-                for literal in LITERAL.findall(condition):
-                    if literal.startswith(API):
-                        found.add((method, literal))
-            shaped = FULLMATCH.match(line)
-            if shaped and shaped.group(1).startswith(API):
-                found.add((method, shaped.group(1)))
-            index += 1
-    return sorted(found, key=lambda item: (item[1], item[0]))
 
 
 def groups(found: list[tuple[str, str]]) -> list[tuple[str, list[tuple[str, str]]]]:

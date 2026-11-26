@@ -140,6 +140,13 @@ def coverage() -> list[str]:
     )
 
 
+def openapi() -> list[str]:
+    """The spec is generated from the control's routes, so a stale one is a failure."""
+    script = ROOT / "scripts" / "openapi.py"
+    result = subprocess.run([sys.executable, str(script), "--check"], cwd=ROOT)
+    return [] if result.returncode == 0 else ["openapi.json is out of date: run scripts/openapi.py"]
+
+
 def docs_assets() -> list[str]:
     """Every image the documentation names must be a file the site can serve."""
     problems = []
@@ -171,7 +178,14 @@ def main() -> int:
     args = parser.parse_args()
 
     manifest = load()
-    problems = verify(manifest) + security() + compile_python() + coverage() + docs_assets()
+    problems = (
+        verify(manifest)
+        + security()
+        + compile_python()
+        + coverage()
+        + openapi()
+        + docs_assets()
+    )
     if args.tests:
         result = subprocess.run(["npm", "test", "--silent"], cwd=ROOT / "web")
         if result.returncode != 0:
