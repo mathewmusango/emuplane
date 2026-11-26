@@ -62,10 +62,15 @@ cross-tenant principal.
 ## Every route
 
 This table is generated from the control's own route table, so it cannot list a
-route that does not exist or miss one that does. Regenerate it with:
+route that does not exist or miss one that does. The same routes ship as an
+OpenAPI 3 document,
+[`openapi.json`](https://github.com/mathewmusango/emuplane/blob/main/openapi.json),
+which a client generator, Swagger UI or an API scanner can read. Both come from
+one reader:
 
 ```bash
-npm run api   # reads the control checkout named by CONTROL_SRC
+npm run api                    # this table (reads the control checkout named by CONTROL_SRC)
+python3 scripts/openapi.py     # openapi.json; --check fails when it is stale
 ```
 
 <!-- routes:begin -->
@@ -117,6 +122,15 @@ npm run api   # reads the control checkout named by CONTROL_SRC
 | `/api/s3/uploads` | GET |
 | `/api/s3/versions` | GET |
 
+### /api/users — 4 paths
+
+| Path | Methods |
+| --- | --- |
+| `/api/users` | GET, POST |
+| `/api/users/([^/]+)` | DELETE |
+| `/api/users/([^/]+)/password` | POST |
+| `/api/users/([^/]+)/reset-link` | POST |
+
 ### /api/accounts — 4 paths
 
 | Path | Methods |
@@ -162,12 +176,6 @@ npm run api   # reads the control checkout named by CONTROL_SRC
 | --- | --- |
 | `/api/nodes` | GET |
 | `/api/nodes/([^/]+)/reset` | POST |
-
-### /api/users — 1 path
-
-| Path | Methods |
-| --- | --- |
-| `/api/users` | GET, POST |
 
 ### /api/actions — 1 path
 
@@ -235,6 +243,6 @@ npm run api   # reads the control checkout named by CONTROL_SRC
 | --- | --- |
 | `/api/settings` | GET |
 
-77 route/method pairs, 70 paths.
+80 route/method pairs, 73 paths.
 
 <!-- routes:end -->

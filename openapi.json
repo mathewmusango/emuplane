@@ -1,0 +1,1208 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Emuplane control API",
+    "version": "v1",
+    "description": "The console's own HTTP API, served on the control port. Generated from control/app.py by scripts/openapi.py. The AWS gateway on port 4571 is a different API and is not described here."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4570",
+      "description": "The control container's published address."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The token minted inside the container by python /app/api_token.py. A console session cookie is accepted too, but only for its own account."
+      }
+    }
+  },
+  "paths": {
+    "/api/accounts": {
+      "post": {
+        "tags": [
+          "accounts"
+        ],
+        "operationId": "post_api_accounts",
+        "summary": "POST /api/accounts",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/accounts/me": {
+      "get": {
+        "tags": [
+          "accounts"
+        ],
+        "operationId": "get_api_accounts_me",
+        "summary": "GET /api/accounts/me",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/accounts/{account_id}": {
+      "delete": {
+        "tags": [
+          "accounts"
+        ],
+        "operationId": "delete_api_accounts_account_id",
+        "summary": "DELETE /api/accounts/{account_id}",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        },
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{12}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/accounts/{account_id}/disabled": {
+      "post": {
+        "tags": [
+          "accounts"
+        ],
+        "operationId": "post_api_accounts_account_id_disabled",
+        "summary": "POST /api/accounts/{account_id}/disabled",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        },
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{12}$"
+            }
+          }
+        ]
+      }
+    },
+    "/api/actions": {
+      "get": {
+        "tags": [
+          "actions"
+        ],
+        "operationId": "get_api_actions",
+        "summary": "GET /api/actions",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "post_api_auth_login",
+        "summary": "POST /api/auth/login",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/auth/mfa": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "post_api_auth_mfa",
+        "summary": "POST /api/auth/mfa",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/auth/remember": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "post_api_auth_remember",
+        "summary": "POST /api/auth/remember",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/auth/switch": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "post_api_auth_switch",
+        "summary": "POST /api/auth/switch",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/browse": {
+      "get": {
+        "tags": [
+          "browse"
+        ],
+        "operationId": "get_api_browse",
+        "summary": "GET /api/browse",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/buckets": {
+      "get": {
+        "tags": [
+          "buckets"
+        ],
+        "operationId": "get_api_buckets",
+        "summary": "GET /api/buckets",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/buckets/{bucket}": {
+      "delete": {
+        "tags": [
+          "buckets"
+        ],
+        "operationId": "delete_api_buckets_bucket",
+        "summary": "DELETE /api/buckets/{bucket}",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        },
+        "parameters": [
+          {
+            "name": "bucket",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/counts": {
+      "get": {
+        "tags": [
+          "counts"
+        ],
+        "operationId": "get_api_counts",
+        "summary": "GET /api/counts",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/credentials": {
+      "get": {
+        "tags": [
+          "credentials"
+        ],
+        "operationId": "get_api_credentials",
+        "summary": "GET /api/credentials",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "credentials"
+        ],
+        "operationId": "post_api_credentials",
+        "summary": "POST /api/credentials",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/exec": {
+      "post": {
+        "tags": [
+          "exec"
+        ],
+        "operationId": "post_api_exec",
+        "summary": "POST /api/exec",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "post_api_me",
+        "summary": "POST /api/me",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/meta": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "get_api_meta",
+        "summary": "GET /api/meta",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/mfa": {
+      "delete": {
+        "tags": [
+          "mfa"
+        ],
+        "operationId": "delete_api_mfa",
+        "summary": "DELETE /api/mfa",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "mfa"
+        ],
+        "operationId": "get_api_mfa",
+        "summary": "GET /api/mfa",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/mfa/device": {
+      "post": {
+        "tags": [
+          "mfa"
+        ],
+        "operationId": "post_api_mfa_device",
+        "summary": "POST /api/mfa/device",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/mfa/enrol": {
+      "post": {
+        "tags": [
+          "mfa"
+        ],
+        "operationId": "post_api_mfa_enrol",
+        "summary": "POST /api/mfa/enrol",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/nodes": {
+      "get": {
+        "tags": [
+          "nodes"
+        ],
+        "operationId": "get_api_nodes",
+        "summary": "GET /api/nodes",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/nodes/{node}/reset": {
+      "post": {
+        "tags": [
+          "nodes"
+        ],
+        "operationId": "post_api_nodes_node_reset",
+        "summary": "POST /api/nodes/{node}/reset",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        },
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/refresh": {
+      "post": {
+        "tags": [
+          "refresh"
+        ],
+        "operationId": "post_api_refresh",
+        "summary": "POST /api/refresh",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/regions": {
+      "post": {
+        "tags": [
+          "regions"
+        ],
+        "operationId": "post_api_regions",
+        "summary": "POST /api/regions",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/reserve": {
+      "post": {
+        "tags": [
+          "reserve"
+        ],
+        "operationId": "post_api_reserve",
+        "summary": "POST /api/reserve",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3",
+        "summary": "GET /api/s3",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/access-point-delete": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_access-point-delete",
+        "summary": "POST /api/s3/access-point-delete",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/access-point-detail": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_access-point-detail",
+        "summary": "GET /api/s3/access-point-detail",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/access-point-policy": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_access-point-policy",
+        "summary": "GET /api/s3/access-point-policy",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/access-point-policy-edit": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_access-point-policy-edit",
+        "summary": "POST /api/s3/access-point-policy-edit",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/access-points": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_access-points",
+        "summary": "GET /api/s3/access-points",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_access-points",
+        "summary": "POST /api/s3/access-points",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/bucket-document": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_bucket-document",
+        "summary": "POST /api/s3/bucket-document",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/bucket-documents": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_bucket-documents",
+        "summary": "GET /api/s3/bucket-documents",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/bucket-head": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_bucket-head",
+        "summary": "GET /api/s3/bucket-head",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/bucket-settings": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_bucket-settings",
+        "summary": "GET /api/s3/bucket-settings",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/bucket-settings-edit": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_bucket-settings-edit",
+        "summary": "POST /api/s3/bucket-settings-edit",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/buckets": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_buckets",
+        "summary": "POST /api/s3/buckets",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/empty": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_empty",
+        "summary": "POST /api/s3/empty",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/file-systems": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_file-systems",
+        "summary": "GET /api/s3/file-systems",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/mrap": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_mrap",
+        "summary": "POST /api/s3/mrap",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/mrap-delete": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_mrap-delete",
+        "summary": "POST /api/s3/mrap-delete",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/mrap-policy": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_mrap-policy",
+        "summary": "POST /api/s3/mrap-policy",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/mrap-routes": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_mrap-routes",
+        "summary": "POST /api/s3/mrap-routes",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/multipart-abort": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_multipart-abort",
+        "summary": "POST /api/s3/multipart-abort",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/multipart-complete": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_multipart-complete",
+        "summary": "POST /api/s3/multipart-complete",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/multipart-create": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_multipart-create",
+        "summary": "POST /api/s3/multipart-create",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/multipart-part": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_multipart-part",
+        "summary": "POST /api/s3/multipart-part",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_object",
+        "summary": "GET /api/s3/object",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object",
+        "summary": "POST /api/s3/object",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-acl": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_object-acl",
+        "summary": "GET /api/s3/object-acl",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-acl",
+        "summary": "POST /api/s3/object-acl",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-annotation": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_object-annotation",
+        "summary": "GET /api/s3/object-annotation",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-annotation",
+        "summary": "POST /api/s3/object-annotation",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-copy": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-copy",
+        "summary": "POST /api/s3/object-copy",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-download": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_object-download",
+        "summary": "GET /api/s3/object-download",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-lambda": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-lambda",
+        "summary": "POST /api/s3/object-lambda",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-lambda-configuration": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-lambda-configuration",
+        "summary": "POST /api/s3/object-lambda-configuration",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-lambda-delete": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-lambda-delete",
+        "summary": "POST /api/s3/object-lambda-delete",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-legal-hold": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-legal-hold",
+        "summary": "POST /api/s3/object-legal-hold",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-meta": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_object-meta",
+        "summary": "GET /api/s3/object-meta",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-retention": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-retention",
+        "summary": "POST /api/s3/object-retention",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-rewrite": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-rewrite",
+        "summary": "POST /api/s3/object-rewrite",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-tags": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-tags",
+        "summary": "POST /api/s3/object-tags",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-upload": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-upload",
+        "summary": "POST /api/s3/object-upload",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/object-version-delete": {
+      "post": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "post_api_s3_object-version-delete",
+        "summary": "POST /api/s3/object-version-delete",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/objects": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_objects",
+        "summary": "GET /api/s3/objects",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/table-buckets": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_table-buckets",
+        "summary": "GET /api/s3/table-buckets",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/upload-parts": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_upload-parts",
+        "summary": "GET /api/s3/upload-parts",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/uploads": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_uploads",
+        "summary": "GET /api/s3/uploads",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/s3/versions": {
+      "get": {
+        "tags": [
+          "s3"
+        ],
+        "operationId": "get_api_s3_versions",
+        "summary": "GET /api/s3/versions",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/services": {
+      "get": {
+        "tags": [
+          "services"
+        ],
+        "operationId": "get_api_services",
+        "summary": "GET /api/services",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "operationId": "get_api_settings",
+        "summary": "GET /api/settings",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "get_api_users",
+        "summary": "GET /api/users",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "post_api_users",
+        "summary": "POST /api/users",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
+    "/api/users/{user}": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "delete_api_users_user",
+        "summary": "DELETE /api/users/{user}",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        },
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/users/{user}/password": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "post_api_users_user_password",
+        "summary": "POST /api/users/{user}/password",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        },
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/users/{user}/reset-link": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "post_api_users_user_reset-link",
+        "summary": "POST /api/users/{user}/reset-link",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        },
+        "parameters": [
+          {
+            "name": "user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
