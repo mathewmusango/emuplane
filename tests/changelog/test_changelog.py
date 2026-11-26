@@ -317,3 +317,21 @@ def test_an_excluded_issue_is_not_asked_for_a_page(config):
 def test_a_documentation_line_is_read_however_it_is_typed(config):
     assert changelog.documentation_line(issue(3, "x", body="documentation:   a/page.md  "), config) == "a/page.md"
     assert changelog.documentation_line(issue(4, "x", body="Docs: nope"), config) == ""
+
+
+def test_the_closing_query_asks_what_closed_each_issue():
+    query = changelog.closing_query("o", "r", [7, 12])
+    assert 'repository(owner: "o", name: "r")' in query
+    assert "i7: issue(number: 7)" in query
+    assert "i12: issue(number: 12)" in query
+    assert "timelineItems(itemTypes: [CLOSED_EVENT], last: 1)" in query
+    assert "mergeCommit { oid }" in query
+
+
+def test_a_closing_event_is_read_for_the_commit_it_names():
+    merged = {"timelineItems": {"nodes": [{"closer": {"mergeCommit": {"oid": "3e4d867"}}}]}}
+    assert changelog.closer_of(merged) == "3e4d867"
+    pushed = {"timelineItems": {"nodes": [{"closer": {"mergeCommit": None, "oid": "abc1234"}}]}}
+    assert changelog.closer_of(pushed) == "abc1234"
+    assert changelog.closer_of({"timelineItems": {"nodes": []}}) == ""
+    assert changelog.closer_of({}) == ""
