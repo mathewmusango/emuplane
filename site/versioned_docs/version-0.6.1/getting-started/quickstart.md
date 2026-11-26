@@ -127,7 +127,7 @@ now in the console's Objects tab.
 ## Where next
 
 - [Accessing it: the console and the CLI](/docs/getting-started/access)
-- [Deployment: Docker and Podman](/docs/deployment/docker-podman)
+- [Deployment: Docker and Podman](../deployment/docker-podman.md)
 - [The console, page by page](/docs/getting-started/console)
 - [Accounts, regions and keys](/docs/concepts/tenancy)
 - [What the gateway enforces](/docs/concepts/architecture)

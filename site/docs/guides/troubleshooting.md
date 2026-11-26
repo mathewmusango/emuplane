@@ -29,7 +29,7 @@ the host. Then note what the health check does not tell you: `/health` is
 liveness only and answers `200` while the emulator is down, and the compose
 healthcheck calls exactly that. **A healthy container is not a working console** —
 the row on **About** and a read are the real checks. See
-[Docker and Podman](../deployment/docker-podman.md) and
+[Deployment](../deployment/index.md) and
 [Configuration](../reference/configuration.md).
 
 **The page says "Console not built".** You are running the control from a

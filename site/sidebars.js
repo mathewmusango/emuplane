@@ -22,7 +22,6 @@ module.exports = {
       collapsed: false,
       items: [
         'deployment/index',
-        'deployment/docker-podman',
         'deployment/docker',
         'deployment/podman',
         'deployment/upgrading',
