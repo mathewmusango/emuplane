@@ -78,14 +78,25 @@ def documentation_line(issue: dict, config: dict) -> str:
     return " ".join(found.group(1).split()) if found else ""
 
 
-def documentation_block(issues: list[dict], config: dict) -> str:
+def trace(issue: dict, commits: dict[int, str] | None = None, repo: str = "") -> str:
+    """The issue link an entry ends with, and the commit that closed it when there is one."""
+    line = f"([#{issue['number']}]({issue['html_url']}))"
+    sha = (commits or {}).get(int(issue.get("number") or 0))
+    if sha and repo:
+        line += f" ([{sha[:7]}](https://github.com/{repo}/commit/{sha}))"
+    return line
+
+
+def documentation_block(issues: list[dict], config: dict,
+                        commits: dict[int, str] | None = None, repo: str = "") -> str:
     """The page that carries each issue in the release, for the pull request body."""
     lines = ["### Documentation", ""]
     counted = 0
     for issue in sorted(issues, key=lambda item: item.get("number", 0)):
         if issue.get("state_reason") == "not_planned" or section_for(issue, config) is None:
             continue
-        lines.append(f"- `#{issue['number']}` \u2014 {documentation_line(issue, config) or '*not stated*'}")
+        page = (documentation_line(issue, config) or "*not stated*").rstrip(".")
+        lines.append(f"- {page} {trace(issue, commits, repo)}")
         counted += 1
     if not counted:
         lines.append("Nothing in this release needs a page.")
@@ -122,11 +133,7 @@ def render(version: str, when: str, issues: list[dict], config: dict,
 def bullet(issue: dict, config: dict, commits: dict[int, str] | None = None,
            repo: str = "") -> str:
     """One line: the summary, the issue, and the commit that closed it when there is one."""
-    line = f"- {summary(issue, config)} ([#{issue['number']}]({issue['html_url']}))"
-    sha = (commits or {}).get(int(issue.get("number") or 0))
-    if sha and repo:
-        line += f" ([{sha[:7]}](https://github.com/{repo}/commit/{sha}))"
-    return line
+    return f"- {summary(issue, config)} {trace(issue, commits, repo)}"
 
 
 def insert(text: str, section: str, version: str) -> str:
@@ -450,8 +457,10 @@ def main() -> int:
         token = os.environ.get("GITHUB_TOKEN", "")
         if not token:
             raise SystemExit("set GITHUB_TOKEN to read the issues")
-        issues = fetch_issues(repo_slug(args.repo), args.since or since_default(), token)
-        print(documentation_block(issues, config))
+        repo = repo_slug(args.repo)
+        issues = fetch_issues(repo, args.since or since_default(), token)
+        commits = closing_commits(repo, issues, token)
+        print(documentation_block(issues, config, commits, repo))
         return 0
 
     if not args.version:

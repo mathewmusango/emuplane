@@ -305,8 +305,18 @@ def test_an_issue_says_which_page_carries_it(config):
         issue(2, "Another fix", ["fixed"], body="no line here"),
     ]
     block = changelog.documentation_block(items, config)
-    assert "- `#1` — reference/configuration.md" in block
-    assert "- `#2` — *not stated*" in block
+    assert "- reference/configuration.md ([#1](https://github.com/o/r/issues/1))" in block
+    assert "- *not stated* ([#2](https://github.com/o/r/issues/2))" in block
+
+
+def test_a_documentation_line_ends_with_the_commit_that_closed_the_issue(config):
+    sha = "3e4d867a1b2c3d4e5f60718293a4b5c6d7e8f901"
+    items = [issue(7, "A fix", ["fixed"], body="Documentation: reference/configuration.md.")]
+    block = changelog.documentation_block(items, config, {7: sha}, "o/r")
+    assert block.endswith(
+        "- reference/configuration.md ([#7](https://github.com/o/r/issues/7)) "
+        f"([3e4d867](https://github.com/o/r/commit/{sha}))\n"
+    )
 
 
 def test_an_excluded_issue_is_not_asked_for_a_page(config):
