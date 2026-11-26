@@ -66,7 +66,7 @@ def tag_exists(root: Path, version: str) -> bool:
     return bool(found)
 
 
-COMPOSE_FILES = ("docker-compose.yml", "docker-compose.all.yml")
+COMPOSE_FILES = ("docker-compose.yml", "docker-compose.all.yml", "docker-compose.socket.yml")
 
 
 def compose_tags(root: Path) -> dict[str, str]:
