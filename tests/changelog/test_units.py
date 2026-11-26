@@ -117,3 +117,14 @@ def test_a_compose_default_of_latest_does_not_match(repo):
         'image: "ghcr.io/mathewmusango/emuplane:latest"\n', encoding="utf-8"
     )
     assert _units(repo)["compose image tags"] is False
+
+
+def test_the_release_plan_bumps_every_compose_file():
+    text = (ROOT / ".github" / "workflows" / "release-plan.yml").read_text(encoding="utf-8")
+    bumped = [
+        line
+        for line in text.splitlines()
+        if "sed -i" in line and "ghcr.io/mathewmusango/emuplane:" in line
+    ]
+    for name in units.COMPOSE_FILES:
+        assert any(name in line for line in bumped), f"{name} is never bumped by the plan"
