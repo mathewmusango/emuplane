@@ -39,3 +39,5 @@ my-docs/
 /scripts/up.sh
 # Internal design notes: cells, router, break-glass. Not for a public repo.
 ARCHITECTURE.md
+# Local agent instructions: they name this host's paths, so the file stays here.
+AGENTS.md
