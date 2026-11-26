@@ -59,13 +59,14 @@ and what it does is on the [configuration](../reference/configuration.md) page.
 | --- | --- |
 | [`docker-compose.yml`](https://github.com/mathewmusango/emuplane/blob/main/docker-compose.yml) | the control only |
 | [`docker-compose.all.yml`](https://github.com/mathewmusango/emuplane/blob/main/docker-compose.all.yml) | MiniStack, its first-setup job and the control, on one network |
+| [`docker-compose.socket.yml`](https://github.com/mathewmusango/emuplane/blob/main/docker-compose.socket.yml) | the same stack with the runtime's socket mounted into the emulator — see [Running Docker](docker.md) or [Running Podman](podman.md) |
 
 Both pin a released image tag, so bringing one up never changes the image under
 you; `latest` is there for a quick look instead.
 
-An optional overlay, shown on [Running Docker](docker.md) and
-[Running Podman](podman.md), gives the emulator the runtime's socket so it can
-start sibling containers.
+An optional third file, `docker-compose.socket.yml`, is the all-in-one stack with
+the runtime's socket mounted, so the emulator can start sibling containers; it is
+shown on [Running Docker](docker.md) and [Running Podman](podman.md).
 
 ## The first-setup job
 
@@ -102,7 +103,7 @@ The parts that differ are on their own pages:
 
 Both mount the runtime's socket at `/var/run/docker.sock`, which is where the Docker
 client looks by default — so **no `DOCKER_HOST` is set**, and the same overlay
-serves both.
+serves both, and `docker-compose.socket.yml` is that file with the mount.
 
 This section will grow to cover Kubernetes, Helm, Argo CD and other deployment
 shapes as they are built; nothing here claims them today.

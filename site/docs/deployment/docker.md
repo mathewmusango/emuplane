@@ -24,26 +24,15 @@ a record:
 | RDS | the database instance |
 | RDS Data API | the same database, for `BatchExecuteStatement` and the three transaction calls |
 
-Everything else works without this step. Save this overlay beside the compose
-file:
-
-```yaml
-# compose.socket.yml
-services:
-  ministack:
-    volumes:
-      - "${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock"
-```
-
-and bring the stack up with it:
+Everything else works without this step. `docker-compose.socket.yml` is the
+all-in-one file plus that one mount, so it brings the whole stack up with the
+socket:
 
 ```bash
-docker compose --env-file .env.all \
-  -f docker-compose.all.yml -f compose.socket.yml up -d
+docker compose --env-file .env.all -f docker-compose.socket.yml up -d
 ```
 
-The overlay mounts the runtime's socket at `/var/run/docker.sock` inside the
-emulator. On Docker that is where it already lives, so nothing else is needed —
+It mounts the runtime's socket at `/var/run/docker.sock` inside the emulator. On Docker that is where it already lives, so nothing else is needed —
 and because it is the Docker client's default path, **no `DOCKER_HOST` is set**.
 If your daemon listens somewhere else, name it:
 `DOCKER_SOCKET=/run/docker.sock docker compose …`.
