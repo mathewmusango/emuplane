@@ -8,8 +8,8 @@ module.exports = {
       type: 'category',
       label: 'Getting started',
       collapsed: false,
-      link: {type: 'doc', id: 'getting-started/index'},
       items: [
+        {type: 'doc', id: 'getting-started/index', label: 'Overview'},
         'getting-started/quickstart',
         'getting-started/access',
         'getting-started/console',
@@ -20,8 +20,8 @@ module.exports = {
       type: 'category',
       label: 'Deployment',
       collapsed: false,
-      link: {type: 'doc', id: 'deployment/index'},
       items: [
+        {type: 'doc', id: 'deployment/index', label: 'Overview'},
         'deployment/docker',
         'deployment/podman',
         'deployment/upgrading',
@@ -31,8 +31,8 @@ module.exports = {
       type: 'category',
       label: 'Concepts',
       collapsed: false,
-      link: {type: 'doc', id: 'concepts/index'},
       items: [
+        {type: 'doc', id: 'concepts/index', label: 'Overview'},
         'concepts/architecture',
         'concepts/tenancy',
         'concepts/extensions',
@@ -42,16 +42,19 @@ module.exports = {
       type: 'category',
       label: 'Guides',
       collapsed: false,
-      link: {type: 'doc', id: 'guides/index'},
-      items: ['guides/s3', 'guides/troubleshooting'],
+      items: [
+        {type: 'doc', id: 'guides/index', label: 'Overview'},
+        'guides/s3',
+        'guides/troubleshooting',
+      ],
     },
     {
       // The operator side: how the thing is run, released and versioned.
       type: 'category',
       label: 'Operations',
       collapsed: false,
-      link: {type: 'doc', id: 'operations/index'},
       items: [
+        {type: 'doc', id: 'operations/index', label: 'Overview'},
         'operations/runbook',
         'operations/releases',
         'operations/image-and-versions',
@@ -68,8 +71,8 @@ module.exports = {
       type: 'category',
       label: 'Coverage',
       collapsed: false,
-      link: {type: 'doc', id: 'coverage/index'},
       items: [
+        {type: 'doc', id: 'coverage/index', label: 'Overview'},
         'coverage/core/index',
         'coverage/extended/index',
         'coverage/infrastructure/index',
