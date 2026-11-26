@@ -9,8 +9,8 @@ hide_title: true
   <img className="banner-dark" src={require('@site/static/img/banners/emuplane-dark.png').default} alt="" width="100%" aria-hidden="true" />
 </p>
 
-Emuplane is a **console and control plane in front of an AWS emulator**. It gives
-you the parts of local AWS that a CLI alone cannot show: accounts you sign in to,
+Emuplane is a **console and control plane in front of an emulator of the AWS APIs**.
+It gives you the parts of local AWS that a CLI alone cannot show: accounts you sign in to,
 regions an account has enabled, access keys you can hand to a tool, and console
 pages where a bucket, an object or an access point is readable rather than
 implied.
@@ -48,7 +48,10 @@ bearer token is minted once inside the container (`python /app/api_token.py`).
 - **Not an emulator.** The emulator is a separate project; Emuplane talks to it
   through one URL. [MiniStack](https://github.com/ministackorg/ministack) is the
   verified backend in this cycle (1.5.40-full); anything that speaks the same
-  protocol points at the same URL.
+  protocol points at the same URL. AWS's own local emulator,
+  [AWS Emulator](https://docs.aws.amazon.com/emulator/), is a different product
+  with a different model: Emuplane neither wraps it nor claims compatibility
+  with it.
 - **Not a proxy to real AWS.** It is a local lab: no credential leaves the box.
 - **Not production infrastructure.** A control plane for a lab, sized to run
   beside the emulator on one host.
