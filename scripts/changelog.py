@@ -299,17 +299,18 @@ def since_default() -> str:
     return first[0]
 
 
-def get_json(path: str, token: str):
-    """One authenticated GET, answered as parsed JSON; `None` when the API answers 404."""
+def graphql(query: str, token: str) -> dict:
+    """One authenticated GraphQL query, answered as its `data` object."""
     connection = HTTPSConnection(API_HOST, timeout=30, context=TLS)
     try:
         connection.request(
-            "GET",
-            path,
+            "POST",
+            "/graphql",
+            json.dumps({"query": query}),
             headers={
                 "Accept": "application/vnd.github+json",
                 "Authorization": f"Bearer {token}",
-                "X-GitHub-Api-Version": "2022-11-28",
+                "Content-Type": "application/json",
                 "User-Agent": "emuplane-changelog",
             },
         )
@@ -317,35 +318,51 @@ def get_json(path: str, token: str):
         body = answer.read()
     finally:
         connection.close()
-    if answer.status == 404:
-        return None
     if answer.status != 200:
-        raise SystemExit(f"the API answered {answer.status} for {path}")
-    return json.loads(body)
+        raise SystemExit(f"the GraphQL API answered {answer.status}")
+    payload = json.loads(body)
+    data = payload.get("data") or {}
+    if payload.get("errors") and not data.get("repository"):
+        first = payload["errors"][0].get("message")
+        raise SystemExit(f"the GraphQL API refused the query: {first}")
+    return data
+
+
+def closing_query(owner: str, name: str, numbers: list[int]) -> str:
+    """One query asking what closed each issue, under an alias per issue."""
+    aliases = " ".join(
+        f"i{number}: issue(number: {number}) {{ "
+        "timelineItems(itemTypes: [CLOSED_EVENT], last: 1) { nodes { ... on ClosedEvent { "
+        "closer { ... on PullRequest { mergeCommit { oid } } ... on Commit { oid } } } } } }"
+        for number in numbers
+    )
+    return f'query {{ repository(owner: "{owner}", name: "{name}") {{ {aliases} }} }}'
+
+
+def closer_of(node: dict) -> str:
+    """The commit an issue node's closing event names, or an empty string."""
+    events = (node or {}).get("timelineItems", {}).get("nodes") or []
+    closer = (events[-1] if events else {}).get("closer") or {}
+    return str((closer.get("mergeCommit") or {}).get("oid") or closer.get("oid") or "")
 
 
 def closing_commits(repo: str, issues: list[dict], token: str) -> dict[int, str]:
     """The commit GitHub recorded when each issue closed, by issue number.
 
-    An issue closed by a merged pull request carries the merge commit; one closed by
-    hand carries nothing, and its bullet simply has no SHA.
+    A merged pull request closes the issue and names its merge commit as the closer;
+    one closed by hand names nothing, and its bullet simply has no SHA.
     """
+    owner, _, name = repo.partition("/")
+    numbers = sorted({int(issue["number"]) for issue in issues if issue.get("number")})
     found: dict[int, str] = {}
-    for issue in issues:
-        number = int(issue.get("number") or 0)
-        if not number:
-            continue
-        page = 1
-        while page <= 5:
-            events = get_json(
-                f"/repos/{repo}/issues/{number}/timeline?per_page=100&page={page}", token
-            ) or []
-            for event in events:
-                if event.get("event") == "closed" and event.get("commit_id"):
-                    found[number] = str(event["commit_id"])
-            if len(events) < 100:
-                break
-            page += 1
+    for start in range(0, len(numbers), 25):
+        window = numbers[start : start + 25]
+        data = graphql(closing_query(owner, name, window), token)
+        repository = data.get("repository") or {}
+        for number in window:
+            sha = closer_of(repository.get(f"i{number}") or {})
+            if sha:
+                found[number] = sha
     return found
 
 
