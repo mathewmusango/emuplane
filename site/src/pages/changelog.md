@@ -4,6 +4,26 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.10.0] - 2026-11-26
+
+### Added
+
+- Coverage: every CloudFormation operation row has a page and a test ([#302](https://github.com/mathewmusango/emuplane/issues/302)) ([af6740b](https://github.com/mathewmusango/emuplane/commit/af6740bb37d912b82564e84b530831a40b303a4a))
+- Coverage: the Core services ([#303](https://github.com/mathewmusango/emuplane/issues/303)) ([e134719](https://github.com/mathewmusango/emuplane/commit/e134719a43239eff5894e23beac373bee4ec294d))
+- Coverage: the Extended services ([#304](https://github.com/mathewmusango/emuplane/issues/304)) ([c5e8967](https://github.com/mathewmusango/emuplane/commit/c5e8967392348982f919afaafcf45f461c77c10b))
+- Coverage: the Infrastructure services ([#305](https://github.com/mathewmusango/emuplane/issues/305)) ([11b5e9c](https://github.com/mathewmusango/emuplane/commit/11b5e9ce89117ae3e7799c5be2d3d3eb14f8e645))
+- Coverage: EKS, DocumentDB and Managed Service for Apache Flink ([#306](https://github.com/mathewmusango/emuplane/issues/306)) ([6e32a56](https://github.com/mathewmusango/emuplane/commit/6e32a565739e3ca428ba62a101eaf69772e58683))
+- Coverage: the Bedrock control plane (66 operations) ([#307](https://github.com/mathewmusango/emuplane/issues/307)) ([52fc40d](https://github.com/mathewmusango/emuplane/commit/52fc40d33c9328400bb867b06c4af834ffbbfd22))
+- Coverage: the Bedrock Agent control plane (72 operations) ([#308](https://github.com/mathewmusango/emuplane/issues/308)) ([785347f](https://github.com/mathewmusango/emuplane/commit/785347fb326437264137f26ec7855f70c6f99391))
+- Docs: every section has a landing page, and coverage is its own section ([#314](https://github.com/mathewmusango/emuplane/issues/314)) ([2655b6b](https://github.com/mathewmusango/emuplane/commit/2655b6bc12a3d56e1eeee7b1e9bf172ef8e5c427))
+- Docs: a Docker-compatible Podman socket for the services that run containers ([#315](https://github.com/mathewmusango/emuplane/issues/315)) ([602ad85](https://github.com/mathewmusango/emuplane/commit/602ad859c35dd584d439ab110ccbcfccb248c541))
+- Coverage: Resource Groups ([#329](https://github.com/mathewmusango/emuplane/issues/329)) ([f751b4f](https://github.com/mathewmusango/emuplane/commit/f751b4fd593bb25a3440ec74e48fe49328ad9224))
+- Deploy: a full compose file that mounts the runtime socket ([#331](https://github.com/mathewmusango/emuplane/issues/331)) ([8ca9009](https://github.com/mathewmusango/emuplane/commit/8ca9009e1cdf194dc146d67f53697ae13aff2c2d))
+
+### Changed
+
+- Console: About reports the instance readings, Home stops doing so ([#313](https://github.com/mathewmusango/emuplane/issues/313)) ([8320168](https://github.com/mathewmusango/emuplane/commit/83201682c8b51f94328f9a21b26efa92a4ce6794))
+
 ## [v0.9.0] - 2026-11-23
 
 ### Added
