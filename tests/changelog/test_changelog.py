@@ -69,6 +69,27 @@ def test_the_section_lists_issues_in_order_with_links(config):
     assert "- Second thing ([#12](https://github.com/o/r/issues/12))" in section
 
 
+def test_the_bullet_carries_the_commit_that_closed_it(config):
+    """A closed issue names the merge commit, so a bullet traces to the change."""
+    sha = "3e4d867a1b2c3d4e5f60718293a4b5c6d7e8f901"
+    section, _dropped = changelog.render(
+        "v0.2.0", "2026-11-16", [issue(7, "First thing", ["bug"])], config, {7: sha}, "o/r"
+    )
+    assert (
+        "- First thing ([#7](https://github.com/o/r/issues/7)) "
+        f"([3e4d867](https://github.com/o/r/commit/{sha}))"
+    ) in section
+
+
+def test_a_bullet_without_a_commit_keeps_the_issue_link(config):
+    """Hand-closed issues have no merge commit, and the bullet says nothing it cannot show."""
+    section, _dropped = changelog.render(
+        "v0.2.0", "2026-11-16", [issue(8, "Closed by hand", ["bug"])], config, {}, "o/r"
+    )
+    assert "- Closed by hand ([#8](https://github.com/o/r/issues/8))" in section
+    assert "commit" not in section
+
+
 def test_not_planned_and_excluded_issues_are_counted(config):
     section, dropped = changelog.render(
         "v0.2.0",

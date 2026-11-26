@@ -2,8 +2,9 @@
 """Build a CHANGELOG section from the issues a release closed.
 
 The unit is the issue: its label picks the section, and its title — or a
-`Changelog:` line in its body — is the bullet. Nothing is read from commits, so
-the format does not change when the code does.
+`Changelog:` line in its body — is the bullet. The commit GitHub recorded when the
+issue closed is appended as a short SHA, so a bullet can be traced to the change that
+made it true; an issue closed by hand simply carries no SHA.
 
   scripts/changelog.py --version v0.2.0 --write     # insert the section
   scripts/changelog.py --version v0.2.0 --check     # fail when it is missing
@@ -91,7 +92,8 @@ def documentation_block(issues: list[dict], config: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render(version: str, when: str, issues: list[dict], config: dict) -> tuple[str, int]:
+def render(version: str, when: str, issues: list[dict], config: dict,
+           commits: dict[int, str] | None = None, repo: str = "") -> tuple[str, int]:
     """The Keep a Changelog section, and how many issues were left out."""
     groups: dict[str, list[dict]] = {s["title"]: [] for s in config.get("sections", [])}
     dropped = 0
@@ -111,10 +113,20 @@ def render(version: str, when: str, issues: list[dict], config: dict) -> tuple[s
             continue
         lines += ["", f"### {title}", ""]
         for issue in items:
-            lines.append(f"- {summary(issue, config)} ([#{issue['number']}]({issue['html_url']}))")
+            lines.append(bullet(issue, config, commits, repo))
     if len(lines) == 1:
         lines += ["", "Nothing was closed for this release."]
     return "\n".join(lines) + "\n", dropped
+
+
+def bullet(issue: dict, config: dict, commits: dict[int, str] | None = None,
+           repo: str = "") -> str:
+    """One line: the summary, the issue, and the commit that closed it when there is one."""
+    line = f"- {summary(issue, config)} ([#{issue['number']}]({issue['html_url']}))"
+    sha = (commits or {}).get(int(issue.get("number") or 0))
+    if sha and repo:
+        line += f" ([{sha[:7]}](https://github.com/{repo}/commit/{sha}))"
+    return line
 
 
 def insert(text: str, section: str, version: str) -> str:
@@ -287,6 +299,56 @@ def since_default() -> str:
     return first[0]
 
 
+def get_json(path: str, token: str):
+    """One authenticated GET, answered as parsed JSON; `None` when the API answers 404."""
+    connection = HTTPSConnection(API_HOST, timeout=30, context=TLS)
+    try:
+        connection.request(
+            "GET",
+            path,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {token}",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "emuplane-changelog",
+            },
+        )
+        answer = connection.getresponse()
+        body = answer.read()
+    finally:
+        connection.close()
+    if answer.status == 404:
+        return None
+    if answer.status != 200:
+        raise SystemExit(f"the API answered {answer.status} for {path}")
+    return json.loads(body)
+
+
+def closing_commits(repo: str, issues: list[dict], token: str) -> dict[int, str]:
+    """The commit GitHub recorded when each issue closed, by issue number.
+
+    An issue closed by a merged pull request carries the merge commit; one closed by
+    hand carries nothing, and its bullet simply has no SHA.
+    """
+    found: dict[int, str] = {}
+    for issue in issues:
+        number = int(issue.get("number") or 0)
+        if not number:
+            continue
+        page = 1
+        while page <= 5:
+            events = get_json(
+                f"/repos/{repo}/issues/{number}/timeline?per_page=100&page={page}", token
+            ) or []
+            for event in events:
+                if event.get("event") == "closed" and event.get("commit_id"):
+                    found[number] = str(event["commit_id"])
+            if len(events) < 100:
+                break
+            page += 1
+    return found
+
+
 def fetch_issues(repo: str, since: str, token: str) -> list[dict]:
     """Every closed issue in the window, from the search API, one page at a time."""
     query = quote(f"repo:{repo} is:issue state:closed closed:>={since}")
@@ -384,8 +446,10 @@ def main() -> int:
     token = os.environ.get("GITHUB_TOKEN", "")
     if not token:
         raise SystemExit("set GITHUB_TOKEN to read the issues")
-    issues = fetch_issues(repo_slug(args.repo), args.since or since_default(), token)
-    section, dropped = render(args.version, args.date, issues, config)
+    repo = repo_slug(args.repo)
+    issues = fetch_issues(repo, args.since or since_default(), token)
+    commits = closing_commits(repo, issues, token)
+    section, dropped = render(args.version, args.date, issues, config, commits, repo)
     print(f"{len(issues)} issue(s) closed, {dropped} left out of the changelog", file=sys.stderr)
     if args.write:
         FILE.write_text(insert(text, section, args.version), encoding="utf-8")
