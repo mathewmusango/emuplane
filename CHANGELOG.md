@@ -8,6 +8,13 @@ under `Unreleased`, and are the only part of this file written by hand.
 
 ## [Unreleased]
 
+## [v0.11.0] - 2026-11-27
+
+### Added
+
+- A request inspector for the gateway: see the wire traffic ([#297](https://github.com/mathewmusango/emuplane/issues/297)) ([371140c](https://github.com/mathewmusango/emuplane/commit/371140cc7522d92cc6e6fda692b296b0fb9ab78b))
+- An OpenAPI document for the control API, generated from the route table ([#353](https://github.com/mathewmusango/emuplane/issues/353)) ([a060644](https://github.com/mathewmusango/emuplane/commit/a0606447eaecb0c478b75592852e7ffec353f364))
+
 ## [v0.10.0] - 2026-11-26
 
 ### Added
