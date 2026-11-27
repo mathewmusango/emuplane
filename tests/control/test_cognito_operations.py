@@ -24,7 +24,7 @@ import struct
 import time
 
 import signed
-from conftest import ACCOUNT
+from conftest import ACCOUNT, requires
 
 REGION = "us-east-1"
 JSON_TYPE = {"Content-Type": "application/x-amz-json-1.1"}
@@ -1326,6 +1326,8 @@ def test_get_identity_provider_by_identifier_reads_it(endpoint):
 def test_admin_link_provider_for_user_links_it(endpoint):
     pool_id = ensure_pool(endpoint)
     ensure_user(endpoint)
+    # 1.5.43 checks SourceProviderName against the pool's configured providers.
+    ensure_identity_provider(endpoint)
     assert idp(
         endpoint,
         "AdminLinkProviderForUser",
@@ -1336,7 +1338,7 @@ def test_admin_link_provider_for_user_links_it(endpoint):
             "ProviderAttributeValue": USERNAME,
         },
         SourceUser={
-            "ProviderName": "Facebook",
+            "ProviderName": IDP_NAME,
             "ProviderAttributeName": "Cognito_Subject",
             "ProviderAttributeValue": f"facebook-{RUN}",
         },
@@ -1534,3 +1536,62 @@ def test_tag_untag_list_tags_for_identity_pool(endpoint):
     identity(endpoint, "UntagResource", ResourceArn=arn, TagKeys=["ops"])
     tags = identity(endpoint, "ListTagsForResource", ResourceArn=arn)["Tags"]
     assert "ops" not in tags and tags.get("keep") == "yes"
+
+
+# --- App client secret rotation (1.5.43) ------------------------------------
+
+
+def secret_client(endpoint) -> tuple[str, str]:
+    """A client that carries a secret, which AddUserPoolClientSecret requires."""
+    pool_id = ensure_pool(endpoint)
+    answer = idp(
+        endpoint,
+        "CreateUserPoolClient",
+        UserPoolId=pool_id,
+        ClientName=f"ops-secret-client-{RUN}",
+        GenerateSecret=True,
+    )
+    return pool_id, answer["UserPoolClient"]["ClientId"]
+
+
+def added_secret(endpoint, pool_id: str, client_id: str) -> dict:
+    return idp(
+        endpoint, "AddUserPoolClientSecret", UserPoolId=pool_id, ClientId=client_id
+    )["ClientSecretDescriptor"]
+
+
+def test_add_user_pool_client_secret_answers_a_descriptor(endpoint):
+    requires("cognito", "AddUserPoolClientSecret")
+    pool_id, client_id = secret_client(endpoint)
+    descriptor = added_secret(endpoint, pool_id, client_id)
+    assert descriptor["ClientSecretId"]
+    assert descriptor["ClientSecretValue"]
+
+
+def test_list_user_pool_client_secrets_lists_it(endpoint):
+    requires("cognito", "ListUserPoolClientSecrets")
+    pool_id, client_id = secret_client(endpoint)
+    descriptor = added_secret(endpoint, pool_id, client_id)
+    listed = idp(
+        endpoint, "ListUserPoolClientSecrets", UserPoolId=pool_id, ClientId=client_id
+    )["ClientSecrets"]
+    assert descriptor["ClientSecretId"] in [item["ClientSecretId"] for item in listed]
+
+
+def test_delete_user_pool_client_secret_removes_it(endpoint):
+    requires("cognito", "DeleteUserPoolClientSecret")
+    pool_id, client_id = secret_client(endpoint)
+    descriptor = added_secret(endpoint, pool_id, client_id)
+    idp(
+        endpoint,
+        "DeleteUserPoolClientSecret",
+        UserPoolId=pool_id,
+        ClientId=client_id,
+        ClientSecretId=descriptor["ClientSecretId"],
+    )
+    listed = idp(
+        endpoint, "ListUserPoolClientSecrets", UserPoolId=pool_id, ClientId=client_id
+    )["ClientSecrets"]
+    assert descriptor["ClientSecretId"] not in [
+        item["ClientSecretId"] for item in listed
+    ]

@@ -162,6 +162,7 @@ def create_cluster_member(endpoint, cluster: str, name: str) -> str:
         "CreateDBInstance",
         DBInstanceIdentifier=name,
         DBInstanceClass="db.t3.micro",
+        Engine="aurora-postgresql",
         DBClusterIdentifier=cluster,
     )
 
@@ -890,11 +891,12 @@ def test_remove_from_global_cluster_removes_the_member(endpoint):
         Engine="aurora-postgresql",
     )
     create_cluster(endpoint, member, GlobalClusterIdentifier=global_id)
+    member_arn = field(describe_cluster(endpoint, member), "DBClusterArn")
     answer = ok(
         endpoint,
         "RemoveFromGlobalCluster",
         GlobalClusterIdentifier=global_id,
-        DbClusterIdentifier=member,
+        DbClusterIdentifier=member_arn,
     )
     assert field(answer, "GlobalClusterIdentifier") == global_id
     assert not [arn for arn, _writer in global_members(endpoint, global_id)]

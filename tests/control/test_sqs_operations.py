@@ -7,12 +7,13 @@ test empties its own queue first, so a second run against the same lab starts cl
 
 from __future__ import annotations
 
+import json
 import re
 import uuid
 from urllib.parse import urlencode
 
 import signed
-from conftest import ACCOUNT
+from conftest import ACCOUNT, requires
 
 REGION = "us-east-1"
 VERSION = "2012-11-05"
@@ -375,3 +376,74 @@ def test_list_queue_tags_reports_the_tags(s3_endpoint):
     text = ok(s3_endpoint, "ListQueueTags", QueueUrl=url)
     assert "<Tag><Key>env</Key><Value>test</Value></Tag>" in text
     assert tags(s3_endpoint, url) == {"env": "test"}
+
+
+# --- Dead-letter queue redrive (1.5.44) -------------------------------------
+
+
+def redrive(endpoint) -> tuple[str, str]:
+    """A dead-letter queue holding two messages, and the source queue that redrives it."""
+    suffix = uuid.uuid4().hex[:8]
+    dead_url = queue(endpoint, f"ops-redrive-dead-{suffix}")
+    dead_arn = attributes(endpoint, dead_url, "QueueArn")["QueueArn"]
+    source_url = queue_with(
+        endpoint,
+        f"ops-redrive-source-{suffix}",
+        RedrivePolicy=json.dumps(
+            {"deadLetterTargetArn": dead_arn, "maxReceiveCount": 1}
+        ),
+    )
+    source_arn = attributes(endpoint, source_url, "QueueArn")["QueueArn"]
+    for body in (unique("redrive-a"), unique("redrive-b")):
+        ok(endpoint, "SendMessage", QueueUrl=dead_url, MessageBody=body)
+    return dead_arn, source_arn
+
+
+def test_start_message_move_task_answers_a_task(s3_endpoint):
+    requires("sqs", "StartMessageMoveTask")
+    dead_arn, source_arn = redrive(s3_endpoint)
+    text = ok(
+        s3_endpoint,
+        "StartMessageMoveTask",
+        SourceArn=dead_arn,
+        DestinationArn=source_arn,
+        MaxNumberOfMessagesPerSecond="1",
+    )
+    assert field(text, "TaskHandle")
+
+
+def test_list_message_move_tasks_reads_the_task(s3_endpoint):
+    requires("sqs", "ListMessageMoveTasks")
+    dead_arn, source_arn = redrive(s3_endpoint)
+    ok(
+        s3_endpoint,
+        "StartMessageMoveTask",
+        SourceArn=dead_arn,
+        DestinationArn=source_arn,
+        MaxNumberOfMessagesPerSecond="1",
+    )
+    text = ok(s3_endpoint, "ListMessageMoveTasks", SourceArn=dead_arn)
+    assert source_arn in text
+    assert "<Status>" in text
+
+
+def test_cancel_message_move_task_cancels_it(s3_endpoint):
+    requires("sqs", "CancelMessageMoveTask")
+    dead_arn, source_arn = redrive(s3_endpoint)
+    handle = field(
+        ok(
+            s3_endpoint,
+            "StartMessageMoveTask",
+            SourceArn=dead_arn,
+            DestinationArn=source_arn,
+            MaxNumberOfMessagesPerSecond="1",
+        ),
+        "TaskHandle",
+    )
+    text = ok(
+        s3_endpoint,
+        "CancelMessageMoveTask",
+        SourceArn=dead_arn,
+        TaskHandle=handle,
+    )
+    assert field(text, "ApproximateNumberOfMessagesMoved") == "0"

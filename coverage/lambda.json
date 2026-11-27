@@ -26,10 +26,10 @@
     ]
   },
   "gui": {
-    "ListFunctions": "Lambda page › List functions",
-    "GetFunction": "Lambda page › Get function",
-    "Invoke": "Lambda page › Invoke function",
-    "DeleteFunction": "Lambda page › Delete function"
+    "ListFunctions": "Lambda page \u203a List functions",
+    "GetFunction": "Lambda page \u203a Get function",
+    "Invoke": "Lambda page \u203a Invoke function",
+    "DeleteFunction": "Lambda page \u203a Delete function"
   },
   "not_console": {
     "CreateFunction": "not a console action",
@@ -82,7 +82,9 @@
     "StopDurableExecution": "not a console action",
     "SendDurableExecutionCallbackSuccess": "not a console action",
     "SendDurableExecutionCallbackFailure": "not a console action",
-    "SendDurableExecutionCallbackHeartbeat": "not a console action"
+    "SendDurableExecutionCallbackHeartbeat": "not a console action",
+    "ListFunctionEventInvokeConfigs": "not a console action",
+    "UpdateFunctionEventInvokeConfig": "not a console action"
   },
   "covered": {
     "CreateFunction": "tests/control/test_lambda_operations.py",
@@ -139,6 +141,8 @@
     "StopDurableExecution": "tests/control/test_lambda_operations.py",
     "SendDurableExecutionCallbackSuccess": "tests/control/test_lambda_operations.py",
     "SendDurableExecutionCallbackFailure": "tests/control/test_lambda_operations.py",
-    "SendDurableExecutionCallbackHeartbeat": "tests/control/test_lambda_operations.py"
+    "SendDurableExecutionCallbackHeartbeat": "tests/control/test_lambda_operations.py",
+    "ListFunctionEventInvokeConfigs": "tests/control/test_lambda_operations.py",
+    "UpdateFunctionEventInvokeConfig": "tests/control/test_lambda_operations.py"
   }
 }

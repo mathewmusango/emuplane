@@ -122,7 +122,10 @@
     "UnlinkIdentity",
     "TagResource",
     "UntagResource",
-    "ListTagsForResource"
+    "ListTagsForResource",
+    "AddUserPoolClientSecret",
+    "DeleteUserPoolClientSecret",
+    "ListUserPoolClientSecrets"
   ],
   "groups": [
     [
@@ -208,7 +211,10 @@
         "AdminDisableProviderForUser",
         "TagResource",
         "UntagResource",
-        "ListTagsForResource"
+        "ListTagsForResource",
+        "AddUserPoolClientSecret",
+        "DeleteUserPoolClientSecret",
+        "ListUserPoolClientSecrets"
       ]
     ],
     [
@@ -335,6 +341,14 @@
     "DescribeIdentity": "tests/control/test_cognito_operations.py",
     "MergeDeveloperIdentities": "tests/control/test_cognito_operations.py",
     "UnlinkDeveloperIdentity": "tests/control/test_cognito_operations.py",
-    "UnlinkIdentity": "tests/control/test_cognito_operations.py"
+    "UnlinkIdentity": "tests/control/test_cognito_operations.py",
+    "AddUserPoolClientSecret": "tests/control/test_cognito_operations.py",
+    "DeleteUserPoolClientSecret": "tests/control/test_cognito_operations.py",
+    "ListUserPoolClientSecrets": "tests/control/test_cognito_operations.py"
+  },
+  "not_console": {
+    "AddUserPoolClientSecret": "not a console action",
+    "DeleteUserPoolClientSecret": "not a console action",
+    "ListUserPoolClientSecrets": "not a console action"
   }
 }

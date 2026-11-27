@@ -20,16 +20,16 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 
 *Part of the [coverage map](../coverage/index.md).*
 
-- Operations upstream advertises: **17**
+- Operations upstream advertises: **20**
 - Console actions (`/api/exec`, the create page): **5**
-- Operations with an emuplane test: **17**
+- Operations with an emuplane test: **20**
 - Operations blocked on a dependant: **0**
 - Operations shown in the console: **5**
-- Operations that are not console actions: **12**
-- GET operations (Get/List/Head/Describe) shown in the console: **0** of **4**
+- Operations that are not console actions: **15**
+- GET operations (Get/List/Head/Describe) shown in the console: **0** of **5**
 - Operations with no emuplane test: **0**
 
-- Group: **Core** · operations: **17** · Console actions: **5**
+- Group: **Core** · operations: **20** · Console actions: **5**
 
 
 
@@ -56,5 +56,8 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 | `TagQueue` | — | not a console action | tests/control/test_sqs_operations.py |
 | `UntagQueue` | — | not a console action | tests/control/test_sqs_operations.py |
 | `ListQueueTags` | — | not a console action | tests/control/test_sqs_operations.py |
+| `StartMessageMoveTask` | — | not a console action | tests/control/test_sqs_operations.py |
+| `ListMessageMoveTasks` | — | not a console action | tests/control/test_sqs_operations.py |
+| `CancelMessageMoveTask` | — | not a console action | tests/control/test_sqs_operations.py |
 
 <!-- coverage:end -->

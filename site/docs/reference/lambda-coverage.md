@@ -21,16 +21,16 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 
 *Part of the [coverage map](../coverage/index.md).*
 
-- Operations upstream advertises: **55**
+- Operations upstream advertises: **57**
 - Console actions (`/api/exec`, the create page): **4**
-- Operations with an emuplane test: **55**
+- Operations with an emuplane test: **57**
 - Operations blocked on a dependant: **0**
 - Operations shown in the console: **4**
-- Operations that are not console actions: **51**
-- GET operations (Get/List/Head/Describe) shown in the console: **2** of **23**
+- Operations that are not console actions: **53**
+- GET operations (Get/List/Head/Describe) shown in the console: **2** of **24**
 - Operations with no emuplane test: **0**
 
-- Group: **Core** · operations: **55** · Console actions: **4**
+- Group: **Core** · operations: **57** · Console actions: **4**
 
 
 
@@ -76,7 +76,9 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 | `DeleteFunctionConcurrency` | — | not a console action | tests/control/test_lambda_operations.py |
 | `PutFunctionEventInvokeConfig` | — | not a console action | tests/control/test_lambda_operations.py |
 | `GetFunctionEventInvokeConfig` | — | not a console action | tests/control/test_lambda_operations.py |
+| `UpdateFunctionEventInvokeConfig` | — | not a console action | tests/control/test_lambda_operations.py |
 | `DeleteFunctionEventInvokeConfig` | — | not a console action | tests/control/test_lambda_operations.py |
+| `ListFunctionEventInvokeConfigs` | — | not a console action | tests/control/test_lambda_operations.py |
 | `PublishLayerVersion` | — | not a console action | tests/control/test_lambda_operations.py |
 | `GetLayerVersion` | — | not a console action | tests/control/test_lambda_operations.py |
 | `GetLayerVersionByArn` | — | not a console action | tests/control/test_lambda_operations.py |

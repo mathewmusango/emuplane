@@ -20,7 +20,7 @@ from urllib.parse import urlencode
 
 import pytest
 import signed
-from conftest import ACCOUNT
+from conftest import ACCOUNT, requires
 
 REGION = "us-east-1"
 VERSION = "2016-11-15"
@@ -2032,3 +2032,335 @@ def test_get_verified_access_endpoint_policy_answers_the_document(s3_endpoint):
               VerifiedAccessEndpointId=endpoint)
     assert field(text, "policyEnabled") == "true"
     assert field(text, "policyDocument") == "permit(principal, action, resource);"
+
+
+# --- Transit Gateway and secondary VPC CIDR blocks (1.5.44) -----------------
+
+
+def transit_gateway(endpoint) -> str:
+    """A transit gateway of this test's own: it has no name to look up."""
+    return field(ok(endpoint, "CreateTransitGateway", Description="ops transit gateway"),
+                 "transitGatewayId")
+
+
+def transit_gateway_route_table(endpoint, tgw_id: str) -> str:
+    return field(
+        ok(endpoint, "CreateTransitGatewayRouteTable", TransitGatewayId=tgw_id),
+        "transitGatewayRouteTableId",
+    )
+
+
+def transit_gateway_attachment(endpoint, tgw_id: str) -> str:
+    vpc_id = vpc(endpoint, "ops-tgw-vpc", "10.97.0.0/16")
+    subnet_id = subnet(endpoint, "ops-tgw-subnet", vpc_id, "10.97.1.0/24")
+    return field(
+        ok(
+            endpoint,
+            "CreateTransitGatewayVpcAttachment",
+            TransitGatewayId=tgw_id,
+            VpcId=vpc_id,
+            **{"SubnetIds.1": subnet_id},
+        ),
+        "transitGatewayAttachmentId",
+    )
+
+
+def transit_gateway_route(endpoint, rtb_id: str, attachment: str, cidr: str) -> str:
+    return ok(
+        endpoint,
+        "CreateTransitGatewayRoute",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+        DestinationCidrBlock=cidr,
+    )
+
+
+def test_create_transit_gateway_answers_it(s3_endpoint):
+    requires("ec2", "CreateTransitGateway")
+    tgw_id = transit_gateway(s3_endpoint)
+    assert tgw_id.startswith("tgw-")
+    assert tgw_id in ok(
+        s3_endpoint, "DescribeTransitGateways", **{"TransitGatewayIds.1": tgw_id}
+    )
+
+
+def test_modify_transit_gateway_updates_the_description(s3_endpoint):
+    requires("ec2", "ModifyTransitGateway")
+    tgw_id = transit_gateway(s3_endpoint)
+    text = ok(
+        s3_endpoint,
+        "ModifyTransitGateway",
+        TransitGatewayId=tgw_id,
+        Description="ops modified",
+    )
+    assert tgw_id in text
+    described = ok(
+        s3_endpoint, "DescribeTransitGateways", **{"TransitGatewayIds.1": tgw_id}
+    )
+    assert "ops modified" in described
+
+
+def test_delete_transit_gateway_marks_it_deleted(s3_endpoint):
+    requires("ec2", "DeleteTransitGateway")
+    tgw_id = transit_gateway(s3_endpoint)
+    ok(s3_endpoint, "DeleteTransitGateway", TransitGatewayId=tgw_id)
+    assert "deleted" in ok(
+        s3_endpoint, "DescribeTransitGateways", **{"TransitGatewayIds.1": tgw_id}
+    )
+
+
+def test_create_transit_gateway_route_table_answers_it(s3_endpoint):
+    requires("ec2", "CreateTransitGatewayRouteTable")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    assert rtb_id.startswith("tgw-rtb-")
+    assert rtb_id in ok(
+        s3_endpoint,
+        "DescribeTransitGatewayRouteTables",
+        **{"TransitGatewayRouteTableIds.1": rtb_id},
+    )
+
+
+def test_delete_transit_gateway_route_table_marks_it_deleted(s3_endpoint):
+    requires("ec2", "DeleteTransitGatewayRouteTable")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    ok(s3_endpoint, "DeleteTransitGatewayRouteTable", TransitGatewayRouteTableId=rtb_id)
+    assert "deleted" in ok(
+        s3_endpoint,
+        "DescribeTransitGatewayRouteTables",
+        **{"TransitGatewayRouteTableIds.1": rtb_id},
+    )
+
+
+def test_create_transit_gateway_vpc_attachment_answers_it(s3_endpoint):
+    requires("ec2", "CreateTransitGatewayVpcAttachment")
+    tgw_id = transit_gateway(s3_endpoint)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    assert attachment.startswith("tgw-attach-")
+    assert attachment in ok(
+        s3_endpoint,
+        "DescribeTransitGatewayVpcAttachments",
+        **{"TransitGatewayAttachmentIds.1": attachment},
+    )
+
+
+def test_describe_transit_gateway_attachments_lists_it(s3_endpoint):
+    requires("ec2", "DescribeTransitGatewayAttachments")
+    tgw_id = transit_gateway(s3_endpoint)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    assert attachment in ok(s3_endpoint, "DescribeTransitGatewayAttachments")
+
+
+def test_modify_transit_gateway_vpc_attachment_answers_it(s3_endpoint):
+    requires("ec2", "ModifyTransitGatewayVpcAttachment")
+    tgw_id = transit_gateway(s3_endpoint)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    text = ok(
+        s3_endpoint,
+        "ModifyTransitGatewayVpcAttachment",
+        TransitGatewayAttachmentId=attachment,
+    )
+    assert attachment in text
+
+
+def test_delete_transit_gateway_vpc_attachment_marks_it_deleted(s3_endpoint):
+    requires("ec2", "DeleteTransitGatewayVpcAttachment")
+    tgw_id = transit_gateway(s3_endpoint)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    ok(
+        s3_endpoint,
+        "DeleteTransitGatewayVpcAttachment",
+        TransitGatewayAttachmentId=attachment,
+    )
+    assert "deleted" in ok(
+        s3_endpoint,
+        "DescribeTransitGatewayVpcAttachments",
+        **{"TransitGatewayAttachmentIds.1": attachment},
+    )
+
+
+def test_create_transit_gateway_route_answers_it(s3_endpoint):
+    requires("ec2", "CreateTransitGatewayRoute")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    text = transit_gateway_route(s3_endpoint, rtb_id, attachment, "10.50.0.0/16")
+    assert field(text, "destinationCidrBlock") == "10.50.0.0/16"
+
+
+def test_search_transit_gateway_routes_reads_it(s3_endpoint):
+    requires("ec2", "SearchTransitGatewayRoutes")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    transit_gateway_route(s3_endpoint, rtb_id, attachment, "10.51.0.0/16")
+    text = ok(
+        s3_endpoint,
+        "SearchTransitGatewayRoutes",
+        TransitGatewayRouteTableId=rtb_id,
+        **{
+            "Filter.1.Name": "route-search.exact-match",
+            "Filter.1.Value.1": "10.51.0.0/16",
+        },
+    )
+    assert "10.51.0.0/16" in text
+
+
+def test_delete_transit_gateway_route_removes_it(s3_endpoint):
+    requires("ec2", "DeleteTransitGatewayRoute")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    transit_gateway_route(s3_endpoint, rtb_id, attachment, "10.52.0.0/16")
+    ok(
+        s3_endpoint,
+        "DeleteTransitGatewayRoute",
+        TransitGatewayRouteTableId=rtb_id,
+        DestinationCidrBlock="10.52.0.0/16",
+    )
+    text = ok(
+        s3_endpoint,
+        "SearchTransitGatewayRoutes",
+        TransitGatewayRouteTableId=rtb_id,
+        **{
+            "Filter.1.Name": "route-search.exact-match",
+            "Filter.1.Value.1": "10.52.0.0/16",
+        },
+    )
+    assert "10.52.0.0/16" not in text
+
+
+def test_associate_transit_gateway_route_table_answers_it(s3_endpoint):
+    requires("ec2", "AssociateTransitGatewayRouteTable")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    text = ok(
+        s3_endpoint,
+        "AssociateTransitGatewayRouteTable",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+    )
+    assert attachment in text
+
+
+def test_disassociate_transit_gateway_route_table_answers_it(s3_endpoint):
+    requires("ec2", "DisassociateTransitGatewayRouteTable")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    ok(
+        s3_endpoint,
+        "AssociateTransitGatewayRouteTable",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+    )
+    text = ok(
+        s3_endpoint,
+        "DisassociateTransitGatewayRouteTable",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+    )
+    assert attachment in text
+
+
+def test_enable_transit_gateway_route_table_propagation_answers_it(s3_endpoint):
+    requires("ec2", "EnableTransitGatewayRouteTablePropagation")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    text = ok(
+        s3_endpoint,
+        "EnableTransitGatewayRouteTablePropagation",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+    )
+    assert attachment in text
+
+
+def test_disable_transit_gateway_route_table_propagation_answers_it(s3_endpoint):
+    requires("ec2", "DisableTransitGatewayRouteTablePropagation")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    ok(
+        s3_endpoint,
+        "EnableTransitGatewayRouteTablePropagation",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+    )
+    text = ok(
+        s3_endpoint,
+        "DisableTransitGatewayRouteTablePropagation",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+    )
+    assert attachment in text
+
+
+def test_get_transit_gateway_route_table_associations_lists_it(s3_endpoint):
+    requires("ec2", "GetTransitGatewayRouteTableAssociations")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    ok(
+        s3_endpoint,
+        "AssociateTransitGatewayRouteTable",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+    )
+    text = ok(
+        s3_endpoint,
+        "GetTransitGatewayRouteTableAssociations",
+        TransitGatewayRouteTableId=rtb_id,
+    )
+    assert attachment in text
+
+
+def test_get_transit_gateway_route_table_propagations_lists_it(s3_endpoint):
+    requires("ec2", "GetTransitGatewayRouteTablePropagations")
+    tgw_id = transit_gateway(s3_endpoint)
+    rtb_id = transit_gateway_route_table(s3_endpoint, tgw_id)
+    attachment = transit_gateway_attachment(s3_endpoint, tgw_id)
+    ok(
+        s3_endpoint,
+        "EnableTransitGatewayRouteTablePropagation",
+        TransitGatewayRouteTableId=rtb_id,
+        TransitGatewayAttachmentId=attachment,
+    )
+    text = ok(
+        s3_endpoint,
+        "GetTransitGatewayRouteTablePropagations",
+        TransitGatewayRouteTableId=rtb_id,
+    )
+    assert attachment in text
+
+
+def test_associate_vpc_cidr_block_answers_the_association(s3_endpoint):
+    requires("ec2", "AssociateVpcCidrBlock")
+    vpc_id = vpc(s3_endpoint, "ops-cidr-vpc", "10.120.0.0/16")
+    text = ok(
+        s3_endpoint,
+        "AssociateVpcCidrBlock",
+        VpcId=vpc_id,
+        CidrBlock="10.121.0.0/24",
+    )
+    assert field(text, "associationId").startswith("vpc-cidr-assoc-")
+
+
+def test_disassociate_vpc_cidr_block_removes_it(s3_endpoint):
+    requires("ec2", "DisassociateVpcCidrBlock")
+    vpc_id = vpc(s3_endpoint, "ops-cidr-vpc-2", "10.122.0.0/16")
+    association = field(
+        ok(
+            s3_endpoint,
+            "AssociateVpcCidrBlock",
+            VpcId=vpc_id,
+            CidrBlock="10.123.0.0/24",
+        ),
+        "associationId",
+    )
+    ok(s3_endpoint, "DisassociateVpcCidrBlock", AssociationId=association)
+    text = ok(s3_endpoint, "DescribeVpcs", **{"VpcId.1": vpc_id})
+    assert "disassociated" in text

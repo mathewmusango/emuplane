@@ -30,13 +30,13 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 
 *Part of the [coverage map](../coverage/index.md).*
 
-- Operations upstream advertises: **101**
+- Operations upstream advertises: **104**
 - Console actions (`/api/exec`, the create page): **0**
-- Operations with an emuplane test: **101**
+- Operations with an emuplane test: **104**
 - Operations blocked on a dependant: **0**
 - Operations shown in the console: **0**
-- Operations that are not console actions: **0**
-- GET operations (Get/List/Head/Describe) shown in the console: **0** of **31**
+- Operations that are not console actions: **3**
+- GET operations (Get/List/Head/Describe) shown in the console: **0** of **32**
 - Operations with no emuplane test: **0**
 
 
@@ -127,6 +127,9 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 | `TagResource` | — | — | tests/control/test_cognito_operations.py |
 | `UntagResource` | — | — | tests/control/test_cognito_operations.py |
 | `ListTagsForResource` | — | — | tests/control/test_cognito_operations.py |
+| `AddUserPoolClientSecret` | — | not a console action | tests/control/test_cognito_operations.py |
+| `DeleteUserPoolClientSecret` | — | not a console action | tests/control/test_cognito_operations.py |
+| `ListUserPoolClientSecrets` | — | not a console action | tests/control/test_cognito_operations.py |
 
 
 ## Identity Pools
@@ -191,5 +194,6 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 - [ ] `ListIdentities` — not shown
 - [ ] `DescribeIdentity` — not shown
 - [ ] `ListTagsForResource` — not shown
+- [ ] `ListUserPoolClientSecrets` — not shown
 
 <!-- coverage:end -->

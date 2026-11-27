@@ -10,6 +10,7 @@ suite re-reads it before each write because one write invalidates it.
 from __future__ import annotations
 
 import json
+import re
 import secrets
 
 import signed
@@ -58,7 +59,11 @@ def etag_of(headers: dict) -> str:
 
 
 def ensure_store(endpoint) -> str:
-    """The store's ARN, created on the management plane once."""
+    """The store's ARN, created on the management plane once.
+
+    Read from the emulator's own answer: 1.5.42 changed it to end in the store's Id
+    rather than its Name, so constructing it here would pin one release.
+    """
     if "arn" not in _STATE:
         status, _headers, payload = mgmt(endpoint, "GET", "/2020-05-31/key-value-store")
         assert status == 200, payload[:300]
@@ -70,7 +75,9 @@ def ensure_store(endpoint) -> str:
                 f"<KeyValueStore><Name>{KVS_NAME}</Name></KeyValueStore>".encode(),
             )
             assert status == 201, payload[:300]
-        _STATE["arn"] = f"arn:aws:cloudfront::{ACCOUNT}:key-value-store/{KVS_NAME}"
+        found = re.search(rb"<ARN>([^<]+)</ARN>", payload)
+        assert found, payload[:300]
+        _STATE["arn"] = found.group(1).decode()
     return _STATE["arn"]
 
 

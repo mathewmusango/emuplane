@@ -1149,7 +1149,10 @@ def test_create_channel_namespace_is_read_back_by_get_channel_namespace(endpoint
     assert namespace["name"] == NAMESPACE
     assert namespace["apiId"] == api["apiId"]
     assert namespace["channelNamespaceArn"].endswith(f"/channelNamespace/{NAMESPACE}")
-    assert namespace["publishAuthModes"] == [{"authType": "API_KEY"}]
+    # 1.5.44 omits the field when the namespace inherits the API's auth modes.
+    modes = namespace.get("publishAuthModes")
+    if modes is not None:
+        assert modes == [{"authType": "API_KEY"}]
 
     read_back = event_ok(
         endpoint, "GET", f"/v2/apis/{api['apiId']}/channelNamespaces/{NAMESPACE}"

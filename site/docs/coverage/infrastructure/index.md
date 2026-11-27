@@ -17,10 +17,10 @@ registries and the control planes that manage them.
 | Batch | 10 | 10 | 0 | [batch-coverage](../../reference/batch-coverage.md) |
 | Cloud Map | 29 | 29 | 0 | [cloud-map-coverage](../../reference/cloud-map-coverage.md) |
 | CodeBuild | 11 | 11 | 0 | [codebuild-coverage](../../reference/codebuild-coverage.md) |
-| Cognito | 101 | 101 | 0 | [cognito-coverage](../../reference/cognito-coverage.md) |
+| Cognito | 104 | 104 | 0 | [cognito-coverage](../../reference/cognito-coverage.md) |
 | DocumentDB | 15 | 15 | 0 | [documentdb-coverage](../../reference/documentdb-coverage.md) |
 | EBS | 17 | 17 | 0 | [ebs-coverage](../../reference/ebs-coverage.md) |
-| EC2 | 157 | 155 | 2 | [ec2-coverage](../../reference/ec2-coverage.md) |
+| EC2 | 180 | 178 | 2 | [ec2-coverage](../../reference/ec2-coverage.md) |
 | ECR | 26 | 26 | 0 | [ecr-coverage](../../reference/ecr-coverage.md) |
 | ECS | 47 | 47 | 0 | [ecs-coverage](../../reference/ecs-coverage.md) |
 | EFS | 28 | 28 | 0 | [efs-coverage](../../reference/efs-coverage.md) |

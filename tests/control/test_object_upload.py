@@ -213,10 +213,13 @@ def test_a_multipart_upload_creates_parts_and_completes(console):
     upload_id = created["upload_id"]
     assert upload_id
 
-    status, first = part(console, "large/blob.bin", upload_id, 1, b"part-one")
+    # 5 MiB is the minimum for every part but the last since 1.5.45.
+    first_body = b"a" * (5 * 1024 * 1024)
+    second_body = b"part-two"
+    status, first = part(console, "large/blob.bin", upload_id, 1, first_body)
     assert status == 200, first
     assert first["etag"]
-    status, second = part(console, "large/blob.bin", upload_id, 2, b"part-two")
+    status, second = part(console, "large/blob.bin", upload_id, 2, second_body)
     assert status == 200, second
     assert second["etag"]
 
@@ -238,9 +241,16 @@ def test_a_multipart_upload_creates_parts_and_completes(console):
     )
     assert status == 200, body
 
+    # The JSON object view caps its preview at 20 KB; the download carries every byte.
     status, read_back = read(console, "large/blob.bin")
     assert status == 200, read_back
-    assert read_back["body"] == "part-onepart-two"
+    assert read_back["truncated"] is True
+
+    status, _headers, payload = download(console, "large/blob.bin")
+    assert status == 200
+    assert payload.startswith(b"a" * 16)
+    assert payload.endswith(b"part-two")
+    assert len(payload) == len(first_body) + len(second_body)
 
 
 def test_a_multipart_upload_can_be_aborted(console):
