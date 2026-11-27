@@ -147,6 +147,17 @@ def openapi() -> list[str]:
     return [] if result.returncode == 0 else ["openapi.json is out of date: run scripts/openapi.py"]
 
 
+def compatibility() -> list[str]:
+    """The support window's chain is data; a malformed chain is a failure before any gate reads it."""
+    script = ROOT / "scripts" / "compatibility.py"
+    result = subprocess.run([sys.executable, str(script), "--check"], cwd=ROOT)
+    return (
+        []
+        if result.returncode == 0
+        else ["compatibility.json is invalid: run scripts/compatibility.py --check"]
+    )
+
+
 def docs_assets() -> list[str]:
     """Every image the documentation names must be a file the site can serve."""
     problems = []
@@ -184,6 +195,7 @@ def main() -> int:
         + compile_python()
         + coverage()
         + openapi()
+        + compatibility()
         + docs_assets()
     )
     if args.tests:

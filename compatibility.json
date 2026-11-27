@@ -1,0 +1,148 @@
+{
+  "window": 5,
+  "ceiling": "1.5.45",
+  "versions": ["1.5.41", "1.5.42", "1.5.43", "1.5.44", "1.5.45"],
+  "services": {
+    "cognito": {"name": "Cognito"},
+    "ec2": {"name": "EC2"},
+    "ecr": {"name": "ECR"},
+    "lambda": {"name": "Lambda"},
+    "secretsmanager": {"name": "Secrets Manager"},
+    "sqs": {"name": "SQS"}
+  },
+  "deltas": {
+    "1.5.42": {
+      "added": [
+        "ecr:BatchImportUpstreamImage",
+        "ecr:CreatePullThroughCacheRule",
+        "ecr:CreateRepositoryCreationTemplate",
+        "ecr:DeletePullThroughCacheRule",
+        "ecr:DeleteRegistryPolicy",
+        "ecr:DeleteRepositoryCreationTemplate",
+        "ecr:DescribePullThroughCacheRules",
+        "ecr:DescribeRepositoryCreationTemplates",
+        "ecr:GetRegistryPolicy",
+        "ecr:PutRegistryPolicy",
+        "ecr:UpdatePullThroughCacheRule",
+        "ecr:UpdateRepositoryCreationTemplate",
+        "ecr:ValidatePullThroughCacheRule"
+      ],
+      "advertised": [],
+      "removed": [],
+      "changed": [
+        "CloudFront key-value store ARNs end in the store's Id, not its Name",
+        "RDS refuses invalid instance input and a bare-name member in RemoveFromGlobalCluster",
+        "RDS's engine-version catalog drops invented versions",
+        "CodeBuild StartBuild reports IN_PROGRESS in the metadata-only mode",
+        "Lambda's Docker executor runs nodejs26.x",
+        "ECR's pull-through cache rules, repository creation templates and registry policy are routed"
+      ]
+    },
+    "1.5.43": {
+      "added": [
+        "cognito:AddUserPoolClientSecret",
+        "cognito:DeleteUserPoolClientSecret",
+        "cognito:ListUserPoolClientSecrets"
+      ],
+      "advertised": [
+        "cognito:AddUserPoolClientSecret",
+        "cognito:DeleteUserPoolClientSecret",
+        "cognito:ListUserPoolClientSecrets"
+      ],
+      "removed": [],
+      "changed": [
+        "Cognito validates AdminLinkProviderForUser's SourceProviderName against the pool",
+        "Secrets Manager RotateSecret runs the rotation function",
+        "RDS CreateDBCluster reports creating",
+        "Kinesis CBOR timestamps are integer epoch milliseconds"
+      ]
+    },
+    "1.5.44": {
+      "added": [
+        "ec2:AssociateTransitGatewayRouteTable",
+        "ec2:AssociateVpcCidrBlock",
+        "ec2:CreateTransitGateway",
+        "ec2:CreateTransitGatewayRoute",
+        "ec2:CreateTransitGatewayRouteTable",
+        "ec2:CreateTransitGatewayVpcAttachment",
+        "ec2:DeleteTransitGateway",
+        "ec2:DeleteTransitGatewayRoute",
+        "ec2:DeleteTransitGatewayRouteTable",
+        "ec2:DeleteTransitGatewayVpcAttachment",
+        "ec2:DescribeTransitGatewayAttachments",
+        "ec2:DescribeTransitGatewayRouteTables",
+        "ec2:DescribeTransitGatewayVpcAttachments",
+        "ec2:DescribeTransitGateways",
+        "ec2:DisableTransitGatewayRouteTablePropagation",
+        "ec2:DisassociateTransitGatewayRouteTable",
+        "ec2:DisassociateVpcCidrBlock",
+        "ec2:EnableTransitGatewayRouteTablePropagation",
+        "ec2:GetTransitGatewayRouteTableAssociations",
+        "ec2:GetTransitGatewayRouteTablePropagations",
+        "ec2:ModifyTransitGateway",
+        "ec2:ModifyTransitGatewayVpcAttachment",
+        "ec2:SearchTransitGatewayRoutes",
+        "sqs:CancelMessageMoveTask",
+        "sqs:ListMessageMoveTasks",
+        "sqs:StartMessageMoveTask"
+      ],
+      "advertised": [
+        "ec2:AssociateTransitGatewayRouteTable",
+        "ec2:AssociateVpcCidrBlock",
+        "ec2:CreateTransitGateway",
+        "ec2:CreateTransitGatewayRoute",
+        "ec2:CreateTransitGatewayRouteTable",
+        "ec2:CreateTransitGatewayVpcAttachment",
+        "ec2:DeleteTransitGateway",
+        "ec2:DeleteTransitGatewayRoute",
+        "ec2:DeleteTransitGatewayRouteTable",
+        "ec2:DeleteTransitGatewayVpcAttachment",
+        "ec2:DescribeTransitGatewayAttachments",
+        "ec2:DescribeTransitGatewayRouteTables",
+        "ec2:DescribeTransitGatewayVpcAttachments",
+        "ec2:DescribeTransitGateways",
+        "ec2:DisableTransitGatewayRouteTablePropagation",
+        "ec2:DisassociateTransitGatewayRouteTable",
+        "ec2:DisassociateVpcCidrBlock",
+        "ec2:EnableTransitGatewayRouteTablePropagation",
+        "ec2:GetTransitGatewayRouteTableAssociations",
+        "ec2:GetTransitGatewayRouteTablePropagations",
+        "ec2:ModifyTransitGateway",
+        "ec2:ModifyTransitGatewayVpcAttachment",
+        "ec2:SearchTransitGatewayRoutes",
+        "sqs:CancelMessageMoveTask",
+        "sqs:ListMessageMoveTasks",
+        "sqs:StartMessageMoveTask"
+      ],
+      "removed": [],
+      "changed": [
+        "AppSync Events channel namespaces inherit the API's publish/subscribe auth modes",
+        "The router classifies Host headers at label boundaries",
+        "S3 Object Lock and CopyObject conditions follow AWS",
+        "SQS JSON errors carry com.amazonaws.sqs#<Code>",
+        "RDS Data API passes a literal % next to named parameters",
+        "CloudFront viewer functions can select origins and read cf.kvs()"
+      ]
+    },
+    "1.5.45": {
+      "added": [
+        "lambda:UpdateFunctionEventInvokeConfig",
+        "secretsmanager:CancelRotateSecret"
+      ],
+      "advertised": [
+        "lambda:ListFunctionEventInvokeConfigs",
+        "lambda:UpdateFunctionEventInvokeConfig",
+        "secretsmanager:CancelRotateSecret"
+      ],
+      "removed": [],
+      "changed": [
+        "Lambda EventInvokeConfig omits unset settings and names $LATEST",
+        "CompleteMultipartUpload refuses a part under 5 MiB that is not the last",
+        "ListObjectVersions resumes after a removed version marker",
+        "ListMultipartUploads honours Delimiter and its markers",
+        "Secrets Manager returns NextRotationDate and LastRotatedDate",
+        "AppSync validation errors carry AppSync's wording"
+      ]
+    }
+  }
+}
