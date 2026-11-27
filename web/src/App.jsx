@@ -12,6 +12,7 @@ import CreateAccessPoint from './pages/CreateAccessPoint'
 import Account from './pages/Account'
 import SecurityCredentials from './pages/SecurityCredentials'
 import About from './pages/About'
+import Traffic from './pages/Traffic'
 import SignIn from './pages/SignIn'
 import { useSession } from './context'
 
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/credentials" element={<SecurityCredentials />} />
         <Route path="/settings" element={<Navigate to="/Account" replace />} />
         <Route path="/about" element={<About />} />
+        <Route path="/traffic" element={<Traffic />} />
         {/* The sign-in screens are the login page: the route works without a session, and POST /api/auth/login mints the cookie. */}
         <Route path="/login" element={<SignIn />} />
         <Route path="/signin" element={<SignIn />} />

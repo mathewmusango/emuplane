@@ -1106,6 +1106,20 @@
         }
       }
     },
+    "/api/traffic": {
+      "get": {
+        "tags": [
+          "traffic"
+        ],
+        "operationId": "get_api_traffic",
+        "summary": "GET /api/traffic",
+        "responses": {
+          "200": {
+            "description": "What the route read or wrote."
+          }
+        }
+      }
+    },
     "/api/users": {
       "get": {
         "tags": [

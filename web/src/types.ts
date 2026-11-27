@@ -606,3 +606,33 @@ export interface SignInResult {
   /** Present only when the password was right and a TOTP code is still owed. */
   mfa_token?: string
 }
+
+/** One request the gateway saw: names and sizes only, never a header or query value. */
+export interface TrafficEntry {
+  id: number
+  time: string
+  method: string
+  path: string
+  query: string[]
+  bucket: string
+  key: string
+  service: string
+  operation: string
+  account: string
+  region: string
+  status: number
+  duration_ms: number
+  request_bytes: number
+  response_bytes: number
+  headers: string[]
+  credentials: string[]
+  request_id: string
+  signed: boolean
+}
+
+export interface TrafficResult {
+  entries: TrafficEntry[]
+  latest: number
+  capacity: number
+  buffered: number
+}

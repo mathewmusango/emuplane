@@ -22,7 +22,8 @@ instead of showing an empty table.
   into the URL, so a page you can see is a page you can bookmark.
 - **Navigation** — services down the side, and only those with a page behind them:
   S3 and its sub-pages, IAM's own console section, and the twelve services that
-  carry actions. A name with nothing behind it is not offered.
+  carry actions. A name with nothing behind it is not offered. Below the divider,
+  **Request inspector** opens the gateway's traffic page for the whole console.
 - **Account menu** — the signed-in account, its access keys, its regions, and
   the sign-in screens.
 
@@ -92,6 +93,26 @@ the process serving it.
   as they answer. The account name and contact details are the emulator's, and
   read-only.</figcaption>
 </figure>
+
+## Request inspector
+
+The console's own traffic page answers the question a failed Terraform apply leaves
+open: what did the client actually send, what came back, and how long did it take.
+`/traffic` lists what the **gateway** saw, newest first — time, method, service,
+operation, status, duration and path — with filters for service and status and a
+**Live tail** that polls for new entries.
+
+One row opens to the request's shape: its header names, its query parameter names,
+the number of request and response bytes, the region, the resolved account and the
+emulator's request id. Header and query **values** are never stored, so
+`Authorization`, `Cookie` and `X-Amz-Security-Token` appear as
+`SigV4 (redacted)`, `Cookie (redacted)` and `X-Amz-Security-Token (redacted)`. A
+credential cannot leak through a page that never received one.
+
+The last 500 requests are held in memory. A signed-in session reads its own
+account's traffic; the deployment's bearer token is the one caller that reads every
+account. The emulator's own internal calls never pass the gateway, so they are not
+in the list.
 
 ## S3
 

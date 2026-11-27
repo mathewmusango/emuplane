@@ -41,6 +41,9 @@ rather than inventing a friendlier one.
 - **The S3 pages** — `/api/s3/*`: buckets, objects, documents, settings, the three
   access point kinds, and the Multi-Region asynchronous operations. These do the
   work the console page claims, and nothing the page does not show.
+- **Seeing the wire** — `/api/traffic`: the gateway's bounded request record,
+  newest first, with header and query names but no values. A session reads its
+  own account; the bearer token reads every account.
 
 ## Calling it by hand
 
@@ -243,6 +246,12 @@ python3 scripts/openapi.py     # openapi.json; --check fails when it is stale
 | --- | --- |
 | `/api/settings` | GET |
 
-80 route/method pairs, 73 paths.
+### /api/traffic — 1 path
+
+| Path | Methods |
+| --- | --- |
+| `/api/traffic` | GET |
+
+81 route/method pairs, 74 paths.
 
 <!-- routes:end -->

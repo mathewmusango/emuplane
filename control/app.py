@@ -28,6 +28,7 @@ import s3extra  # noqa: E402  (local module: S3 Tables / S3 Files listings)
 import accesspoints  # noqa: E402  (local module: S3 Control access points)
 import mail  # noqa: E402  (local module: the one outbound message)
 import totp  # noqa: E402  (local module: the RFC 6238 code check)
+import traffic  # noqa: E402  (local module: the gateway's bounded request record)
 from dynamo import DynamoError  # noqa: E402
 from backends import profile  # noqa: E402
 from store import Store, StoreNotProvisioned  # noqa: E402
@@ -141,7 +142,7 @@ REGION_CHOICES = [
 # The React console, built by `npm run build` in `web/` and mounted here; the server-rendered pages stay at /classic.
 STATIC_DIR = os.environ.get("MC_STATIC_DIR", "/app/static")
 PUBLIC_DIR = os.environ.get("MC_PUBLIC_DIR", "/app/public")
-SPA_ROUTES = {"/", "/resources",
+SPA_ROUTES = {"/", "/resources", "/traffic",
               "/Account", "/credentials", "/settings", "/about"}
 # Public login pages: `POST /api/auth/login` mints the session, so this route is the login page.
 PUBLIC_SPA_ROUTES = {"/login", "/signin"}
@@ -1242,6 +1243,8 @@ class Registry:
 
 
 REGISTRY = _Lazy(lambda: Registry(DB))
+# The gateway's own record: one process holds both servers, so the console reads what it saw.
+TRAFFIC = traffic.TrafficLog()
 
 # node health + service availability, refreshed by the poller
 HEALTH: dict[str, dict] = {}
@@ -1735,8 +1738,12 @@ class GatewayHandler(SafeHeaders, BaseHTTPRequestHandler):
         return self.rfile.read(length) if length else b""
 
     def _send(self, status: int, headers: list, body: bytes) -> None:
+        self._response_status = status
+        self._response_bytes = len(body)
         self.send_response(status)
         for key, value in headers:
+            if key.lower() == "x-amz-request-id":
+                self._request_id = value
             if key.lower() in HOP_BY_HOP or key.lower() == "content-length":
                 continue
             self.send_header(key, value)
@@ -1768,9 +1775,53 @@ class GatewayHandler(SafeHeaders, BaseHTTPRequestHandler):
         self._send(status, headers, payload)
 
     def _handle(self) -> None:
+        """Every request goes through here, so the record is written whatever the outcome."""
+        started = time.monotonic()
+        self._response_status = 0
+        self._response_bytes = 0
+        self._request_id = ""
+        self._request_body = b""
+        self._request_bytes = 0
+        self._traffic_service = ""
+        self._traffic_account = ""
+        self._traffic_region = ""
+        self._traffic_bucket = ""
+        self._traffic_key = ""
+        try:
+            self._dispatch()
+        finally:
+            self._record(started)
+
+    def _record(self, started: float) -> None:
+        try:
+            TRAFFIC.record(
+                method=self.command,
+                path=self.path,
+                headers=self.headers,
+                body=self._request_body,
+                service=self._traffic_service,
+                account=self._traffic_account,
+                region=self._traffic_region,
+                status=self._response_status,
+                duration_ms=(time.monotonic() - started) * 1000,
+                request_bytes=self._request_bytes,
+                response_bytes=self._response_bytes,
+                bucket=self._traffic_bucket,
+                key=self._traffic_key,
+                request_id=self._request_id,
+            )
+        except Exception as exc:  # the inspector must never fail a forwarded request
+            print(f"gateway: traffic record failed: {exc}", flush=True)
+
+    def _dispatch(self) -> None:
         body = self._read_body()
+        self._request_body = body
+        self._request_bytes = len(body)
         region, service = detect_region_service(self.headers, urlsplit(self.path).query)
         account = request_account(self.headers, urlsplit(self.path).query)
+        self._traffic_service = service
+        self._traffic_account = account
+        self._traffic_region = region
 
         if account and service not in GLOBAL_SERVICES:
             owner = ACCOUNTS.accounts.get(account)
@@ -1805,6 +1856,8 @@ class GatewayHandler(SafeHeaders, BaseHTTPRequestHandler):
             return
 
         bucket, key, query, _ = s3_target(self.path, self.headers.get("Host", ""))
+        self._traffic_bucket = bucket or ""
+        self._traffic_key = key
         if not bucket:
             if not account:
                 # ListBuckets is account-scoped, so the emulator's bucket-scoped anonymous gate never sees it.
@@ -3367,6 +3420,38 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
         raw = self.rfile.read(length).decode()
         return {key: values[0] for key, values in parse_qs(raw).items()}
 
+    def _traffic(self) -> None:
+        """The gateway's record, newest first. A session sees its own account; the token sees all."""
+        params = parse_qs(urlsplit(self.path).query)
+
+        def number(name: str) -> int | None:
+            raw = (params.get(name) or [""])[0].strip()
+            if not raw:
+                return None
+            try:
+                return int(raw)
+            except ValueError:
+                return None
+
+        info = self._caller()
+        entries, latest = TRAFFIC.page(
+            since=number("since"),
+            before=number("before"),
+            limit=number("limit") or 100,
+            service=(params.get("service") or [""])[0].strip(),
+            status=(params.get("status") or [""])[0].strip(),
+            account="" if self._platform(info) else info.get("account", ""),
+        )
+        self._json(
+            200,
+            {
+                "entries": entries,
+                "latest": latest,
+                "capacity": TRAFFIC.capacity,
+                "buffered": len(TRAFFIC),
+            },
+        )
+
     def _route_get(self):
         path = urlsplit(self.path).path
         if path == "/health":
@@ -3410,6 +3495,8 @@ class ControlHandler(SafeHeaders, BaseHTTPRequestHandler):
 
         if path == "/api/mfa":
             return self._mfa_status()
+        if path == "/api/traffic":
+            return self._traffic()
         if path == "/api/accounts/me":
             info = session_info(self._session_token()) or {}
             account = ACCOUNTS.by_ref(info.get("account", "")) if info else None

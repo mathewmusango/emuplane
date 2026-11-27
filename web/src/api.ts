@@ -31,6 +31,7 @@ import type {
   S3ChildListing,
   SettingsResult,
   SignInResult,
+  TrafficResult,
   UpdateMeResult,
   UploadPartsResult,
   UploadsResult,
@@ -619,6 +620,23 @@ export const api = {
   setSettings: (payload: Partial<SettingsResult>) =>
     request<SettingsResult>('/api/settings', { method: 'POST', body: payload }),
   me: () => request<MeResult>('/api/accounts/me'),
+  /** The gateway's record. Paging reads `before`, a live tail reads `since`, both by entry id. */
+  traffic: (params: {
+    since?: number
+    before?: number
+    limit?: number
+    service?: string
+    status?: string
+  } = {}) => {
+    const values: Record<string, string> = {}
+    if (params.limit) values.limit = String(params.limit)
+    if (params.since) values.since = String(params.since)
+    if (params.before) values.before = String(params.before)
+    if (params.service) values.service = params.service
+    if (params.status) values.status = params.status
+    const search = query(values)
+    return request<TrafficResult>(`/api/traffic${search ? `?${search}` : ''}`)
+  },
   updateMe: (payload: {
     name?: string
     email?: string
