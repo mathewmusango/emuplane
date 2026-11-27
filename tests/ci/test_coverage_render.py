@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import re
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -11,6 +15,26 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import coverage_engine as engine  # noqa: E402
 
 STS_PAGE = ROOT / "site" / "docs" / "reference" / "sts-coverage.md"
+CEILING = json.loads((ROOT / "compatibility.json").read_text(encoding="utf-8"))["ceiling"]
+
+
+def _source_version() -> str:
+    project = engine.README.parent / "pyproject.toml"
+    if not project.is_file():
+        return ""
+    found = re.search(
+        r'^version = "([^"]+)"', project.read_text(encoding="utf-8"), re.MULTILINE
+    )
+    return found.group(1) if found else ""
+
+
+def _ceiling_only() -> None:
+    """The pages document the ceiling; an older source has fewer advertised operations."""
+    version = _source_version()
+    if version != CEILING:
+        pytest.skip(
+            f"the coverage pages document {CEILING}; this emulator is {version or 'unknown'}"
+        )
 
 
 def test_the_single_table_honours_not_console(monkeypatch):
@@ -39,6 +63,7 @@ def test_the_published_sts_page_reads_as_out_of_scope():
 
 def test_the_map_counts_every_group_it_lists():
     """One row per group on the map, and the totals above it agree with the service pages."""
+    _ceiling_only()
     rows = engine.index_rows()
     text = engine.render_index()
     assert f"**{len(rows)} services**" in text
@@ -51,6 +76,7 @@ def test_the_map_counts_every_group_it_lists():
 
 def test_every_group_has_a_page_that_matches_its_services():
     """A group page exists even when empty, and its table is the group's services."""
+    _ceiling_only()
     for group, path, expected in engine.group_pages():
         assert path.is_file(), path
         assert engine.index_block(path) == expected

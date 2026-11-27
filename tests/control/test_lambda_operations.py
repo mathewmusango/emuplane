@@ -13,7 +13,7 @@ import zipfile
 from urllib.parse import quote, urlencode
 
 import signed
-from conftest import ACCOUNT
+from conftest import ACCOUNT, requires
 
 REGION = "us-east-1"
 ROLE_NAME = "ops-lambda"
@@ -900,3 +900,40 @@ def test_send_durable_execution_callback_heartbeat_answers_the_callback(s3_endpo
     )
     assert status == 200, text[:300]
     assert operation(s3_endpoint, arn, token, "callback")["Status"] == "STARTED"
+
+
+# --- Event invoke configs (1.5.45) -----------------------------------------
+
+
+def test_list_function_event_invoke_configs_lists_the_settings(s3_endpoint):
+    requires("lambda", "ListFunctionEventInvokeConfigs")
+    name = create(s3_endpoint, "ops-lambda-async-configs")
+    ok(
+        s3_endpoint,
+        "PUT",
+        f"/2019-09-25/functions/{name}/event-invoke-config",
+        json.dumps({"MaximumRetryAttempts": 1}),
+    )
+    answer = json.loads(
+        ok(
+            s3_endpoint,
+            "GET",
+            f"/2019-09-25/functions/{name}/event-invoke-config/list",
+        )
+    )
+    assert answer["FunctionEventInvokeConfigs"]
+
+
+def test_update_function_event_invoke_config_answers_it(s3_endpoint):
+    requires("lambda", "UpdateFunctionEventInvokeConfig")
+    name = create(s3_endpoint, "ops-lambda-async-updated")
+    ok(
+        s3_endpoint,
+        "PUT",
+        f"/2019-09-25/functions/{name}/event-invoke-config",
+        json.dumps({"MaximumRetryAttempts": 0}),
+    )
+    answer = json.loads(
+        ok(s3_endpoint, "GET", f"/2019-09-25/functions/{name}/event-invoke-config")
+    )
+    assert answer["MaximumRetryAttempts"] == 0

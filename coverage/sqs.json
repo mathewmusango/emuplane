@@ -28,11 +28,11 @@
     ]
   },
   "gui": {
-    "CreateQueue": "SQS page › Create queue",
-    "DeleteQueue": "SQS page › Delete queue",
-    "SendMessage": "SQS page › Send message",
-    "ReceiveMessage": "SQS page › Receive message",
-    "PurgeQueue": "SQS page › Purge queue"
+    "CreateQueue": "SQS page \u203a Create queue",
+    "DeleteQueue": "SQS page \u203a Delete queue",
+    "SendMessage": "SQS page \u203a Send message",
+    "ReceiveMessage": "SQS page \u203a Receive message",
+    "PurgeQueue": "SQS page \u203a Purge queue"
   },
   "not_console": {
     "ListQueues": "not a console action",
@@ -46,7 +46,10 @@
     "DeleteMessageBatch": "not a console action",
     "TagQueue": "not a console action",
     "UntagQueue": "not a console action",
-    "ListQueueTags": "not a console action"
+    "ListQueueTags": "not a console action",
+    "CancelMessageMoveTask": "not a console action",
+    "ListMessageMoveTasks": "not a console action",
+    "StartMessageMoveTask": "not a console action"
   },
   "covered": {
     "CreateQueue": "tests/control/test_sqs_operations.py",
@@ -65,6 +68,9 @@
     "DeleteMessageBatch": "tests/control/test_sqs_operations.py",
     "TagQueue": "tests/control/test_sqs_operations.py",
     "UntagQueue": "tests/control/test_sqs_operations.py",
-    "ListQueueTags": "tests/control/test_sqs_operations.py"
+    "ListQueueTags": "tests/control/test_sqs_operations.py",
+    "CancelMessageMoveTask": "tests/control/test_sqs_operations.py",
+    "ListMessageMoveTasks": "tests/control/test_sqs_operations.py",
+    "StartMessageMoveTask": "tests/control/test_sqs_operations.py"
   }
 }

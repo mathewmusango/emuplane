@@ -21,16 +21,16 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 
 *Part of the [coverage map](../coverage/index.md).*
 
-- Operations upstream advertises: **21**
+- Operations upstream advertises: **22**
 - Console actions (`/api/exec`, the create page): **4**
-- Operations with an emuplane test: **21**
+- Operations with an emuplane test: **22**
 - Operations blocked on a dependant: **0**
 - Operations shown in the console: **4**
-- Operations that are not console actions: **17**
+- Operations that are not console actions: **18**
 - GET operations (Get/List/Head/Describe) shown in the console: **1** of **6**
 - Operations with no emuplane test: **0**
 
-- Group: **Core** · operations: **21** · Console actions: **4**
+- Group: **Core** · operations: **22** · Console actions: **4**
 
 
 
@@ -50,6 +50,7 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 | `UpdateSecretVersionStage` | — | not a console action | tests/control/test_secretsmanager_operations.py |
 | `RestoreSecret` | — | not a console action | tests/control/test_secretsmanager_operations.py |
 | `RotateSecret` | — | not a console action | tests/control/test_secretsmanager_operations.py |
+| `CancelRotateSecret` | — | not a console action | tests/control/test_secretsmanager_operations.py |
 | `GetRandomPassword` | — | not a console action | tests/control/test_secretsmanager_operations.py |
 | `ListSecretVersionIds` | — | not a console action | tests/control/test_secretsmanager_operations.py |
 | `ReplicateSecretToRegions` | — | not a console action | tests/control/test_secretsmanager_operations.py |

@@ -132,6 +132,19 @@ def coverage() -> list[str]:
     if not readme.is_file() or not script.is_file():
         print("ministack-src is not checked out: skipped the coverage check")
         return []
+    project = EMULATOR / "pyproject.toml"
+    version = ""
+    if project.is_file():
+        found = re.search(
+            r'^version = "([^"]+)"',
+            project.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        version = found.group(1) if found else ""
+    ceiling = json.loads((ROOT / "compatibility.json").read_text(encoding="utf-8"))["ceiling"]
+    if version and version != ceiling:
+        print(f"coverage pages document {ceiling}: skipped on {version}")
+        return []
     result = subprocess.run([sys.executable, str(script), "--check"], cwd=ROOT)
     return (
         []

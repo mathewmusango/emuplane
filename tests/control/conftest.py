@@ -6,6 +6,7 @@ import hashlib
 import http.client
 import json
 import os
+import re
 import sys
 import threading
 import types
@@ -19,6 +20,54 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 ACCOUNT = os.environ.get("EP_LAB_ACCOUNT") or "111111111111"
 OTHER = os.environ.get("EP_LAB_ACCOUNT2") or "222222222222"
 TOKEN = "test-bearer-token"
+EMULATOR = Path(os.environ.get("EP_EMULATOR_SRC") or ROOT.parent / "ministack-src")
+LIVE_ENDPOINT = os.environ.get("EP_LAB_EMULATOR")
+_VERSION_CACHE: dict[str, str] = {}
+
+
+def emulator_version() -> str:
+    """The emulator under test: its checkout's `pyproject.toml`, or the live node's health."""
+    if "version" in _VERSION_CACHE:
+        return _VERSION_CACHE["version"]
+    version = ""
+    if LIVE_ENDPOINT:
+        try:
+            import urllib.request
+
+            with urllib.request.urlopen(
+                LIVE_ENDPOINT.rstrip("/") + "/health", timeout=5
+            ) as response:
+                version = str(
+                    json.loads(response.read().decode() or "{}").get("version") or ""
+                )
+        except Exception:
+            version = ""
+    else:
+        project = EMULATOR / "pyproject.toml"
+        if project.is_file():
+            found = re.search(
+                r'^version = "([^"]+)"',
+                project.read_text(encoding="utf-8"),
+                re.MULTILINE,
+            )
+            version = found.group(1) if found else ""
+    _VERSION_CACHE["version"] = version
+    return version
+
+
+def requires(service: str, operation: str) -> None:
+    """Skip when the emulator under test predates the operation, per the compatibility chain."""
+    version = emulator_version()
+    if not version:
+        pytest.skip("the emulator's version is unknown, so its operations cannot be decided")
+    from compatibility import load
+
+    compat = load()
+    if not compat.supports(service, operation, version):
+        pytest.skip(
+            f"{service}:{operation} arrived in {compat.since(service, operation)}; "
+            f"this emulator is {version}"
+        )
 
 
 def store_double() -> types.ModuleType:

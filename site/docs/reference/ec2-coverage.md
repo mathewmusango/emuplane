@@ -22,16 +22,16 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 
 *Part of the [coverage map](../coverage/index.md).*
 
-- Operations upstream advertises: **157**
+- Operations upstream advertises: **180**
 - Console actions (`/api/exec`, the create page): **5**
-- Operations with an emuplane test: **155**
+- Operations with an emuplane test: **178**
 - Operations blocked on a dependant: **2**
 - Operations shown in the console: **5**
-- Operations that are not console actions: **152**
-- GET operations (Get/List/Head/Describe) shown in the console: **1** of **51**
+- Operations that are not console actions: **175**
+- GET operations (Get/List/Head/Describe) shown in the console: **1** of **57**
 - Operations with no emuplane test: **0**
 
-- Group: **Infrastructure** · operations: **157** · Console actions: **5**
+- Group: **Infrastructure** · operations: **180** · Console actions: **5**
 
 
 
@@ -79,6 +79,8 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 | `DeleteVpc` | — | not a console action | tests/control/test_ec2_operations.py |
 | `DescribeVpcs` | — | not a console action | tests/control/test_ec2_operations.py |
 | `ModifyVpcAttribute` | — | not a console action | tests/control/test_ec2_operations.py |
+| `AssociateVpcCidrBlock` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DisassociateVpcCidrBlock` | — | not a console action | tests/control/test_ec2_operations.py |
 | `CreateSubnet` | — | not a console action | tests/control/test_ec2_operations.py |
 | `DeleteSubnet` | — | not a console action | tests/control/test_ec2_operations.py |
 | `DescribeSubnets` | — | not a console action | tests/control/test_ec2_operations.py |
@@ -198,5 +200,26 @@ npm run coverage   # regenerates every service's coverage page from coverage/*.j
 | `DeleteVerifiedAccessEndpoint` | — | not a console action | tests/control/test_ec2_operations.py |
 | `GetVerifiedAccessEndpointPolicy` | — | not a console action | tests/control/test_ec2_operations.py |
 | `ModifyVerifiedAccessEndpointPolicy` | — | not a console action | tests/control/test_ec2_operations.py |
+| `CreateTransitGateway` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DescribeTransitGateways` | — | not a console action | tests/control/test_ec2_operations.py |
+| `ModifyTransitGateway` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DeleteTransitGateway` | — | not a console action | tests/control/test_ec2_operations.py |
+| `CreateTransitGatewayRouteTable` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DescribeTransitGatewayRouteTables` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DeleteTransitGatewayRouteTable` | — | not a console action | tests/control/test_ec2_operations.py |
+| `CreateTransitGatewayVpcAttachment` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DescribeTransitGatewayVpcAttachments` | — | not a console action | tests/control/test_ec2_operations.py |
+| `ModifyTransitGatewayVpcAttachment` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DeleteTransitGatewayVpcAttachment` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DescribeTransitGatewayAttachments` | — | not a console action | tests/control/test_ec2_operations.py |
+| `AssociateTransitGatewayRouteTable` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DisassociateTransitGatewayRouteTable` | — | not a console action | tests/control/test_ec2_operations.py |
+| `EnableTransitGatewayRouteTablePropagation` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DisableTransitGatewayRouteTablePropagation` | — | not a console action | tests/control/test_ec2_operations.py |
+| `GetTransitGatewayRouteTableAssociations` | — | not a console action | tests/control/test_ec2_operations.py |
+| `GetTransitGatewayRouteTablePropagations` | — | not a console action | tests/control/test_ec2_operations.py |
+| `CreateTransitGatewayRoute` | — | not a console action | tests/control/test_ec2_operations.py |
+| `DeleteTransitGatewayRoute` | — | not a console action | tests/control/test_ec2_operations.py |
+| `SearchTransitGatewayRoutes` | — | not a console action | tests/control/test_ec2_operations.py |
 
 <!-- coverage:end -->

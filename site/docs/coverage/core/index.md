@@ -37,16 +37,16 @@ observability — the ones a stack is built on before anything else is called.
 | IAM | 98 | 98 | 0 | [iam-coverage](../../reference/iam-coverage.md) |
 | Inspector2 | 14 | 14 | 0 | [inspector2-coverage](../../reference/inspector2-coverage.md) |
 | KMS | 41 | 41 | 0 | [kms-coverage](../../reference/kms-coverage.md) |
-| Lambda | 55 | 55 | 0 | [lambda-coverage](../../reference/lambda-coverage.md) |
+| Lambda | 57 | 57 | 0 | [lambda-coverage](../../reference/lambda-coverage.md) |
 | Managed Service for Apache Flink | 15 | 15 | 0 | [flink-coverage](../../reference/flink-coverage.md) |
 | MSK | 17 | 17 | 0 | [msk-coverage](../../reference/msk-coverage.md) |
 | Resource Groups | 19 | 19 | 0 | [resource-groups-coverage](../../reference/resource-groups-coverage.md) |
 | S3 | 84 | 84 | 0 | [s3-coverage](../../reference/s3-coverage.md) |
-| SecretsManager | 21 | 21 | 0 | [secretsmanager-coverage](../../reference/secretsmanager-coverage.md) |
+| SecretsManager | 22 | 22 | 0 | [secretsmanager-coverage](../../reference/secretsmanager-coverage.md) |
 | SES | 35 | 35 | 0 | [ses-coverage](../../reference/ses-coverage.md) |
 | SES v2 | 46 | 46 | 0 | [sesv2-coverage](../../reference/sesv2-coverage.md) |
 | SNS | 28 | 28 | 0 | [sns-coverage](../../reference/sns-coverage.md) |
-| SQS | 17 | 17 | 0 | [sqs-coverage](../../reference/sqs-coverage.md) |
+| SQS | 20 | 20 | 0 | [sqs-coverage](../../reference/sqs-coverage.md) |
 | Step Functions | 24 | 24 | 0 | [stepfunctions-coverage](../../reference/stepfunctions-coverage.md) |
 | STS | 5 | 5 | 0 | [sts-coverage](../../reference/sts-coverage.md) |
 | Transcribe | 4 | 4 | 0 | [transcribe-coverage](../../reference/transcribe-coverage.md) |
