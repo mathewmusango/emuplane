@@ -126,6 +126,11 @@ AWS keeps S3 names unique partition-wide.
   `POST /api/refresh`, and by the poller. An inventory that cannot be read is kept
   and marked stale rather than dropped.
 
+It also keeps the **last 500 requests** in memory — method, path, resolved service
+and operation, status, duration and sizes, with header and query *values* left out —
+and that record is what the console's
+[Request inspector](../getting-started/console.md#request-inspector) reads.
+
 If the emulator is down the gateway answers `503 ServiceUnavailable` instead of
 hanging. A region the instance advertises is enabled on first use and recorded
 against the account; a region it does not advertise is always refused.

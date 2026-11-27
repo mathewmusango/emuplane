@@ -89,7 +89,11 @@ rather than as an expired session, so the two messages mean different things.
 
 Most of these are answers from the **gateway**, before the emulator is consulted
 — the entries that are not say so. Check `AWS_ENDPOINT_URL` first: it must be the
-gateway (`:4571`), not the console and not the emulator.
+gateway (`:4571`), not the console and not the emulator. When the answer is still
+not obvious, the console's
+[Request inspector](../getting-started/console.md#request-inspector) (`/traffic`)
+lists what the gateway saw — the resolved operation, status and duration — for the
+account that signed in.
 
 **`403 AccessDenied` — "region `eu-west-1` is not enabled for this account".**
 The gateway refuses a signing region the account has not enabled, before the
@@ -155,8 +159,11 @@ Four things turn a report into a fix, because each one rules out a layer:
 1. The **exact** message, quoted — the gateway's and the bootstrap job's are
    unique sentences, and this page is indexed by them.
 2. `docker compose logs bootstrap emuplane` (or `podman-compose logs`).
-3. What **About** says about the backend (reachable, id) and the version beside it.
-4. Whether the same call works **from the console**, which separates a gateway
+3. The **Request inspector** row (`/traffic`) for that call: the resolved
+   operation, status and duration, which says whether the gateway or the
+   emulator answered.
+4. What **About** says about the backend (reachable, id) and the version beside it.
+5. Whether the same call works **from the console**, which separates a gateway
    fault from an emulator one.
 
 Then open an [issue](https://github.com/mathewmusango/emuplane/issues/new/choose)
