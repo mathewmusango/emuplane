@@ -1,0 +1,199 @@
+---
+sidebar_position: 79
+title: Cognito coverage
+---
+
+Every Cognito operation the emulator advertises, and what Emuplane does with it.
+One module serves two planes: user pools on `cognito-idp`
+(`AWSCognitoIdentityProviderService.*`) and identity pools on `cognito-identity`
+(`AWSCognitoIdentityService.*`). The README row also lists the `/oauth2/token`
+path, which is a hosted-UI route rather than an operation, so the ledger excludes
+it. There is no console action.
+
+A stable pool, client and user carry the read paths, and delete actions create a
+resource of their own. `TagResource`, `UntagResource` and `ListTagsForResource`
+appear in both planes, so each is listed and tested twice. The two audit-event
+operations need a pool whose `AdvancedSecurityMode` is not `OFF`, so they use a
+second `PLUS` pool. TOTP is computed client-side with the RFC 6238 recipe
+`VerifySoftwareToken` checks. `UpdateAuthEventFeedback` has no notification-email
+token to accept, so its reachable answer is the `NotAuthorizedException` the test
+refuses.
+
+The table is generated from the emulator's own operation list; every row names
+the test that exercises it.
+
+```bash
+npm run coverage   # regenerates every service's coverage page from coverage/*.json
+```
+
+<!-- coverage:begin -->
+
+*Part of the [coverage map](../coverage/index.md).*
+
+- Operations upstream advertises: **104**
+- Console actions (`/api/exec`, the create page): **0**
+- Operations with an emuplane test: **104**
+- Operations blocked on a dependant: **0**
+- Operations shown in the console: **0**
+- Operations that are not console actions: **3**
+- GET operations (Get/List/Head/Describe) shown in the console: **0** of **32**
+- Operations with no emuplane test: **0**
+
+
+
+## User Pools
+
+
+| Operation | Console action | Shown in the console | Emuplane test |
+| --- | --- | --- | --- |
+| `CreateUserPool` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteUserPool` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeUserPool` | — | — | tests/control/test_cognito_operations.py |
+| `ListUserPools` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateUserPool` | — | — | tests/control/test_cognito_operations.py |
+| `CreateUserPoolClient` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteUserPoolClient` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeUserPoolClient` | — | — | tests/control/test_cognito_operations.py |
+| `ListUserPoolClients` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateUserPoolClient` | — | — | tests/control/test_cognito_operations.py |
+| `CreateResourceServer` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateResourceServer` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeResourceServer` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteResourceServer` | — | — | tests/control/test_cognito_operations.py |
+| `ListResourceServers` | — | — | tests/control/test_cognito_operations.py |
+| `AdminCreateUser` | — | — | tests/control/test_cognito_operations.py |
+| `AdminDeleteUser` | — | — | tests/control/test_cognito_operations.py |
+| `AdminGetUser` | — | — | tests/control/test_cognito_operations.py |
+| `ListUsers` | — | — | tests/control/test_cognito_operations.py |
+| `AdminSetUserPassword` | — | — | tests/control/test_cognito_operations.py |
+| `AdminUpdateUserAttributes` | — | — | tests/control/test_cognito_operations.py |
+| `GetUserAttributeVerificationCode` | — | — | tests/control/test_cognito_operations.py |
+| `VerifyUserAttribute` | — | — | tests/control/test_cognito_operations.py |
+| `AdminConfirmSignUp` | — | — | tests/control/test_cognito_operations.py |
+| `AdminDisableUser` | — | — | tests/control/test_cognito_operations.py |
+| `AdminEnableUser` | — | — | tests/control/test_cognito_operations.py |
+| `AdminResetUserPassword` | — | — | tests/control/test_cognito_operations.py |
+| `AdminUserGlobalSignOut` | — | — | tests/control/test_cognito_operations.py |
+| `AdminAddUserToGroup` | — | — | tests/control/test_cognito_operations.py |
+| `AdminRemoveUserFromGroup` | — | — | tests/control/test_cognito_operations.py |
+| `AdminListGroupsForUser` | — | — | tests/control/test_cognito_operations.py |
+| `AdminListUserAuthEvents` | — | — | tests/control/test_cognito_operations.py |
+| `AdminUpdateAuthEventFeedback` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateAuthEventFeedback` | — | — | tests/control/test_cognito_operations.py |
+| `AdminInitiateAuth` | — | — | tests/control/test_cognito_operations.py |
+| `AdminRespondToAuthChallenge` | — | — | tests/control/test_cognito_operations.py |
+| `InitiateAuth` | — | — | tests/control/test_cognito_operations.py |
+| `RespondToAuthChallenge` | — | — | tests/control/test_cognito_operations.py |
+| `GlobalSignOut` | — | — | tests/control/test_cognito_operations.py |
+| `RevokeToken` | — | — | tests/control/test_cognito_operations.py |
+| `SignUp` | — | — | tests/control/test_cognito_operations.py |
+| `ConfirmSignUp` | — | — | tests/control/test_cognito_operations.py |
+| `ForgotPassword` | — | — | tests/control/test_cognito_operations.py |
+| `ConfirmForgotPassword` | — | — | tests/control/test_cognito_operations.py |
+| `ChangePassword` | — | — | tests/control/test_cognito_operations.py |
+| `GetUser` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateUserAttributes` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteUser` | — | — | tests/control/test_cognito_operations.py |
+| `CreateGroup` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteGroup` | — | — | tests/control/test_cognito_operations.py |
+| `GetGroup` | — | — | tests/control/test_cognito_operations.py |
+| `ListGroups` | — | — | tests/control/test_cognito_operations.py |
+| `ListUsersInGroup` | — | — | tests/control/test_cognito_operations.py |
+| `CreateUserPoolDomain` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteUserPoolDomain` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeUserPoolDomain` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateUserPoolDomain` | — | — | tests/control/test_cognito_operations.py |
+| `SetUICustomization` | — | — | tests/control/test_cognito_operations.py |
+| `GetUICustomization` | — | — | tests/control/test_cognito_operations.py |
+| `CreateManagedLoginBranding` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeManagedLoginBranding` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeManagedLoginBrandingByClient` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateManagedLoginBranding` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteManagedLoginBranding` | — | — | tests/control/test_cognito_operations.py |
+| `GetUserPoolMfaConfig` | — | — | tests/control/test_cognito_operations.py |
+| `SetUserPoolMfaConfig` | — | — | tests/control/test_cognito_operations.py |
+| `AssociateSoftwareToken` | — | — | tests/control/test_cognito_operations.py |
+| `VerifySoftwareToken` | — | — | tests/control/test_cognito_operations.py |
+| `AdminSetUserMFAPreference` | — | — | tests/control/test_cognito_operations.py |
+| `SetUserMFAPreference` | — | — | tests/control/test_cognito_operations.py |
+| `CreateIdentityProvider` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeIdentityProvider` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateIdentityProvider` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteIdentityProvider` | — | — | tests/control/test_cognito_operations.py |
+| `ListIdentityProviders` | — | — | tests/control/test_cognito_operations.py |
+| `GetIdentityProviderByIdentifier` | — | — | tests/control/test_cognito_operations.py |
+| `AdminLinkProviderForUser` | — | — | tests/control/test_cognito_operations.py |
+| `AdminDisableProviderForUser` | — | — | tests/control/test_cognito_operations.py |
+| `TagResource` | — | — | tests/control/test_cognito_operations.py |
+| `UntagResource` | — | — | tests/control/test_cognito_operations.py |
+| `ListTagsForResource` | — | — | tests/control/test_cognito_operations.py |
+| `AddUserPoolClientSecret` | — | not a console action | tests/control/test_cognito_operations.py |
+| `DeleteUserPoolClientSecret` | — | not a console action | tests/control/test_cognito_operations.py |
+| `ListUserPoolClientSecrets` | — | not a console action | tests/control/test_cognito_operations.py |
+
+
+## Identity Pools
+
+
+| Operation | Console action | Shown in the console | Emuplane test |
+| --- | --- | --- | --- |
+| `CreateIdentityPool` | — | — | tests/control/test_cognito_operations.py |
+| `DeleteIdentityPool` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeIdentityPool` | — | — | tests/control/test_cognito_operations.py |
+| `ListIdentityPools` | — | — | tests/control/test_cognito_operations.py |
+| `UpdateIdentityPool` | — | — | tests/control/test_cognito_operations.py |
+| `GetId` | — | — | tests/control/test_cognito_operations.py |
+| `GetCredentialsForIdentity` | — | — | tests/control/test_cognito_operations.py |
+| `GetOpenIdToken` | — | — | tests/control/test_cognito_operations.py |
+| `SetIdentityPoolRoles` | — | — | tests/control/test_cognito_operations.py |
+| `GetIdentityPoolRoles` | — | — | tests/control/test_cognito_operations.py |
+| `SetPrincipalTagAttributeMap` | — | — | tests/control/test_cognito_operations.py |
+| `GetPrincipalTagAttributeMap` | — | — | tests/control/test_cognito_operations.py |
+| `ListIdentities` | — | — | tests/control/test_cognito_operations.py |
+| `DescribeIdentity` | — | — | tests/control/test_cognito_operations.py |
+| `MergeDeveloperIdentities` | — | — | tests/control/test_cognito_operations.py |
+| `UnlinkDeveloperIdentity` | — | — | tests/control/test_cognito_operations.py |
+| `UnlinkIdentity` | — | — | tests/control/test_cognito_operations.py |
+| `TagResource` | — | — | tests/control/test_cognito_operations.py |
+| `UntagResource` | — | — | tests/control/test_cognito_operations.py |
+| `ListTagsForResource` | — | — | tests/control/test_cognito_operations.py |
+
+
+## GET operations
+
+
+
+- [ ] `DescribeUserPool` — not shown
+- [ ] `ListUserPools` — not shown
+- [ ] `DescribeUserPoolClient` — not shown
+- [ ] `ListUserPoolClients` — not shown
+- [ ] `DescribeResourceServer` — not shown
+- [ ] `ListResourceServers` — not shown
+- [ ] `ListUsers` — not shown
+- [ ] `GetUserAttributeVerificationCode` — not shown
+- [ ] `GetUser` — not shown
+- [ ] `GetGroup` — not shown
+- [ ] `ListGroups` — not shown
+- [ ] `ListUsersInGroup` — not shown
+- [ ] `DescribeUserPoolDomain` — not shown
+- [ ] `GetUICustomization` — not shown
+- [ ] `DescribeManagedLoginBranding` — not shown
+- [ ] `DescribeManagedLoginBrandingByClient` — not shown
+- [ ] `GetUserPoolMfaConfig` — not shown
+- [ ] `DescribeIdentityProvider` — not shown
+- [ ] `ListIdentityProviders` — not shown
+- [ ] `GetIdentityProviderByIdentifier` — not shown
+- [ ] `ListTagsForResource` — not shown
+- [ ] `DescribeIdentityPool` — not shown
+- [ ] `ListIdentityPools` — not shown
+- [ ] `GetId` — not shown
+- [ ] `GetCredentialsForIdentity` — not shown
+- [ ] `GetOpenIdToken` — not shown
+- [ ] `GetIdentityPoolRoles` — not shown
+- [ ] `GetPrincipalTagAttributeMap` — not shown
+- [ ] `ListIdentities` — not shown
+- [ ] `DescribeIdentity` — not shown
+- [ ] `ListTagsForResource` — not shown
+- [ ] `ListUserPoolClientSecrets` — not shown
+
+<!-- coverage:end -->
