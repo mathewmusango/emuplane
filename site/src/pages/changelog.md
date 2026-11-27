@@ -4,6 +4,13 @@ description: Every release, and what it changed.
 hide_table_of_contents: false
 ---
 
+## [v0.12.0] - 2026-11-27
+
+### Added
+
+- Declare the MiniStack support window as a per-version compatibility chain ([#361](https://github.com/mathewmusango/emuplane/issues/361)) ([dc81ddb](https://github.com/mathewmusango/emuplane/commit/dc81ddb2704ccd3625ec1e3ae5344cb383732602))
+- Make the suite green across MiniStack 1.5.41–1.5.45 ([#364](https://github.com/mathewmusango/emuplane/issues/364)) ([2482bef](https://github.com/mathewmusango/emuplane/commit/2482befd36a1f23f6162a568ad14d049e5c4ae31))
+
 ## [v0.11.0] - 2026-11-27
 
 ### Added

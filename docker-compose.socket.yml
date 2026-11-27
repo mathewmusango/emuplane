@@ -34,7 +34,7 @@ x-emuplane: &emuplane
   EP_CONSOLE_URL: "${EP_CONSOLE_URL:-http://localhost:4570}"
   EP_GATEWAY_URL: "${EP_GATEWAY_URL:-http://localhost:4571}"
   # Stamped by release-plan, like the image tag below.
-  EP_VERSION: "0.11.0"
+  EP_VERSION: "0.12.0"
   EP_POLL_SECONDS: "${EP_POLL_SECONDS:-10}"
   EP_SESSION_SECONDS: "${EP_SESSION_SECONDS:-28800}"
   EP_RECENT_LIMIT: "${EP_RECENT_LIMIT:-5}"
@@ -68,7 +68,7 @@ services:
 
   # First-setup job: applies bootstrap/template.yml as the `emuplane` stack.
   bootstrap:
-    image: "ghcr.io/mathewmusango/emuplane:0.11.0"
+    image: "ghcr.io/mathewmusango/emuplane:0.12.0"
     command: ["python", "/app/bootstrap/apply.py"]
     restart: "no"
     environment:
@@ -85,7 +85,7 @@ services:
       - no-new-privileges:true
 
   emuplane:
-    image: "ghcr.io/mathewmusango/emuplane:0.11.0"
+    image: "ghcr.io/mathewmusango/emuplane:0.12.0"
     restart: "no"
     depends_on:
       ministack:
