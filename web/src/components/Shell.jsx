@@ -22,6 +22,8 @@ const navItems = () => [
   { type: 'link', text: 'Home', href: '/' },
   { type: 'link', text: 'All services', href: '/services' },
   { type: 'divider' },
+  { type: 'link', text: 'Request inspector', href: '/traffic' },
+  { type: 'divider' },
   ...accountItems(),
 ]
 

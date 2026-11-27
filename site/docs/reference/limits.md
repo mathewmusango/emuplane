@@ -25,6 +25,14 @@ emulator, and where each of those rules lives.
   enablement and MFA delete are not enforced for a client that reaches the
   emulator directly. The shipped composition publishes no emulator port for that
   reason; a lab that publishes `4566` reopens the hole.
+- **The request inspector holds the last 500 requests in memory, and nothing
+  more.** It is the gateway's own record: the emulator's internal calls and any
+  client that bypasses the gateway are absent, a restart starts it empty, and a
+  request appears when it finishes, not while it runs. Header values, query
+  values and bodies are never kept — only their names and sizes — so a token, a
+  cookie or a signature cannot be read back from the page. A signed-in session
+  sees its own account's traffic; only the deployment's bearer token sees every
+  account.
 
 ## The console menu
 

@@ -46,7 +46,7 @@ COPY --chown=10001:10001 --from=web /src/dist /app/static
 COPY --chown=10001:10001 control/app.py control/accesspoints.py control/buckets.py \
      control/console.py control/dynamo.py control/signed.py \
      control/s3extra.py control/store.py control/api_token.py control/password.py \
-     control/backends.py control/mail.py control/totp.py /app/
+     control/backends.py control/mail.py control/totp.py control/traffic.py /app/
 # The first-setup job, so `docker compose run bootstrap` needs no mount or checkout.
 COPY --chown=10001:10001 bootstrap /app/bootstrap
 
