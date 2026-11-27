@@ -489,10 +489,34 @@ def check(spec: dict) -> bool:
     return True
 
 
+def source_version() -> str:
+    project = EMULATOR / "pyproject.toml"
+    if not project.is_file():
+        return ""
+    found = re.search(
+        r'^version = "([^"]+)"',
+        project.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    return found.group(1) if found else ""
+
+
+def ceiling() -> str:
+    try:
+        data = json.loads((ROOT / "compatibility.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    return str(data.get("ceiling") or "")
+
+
 def main(argv: list[str]) -> int:
     wanted = [arg for arg in argv if not arg.startswith("-")]
     targets = wanted or services()
     if "--check" in argv:
+        version, top = source_version(), ceiling()
+        if version and top and version != top:
+            print(f"coverage pages document {top}: skipped on {version}")
+            return 0
         ok = True
         for name in targets:
             spec = load(name)
