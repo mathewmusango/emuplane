@@ -657,7 +657,8 @@ def test_get_function_event_invoke_config_reports_the_settings(s3_endpoint):
         ok(s3_endpoint, "GET", f"/2019-09-25/functions/{name}/event-invoke-config")
     )
     assert answer["MaximumEventAgeInSeconds"] == 60
-    assert answer["FunctionArn"] == function_arn(name)
+    # 1.5.45 qualifies the ARN with $LATEST; the older releases answered it bare.
+    assert answer["FunctionArn"].startswith(function_arn(name))
 
 
 def test_delete_function_event_invoke_config_removes_the_config_it_created(s3_endpoint):

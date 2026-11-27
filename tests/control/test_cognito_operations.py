@@ -1326,6 +1326,8 @@ def test_get_identity_provider_by_identifier_reads_it(endpoint):
 def test_admin_link_provider_for_user_links_it(endpoint):
     pool_id = ensure_pool(endpoint)
     ensure_user(endpoint)
+    # 1.5.43 checks SourceProviderName against the pool's configured providers.
+    ensure_identity_provider(endpoint)
     assert idp(
         endpoint,
         "AdminLinkProviderForUser",
@@ -1336,7 +1338,7 @@ def test_admin_link_provider_for_user_links_it(endpoint):
             "ProviderAttributeValue": USERNAME,
         },
         SourceUser={
-            "ProviderName": "Facebook",
+            "ProviderName": IDP_NAME,
             "ProviderAttributeName": "Cognito_Subject",
             "ProviderAttributeValue": f"facebook-{RUN}",
         },
